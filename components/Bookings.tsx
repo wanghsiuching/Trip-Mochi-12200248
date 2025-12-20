@@ -1,0 +1,964 @@
+
+import React, { useState } from 'react';
+import { Plane, Bed, Car, Plus, MapPin, Compass, House, PenTool, Briefcase, Info, Luggage, Navigation, Leaf, Link as LinkIcon, X, Calendar as CalendarIcon, ArrowRightLeft, Users } from 'lucide-react';
+import { BookingFlight, BookingAccommodation, BookingCarRental, BookingTicket, Currency, Member } from '../types';
+import { ToggleSwitch } from './Modals';
+
+interface BookingsViewProps {
+  flights: BookingFlight[];
+  accommodations: BookingAccommodation[];
+  carRental: BookingCarRental;
+  tickets: BookingTicket[];
+  currencies: Currency[];
+  members: Member[];
+  onAddFlight: (flight: BookingFlight) => void;
+  onUpdateFlight: (flight: BookingFlight) => void;
+  onDeleteFlight: (id: number) => void;
+  onUpdateAccommodation: (acc: BookingAccommodation) => void;
+  onDeleteAccommodation: (id: number) => void;
+  onAddAccommodation: (acc: BookingAccommodation) => void;
+  onUpdateCar: (car: BookingCarRental) => void;
+  onAddTicket: (ticket: BookingTicket) => void;
+  onUpdateTicket: (ticket: BookingTicket) => void;
+  onDeleteTicket: (id: number) => void;
+}
+
+export const BookingsView: React.FC<BookingsViewProps> = ({ 
+    flights, accommodations, carRental, tickets, currencies, members,
+    onAddFlight, onUpdateFlight, onDeleteFlight, 
+    onUpdateAccommodation, onDeleteAccommodation, onAddAccommodation, 
+    onUpdateCar, onAddTicket, onUpdateTicket, onDeleteTicket 
+}) => {
+  const [subTab, setSubTab] = useState<'flight' | 'hotel' | 'car'>('flight');
+
+  // Modal states
+  const [showFlightModal, setShowFlightModal] = useState(false);
+  const [editingFlight, setEditingFlight] = useState<BookingFlight | null>(null);
+
+  const [showAccModal, setShowAccModal] = useState(false);
+  const [editingAcc, setEditingAcc] = useState<BookingAccommodation | null>(null);
+  
+  const [showCarModal, setShowCarModal] = useState(false);
+  const [editingCar, setEditingCar] = useState<BookingCarRental | null>(null);
+
+  // Helper for Cost Calculation
+  const calculateTotal = (cost: number, hasFee: boolean, feePct: number) => {
+      if (!hasFee) return cost;
+      return cost + (cost * feePct / 100);
+  };
+
+  // Helper for Exchange Rate
+  const getExchangeRate = (code: string) => currencies.find(c => c.code === code)?.rate || 1;
+
+  // --- Flight Logic ---
+  const openFlightEdit = (flight?: BookingFlight) => {
+      if (flight) {
+          setEditingFlight({ ...flight });
+      } else {
+          // Default empty flight
+          const newFlight: BookingFlight = {
+              id: Date.now(),
+              airline: '',
+              code: '',
+              date: new Date().toISOString().slice(0, 16), // Departure Datetime
+              origin: 'TPE',
+              originCity: '台北',
+              dest: 'PUS',
+              destCity: '釜山',
+              depTime: '00:00',
+              arrTime: '00:00',
+              duration: '2h 0m',
+              aircraft: '',
+              checkedBag: '',
+              carryOnBag: '',
+              baggage: '',
+              price: '',
+              color: 'bg-blue-500', 
+              purchaseDate: new Date().toISOString().split('T')[0],
+              platform: '',
+              type: '來回', 
+              tripType: 'roundtrip',
+              cost: 0,
+              currency: 'TWD',
+              hasServiceFee: false,
+              serviceFeePercentage: 0,
+              participants: members.map(m => m.id),
+              note: '',
+              departureAirport: '',
+              arrivalAirport: ''
+          };
+          setEditingFlight(newFlight);
+      }
+      setShowFlightModal(true);
+  };
+
+  const saveFlight = () => {
+      if(editingFlight) {
+          if (flights.find(f => f.id === editingFlight.id)) {
+             onUpdateFlight(editingFlight);
+          } else {
+             onAddFlight(editingFlight);
+          }
+          setShowFlightModal(false);
+      }
+  };
+
+  const deleteFlight = () => {
+      if (editingFlight && window.confirm('確定刪除此航班？')) {
+          onDeleteFlight(editingFlight.id);
+          setShowFlightModal(false);
+      }
+  };
+
+  const toggleFlightParticipant = (id: string) => {
+      if (!editingFlight) return;
+      const current = editingFlight.participants || [];
+      const updated = current.includes(id) 
+          ? current.filter(p => p !== id) 
+          : [...current, id];
+      setEditingFlight({ ...editingFlight, participants: updated });
+  };
+
+  // --- Accommodation Logic ---
+  const openAccEdit = (acc?: BookingAccommodation) => {
+      if(acc) {
+          setEditingAcc({ ...acc, photos: acc.photos || [] });
+      } else {
+          // Set default checkin to today 15:00, checkout tomorrow 11:00
+          const today = new Date();
+          today.setHours(15, 0, 0, 0);
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          tomorrow.setHours(11, 0, 0, 0);
+
+          const timeOffset = today.getTimezoneOffset() * 60000;
+          const localToday = new Date(today.getTime() - timeOffset).toISOString().slice(0, 16);
+          const localTomorrow = new Date(tomorrow.getTime() - timeOffset).toISOString().slice(0, 16);
+
+          setEditingAcc({ 
+              id: Date.now(), 
+              name: '', 
+              city: '釜山', 
+              platform: '',
+              ref: '',
+              address: '',
+              gps: '',
+              url: '',
+              
+              checkInDate: localToday, 
+              checkOutDate: localTomorrow,
+              checkInTime: '15:00', // Legacy, can be ignored in UI if using datetime
+              latestCheckInTime: '22:00',
+              checkOutTime: '11:00', // Legacy
+              checkIn: '15:00',
+              nights: 1,
+              
+              cost: 0,
+              currency: 'TWD',
+              hasServiceFee: false,
+              serviceFeePercentage: 0,
+              participants: members.map(m => m.id),
+              
+              pax: 2,
+              photos: [],
+              note: ''
+          });
+      }
+      setShowAccModal(true);
+  };
+
+  const saveAcc = () => {
+      if(!editingAcc) return;
+      if(accommodations.find(a => a.id === editingAcc.id)) {
+          onUpdateAccommodation(editingAcc);
+      } else {
+          onAddAccommodation(editingAcc);
+      }
+      setShowAccModal(false);
+  };
+
+  const toggleAccParticipant = (id: string) => {
+      if (!editingAcc) return;
+      const current = editingAcc.participants || [];
+      const updated = current.includes(id) 
+          ? current.filter(p => p !== id) 
+          : [...current, id];
+      setEditingAcc({ ...editingAcc, participants: updated });
+  };
+
+  const openNav = (address: string, gps?: string) => {
+      const query = gps || address;
+      if (query) {
+          window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank');
+      }
+  };
+
+  // --- Car Logic ---
+  const openCarEdit = () => {
+      // Use existing car rental data or create a default template
+      const initialCar: BookingCarRental = (carRental && carRental.company) ? { ...carRental } : { 
+          company: '', platform: '', carModel: '', ref: '', 
+          pickupDate: new Date().toISOString().split('T')[0], pickupTime: '10:00', pickupLocation: '', 
+          returnDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], returnTime: '10:00', returnLocation: '', 
+          gps: '', url: '', note: '', 
+          price: 0, currency: 'TWD', hasServiceFee: false, serviceFeePercentage: 0, 
+          pax: 4, participants: members.map(m => m.id),
+          hasRental: true
+      };
+      setEditingCar(initialCar);
+      setShowCarModal(true);
+  };
+
+  const saveCar = () => {
+      if (!editingCar) return;
+      onUpdateCar(editingCar);
+      setShowCarModal(false);
+  };
+
+  const toggleCarParticipant = (id: string) => {
+      if (!editingCar) return;
+      const current = editingCar.participants || [];
+      const updated = current.includes(id) 
+          ? current.filter(p => p !== id) 
+          : [...current, id];
+      setEditingCar({ ...editingCar, participants: updated });
+  };
+
+  return (
+    <div className="w-full lg:p-0">
+        {/* Sticky Header Tabs */}
+        <div className="sticky top-0 z-30 bg-beige/95 backdrop-blur-md px-4 py-3 border-b border-beige-dark/50 mb-5 lg:static lg:bg-transparent lg:p-0 lg:border-none lg:mb-8">
+            <div className="bg-white p-1.5 rounded-full flex text-sm font-bold text-gray-400 border-2 border-beige-dark shadow-sm w-full max-w-lg mx-auto lg:mx-0">
+                {[
+                    { id: 'flight', label: '機票', icon: Plane },
+                    { id: 'hotel', label: '住宿', icon: Bed },
+                    { id: 'car', label: '租車', icon: Car }
+                ].map((tab) => {
+                    const Icon = tab.icon;
+                    return (
+                        <button 
+                            key={tab.id}
+                            onClick={() => setSubTab(tab.id as any)} 
+                            className={`flex-1 py-2.5 rounded-full transition-all flex items-center justify-center gap-1.5 
+                                ${subTab === tab.id 
+                                ? 'bg-sage text-white shadow-md' 
+                                : 'hover:bg-sage-light text-gray-400'}`}
+                        >
+                            <Icon size={14} />
+                            <span className="text-xs sm:text-sm">{tab.label}</span>
+                        </button>
+                    )
+                })}
+            </div>
+        </div>
+
+        <div className="px-4 pb-20 lg:p-0 lg:pb-0 min-h-[50vh]">
+            {/* --- FLIGHT TAB --- */}
+            {subTab === 'flight' && (
+                <div className="grid grid-cols-1 xl:grid-cols-1 gap-6 animate-scale-in">
+                    <div className="mb-2 lg:mb-4 lg:flex lg:justify-end">
+                        <button onClick={() => openFlightEdit()} className="w-full lg:w-auto lg:px-6 py-3 rounded-2xl border-2 border-dashed border-gray-300 text-gray-400 font-black hover:bg-white hover:border-sage transition-all flex items-center justify-center gap-2">
+                            <Plus size={16}/> 新增機票
+                        </button>
+                    </div>
+                    {flights.map((flight) => {
+                         const totalCost = calculateTotal(flight.cost, flight.hasServiceFee, flight.serviceFeePercentage);
+                         const perPersonCost = Math.round(totalCost / (flight.participants?.length || 1));
+                         // Format date for display
+                         const displayDate = flight.date ? new Date(flight.date).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit' }) : '';
+                         const displayReturnDate = flight.returnDate ? new Date(flight.returnDate).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute:'2-digit' }) : '';
+
+                         return (
+                         <div key={flight.id} className="group">
+                            {/* Card Display */}
+                            <div className="bg-white rounded-[2rem] shadow-hard-sm border-2 border-beige-dark overflow-hidden relative transition-all hover:shadow-lg flex flex-col">
+                                <div className="flex-[3] p-6 lg:p-8 flex flex-col justify-between relative">
+                                    {/* Header (Same for both single and round) */}
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div className="flex items-center gap-4">
+                                            <div className={`w-1.5 h-12 rounded-full ${flight.color}`}></div>
+                                            <div>
+                                                <div className="text-sm font-bold text-gray-400 tracking-wider uppercase mb-0.5">{flight.airline}</div>
+                                                <h3 className="text-4xl lg:text-5xl font-black text-cocoa font-mono tracking-wide select-all cursor-text hover:bg-yellow-50 px-2 -ml-2 rounded-lg transition-colors">{flight.code}</h3>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="mt-1 text-[10px] font-bold bg-beige/50 text-gray-400 px-3 py-1.5 rounded-lg inline-block border border-beige-dark uppercase tracking-widest">
+                                                {flight.tripType === 'roundtrip' ? '回程機票' : '單程機票'}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* --- TICKET 1: Outbound --- */}
+                                    <div className={`relative bg-gray-50 rounded-2xl p-4 border border-beige-dark ${flight.tripType === 'roundtrip' ? 'mb-4' : ''}`}>
+                                        <div className="absolute top-0 left-4 -translate-y-1/2 bg-white px-2 text-[10px] font-black text-gray-400 tracking-widest uppercase border border-beige-dark rounded-md">去程</div>
+                                        
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div className="flex flex-col">
+                                                <span className="text-2xl font-black text-cocoa font-mono">{flight.origin}</span>
+                                                <span className="text-xs font-bold text-sage bg-sage-light px-2 py-0.5 rounded-md inline-block mt-1 w-max">{flight.originCity}</span>
+                                            </div>
+                                            
+                                            <div className="flex flex-col items-center px-4 flex-1">
+                                                <div className="text-[10px] font-bold text-gray-400 mb-1 tracking-widest">{flight.duration}</div>
+                                                <div className="w-full flex items-center gap-1">
+                                                    <div className="w-1 h-1 rounded-full bg-gray-300"></div>
+                                                    <div className="h-0.5 flex-1 bg-gray-300 relative">
+                                                        <Plane className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 ${flight.color.replace('bg-', 'text-')} rotate-90 bg-gray-50 rounded-full border border-gray-200 p-0.5`} />
+                                                    </div>
+                                                    <div className="w-1 h-1 rounded-full bg-gray-300"></div>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex flex-col text-right">
+                                                <span className="text-2xl font-black text-cocoa font-mono">{flight.dest}</span>
+                                                <span className="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md inline-block mt-1 w-max ml-auto">{flight.destCity}</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-center bg-white border border-dashed border-gray-300 rounded-lg py-1">
+                                            <span className="text-xs font-black text-cocoa">{displayDate}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* --- TICKET 2: Inbound (Only if Round Trip) --- */}
+                                    {flight.tripType === 'roundtrip' && (
+                                        <div className="relative bg-gray-50 rounded-2xl p-4 border border-beige-dark">
+                                            <div className="absolute top-0 left-4 -translate-y-1/2 bg-white px-2 text-[10px] font-black text-gray-400 tracking-widest uppercase border border-beige-dark rounded-md">回程</div>
+                                            
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div className="flex flex-col">
+                                                    <span className="text-2xl font-black text-cocoa font-mono">{flight.dest}</span>
+                                                    <span className="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md inline-block mt-1 w-max">{flight.destCity}</span>
+                                                </div>
+                                                
+                                                <div className="flex flex-col items-center px-4 flex-1">
+                                                    <div className="text-[10px] font-bold text-gray-400 mb-1 tracking-widest opacity-50">RETURN</div>
+                                                    <div className="w-full flex items-center gap-1">
+                                                        <div className="w-1 h-1 rounded-full bg-gray-300"></div>
+                                                        <div className="h-0.5 flex-1 bg-gray-300 relative">
+                                                            <ArrowRightLeft className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 bg-gray-50 rounded-full p-0.5" />
+                                                        </div>
+                                                        <div className="w-1 h-1 rounded-full bg-gray-300"></div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex flex-col text-right">
+                                                    <span className="text-2xl font-black text-cocoa font-mono">{flight.origin}</span>
+                                                    <span className="text-xs font-bold text-sage bg-sage-light px-2 py-0.5 rounded-md inline-block mt-1 w-max ml-auto">{flight.originCity}</span>
+                                                </div>
+                                            </div>
+                                            <div className="text-center bg-white border border-dashed border-gray-300 rounded-lg py-1">
+                                                <span className="text-xs font-black text-cocoa">{displayReturnDate}</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="relative w-full h-0 border-t-2 border-dashed border-beige-dark flex justify-between items-center">
+                                    <div className="absolute -left-3 -top-3 w-6 h-6 bg-beige rounded-full border-r-2 border-beige-dark"></div>
+                                    <div className="absolute -right-3 -top-3 w-6 h-6 bg-beige rounded-full border-l-2 border-beige-dark"></div>
+                                </div>
+
+                                <div className="bg-gray-50 p-4 lg:p-6 flex flex-col justify-between relative group/edit">
+                                    <button onClick={() => openFlightEdit(flight)} className="absolute -top-4 right-6 w-8 h-8 rounded-full bg-white border-2 border-beige-dark text-gray-300 flex items-center justify-center hover:bg-sage hover:border-sage hover:text-white transition-all shadow-sm z-20"><PenTool size={14}/></button>
+                                    <div className="space-y-3 mt-1">
+                                        <div className="flex gap-4 border-b border-beige-dark pb-3 border-dashed">
+                                             {flight.checkedBag && (
+                                                 <div className="flex flex-col">
+                                                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">CHECKED</span>
+                                                     <div className="text-sm font-black text-cocoa flex items-center gap-1.5"><Luggage size={14} className="text-teal-500"/> {flight.checkedBag}</div>
+                                                 </div>
+                                             )}
+                                             {flight.carryOnBag && (
+                                                 <div className="flex flex-col">
+                                                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">CARRY-ON</span>
+                                                     <div className="text-sm font-black text-cocoa flex items-center gap-1.5"><Briefcase size={14} className="text-orange-400"/> {flight.carryOnBag}</div>
+                                                 </div>
+                                             )}
+                                             <div className="ml-auto flex flex-col items-end">
+                                                 <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">AIRCRAFT</span>
+                                                 <div className="text-sm font-black text-cocoa flex items-center gap-1.5">{flight.aircraft} <Plane size={14} className="text-gray-400"/></div>
+                                             </div>
+                                        </div>
+                                        <div className="flex justify-between items-end">
+                                             <div>
+                                                 <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">TOTAL COST</span>
+                                                 <div className="flex flex-col">
+                                                     <div className="flex items-baseline gap-1">
+                                                         <span className="text-sm font-black text-cocoa font-mono">{flight.currency} {totalCost.toLocaleString()}</span>
+                                                         {flight.currency !== 'TWD' && (
+                                                             <span className="text-[10px] text-gray-400 font-bold ml-1">
+                                                                 (≈ TWD {Math.round(totalCost * getExchangeRate(flight.currency)).toLocaleString()})
+                                                             </span>
+                                                         )}
+                                                     </div>
+                                                     {flight.participants && flight.participants.length > 0 && (
+                                                         <div className="flex items-center gap-1 mt-1">
+                                                             <span className="text-[10px] text-white bg-sage px-1.5 py-0.5 rounded font-bold">
+                                                                 {flight.participants.length} 人分攤
+                                                             </span>
+                                                             <span className="text-[10px] text-sage font-bold">
+                                                                 每人: {flight.currency} {perPersonCost.toLocaleString()}
+                                                             </span>
+                                                         </div>
+                                                     )}
+                                                 </div>
+                                             </div>
+                                             <div className="text-right">
+                                                 <div className="text-[10px] text-gray-400 font-bold">Purchased: {flight.purchaseDate}</div>
+                                                 <div className="text-[10px] text-gray-400 font-bold opacity-70">{flight.platform}</div>
+                                             </div>
+                                        </div>
+                                        {flight.note && <div className="bg-white p-2 rounded-xl border border-beige-dark text-[10px] font-bold text-gray-400 flex items-center gap-1"><Info size={12} className="text-yellow-500"/> {flight.note}</div>}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )})}
+                    {flights.length === 0 && (
+                        <div className="text-center py-12 bg-white rounded-[2rem] border-2 border-dashed border-gray-300">
+                            <Plane size={40} className="mx-auto mb-3 text-gray-300" />
+                            <p className="text-cocoa font-black">尚未新增航班</p>
+                            <p className="text-xs text-gray-400 mt-1">點擊上方按鈕開始新增</p>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ... other tabs code remains the same ... */}
+            
+            {subTab === 'hotel' && (
+                <div className="animate-scale-in">
+                    <div className="mb-4 lg:mb-6 lg:flex lg:justify-end">
+                        <button onClick={() => openAccEdit()} className="w-full lg:w-auto lg:px-6 py-3 rounded-2xl border-2 border-dashed border-gray-300 text-gray-400 font-black hover:bg-white hover:border-sage transition-all flex items-center justify-center gap-2">
+                            <Plus size={16}/> 新增住宿
+                        </button>
+                    </div>
+                    {/* Accommodation List */}
+                    {accommodations.length === 0 && <div className="text-center py-12 bg-white rounded-[2rem] border-2 border-dashed border-gray-300"><Bed size={40} className="mx-auto mb-3 text-gray-300" /><p className="text-cocoa font-black">尚未新增住宿</p></div>}
+                    {accommodations.map(acc => {
+                        const totalCost = calculateTotal(acc.cost, acc.hasServiceFee, acc.serviceFeePercentage);
+                        const perPerson = Math.round(totalCost / (acc.participants.length || 1));
+                        
+                        // Parse datetimes for display
+                        const checkInDisplay = new Date(acc.checkInDate).toLocaleDateString('zh-TW', {month:'numeric', day:'numeric'}) + ' ' + new Date(acc.checkInDate).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                        const checkOutDisplay = new Date(acc.checkOutDate).toLocaleDateString('zh-TW', {month:'numeric', day:'numeric'}) + ' ' + new Date(acc.checkOutDate).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+                        return (
+                        <div key={acc.id} onClick={() => openAccEdit(acc)} className="bg-white rounded-[2.5rem] overflow-hidden shadow-hard-sm border-2 border-beige-dark flex flex-col group transition-all hover:shadow-lg cursor-pointer active:scale-[0.99] mb-6 relative">
+                            {/* ... accommodation card content ... */}
+                            <div className="h-48 relative bg-gray-100 border-b-2 border-dashed border-beige-dark">
+                                <div className="w-full h-full flex items-center justify-center bg-beige"><Bed size={48} className="text-gray-300"/></div>
+                                <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-black text-cocoa shadow-sm border border-beige-dark flex items-center gap-1">
+                                    <Leaf size={12} className="text-sage"/>
+                                    {acc.platform || 'Booking'}
+                                </div>
+                                <div className="absolute bottom-0 w-full h-4 bg-white rounded-t-[2rem]"></div>
+                            </div>
+
+                            {/* Body Section */}
+                            <div className="px-6 pt-2 pb-6">
+                                <div className="flex justify-between items-start mb-2">
+                                    <div>
+                                        <h3 className="text-xl font-black text-cocoa leading-tight mb-1">{acc.name}</h3>
+                                        <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
+                                            <span className="bg-sage-light text-sage px-2 py-0.5 rounded-md">{acc.city}</span>
+                                            <span>{acc.nights} Nights</span>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-2xl font-black text-cocoa font-mono">{acc.currency} {totalCost.toLocaleString()}</div>
+                                        {acc.currency !== 'TWD' && (
+                                            <div className="text-[10px] font-bold text-gray-400 font-mono">≈ TWD {Math.round(totalCost * getExchangeRate(acc.currency)).toLocaleString()}</div>
+                                        )}
+                                        <div className="text-[10px] font-bold text-gray-400">Total (Inc. Tax)</div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-gray-50 rounded-2xl p-4 border border-beige-dark flex justify-between items-center my-4 relative">
+                                    <div className="text-center pl-2">
+                                        <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">CHECK-IN</div>
+                                        <div className="text-sm font-black text-cocoa">{checkInDisplay}</div>
+                                    </div>
+                                    <div className="flex-1 border-b-2 border-dashed border-gray-300 mx-4 relative top-[-10px]">
+                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-50 px-2 text-gray-300">
+                                            <House size={14}/>
+                                        </div>
+                                    </div>
+                                    <div className="text-center pr-2">
+                                        <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">CHECK-OUT</div>
+                                        <div className="text-sm font-black text-cocoa">{checkOutDisplay}</div>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
+                                        <MapPin size={14} className="text-sage"/>
+                                        <span className="truncate flex-1">{acc.address}</span>
+                                        <button onClick={(e) => {e.stopPropagation(); openNav(acc.address, acc.gps)}} className="text-sage hover:text-sage-dark"><Navigation size={14}/></button>
+                                    </div>
+                                    {acc.url && (
+                                        <a href={acc.url} target="_blank" onClick={e => e.stopPropagation()} className="flex items-center gap-2 text-xs font-bold text-blue-400 hover:underline">
+                                            <LinkIcon size={14}/> 訂房連結 / 官網
+                                        </a>
+                                    )}
+                                    {/* Added Note Display */}
+                                    {acc.note && (
+                                        <div className="flex items-start gap-2 text-[10px] font-bold text-orange-400 bg-orange-50 p-2 rounded-lg border border-orange-100 mt-2">
+                                            <Info size={12} className="flex-shrink-0 mt-0.5"/>
+                                            <span>{acc.note}</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Footer Breakdown */}
+                                <div className="mt-4 pt-4 border-t-2 border-dashed border-beige-dark flex justify-between items-center">
+                                    <div className="flex -space-x-2">
+                                        {acc.participants.slice(0, 3).map((pid, i) => (
+                                            <div key={i} className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-gray-500">
+                                                {members.find(m => m.id === pid)?.name[0]}
+                                            </div>
+                                        ))}
+                                        {(acc.participants.length > 3) && <div className="w-6 h-6 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[8px] font-bold">+{acc.participants.length - 3}</div>}
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-[10px] font-bold text-gray-400 uppercase">每人分攤金額</div>
+                                        <div className="text-sm font-black text-sage font-mono">{acc.currency} {perPerson.toLocaleString()}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )})}
+                </div>
+            )}
+            
+            {subTab === 'car' && (
+               <div className="animate-scale-in">
+                   {/* ... Car Rental Code ... */}
+                   <div className="mb-4 lg:mb-6 lg:flex lg:justify-end">
+                        <button 
+                            onClick={openCarEdit}
+                            className="w-full lg:w-auto lg:px-6 py-3 rounded-2xl border-2 border-dashed border-gray-300 text-gray-400 font-black hover:bg-white hover:border-sage transition-all flex items-center justify-center gap-2"
+                        >
+                            {carRental?.company ? <PenTool size={16}/> : <Plus size={16}/>} {carRental?.company ? '編輯租車' : '新增租車'}
+                        </button>
+                   </div>
+
+                   {carRental?.company ? (
+                       <div className="w-full bg-white rounded-[2.5rem] overflow-hidden shadow-hard-sm border-2 border-beige-dark flex flex-col group relative">
+                            {/* Header */}
+                            <div className="bg-blue-50 p-6 border-b-2 border-dashed border-blue-100 flex justify-between items-center relative">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-3 bg-white rounded-2xl shadow-sm text-blue-500"><Car size={24}/></div>
+                                    <div>
+                                        <span className="text-[10px] font-black text-blue-400 tracking-widest uppercase block mb-0.5">RENTAL CAR</span>
+                                        <h3 className="text-2xl font-black text-cocoa leading-none">{carRental.company}</h3>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    <span className="bg-white text-blue-500 px-3 py-1 rounded-full text-xs font-black shadow-sm border border-blue-100">{carRental.platform || 'Rental'}</span>
+                                    <div className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">{carRental.carModel}</div>
+                                </div>
+                            </div>
+
+                            <div className="p-6">
+                                {/* Times */}
+                                <div className="flex items-center justify-between mb-6 relative">
+                                    <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-100 -z-0"></div>
+                                    <div className="bg-white z-10 pr-4">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1">PICK-UP</span>
+                                        <div className="text-lg font-black text-cocoa">{carRental.pickupDate}</div>
+                                        <div className="text-xs font-bold text-blue-500">{carRental.pickupTime}</div>
+                                    </div>
+                                    <div className="bg-white z-10 px-2">
+                                        <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-400 flex items-center justify-center border-2 border-blue-100">
+                                            <Compass size={16}/>
+                                        </div>
+                                    </div>
+                                    <div className="bg-white z-10 pl-4 text-right">
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1">RETURN</span>
+                                        <div className="text-lg font-black text-cocoa">{carRental.returnDate}</div>
+                                        <div className="text-xs font-bold text-orange-400">{carRental.returnTime}</div>
+                                    </div>
+                                </div>
+
+                                {/* Locations */}
+                                <div className="space-y-3 mb-6">
+                                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-beige-dark">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-2 h-2 rounded-full bg-blue-400"></div>
+                                            <div>
+                                                <span className="text-[10px] font-bold text-gray-400 block uppercase">Pick-up Location</span>
+                                                <span className="text-sm font-bold text-cocoa">{carRental.pickupLocation}</span>
+                                            </div>
+                                        </div>
+                                        <button onClick={() => openNav(carRental.pickupLocation)} className="text-blue-400 hover:text-blue-600"><Navigation size={16}/></button>
+                                    </div>
+                                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-beige-dark">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                                            <div>
+                                                <span className="text-[10px] font-bold text-gray-400 block uppercase">Return Location</span>
+                                                <span className="text-sm font-bold text-cocoa">{carRental.returnLocation}</span>
+                                            </div>
+                                        </div>
+                                        <button onClick={() => openNav(carRental.returnLocation)} className="text-orange-400 hover:text-orange-600"><Navigation size={16}/></button>
+                                    </div>
+                                </div>
+
+                                {/* Links & Note */}
+                                <div className="flex gap-2 mb-6">
+                                    {carRental.gps && (
+                                        <button onClick={() => openNav('', carRental.gps)} className="flex-1 py-2 bg-white border-2 border-beige-dark rounded-xl text-xs font-bold text-sage flex items-center justify-center gap-1 hover:bg-sage hover:text-white transition-colors">
+                                            <MapPin size={14}/> GPS Navigation
+                                        </button>
+                                    )}
+                                    {carRental.url && (
+                                        <a href={carRental.url} target="_blank" className="flex-1 py-2 bg-white border-2 border-beige-dark rounded-xl text-xs font-bold text-blue-400 flex items-center justify-center gap-1 hover:bg-blue-50 transition-colors">
+                                            <LinkIcon size={14}/> Website
+                                        </a>
+                                    )}
+                                </div>
+                                {carRental.note && <div className="mb-4 text-xs font-bold text-gray-500 bg-yellow-50 p-3 rounded-xl border border-yellow-100">{carRental.note}</div>}
+
+                                {/* Footer Breakdown */}
+                                <div className="pt-4 border-t-2 border-dashed border-beige-dark flex justify-between items-center">
+                                    <div className="flex -space-x-2">
+                                        {carRental.participants?.slice(0, 3).map((pid, i) => (
+                                            <div key={i} className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-bold text-gray-500 shadow-sm">
+                                                {members.find(m => m.id === pid)?.name[0]}
+                                            </div>
+                                        ))}
+                                        {(carRental.participants?.length || 0) > 3 && <div className="w-8 h-8 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[10px] font-bold">+{carRental.participants!.length - 3}</div>}
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-[10px] font-bold text-gray-400 uppercase">每人分攤 (含稅)</div>
+                                        <div className="text-base font-black text-cocoa font-mono">
+                                            {carRental.currency} {Math.round(calculateTotal(carRental.price, carRental.hasServiceFee, carRental.serviceFeePercentage) / (carRental.participants?.length || 1)).toLocaleString()}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                       </div>
+                   ) : (
+                       <div className="text-center py-24 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center">
+                           <div className="w-24 h-24 bg-beige rounded-full flex items-center justify-center mb-6"><Car size={32} className="text-gray-400"/></div>
+                           <p className="text-cocoa font-black text-2xl">尚未安排租車</p>
+                           <p className="text-gray-400 text-base mt-2 font-bold">點擊上方按鈕開始規劃</p>
+                       </div>
+                   )}
+               </div>
+            )}
+        </div>
+
+        {/* --- Modals --- */}
+        
+        {/* Flight Modal */}
+        {showFlightModal && editingFlight && (
+            <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-center justify-center px-4 backdrop-blur-sm">
+                <div className="bg-beige w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border-4 border-beige-dark max-h-[90vh] overflow-y-auto custom-scroll">
+                    <h3 className="font-black text-lg mb-4 text-center text-cocoa">{flights.find(f => f.id === editingFlight.id) ? '編輯航班' : '新增航班'}</h3>
+                    
+                    <div className="space-y-3">
+                        {/* Trip Type Selector */}
+                        <div className="flex bg-white p-1 rounded-xl border-2 border-beige-dark mb-4">
+                            {['oneway', 'roundtrip'].map((type) => (
+                                <button
+                                    key={type}
+                                    onClick={() => setEditingFlight({...editingFlight, tripType: type as any})}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${editingFlight.tripType === type ? 'bg-sage text-white shadow-sm' : 'text-gray-400 hover:bg-gray-50'}`}
+                                >
+                                    {type === 'oneway' ? '單程 (One-way)' : '來回 (Round-trip)'}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Basic Info */}
+                        <div className="grid grid-cols-2 gap-2">
+                            <input value={editingFlight.airline} onChange={e => setEditingFlight({...editingFlight, airline: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="航空公司 (EVA)"/>
+                            <input value={editingFlight.code} onChange={e => setEditingFlight({...editingFlight, code: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-black text-cocoa uppercase text-sm" placeholder="航班號 (BR123)"/>
+                        </div>
+
+                        {/* Departure Date/Time */}
+                        <div className="relative">
+                            <label className="text-[10px] font-bold text-gray-400 ml-1 absolute -top-2 left-2 bg-beige px-1 flex items-center gap-1"><CalendarIcon size={10}/> 出發日期</label>
+                            <input 
+                                type="datetime-local" 
+                                value={editingFlight.date} 
+                                onChange={e => setEditingFlight({...editingFlight, date: e.target.value})} 
+                                className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm"
+                                style={{colorScheme: 'light'}}
+                            />
+                        </div>
+
+                        {/* Return Date/Time (If Round Trip) */}
+                        {editingFlight.tripType === 'roundtrip' && (
+                            <div className="relative animate-scale-in">
+                                <label className="text-[10px] font-bold text-orange-400 ml-1 absolute -top-2 left-2 bg-beige px-1 flex items-center gap-1"><ArrowRightLeft size={10}/> 返回日期</label>
+                                <input 
+                                    type="datetime-local" 
+                                    value={editingFlight.returnDate || ''} 
+                                    onChange={e => setEditingFlight({...editingFlight, returnDate: e.target.value})} 
+                                    className="w-full bg-white p-3 rounded-xl border-2 border-orange-200 outline-none font-bold text-cocoa text-sm focus:border-orange-400 transition-colors"
+                                    style={{colorScheme: 'light'}}
+                                />
+                            </div>
+                        )}
+
+                        {/* Route: Origin & Destination */}
+                        <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark space-y-2">
+                            <div className="flex items-center gap-2">
+                                <Plane size={14} className="text-sage rotate-45"/> <span className="text-xs font-bold text-gray-400">航線資訊</span>
+                            </div>
+                            
+                            {/* Origin */}
+                            <div className="flex gap-2">
+                                <div className="flex-[1]">
+                                    <label className="text-[9px] font-bold text-gray-400 ml-1">代碼</label>
+                                    <input value={editingFlight.origin} onChange={e => setEditingFlight({...editingFlight, origin: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-black text-cocoa uppercase mb-1 text-center" placeholder="TPE"/>
+                                </div>
+                                <div className="flex-[2]">
+                                    <label className="text-[9px] font-bold text-gray-400 ml-1">出發城市</label>
+                                    <input value={editingFlight.originCity} onChange={e => setEditingFlight({...editingFlight, originCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-beige-dark font-bold text-cocoa outline-none text-sm" placeholder="例如：台北"/>
+                                </div>
+                            </div>
+
+                            <div className="text-center text-gray-300 font-bold text-xs">⬇</div>
+
+                            {/* Destination */}
+                            <div className="flex gap-2">
+                                <div className="flex-[1]">
+                                    <label className="text-[9px] font-bold text-gray-400 ml-1">代碼</label>
+                                    <input value={editingFlight.dest} onChange={e => setEditingFlight({...editingFlight, dest: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-black text-cocoa uppercase mb-1 text-center" placeholder="PUS"/>
+                                </div>
+                                <div className="flex-[2]">
+                                    <label className="text-[9px] font-bold text-gray-400 ml-1">抵達城市</label>
+                                    <input value={editingFlight.destCity} onChange={e => setEditingFlight({...editingFlight, destCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-beige-dark font-bold text-cocoa outline-none text-sm" placeholder="例如：釜山"/>
+                                </div>
+                            </div>
+                        </div>
+
+                        <input value={editingFlight.duration} onChange={e => setEditingFlight({...editingFlight, duration: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="飛行時間 (例如 2h 30m)"/>
+
+                        {/* Cost */}
+                        <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark space-y-3">
+                            <div className="flex gap-2">
+                               <div className="flex-[2]">
+                                  <label className="text-[10px] font-bold text-gray-400 block mb-1">總金額</label>
+                                  <input type="number" value={editingFlight.cost || ''} onChange={e => setEditingFlight({...editingFlight, cost: Number(e.target.value)})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="0"/>
+                               </div>
+                               <div className="flex-1">
+                                  <label className="text-[10px] font-bold text-gray-400 block mb-1">幣別</label>
+                                  <select value={editingFlight.currency} onChange={e => setEditingFlight({...editingFlight, currency: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm"><option value="TWD">TWD</option>{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select>
+                               </div>
+                            </div>
+                            
+                            {/* Tax Toggle */}
+                            <div className="flex items-center justify-between">
+                                <ToggleSwitch 
+                                    checked={editingFlight.hasServiceFee} 
+                                    onChange={(checked) => setEditingFlight({...editingFlight, hasServiceFee: checked})} 
+                                    label="額外稅金/手續費" 
+                                    colorClass="bg-cyan-400" 
+                                />
+                                {editingFlight.hasServiceFee && (
+                                   <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-beige-dark">
+                                        <input 
+                                            type="number"
+                                            value={editingFlight.serviceFeePercentage || ''}
+                                            onChange={(e) => setEditingFlight({...editingFlight, serviceFeePercentage: Number(e.target.value)})}
+                                            placeholder="%"
+                                            className="w-10 bg-transparent text-xs font-bold text-center outline-none text-right text-cocoa border-b border-gray-200"
+                                        />
+                                        <span className="text-xs text-gray-400 font-bold">%</span>
+                                   </div>
+                                )}
+                            </div>
+                            
+                            {/* Total with Tax Display */}
+                            <div className="pt-2 border-t border-dashed border-gray-200 text-right">
+                                <span className="text-xs font-bold text-gray-400 mr-2">總計 (含稅):</span>
+                                <div className="inline-flex flex-col items-end">
+                                    <span className="text-sm font-black text-sage font-mono">
+                                        {editingFlight.currency} {Math.round(calculateTotal(Number(editingFlight.cost || 0), editingFlight.hasServiceFee, Number(editingFlight.serviceFeePercentage || 0))).toLocaleString()}
+                                    </span>
+                                    {editingFlight.currency !== 'TWD' && (
+                                        <span className="text-[10px] text-gray-400 font-bold">
+                                            ≈ TWD {Math.round(calculateTotal(Number(editingFlight.cost || 0), editingFlight.hasServiceFee, Number(editingFlight.serviceFeePercentage || 0)) * getExchangeRate(editingFlight.currency)).toLocaleString()}
+                                        </span>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] font-bold text-gray-400 block mb-2">參與分攤成員</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {members.map(m => (
+                                       <button key={m.id} onClick={() => toggleFlightParticipant(m.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${editingFlight.participants?.includes(m.id) ? 'bg-sage text-white border-sage' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{m.name}</button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="text-[10px] font-bold text-gray-400 ml-1">備註</label>
+                            <textarea value={editingFlight.note} onChange={e => setEditingFlight({...editingFlight, note: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold h-20 text-cocoa placeholder:text-gray-300" placeholder="例如：在 2 航廈集合..."></textarea>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 mt-6">
+                        {editingFlight.id && flights.find(f => f.id === editingFlight.id) && (
+                            <button onClick={deleteFlight} className="px-4 py-3 rounded-2xl bg-red-50 text-red-400 font-black border-2 border-red-100"><X size={20}/></button>
+                        )}
+                        <button onClick={() => setShowFlightModal(false)} className="flex-1 py-3 rounded-2xl bg-white text-gray-400 font-black border-2 border-beige-dark">取消</button>
+                        <button onClick={saveFlight} className="flex-1 py-3 rounded-2xl bg-sage text-white font-black shadow-hard-sage active:translate-y-1 active:shadow-none transition-all border-2 border-sage-dark">保存</button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* Accommodation Modal */}
+        {showAccModal && editingAcc && (
+            <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-center justify-center px-4 backdrop-blur-sm">
+                <div className="bg-beige w-full max-w-md rounded-[2rem] p-6 shadow-2xl border-4 border-beige-dark max-h-[90vh] overflow-y-auto custom-scroll">
+                    <h3 className="font-black text-lg mb-4 text-center text-cocoa">{editingAcc.id && accommodations.find(a => a.id === editingAcc.id) ? '編輯住宿' : '新增住宿'}</h3>
+                    <div className="space-y-4">
+                        
+                        {/* Basic Info */}
+                        <div className="grid grid-cols-2 gap-2">
+                            <div><label className="text-[10px] font-bold text-gray-400 ml-1">平台</label><input value={editingAcc.platform} onChange={e => setEditingAcc({...editingAcc, platform: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="自定義 (Agoda)"/></div>
+                            <div><label className="text-[10px] font-bold text-gray-400 ml-1">城市</label><input value={editingAcc.city} onChange={e => setEditingAcc({...editingAcc, city: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="自定義 (釜山)"/></div>
+                        </div>
+
+                        <div><label className="text-[10px] font-bold text-gray-400 ml-1">住宿名稱</label><input value={editingAcc.name} onChange={e => setEditingAcc({...editingAcc, name: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa" placeholder="飯店 / 民宿名稱"/></div>
+
+                        {/* Dates with datetime-local */}
+                        <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark space-y-3">
+                            <div>
+                                <label className="text-[10px] font-bold text-gray-400 ml-1 flex items-center gap-1"><House size={12}/> 入住時間 (Check-in)</label>
+                                <input type="datetime-local" value={editingAcc.checkInDate} onChange={e => setEditingAcc({...editingAcc, checkInDate: e.target.value})} className="w-full bg-beige/50 p-2 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{colorScheme: 'light'}}/>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-bold text-gray-400 ml-1 flex items-center gap-1"><House size={12} className="text-orange-400"/> 退房時間 (Check-out)</label>
+                                <input type="datetime-local" value={editingAcc.checkOutDate} onChange={e => setEditingAcc({...editingAcc, checkOutDate: e.target.value})} className="w-full bg-beige/50 p-2 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{colorScheme: 'light'}}/>
+                            </div>
+                        </div>
+
+                        {/* Cost & Members */}
+                        <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark space-y-3">
+                            <div className="flex gap-2">
+                               <div className="flex-[2]">
+                                  <label className="text-[10px] font-bold text-gray-400 block mb-1">總金額</label>
+                                  <input type="number" value={editingAcc.cost || ''} onChange={e => setEditingAcc({...editingAcc, cost: Number(e.target.value)})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="0"/>
+                               </div>
+                               <div className="flex-1">
+                                  <label className="text-[10px] font-bold text-gray-400 block mb-1">幣別</label>
+                                  <select value={editingAcc.currency} onChange={e => setEditingAcc({...editingAcc, currency: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm"><option value="TWD">TWD</option>{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select>
+                               </div>
+                            </div>
+                            
+                            {/* Toggle Switch for Acc */}
+                            <div className="flex items-center justify-between">
+                                <ToggleSwitch 
+                                    checked={editingAcc.hasServiceFee} 
+                                    onChange={(checked) => setEditingAcc({...editingAcc, hasServiceFee: checked})} 
+                                    label="額外稅金/手續費" 
+                                    colorClass="bg-purple-400" 
+                                />
+                                {editingAcc.hasServiceFee && (
+                                    <div className="flex items-center gap-1">
+                                        <input type="number" value={editingAcc.serviceFeePercentage || ''} onChange={(e) => setEditingAcc({...editingAcc, serviceFeePercentage: Number(e.target.value)})} placeholder="%" className="w-12 bg-transparent text-xs font-bold text-center outline-none text-cocoa border-b border-gray-300"/>
+                                        <span className="text-xs text-gray-400 font-bold">%</span>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            <div><label className="text-[10px] font-bold text-gray-400 block mb-2">參與分攤成員</label><div className="flex flex-wrap gap-2">{members.map(m => (<button key={m.id} onClick={() => toggleAccParticipant(m.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${editingAcc.participants.includes(m.id) ? 'bg-sage text-white border-sage' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{m.name}</button>))}</div></div>
+                            <div className="pt-2 border-t border-dashed border-gray-200 text-right"><span className="text-xs font-bold text-gray-400 mr-2">每人約:</span><span className="text-sm font-black text-sage font-mono">{editingAcc.currency} {Math.round(calculateTotal(editingAcc.cost, editingAcc.hasServiceFee, editingAcc.serviceFeePercentage) / (editingAcc.participants.length || 1)).toLocaleString()}</span></div>
+                        </div>
+
+                        <div><label className="text-[10px] font-bold text-gray-400 ml-1">備註</label><textarea value={editingAcc.note} onChange={e => setEditingAcc({...editingAcc, note: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold h-20 text-cocoa"></textarea></div>
+                    </div>
+                    <div className="flex gap-3 mt-6">
+                        {editingAcc.id && accommodations.find(a => a.id === editingAcc.id) && (
+                            <button onClick={() => { if(window.confirm('刪除住宿？')) { onDeleteAccommodation(editingAcc.id); setShowAccModal(false); }}} className="px-4 py-3 rounded-2xl bg-red-50 text-red-400 font-black border-2 border-red-100"><X size={20}/></button>
+                        )}
+                        <button onClick={() => setShowAccModal(false)} className="flex-1 py-3 rounded-2xl bg-white text-gray-400 font-black border-2 border-beige-dark">取消</button>
+                        <button onClick={saveAcc} className="flex-1 py-3 rounded-2xl bg-sage text-white font-black">保存</button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* Car Rental Modal */}
+        {showCarModal && editingCar && (
+            <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-center justify-center px-4 backdrop-blur-sm">
+                <div className="bg-beige w-full max-w-md rounded-[2rem] p-6 shadow-2xl border-4 border-beige-dark max-h-[90vh] overflow-y-auto custom-scroll">
+                    <h3 className="font-black text-lg mb-4 text-center text-cocoa">編輯租車</h3>
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-2">
+                            <div><label className="text-[10px] font-bold text-gray-400 ml-1">平台</label><input value={editingCar.platform} onChange={e => setEditingCar({...editingCar, platform: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="例如: Klook"/></div>
+                            <div><label className="text-[10px] font-bold text-gray-400 ml-1">租車公司</label><input value={editingCar.company} onChange={e => setEditingCar({...editingCar, company: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="例如: Lotte"/></div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                             <div><label className="text-[10px] font-bold text-gray-400 ml-1">車型</label><input value={editingCar.carModel} onChange={e => setEditingCar({...editingCar, carModel: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="例如: Yaris"/></div>
+                             <div><label className="text-[10px] font-bold text-gray-400 ml-1">預約編號</label><input value={editingCar.ref} onChange={e => setEditingCar({...editingCar, ref: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa font-mono text-sm" placeholder="Ref No."/></div>
+                        </div>
+                        
+                        {/* Pickup */}
+                        <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark space-y-2">
+                            <label className="text-[10px] font-bold text-blue-500 flex items-center gap-1"><Compass size={12}/> 取車資訊 (Pick-up)</label>
+                            <div className="flex gap-2">
+                                <input type="date" value={editingCar.pickupDate} onChange={e => setEditingCar({...editingCar, pickupDate: e.target.value})} className="flex-1 bg-beige/50 p-2 rounded-lg border border-beige-dark font-bold text-cocoa text-xs" style={{ colorScheme: 'light' }}/>
+                                <input type="time" value={editingCar.pickupTime} onChange={e => setEditingCar({...editingCar, pickupTime: e.target.value})} className="w-24 bg-beige/50 p-2 rounded-lg border border-beige-dark font-bold text-cocoa text-xs" style={{ colorScheme: 'light' }}/>
+                            </div>
+                            <input value={editingCar.pickupLocation} onChange={e => setEditingCar({...editingCar, pickupLocation: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-bold text-cocoa text-xs" placeholder="取車地點 / 地址"/>
+                        </div>
+
+                        {/* Return */}
+                        <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark space-y-2">
+                            <label className="text-[10px] font-bold text-orange-500 flex items-center gap-1"><Compass size={12}/> 還車資訊 (Return)</label>
+                            <div className="flex gap-2">
+                                <input type="date" value={editingCar.returnDate} onChange={e => setEditingCar({...editingCar, returnDate: e.target.value})} className="flex-1 bg-beige/50 p-2 rounded-lg border border-beige-dark font-bold text-cocoa text-xs" style={{ colorScheme: 'light' }}/>
+                                <input type="time" value={editingCar.returnTime} onChange={e => setEditingCar({...editingCar, returnTime: e.target.value})} className="w-24 bg-beige/50 p-2 rounded-lg border border-beige-dark font-bold text-cocoa text-xs" style={{ colorScheme: 'light' }}/>
+                            </div>
+                            <input value={editingCar.returnLocation} onChange={e => setEditingCar({...editingCar, returnLocation: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-bold text-cocoa text-xs" placeholder="還車地點 / 地址"/>
+                        </div>
+
+                        {/* Meta */}
+                        <div className="grid grid-cols-2 gap-2">
+                            <div><label className="text-[10px] font-bold text-gray-400 ml-1">GPS (Nav)</label><input value={editingCar.gps} onChange={e => setEditingCar({...editingCar, gps: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-xs placeholder-[#D6CDB6]" placeholder="35.123, 129.123"/></div>
+                            <div><label className="text-[10px] font-bold text-gray-400 ml-1">URL (Website)</label><input value={editingCar.url} onChange={e => setEditingCar({...editingCar, url: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-xs placeholder-[#D6CDB6]" placeholder="https://..."/></div>
+                        </div>
+
+                        {/* Cost Breakdown */}
+                        <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark space-y-3">
+                            <div className="flex gap-2">
+                               <div className="flex-[2]">
+                                  <label className="text-[10px] font-bold text-gray-400 block mb-1">總金額</label>
+                                  <input type="number" value={editingCar.price || ''} onChange={e => setEditingCar({...editingCar, price: Number(e.target.value)})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="0"/>
+                               </div>
+                               <div className="flex-1">
+                                  <label className="text-[10px] font-bold text-gray-400 block mb-1">幣別</label>
+                                  <select value={editingCar.currency} onChange={e => setEditingCar({...editingCar, currency: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm"><option value="TWD">TWD</option>{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select>
+                               </div>
+                            </div>
+                            <div className="flex items-center gap-2"><input type="checkbox" checked={editingCar.hasServiceFee} onChange={(e) => setEditingCar({...editingCar, hasServiceFee: e.target.checked})} className="accent-sage w-4 h-4"/><span className="text-xs font-bold text-gray-500">含手續費</span>{editingCar.hasServiceFee && <div className="flex items-center gap-1"><input type="number" value={editingCar.serviceFeePercentage || ''} onChange={(e) => setEditingCar({...editingCar, serviceFeePercentage: Number(e.target.value)})} placeholder="%" className="w-12 bg-transparent text-xs font-bold text-center outline-none text-cocoa border-b border-gray-300"/><span className="text-xs font-bold text-gray-400 font-bold">%</span></div>}</div>
+                            
+                            <div><label className="text-[10px] font-bold text-gray-400 block mb-2">參與分攤成員</label><div className="flex flex-wrap gap-2">{members.map(m => (<button key={m.id} onClick={() => toggleCarParticipant(m.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${editingCar.participants?.includes(m.id) ? 'bg-sage text-white border-sage' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{m.name}</button>))}</div></div>
+                            <div className="pt-2 border-t border-dashed border-gray-200 text-right"><span className="text-xs font-bold text-gray-400 mr-2">每人約:</span><span className="text-sm font-black text-sage font-mono">{editingCar.currency} {Math.round(calculateTotal(editingCar.price, editingCar.hasServiceFee, editingCar.serviceFeePercentage) / (editingCar.participants?.length || 1)).toLocaleString()}</span></div>
+                        </div>
+
+                        <div><label className="text-[10px] font-bold text-gray-400 ml-1">備註</label><textarea value={editingCar.note} onChange={e => setEditingCar({...editingCar, note: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold h-20 text-cocoa"></textarea></div>
+                    </div>
+                    <div className="flex gap-3 mt-6">
+                        <button onClick={() => setShowCarModal(false)} className="flex-1 py-3 rounded-2xl bg-white text-gray-400 font-black border-2 border-beige-dark">取消</button>
+                        <button onClick={() => { if(editingCar) { onUpdateCar(editingCar); setShowCarModal(false); }}} className="flex-1 py-3 rounded-2xl bg-sage text-white font-black">保存</button>
+                    </div>
+                </div>
+            </div>
+        )}
+    </div>
+  );
+};
