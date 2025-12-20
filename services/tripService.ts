@@ -11,6 +11,23 @@ import {
 } from 'firebase/firestore';
 
 /**
+ * Utility to recursively remove undefined properties from an object.
+ * Firestore does not allow undefined values.
+ */
+const cleanData = (obj: any): any => {
+  if (Array.isArray(obj)) {
+    return obj.map(cleanData);
+  } else if (obj !== null && typeof obj === 'object' && !(obj instanceof Timestamp)) {
+    return Object.fromEntries(
+      Object.entries(obj)
+        .filter(([_, v]) => v !== undefined)
+        .map(([k, v]) => [k, cleanData(v)])
+    );
+  }
+  return obj;
+};
+
+/**
  * Generates a readable 6-digit trip code.
  * Excludes confusing characters like I, 1, O, 0.
  */
@@ -126,8 +143,10 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
 export const addTripItem = async (tripId: string, collectionName: string, item: any): Promise<void> => {
   try {
     const tripRef = doc(db, 'trips', tripId);
+    // Firestore does not allow 'undefined' values. Clean the item first.
+    const cleanedItem = cleanData(item);
     await updateDoc(tripRef, {
-      [collectionName]: arrayUnion(item)
+      [collectionName]: arrayUnion(cleanedItem)
     });
   } catch (error) {
     console.error(`Failed to add item to ${collectionName}:`, error);
@@ -141,8 +160,10 @@ export const addTripItem = async (tripId: string, collectionName: string, item: 
 export const updateTripField = async (tripId: string, field: string, value: any): Promise<void> => {
   try {
     const tripRef = doc(db, 'trips', tripId);
+    // Firestore does not allow 'undefined' values. Clean the value first.
+    const cleanedValue = cleanData(value);
     await updateDoc(tripRef, {
-      [field]: value
+      [field]: cleanedValue
     });
   } catch (error) {
     console.error(`Failed to update field ${field}:`, error);
