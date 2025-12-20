@@ -335,7 +335,6 @@ export default function App() {
                                                 <div className="flex items-center gap-1"><Luggage size={12} className="text-teal-500"/>託運: {item.flightDetails.checkedBag || '--'}</div>
                                                 <div className="flex items-center gap-1"><Briefcase size={12} className="text-orange-400"/>手提: {item.flightDetails.carryOnBag || '--'}</div>
                                             </div>
-                                            {/* Fix: Operator '>' cannot be applied to types 'string | number' and 'number' */}
                                             {Number(item.flightDetails.cost) > 0 && <div className="text-right text-[10px] font-black text-sage">費用: {item.flightDetails.currency} {Number(item.flightDetails.cost).toLocaleString()}</div>}
                                         </div>
                                     )}
@@ -354,7 +353,6 @@ export default function App() {
                                                 {item.meals?.breakfast && <span className="text-[10px] bg-white px-2 py-0.5 rounded-full border border-purple-200 text-purple-400 flex items-center gap-1"><Coffee size={10}/> 早餐</span>}
                                                 {item.meals?.dinner && <span className="text-[10px] bg-white px-2 py-0.5 rounded-full border border-purple-200 text-purple-400 flex items-center gap-1"><Utensils size={10}/> 晚餐</span>}
                                             </div>
-                                            {/* Fix: Operator '>' cannot be applied to types 'string | number' and 'number' */}
                                             {Number(item.stayDetails.cost) > 0 && <div className="text-right text-[10px] font-black text-sage">費用: {item.stayDetails.currency} {Number(item.stayDetails.cost).toLocaleString()}</div>}
                                         </div>
                                     )}
@@ -368,11 +366,28 @@ export default function App() {
                                             <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-gray-500">
                                                 <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>取車: {item.carRental.pickupDate} {item.carRental.pickupTime}</div>
                                                 <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>還車: {item.carRental.returnDate} {item.carRental.returnTime}</div>
-                                                {/* Fix: Operator '>' cannot be applied to types 'string | number' and 'number' */}
                                                 {Number(item.carRental.estimatedFuelCost) > 0 && <div className="flex items-center gap-1 col-span-2"><Fuel size={12} className="text-orange-400"/>預估油資: {item.carRental.fuelCurrency} {Number(item.carRental.estimatedFuelCost).toLocaleString()}</div>}
                                             </div>
-                                            {/* Fix: Operator '>' cannot be applied to types 'string | number' and 'number' */}
-                                            {Number(item.carRental.rentalCost) > 0 && <div className="text-right text-[10px] font-black text-sage">租金: {item.carRental.rentalCurrency} {Number(item.carRental.rentalCost).toLocaleString()}</div>}
+                                            
+                                            {/* Rental Costs Listing */}
+                                            {Number(item.carRental.rentalCost) > 0 && (
+                                                <div className="flex justify-between items-center text-[10px] font-black text-sage">
+                                                    <span>基本租金</span>
+                                                    <span>{item.carRental.rentalCurrency} {Number(item.carRental.rentalCost).toLocaleString()}</span>
+                                                </div>
+                                            )}
+
+                                            {/* Extra Expenses Display - Listing added items under divider */}
+                                            {item.carRental.expenses && item.carRental.expenses.length > 0 && (
+                                                <div className="pt-1 mt-1 border-t border-dashed border-blue-200/50 space-y-1">
+                                                    {item.carRental.expenses.map((exp, idx) => (
+                                                        <div key={idx} className="flex justify-between items-center text-[10px] font-bold text-gray-400 italic">
+                                                            <span>• {exp.name}</span>
+                                                            <span className="font-mono">{exp.currency} {Number(exp.amount).toLocaleString()}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
