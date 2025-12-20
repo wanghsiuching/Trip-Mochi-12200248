@@ -39,16 +39,15 @@ const CuteButton = ({ checked, onChange, icon: Icon, label, activeColor = 'bg-or
 );
 
 const CostDisplay = ({ amount, currency, hasFee, feePct, currencies }: { amount: number, currency: string, hasFee: boolean, feePct: number, currencies: Currency[] }) => {
-    const total = amount + (hasFee ? amount * (feePct / 100) : 0);
-    const rate = currencies.find(c => c.code === currency)?.rate || (currency === 'TWD' ? 1 : 0);
-    const twdTotal = Math.round(total * (rate || 1));
-    
-    if (amount <= 0) return null;
-    
+    const total = amount + (hasFee ? amount * (Number(feePct) / 100) : 0);
+    const rate = currencies.find(c => c.code === currency)?.rate || (currency === 'TWD' ? 1 : 1);
+    const twdTotal = Math.round(total * rate);
+
+    if (total <= 0) return null;
     return (
         <div className="mt-2 bg-gray-50 p-3 rounded-xl border border-dashed border-gray-200 space-y-1">
             <div className="flex justify-between items-center">
-                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">總計 (含稅)</span>
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">總計 ({currency})</span>
                 <span className="text-sm font-black text-cocoa font-mono">{currency} {Math.round(total).toLocaleString()}</span>
             </div>
             {currency !== 'TWD' && (
@@ -535,9 +534,7 @@ export const AddScheduleModal = ({
   const [hasRental, setHasRental] = useState(false);
   const [rentalCompany, setRentalCompany] = useState('');
   const [carModel, setCarModel] = useState('');
-  const [pickupDate, setPickupDate] = useState('');
   const [pickupTime, setPickupTime] = useState('');
-  const [returnDate, setReturnDate] = useState('');
   const [returnTime, setReturnTime] = useState('');
   const [rentalCost, setRentalCost] = useState('');
   const [rentalCurrency, setRentalCurrency] = useState('TWD');
@@ -613,9 +610,7 @@ export const AddScheduleModal = ({
            setHasRental(initialData.carRental.hasRental);
            setRentalCompany(initialData.carRental.company || '');
            setCarModel(initialData.carRental.carModel || '');
-           setPickupDate(initialData.carRental.pickupDate || '');
            setPickupTime(initialData.carRental.pickupTime || '');
-           setReturnDate(initialData.carRental.returnDate || '');
            setReturnTime(initialData.carRental.returnTime || '');
            setRentalCost(initialData.carRental.rentalCost?.toString() || '');
            setRentalCurrency(initialData.carRental.rentalCurrency || 'TWD');
@@ -648,7 +643,7 @@ export const AddScheduleModal = ({
         // Reset Category Specifics
         setFlightAirline(''); setFlightCode(''); setFlightDepTime(''); setFlightArrTime(''); setFlightArrDate(''); setFlightDepAirport(''); setFlightArrAirport(''); setFlightCheckedBag(''); setFlightCarryOnBag(''); setFlightCost(''); setFlightCurrency('TWD'); setFlightHasServiceFee(false); setFlightServiceFeePercentage(''); setFlightParticipants(members.map(m => m.id)); setIsFlightPotential(false);
         setCheckIn(''); setCheckOut(''); setHasBreakfast(false); setHasDinner(false); setStayCost(''); setStayCurrency('TWD'); setStayHasServiceFee(false); setStayServiceFeePercentage(''); setStayParticipants(members.map(m => m.id)); setIsStayPotential(false);
-        setHasRental(false); setRentalCompany(''); setCarModel(''); setPickupDate(''); setPickupTime(''); setReturnDate(''); setReturnTime(''); setRentalCost(''); setRentalCurrency('TWD'); setRentalHasServiceFee(false); setRentalServiceFeePercentage(''); setEstimatedFuelCost(''); setFuelCurrency('TWD'); setRentalExpenses([]); setRentalParticipants(members.map(m => m.id)); setIsRentalPotential(false); setExpenseToDelete(null);
+        setHasRental(false); setRentalCompany(''); setCarModel(''); setPickupTime(''); setReturnTime(''); setRentalCost(''); setRentalCurrency('TWD'); setRentalHasServiceFee(false); setRentalServiceFeePercentage(''); setEstimatedFuelCost(''); setFuelCurrency('TWD'); setRentalExpenses([]); setRentalParticipants(members.map(m => m.id)); setIsRentalPotential(false); setExpenseToDelete(null);
         setHasTicket(false); setTicketCost(''); setSelectedCurrency('TWD'); setHasServiceFee(false); setServiceFeePercentage(''); setParticipantIds(members.map(m => m.id)); setIsPotential(false);
       }
     }
@@ -688,7 +683,7 @@ export const AddScheduleModal = ({
     }
     if (selectedType === 'transport') {
       itemData.carRental = {
-        hasRental, company: hasRental ? rentalCompany : undefined, carModel: hasRental ? carModel : undefined, pickupDate: hasRental ? pickupDate : undefined, pickupTime: hasRental ? pickupTime : undefined, returnDate: hasRental ? returnDate : undefined, returnTime: hasRental ? returnTime : undefined,
+        hasRental, company: hasRental ? rentalCompany : undefined, carModel: hasRental ? carModel : undefined, pickupTime: hasRental ? pickupTime : undefined, returnTime: hasRental ? returnTime : undefined,
         rentalCost: hasRental ? (Number(rentalCost) || 0) : undefined, rentalCurrency: hasRental ? rentalCurrency : undefined, hasServiceFee: hasRental ? rentalHasServiceFee : false, serviceFeePercentage: hasRental ? (Number(rentalServiceFeePercentage) || 0) : undefined,
         estimatedFuelCost: hasRental ? (Number(estimatedFuelCost) || 0) : undefined, fuelCurrency: hasRental ? fuelCurrency : undefined, expenses: hasRental ? rentalExpenses.map(e => ({...e, amount: Number(e.amount)||0, serviceFeePercentage: Number(e.serviceFeePercentage)||0})) : [], participants: hasRental ? rentalParticipants : [], isPotential: hasRental ? isRentalPotential : false
       };
@@ -715,6 +710,30 @@ export const AddScheduleModal = ({
           ))}
       </div>
   );
+
+  // Helper to calculate total rental cost including extras and fees
+  const calculateTotalRental = () => {
+    let totalInRentalCurrency = 0;
+    const baseAmount = Number(rentalCost) || 0;
+    const baseWithFee = baseAmount + (rentalHasServiceFee ? baseAmount * (Number(rentalServiceFeePercentage) || 0) / 100 : 0);
+    
+    totalInRentalCurrency += baseWithFee;
+
+    // Convert each extra expense to rentalCurrency if possible
+    const rentalRate = currencies.find(c => c.code === rentalCurrency)?.rate || (rentalCurrency === 'TWD' ? 1 : 1);
+    
+    rentalExpenses.forEach(exp => {
+      const expAmount = Number(exp.amount) || 0;
+      const expWithFee = expAmount + (exp.hasServiceFee ? expAmount * (Number(exp.serviceFeePercentage) || 0) / 100 : 0);
+      const expRate = currencies.find(c => c.code === exp.currency)?.rate || (exp.currency === 'TWD' ? 1 : 1);
+      
+      // Convert extra to TWD then to rentalCurrency
+      const amountInTWD = expWithFee * expRate;
+      totalInRentalCurrency += amountInTWD / (rentalRate || 1);
+    });
+
+    return totalInRentalCurrency;
+  };
 
   return (
     <>
@@ -863,7 +882,7 @@ export const AddScheduleModal = ({
                              
                              {/* Rental Cost */}
                              <div className="pt-2 border-t border-dashed border-blue-200 mt-2">
-                                <div className="text-xs font-bold text-gray-500 mb-2 flex items-center gap-1"><DollarSign size={12}/> 租車費用 (基本)</div>
+                                <div className="text-xs font-bold text-gray-500 mb-2 flex items-center gap-1"><DollarSign size={12}/> 租車費用 (加總)</div>
                                 <div className="flex gap-2 mb-2">
                                    <div className="bg-white p-2 rounded-xl border border-beige-dark shadow-sm flex-[2]"><input type="number" value={rentalCost} onChange={(e) => setRentalCost(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="0"/></div>
                                    <div className="w-24"><CurrencySelect value={rentalCurrency} onChange={setRentalCurrency}/></div>
@@ -872,7 +891,8 @@ export const AddScheduleModal = ({
                                     <ToggleSwitch checked={rentalHasServiceFee} onChange={setRentalHasServiceFee} label="含稅/手續費" colorClass="bg-blue-400" />
                                     {rentalHasServiceFee && <div className="flex items-center bg-white px-2 py-1 rounded border border-beige-dark"><input type="number" value={rentalServiceFeePercentage} onChange={e => setRentalServiceFeePercentage(e.target.value)} className="w-8 bg-transparent text-xs font-bold outline-none text-right text-cocoa" placeholder="0"/><span className="text-xs font-bold text-gray-400 ml-1">%</span></div>}
                                 </div>
-                                <CostDisplay amount={Number(rentalCost)} currency={rentalCurrency} hasFee={rentalHasServiceFee} feePct={Number(rentalServiceFeePercentage)} currencies={currencies} />
+                                {/* Use real-time total rental calculation */}
+                                <CostDisplay amount={calculateTotalRental()} currency={rentalCurrency} hasFee={false} feePct={0} currencies={currencies} />
                              </div>
 
                              {/* Fuel Cost */}
@@ -897,10 +917,10 @@ export const AddScheduleModal = ({
                                             <button onClick={() => setExpenseToDelete(exp.id)} className="text-red-400 p-1 hover:text-red-600 transition-colors"><X size={16}/></button>
                                         </div>
                                         <div className="flex gap-2 items-center">
-                                            <div className="flex-1">
+                                            <div className="flex-1 min-w-0">
                                                 <div className="flex gap-1">
-                                                    <input type="number" value={exp.amount} onChange={e => updateRentalExpense(exp.id, 'amount', e.target.value)} placeholder="金額" className="flex-1 bg-gray-50 p-2 rounded-lg border border-beige-dark text-xs font-bold text-cocoa outline-none focus:border-blue-300"/>
-                                                    <div className="w-20"><CurrencySelect value={exp.currency || 'TWD'} onChange={v => updateRentalExpense(exp.id, 'currency', v)}/></div>
+                                                    <input type="number" value={exp.amount} onChange={e => updateRentalExpense(exp.id, 'amount', e.target.value)} placeholder="金額" className="flex-1 bg-gray-50 p-2 rounded-lg border border-beige-dark text-xs font-bold text-cocoa outline-none focus:border-blue-300 min-w-0"/>
+                                                    <div className="w-24 flex-shrink-0"><CurrencySelect value={exp.currency || 'TWD'} onChange={v => updateRentalExpense(exp.id, 'currency', v)}/></div>
                                                 </div>
                                             </div>
                                         </div>
