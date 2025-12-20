@@ -72,7 +72,6 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
               checkedBag: '',
               carryOnBag: '',
               baggage: '',
-              price: '',
               color: 'bg-blue-500', 
               purchaseDate: new Date().toISOString().split('T')[0],
               platform: '',
@@ -502,7 +501,6 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                             <LinkIcon size={14}/> 訂房連結 / 官網
                                         </a>
                                     )}
-                                    {/* Added Note Display */}
                                     {acc.note && (
                                         <div className="flex items-start gap-2 text-[10px] font-bold text-orange-400 bg-orange-50 p-2 rounded-lg border border-orange-100 mt-2">
                                             <Info size={12} className="flex-shrink-0 mt-0.5"/>

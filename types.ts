@@ -73,6 +73,7 @@ export interface FlightDetails {
   flightCode?: string;
   departureTime?: string;
   arrivalTime?: string;
+  arrivalDate?: string; // Added for detailed schedule
   departureAirport?: string;
   arrivalAirport?: string;
   checkedBag?: string;
@@ -136,7 +137,8 @@ export interface BookingFlight {
   id: number;
   airline: string;
   code: string;
-  date: string;
+  date: string; // Departure date/time
+  arrivalDate?: string; // Added for departure flight arrival
   origin: string;
   originCity: string;
   dest: string;
@@ -149,7 +151,6 @@ export interface BookingFlight {
   color: string;
   purchaseDate: string;
   platform: string;
-  price: string;
   type: string;
   note: string;
   
@@ -167,7 +168,8 @@ export interface BookingFlight {
 
   // Added missing fields for BookingsView
   tripType?: 'oneway' | 'roundtrip';
-  returnDate?: string;
+  returnDate?: string; // Return departure
+  returnArrivalDate?: string; // Return arrival
 }
 
 export interface BookingAccommodation {

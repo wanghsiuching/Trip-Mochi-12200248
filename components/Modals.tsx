@@ -495,6 +495,7 @@ export const AddScheduleModal = ({
   const [flightCode, setFlightCode] = useState('');
   const [flightDepTime, setFlightDepTime] = useState('');
   const [flightArrTime, setFlightArrTime] = useState('');
+  const [flightArrDate, setFlightArrDate] = useState('');
   const [flightDepAirport, setFlightDepAirport] = useState('');
   const [flightArrAirport, setFlightArrAirport] = useState('');
   const [flightCheckedBag, setFlightCheckedBag] = useState('');
@@ -562,6 +563,7 @@ export const AddScheduleModal = ({
             setFlightCode(initialData.flightDetails.flightCode || '');
             setFlightDepTime(initialData.flightDetails.departureTime || '');
             setFlightArrTime(initialData.flightDetails.arrivalTime || '');
+            setFlightArrDate(initialData.flightDetails.arrivalDate || '');
             setFlightDepAirport(initialData.flightDetails.departureAirport || '');
             setFlightArrAirport(initialData.flightDetails.arrivalAirport || '');
             setFlightCheckedBag(initialData.flightDetails.checkedBag || '');
@@ -628,7 +630,7 @@ export const AddScheduleModal = ({
         // Reset Logic
         setStep('category'); setTitle(''); setTime('09:00'); setLocation(''); setNotes(''); setGpsInput('');
         // Reset Category Specifics
-        setFlightAirline(''); setFlightCode(''); setFlightDepTime(''); setFlightArrTime(''); setFlightDepAirport(''); setFlightArrAirport(''); setFlightCheckedBag(''); setFlightCarryOnBag(''); setFlightCost(''); setFlightCurrency('TWD'); setFlightHasServiceFee(false); setFlightServiceFeePercentage(''); setFlightParticipants(members.map(m => m.id)); setIsFlightPotential(false);
+        setFlightAirline(''); setFlightCode(''); setFlightDepTime(''); setFlightArrTime(''); setFlightArrDate(''); setFlightDepAirport(''); setFlightArrAirport(''); setFlightCheckedBag(''); setFlightCarryOnBag(''); setFlightCost(''); setFlightCurrency('TWD'); setFlightHasServiceFee(false); setFlightServiceFeePercentage(''); setFlightParticipants(members.map(m => m.id)); setIsFlightPotential(false);
         setCheckIn(''); setCheckOut(''); setHasBreakfast(false); setHasDinner(false); setStayCost(''); setStayCurrency('TWD'); setStayHasServiceFee(false); setStayServiceFeePercentage(''); setStayParticipants(members.map(m => m.id)); setIsStayPotential(false);
         setHasRental(false); setRentalCompany(''); setCarModel(''); setPickupTime(''); setReturnTime(''); setRentalCost(''); setRentalCurrency('TWD'); setRentalHasServiceFee(false); setRentalServiceFeePercentage(''); setEstimatedFuelCost(''); setFuelCurrency('TWD'); setRentalExpenses([]); setRentalParticipants(members.map(m => m.id)); setIsRentalPotential(false); setExpenseToDelete(null);
         setHasTicket(false); setTicketCost(''); setSelectedCurrency('TWD'); setHasServiceFee(false); setServiceFeePercentage(''); setParticipantIds(members.map(m => m.id)); setIsPotential(false);
@@ -660,7 +662,7 @@ export const AddScheduleModal = ({
 
     if (selectedType === 'flight') {
         itemData.flightDetails = {
-            airline: flightAirline, flightCode, departureTime: flightDepTime, arrivalTime: flightArrTime, departureAirport: flightDepAirport, arrivalAirport: flightArrAirport, checkedBag: flightCheckedBag, carryOnBag: flightCarryOnBag,
+            airline: flightAirline, flightCode, departureTime: flightDepTime, arrivalTime: flightArrTime, arrivalDate: flightArrDate, departureAirport: flightDepAirport, arrivalAirport: flightArrAirport, checkedBag: flightCheckedBag, carryOnBag: flightCarryOnBag,
             cost: Number(flightCost) || 0, currency: flightCurrency, hasServiceFee: flightHasServiceFee, serviceFeePercentage: flightHasServiceFee ? (Number(flightServiceFeePercentage) || 0) : undefined, participants: flightParticipants, isPotential: isFlightPotential
         };
     }
@@ -756,9 +758,10 @@ export const AddScheduleModal = ({
                          </div>
                          {/* Route/Times */}
                          <div className="grid grid-cols-2 gap-2">
-                             <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">起飛時間</label><input type="time" value={flightDepTime} onChange={e => setFlightDepTime(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
-                             <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">抵達時間</label><input type="time" value={flightArrTime} onChange={e => setFlightArrTime(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
+                             <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">去程起飛</label><input type="time" value={flightDepTime} onChange={e => setFlightDepTime(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
+                             <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">去程抵達</label><input type="time" value={flightArrTime} onChange={e => setFlightArrTime(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
                          </div>
+                         <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">抵達日期 (若隔日)</label><input type="date" value={flightArrDate} onChange={e => setFlightArrDate(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
                          <div className="grid grid-cols-2 gap-2">
                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">起飛機場</label><input value={flightDepAirport} onChange={e => setFlightDepAirport(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="TPE T2"/></div>
                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">抵達機場</label><input value={flightArrAirport} onChange={e => setFlightArrAirport(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="KIX T1"/></div>
