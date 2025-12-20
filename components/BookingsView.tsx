@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Plane, Bed, Car, Plus, MapPin, Compass, House, PenTool, Briefcase, Info, Luggage, Navigation, Leaf, Link as LinkIcon, X, Calendar as CalendarIcon, ArrowRightLeft, Users, Clock } from 'lucide-react';
+import { Plane, Bed, Car, Plus, MapPin, Compass, House, PenTool, Briefcase, Info, Luggage, Navigation, Leaf, Link as LinkIcon, X, Calendar as CalendarIcon, ArrowRightLeft, Users, Clock, DollarSign } from 'lucide-react';
 import { BookingFlight, BookingAccommodation, BookingCarRental, BookingTicket, Currency, Member } from '../types';
 import { ToggleSwitch } from './Modals';
 
@@ -49,6 +49,29 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
   // Helper for Exchange Rate
   const getExchangeRate = (code: string) => currencies.find(c => c.code === code)?.rate || 1;
+
+  const CostPreview = ({ cost, currency, hasFee, feePct }: any) => {
+      const total = calculateTotal(Number(cost) || 0, hasFee, Number(feePct) || 0);
+      const rate = getExchangeRate(currency);
+      const twd = Math.round(total * rate);
+
+      if (!cost || Number(cost) <= 0) return null;
+
+      return (
+          <div className="mt-2 bg-gray-50 p-3 rounded-xl border border-dashed border-gray-200 space-y-1">
+              <div className="flex justify-between items-center">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">總計 (含稅)</span>
+                  <span className="text-sm font-black text-cocoa font-mono">{currency} {Math.round(total).toLocaleString()}</span>
+              </div>
+              {currency !== 'TWD' && (
+                  <div className="flex justify-between items-center border-t border-gray-100 pt-1">
+                      <span className="text-[10px] font-black text-sage uppercase tracking-widest">約台幣 (TWD)</span>
+                      <span className="text-sm font-black text-sage font-mono">${twd.toLocaleString()}</span>
+                  </div>
+              )}
+          </div>
+      );
+  };
 
   // --- Flight Logic ---
   const openFlightEdit = (flight?: BookingFlight) => {
@@ -192,8 +215,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   const openCarEdit = () => {
       const initialCar: BookingCarRental = (carRental && carRental.company) ? { ...carRental } : { 
           company: '', platform: '', carModel: '', ref: '', 
-          pickupDate: new Date().toISOString().split('T')[0], pickupTime: '10:00', pickupLocation: '', 
-          returnDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], returnTime: '10:00', returnLocation: '', 
+          pickupDate: new Date().toISOString().slice(0, 16), pickupTime: '10:00', pickupLocation: '', 
+          returnDate: new Date(Date.now() + 86400000).toISOString().slice(0, 16), returnTime: '10:00', returnLocation: '', 
           gps: '', url: '', note: '', 
           price: 0, currency: 'TWD', hasServiceFee: false, serviceFeePercentage: 0, 
           pax: 4, participants: members.map(m => m.id),
@@ -722,21 +745,17 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                     colorClass="bg-cyan-400" 
                                 />
                                 {editingFlight.hasServiceFee && (
-                                   <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-beige-dark">
-                                        <input type="number" value={editingFlight.serviceFeePercentage || ''} onChange={(e) => setEditingFlight({...editingFlight, serviceFeePercentage: Number(e.target.value)})} placeholder="%" className="w-10 bg-transparent text-xs font-bold text-center outline-none text-cocoa border-b border-gray-200"/>
-                                        <span className="text-xs text-gray-400 font-bold">%</span>
+                                   <div className="flex items-center gap-2 bg-white px-2 py-1 rounded border border-beige-dark"><input type="number" value={editingFlight.serviceFeePercentage || ''} onChange={(e) => setEditingFlight({...editingFlight, serviceFeePercentage: Number(e.target.value)})} placeholder="%" className="w-10 bg-transparent text-xs font-bold text-center outline-none text-cocoa border-b border-gray-200"/>                                        <span className="text-xs text-gray-400 font-bold">%</span>
                                    </div>
                                 )}
                             </div>
                             
-                            <div className="pt-2 border-t border-dashed border-gray-200 text-right">
-                                <span className="text-xs font-bold text-gray-400 mr-2">總計 (含稅):</span>
-                                <div className="inline-flex flex-col items-end">
-                                    <span className="text-sm font-black text-sage font-mono">
-                                        {editingFlight.currency} {Math.round(calculateTotal(Number(editingFlight.cost || 0), editingFlight.hasServiceFee, Number(editingFlight.serviceFeePercentage || 0))).toLocaleString()}
-                                    </span>
-                                </div>
-                            </div>
+                            <CostPreview 
+                                cost={editingFlight.cost} 
+                                currency={editingFlight.currency} 
+                                hasFee={editingFlight.hasServiceFee} 
+                                feePct={editingFlight.serviceFeePercentage} 
+                            />
 
                             <div>
                                 <label className="text-[10px] font-bold text-gray-400 block mb-2">參與分攤成員</label>
@@ -772,7 +791,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             <div><label className="text-[10px] font-bold text-gray-400 ml-1">城市</label><input value={editingAcc.city} onChange={e => setEditingAcc({...editingAcc, city: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="釜山"/></div>
                         </div>
 
-                        <div><label className="text-[10px] font-bold text-gray-400 ml-1">住宿名稱</label><input value={editingAcc.name} onChange={e => setEditingAcc({...editingAcc, name: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-black text-cocoa" placeholder="飯店名稱"/></div>
+                        <div><label className="text-[10px] font-bold text-gray-400 ml-1">住宿名稱</label><input value={editingAcc.name} onChange={e => setEditingAcc({...editingAcc, name: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa" placeholder="飯店名稱"/></div>
 
                         <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark space-y-4">
                             <div className="flex flex-col">
@@ -810,6 +829,14 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                     </div>
                                 )}
                             </div>
+
+                            <CostPreview 
+                                cost={editingAcc.cost} 
+                                currency={editingAcc.currency} 
+                                hasFee={editingAcc.hasServiceFee} 
+                                feePct={editingAcc.serviceFeePercentage} 
+                            />
+
                             <div><label className="text-[10px] font-bold text-gray-400 block mb-2">分攤成員</label><div className="flex flex-wrap gap-2">{members.map(m => (<button key={m.id} onClick={() => toggleAccParticipant(m.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${editingAcc.participants.includes(m.id) ? 'bg-sage text-white border-sage' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{m.name}</button>))}</div></div>
                         </div>
 
@@ -837,16 +864,16 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             <div className="flex flex-col">
                                 <label className="text-[10px] font-bold text-blue-500 flex items-center gap-1 mb-1"><Compass size={12}/> 取車時間</label>
                                 <div className="flex gap-2">
-                                  <input type="date" value={editingCar.pickupDate} onChange={e => setEditingCar({...editingCar, pickupDate: e.target.value})} className="flex-1 bg-beige/50 p-2 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{ colorScheme: 'light' }}/>
-                                  <input type="time" value={editingCar.pickupTime} onChange={e => setEditingCar({...editingCar, pickupTime: e.target.value})} className="w-24 bg-beige/50 p-2 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{ colorScheme: 'light' }}/>
+                                  <input type="date" value={editingCar.pickupDate} onChange={e => setEditingCar({...editingCar, pickupDate: e.target.value})} className="flex-1 bg-beige/50 p-3 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{ colorScheme: 'light' }}/>
+                                  <input type="time" value={editingCar.pickupTime} onChange={e => setEditingCar({...editingCar, pickupTime: e.target.value})} className="w-24 bg-beige/50 p-3 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{ colorScheme: 'light' }}/>
                                 </div>
                                 <input value={editingCar.pickupLocation} onChange={e => setEditingCar({...editingCar, pickupLocation: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-bold text-cocoa text-xs mt-2" placeholder="取車地點"/>
                             </div>
                             <div className="flex flex-col">
                                 <label className="text-[10px] font-bold text-orange-500 flex items-center gap-1 mb-1"><Compass size={12}/> 還車時間</label>
                                 <div className="flex gap-2">
-                                  <input type="date" value={editingCar.returnDate} onChange={e => setEditingCar({...editingCar, returnDate: e.target.value})} className="flex-1 bg-beige/50 p-2 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{ colorScheme: 'light' }}/>
-                                  <input type="time" value={editingCar.returnTime} onChange={e => setEditingCar({...editingCar, returnTime: e.target.value})} className="w-24 bg-beige/50 p-2 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{ colorScheme: 'light' }}/>
+                                  <input type="date" value={editingCar.returnDate} onChange={e => setEditingCar({...editingCar, returnDate: e.target.value})} className="flex-1 bg-beige/50 p-3 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{ colorScheme: 'light' }}/>
+                                  <input type="time" value={editingCar.returnTime} onChange={e => setEditingCar({...editingCar, returnTime: e.target.value})} className="w-24 bg-beige/50 p-3 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{ colorScheme: 'light' }}/>
                                 </div>
                                 <input value={editingCar.returnLocation} onChange={e => setEditingCar({...editingCar, returnLocation: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-bold text-cocoa text-xs mt-2" placeholder="還車地點"/>
                             </div>
@@ -863,6 +890,14 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                   <select value={editingCar.currency} onChange={e => setEditingCar({...editingCar, currency: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm"><option value="TWD">TWD</option>{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select>
                                </div>
                             </div>
+
+                            <CostPreview 
+                                cost={editingCar.price} 
+                                currency={editingCar.currency} 
+                                hasFee={editingCar.hasServiceFee} 
+                                feePct={editingCar.serviceFeePercentage} 
+                            />
+
                             <div><label className="text-[10px] font-bold text-gray-400 block mb-2">分攤成員</label><div className="flex flex-wrap gap-2">{members.map(m => (<button key={m.id} onClick={() => toggleCarParticipant(m.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${editingCar.participants?.includes(m.id) ? 'bg-sage text-white border-sage' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{m.name}</button>))}</div></div>
                         </div>
 

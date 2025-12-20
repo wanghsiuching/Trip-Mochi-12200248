@@ -38,13 +38,25 @@ const CuteButton = ({ checked, onChange, icon: Icon, label, activeColor = 'bg-or
     </button>
 );
 
-const CostDisplay = ({ amount, currency, hasFee, feePct }: { amount: number, currency: string, hasFee: boolean, feePct: number }) => {
+const CostDisplay = ({ amount, currency, hasFee, feePct, currencies }: { amount: number, currency: string, hasFee: boolean, feePct: number, currencies: Currency[] }) => {
     const total = amount + (hasFee ? amount * (feePct / 100) : 0);
+    const rate = currencies.find(c => c.code === currency)?.rate || (currency === 'TWD' ? 1 : 0);
+    const twdTotal = Math.round(total * (rate || 1));
+    
     if (amount <= 0) return null;
+    
     return (
-        <div className="flex items-center gap-2 mt-2 bg-gray-50 px-3 py-2 rounded-xl border border-dashed border-gray-200">
-            <span className="text-[10px] font-bold text-gray-400 uppercase">總計 (含稅)</span>
-            <span className="text-sm font-black text-cocoa font-mono">{currency} {Math.round(total).toLocaleString()}</span>
+        <div className="mt-2 bg-gray-50 p-3 rounded-xl border border-dashed border-gray-200 space-y-1">
+            <div className="flex justify-between items-center">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">總計 (含稅)</span>
+                <span className="text-sm font-black text-cocoa font-mono">{currency} {Math.round(total).toLocaleString()}</span>
+            </div>
+            {currency !== 'TWD' && (
+                <div className="flex justify-between items-center border-t border-gray-100 pt-1">
+                    <span className="text-[10px] font-bold text-sage uppercase tracking-wider">約台幣 (TWD)</span>
+                    <span className="text-sm font-black text-sage font-mono">${twdTotal.toLocaleString()}</span>
+                </div>
+            )}
         </div>
     );
 };
@@ -691,7 +703,7 @@ export const AddScheduleModal = ({
 
   // Reusable Components
   const CurrencySelect = ({ value, onChange }: { value: string, onChange: (v: string) => void }) => (
-      <select value={value} onChange={e => onChange(e.target.value)} className="bg-white p-2 rounded-lg border border-beige-dark outline-none text-xs font-bold text-cocoa">
+      <select value={value} onChange={e => onChange(e.target.value)} className="bg-white p-2 rounded-lg border border-beige-dark outline-none text-xs font-bold text-cocoa max-w-full">
           <option value="TWD">TWD</option>{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
       </select>
   );
@@ -779,13 +791,13 @@ export const AddScheduleModal = ({
                             <div className="text-xs font-bold text-cyan-600 mb-2 flex items-center gap-1"><DollarSign size={12}/> 機票費用 (總計)</div>
                             <div className="flex gap-2 mb-2">
                                <div className="bg-white p-2 rounded-xl border border-beige-dark shadow-sm flex-[2]"><input type="number" value={flightCost} onChange={(e) => setFlightCost(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="0"/></div>
-                               <CurrencySelect value={flightCurrency} onChange={setFlightCurrency}/>
+                               <div className="w-24"><CurrencySelect value={flightCurrency} onChange={setFlightCurrency}/></div>
                             </div>
                             <div className="flex items-center gap-4 mb-2">
                                 <ToggleSwitch checked={flightHasServiceFee} onChange={setFlightHasServiceFee} label="含稅/手續費" colorClass="bg-cyan-400" />
                                 {flightHasServiceFee && <div className="flex items-center bg-white px-2 py-1 rounded border border-beige-dark"><input type="number" value={flightServiceFeePercentage} onChange={e => setFlightServiceFeePercentage(e.target.value)} className="w-8 bg-transparent text-xs font-bold outline-none text-right text-cocoa" placeholder="0"/><span className="text-xs font-bold text-gray-400 ml-1">%</span></div>}
                             </div>
-                            <CostDisplay amount={Number(flightCost)} currency={flightCurrency} hasFee={flightHasServiceFee} feePct={Number(flightServiceFeePercentage)} />
+                            <CostDisplay amount={Number(flightCost)} currency={flightCurrency} hasFee={flightHasServiceFee} feePct={Number(flightServiceFeePercentage)} currencies={currencies} />
                             
                             <label className="text-[10px] font-bold text-gray-400 block mb-1 mt-2">參與分攤人員</label>
                             <ParticipantsSelector selected={flightParticipants} toggle={(id) => toggleParticipant(id, setFlightParticipants)}/>
@@ -813,13 +825,13 @@ export const AddScheduleModal = ({
                           <div className="text-xs font-bold text-purple-600 mb-2 flex items-center gap-1"><DollarSign size={12}/> 住宿費用</div>
                           <div className="flex gap-2 mb-2">
                              <div className="bg-white p-2 rounded-xl border border-beige-dark shadow-sm flex-[2]"><input type="number" value={stayCost} onChange={(e) => setStayCost(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="0"/></div>
-                             <CurrencySelect value={stayCurrency} onChange={setStayCurrency}/>
+                             <div className="w-24"><CurrencySelect value={stayCurrency} onChange={setStayCurrency}/></div>
                           </div>
                           <div className="flex items-center gap-4 mb-2">
                                 <ToggleSwitch checked={stayHasServiceFee} onChange={setStayHasServiceFee} label="含稅/手續費" colorClass="bg-purple-400" />
                                 {stayHasServiceFee && <div className="flex items-center bg-white px-2 py-1 rounded border border-beige-dark"><input type="number" value={stayServiceFeePercentage} onChange={e => setStayServiceFeePercentage(e.target.value)} className="w-8 bg-transparent text-xs font-bold outline-none text-right text-cocoa" placeholder="0"/><span className="text-xs font-bold text-gray-400 ml-1">%</span></div>}
                           </div>
-                          <CostDisplay amount={Number(stayCost)} currency={stayCurrency} hasFee={stayHasServiceFee} feePct={Number(stayServiceFeePercentage)} />
+                          <CostDisplay amount={Number(stayCost)} currency={stayCurrency} hasFee={stayHasServiceFee} feePct={Number(stayServiceFeePercentage)} currencies={currencies} />
 
                           <label className="text-[10px] font-bold text-gray-400 block mb-1 mt-2">參與分攤人員</label>
                           <ParticipantsSelector selected={stayParticipants} toggle={(id) => toggleParticipant(id, setStayParticipants)}/>
@@ -845,11 +857,7 @@ export const AddScheduleModal = ({
                                  <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">車型</label><input value={carModel} onChange={e => setCarModel(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: Yaris"/></div>
                              </div>
                              <div className="grid grid-cols-2 gap-2">
-                                 <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">取車日期</label><input type="date" value={pickupDate} onChange={e => setPickupDate(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
                                  <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">取車時間</label><input type="time" value={pickupTime} onChange={e => setPickupTime(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
-                             </div>
-                             <div className="grid grid-cols-2 gap-2">
-                                 <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">還車日期</label><input type="date" value={returnDate} onChange={e => setReturnDate(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
                                  <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">還車時間</label><input type="time" value={returnTime} onChange={e => setReturnTime(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
                              </div>
                              
@@ -858,13 +866,13 @@ export const AddScheduleModal = ({
                                 <div className="text-xs font-bold text-gray-500 mb-2 flex items-center gap-1"><DollarSign size={12}/> 租車費用 (基本)</div>
                                 <div className="flex gap-2 mb-2">
                                    <div className="bg-white p-2 rounded-xl border border-beige-dark shadow-sm flex-[2]"><input type="number" value={rentalCost} onChange={(e) => setRentalCost(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="0"/></div>
-                                   <CurrencySelect value={rentalCurrency} onChange={setRentalCurrency}/>
+                                   <div className="w-24"><CurrencySelect value={rentalCurrency} onChange={setRentalCurrency}/></div>
                                 </div>
                                 <div className="flex items-center gap-4 mb-2">
                                     <ToggleSwitch checked={rentalHasServiceFee} onChange={setRentalHasServiceFee} label="含稅/手續費" colorClass="bg-blue-400" />
                                     {rentalHasServiceFee && <div className="flex items-center bg-white px-2 py-1 rounded border border-beige-dark"><input type="number" value={rentalServiceFeePercentage} onChange={e => setRentalServiceFeePercentage(e.target.value)} className="w-8 bg-transparent text-xs font-bold outline-none text-right text-cocoa" placeholder="0"/><span className="text-xs font-bold text-gray-400 ml-1">%</span></div>}
                                 </div>
-                                <CostDisplay amount={Number(rentalCost)} currency={rentalCurrency} hasFee={rentalHasServiceFee} feePct={Number(rentalServiceFeePercentage)} />
+                                <CostDisplay amount={Number(rentalCost)} currency={rentalCurrency} hasFee={rentalHasServiceFee} feePct={Number(rentalServiceFeePercentage)} currencies={currencies} />
                              </div>
 
                              {/* Fuel Cost */}
@@ -872,7 +880,7 @@ export const AddScheduleModal = ({
                                 <div className="text-xs font-bold text-gray-500 mb-2 flex items-center gap-1"><Fuel size={12}/> 預估油資</div>
                                 <div className="flex gap-2 mb-2">
                                    <div className="bg-white p-2 rounded-xl border border-beige-dark shadow-sm flex-[2]"><input type="number" value={estimatedFuelCost} onChange={(e) => setEstimatedFuelCost(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="0"/></div>
-                                   <CurrencySelect value={fuelCurrency} onChange={setFuelCurrency}/>
+                                   <div className="w-24"><CurrencySelect value={fuelCurrency} onChange={setFuelCurrency}/></div>
                                 </div>
                              </div>
 
@@ -883,11 +891,24 @@ export const AddScheduleModal = ({
                                     <button onClick={addRentalExpense} className="text-[10px] bg-white border border-blue-200 text-blue-500 px-2 py-1 rounded-lg font-bold shadow-sm">新增項目</button>
                                 </div>
                                 {rentalExpenses.map(exp => (
-                                    <div key={exp.id} className="flex gap-2 mb-2 items-center">
-                                        <input value={exp.name} onChange={e => updateRentalExpense(exp.id, 'name', e.target.value)} placeholder="項目名稱" className="flex-1 bg-white p-2 rounded-lg border border-beige-dark text-xs font-bold text-cocoa"/>
-                                        <input type="number" value={exp.amount} onChange={e => updateRentalExpense(exp.id, 'amount', e.target.value)} placeholder="金額" className="w-20 bg-white p-2 rounded-lg border border-beige-dark text-xs font-bold text-cocoa"/>
-                                        <div className="w-20"><CurrencySelect value={exp.currency || 'TWD'} onChange={v => updateRentalExpense(exp.id, 'currency', v)}/></div>
-                                        <button onClick={() => setExpenseToDelete(exp.id)} className="text-red-400 p-1"><X size={14}/></button>
+                                    <div key={exp.id} className="bg-white p-3 rounded-xl border border-beige-dark shadow-sm mb-2">
+                                        <div className="flex gap-2 mb-2">
+                                            <input value={exp.name} onChange={e => updateRentalExpense(exp.id, 'name', e.target.value)} placeholder="項目名稱" className="flex-1 bg-gray-50 p-2 rounded-lg border border-beige-dark text-xs font-bold text-cocoa outline-none focus:border-blue-300"/>
+                                            <button onClick={() => setExpenseToDelete(exp.id)} className="text-red-400 p-1 hover:text-red-600 transition-colors"><X size={16}/></button>
+                                        </div>
+                                        <div className="flex gap-2 items-center">
+                                            <div className="flex-1">
+                                                <div className="flex gap-1">
+                                                    <input type="number" value={exp.amount} onChange={e => updateRentalExpense(exp.id, 'amount', e.target.value)} placeholder="金額" className="flex-1 bg-gray-50 p-2 rounded-lg border border-beige-dark text-xs font-bold text-cocoa outline-none focus:border-blue-300"/>
+                                                    <div className="w-20"><CurrencySelect value={exp.currency || 'TWD'} onChange={v => updateRentalExpense(exp.id, 'currency', v)}/></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {Number(exp.amount) > 0 && (
+                                            <div className="mt-2 text-[10px] font-black text-blue-500 text-right">
+                                                約 TWD ${Math.round(Number(exp.amount) * (currencies.find(c => c.code === exp.currency)?.rate || (exp.currency === 'TWD' ? 1 : 1))).toLocaleString()}
+                                            </div>
+                                        )}
                                     </div>
                                 ))}
                              </div>
@@ -925,14 +946,14 @@ export const AddScheduleModal = ({
                          </div>
                          <div className="w-24 bg-white p-3 rounded-2xl border-2 border-beige-dark shadow-sm">
                              <label className="text-[10px] font-bold text-gray-400 block mb-1">幣別</label>
-                             <CurrencySelect value={selectedCurrency} onChange={setSelectedCurrency}/>
+                             <div className="mt-1"><CurrencySelect value={selectedCurrency} onChange={setSelectedCurrency}/></div>
                          </div>
                       </div>
                       <div className="flex items-center gap-4 mb-1">
                             <ToggleSwitch checked={hasServiceFee} onChange={setHasServiceFee} label="含稅/手續費" />
                             {hasServiceFee && <div className="flex items-center bg-white px-2 py-1 rounded border border-beige-dark"><input type="number" value={serviceFeePercentage} onChange={e => setServiceFeePercentage(e.target.value)} className="w-8 bg-transparent text-xs font-bold outline-none text-right text-cocoa" placeholder="0"/><span className="text-xs font-bold text-gray-400 ml-1">%</span></div>}
                       </div>
-                      <CostDisplay amount={Number(ticketCost)} currency={selectedCurrency} hasFee={hasServiceFee} feePct={Number(serviceFeePercentage)} />
+                      <CostDisplay amount={Number(ticketCost)} currency={selectedCurrency} hasFee={hasServiceFee} feePct={Number(serviceFeePercentage)} currencies={currencies} />
 
                       <label className="text-[10px] font-bold text-gray-400 block mb-1 mt-2">參與分攤人員</label>
                       <ParticipantsSelector selected={participantIds} toggle={(id) => toggleParticipant(id, setParticipantIds)}/>
