@@ -41,7 +41,9 @@ export interface CarRentalDetails {
   hasRental: boolean;
   company?: string;
   carModel?: string;
+  pickupDate?: string;
   pickupTime?: string;
+  returnDate?: string;
   returnTime?: string;
   
   // Base Rental Cost

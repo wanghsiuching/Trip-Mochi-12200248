@@ -192,8 +192,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   const openCarEdit = () => {
       const initialCar: BookingCarRental = (carRental && carRental.company) ? { ...carRental } : { 
           company: '', platform: '', carModel: '', ref: '', 
-          pickupDate: new Date().toISOString().slice(0, 16), pickupTime: '10:00', pickupLocation: '', 
-          returnDate: new Date(Date.now() + 86400000).toISOString().slice(0, 16), returnTime: '10:00', returnLocation: '', 
+          pickupDate: new Date().toISOString().split('T')[0], pickupTime: '10:00', pickupLocation: '', 
+          returnDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], returnTime: '10:00', returnLocation: '', 
           gps: '', url: '', note: '', 
           price: 0, currency: 'TWD', hasServiceFee: false, serviceFeePercentage: 0, 
           pax: 4, participants: members.map(m => m.id),
@@ -772,7 +772,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             <div><label className="text-[10px] font-bold text-gray-400 ml-1">城市</label><input value={editingAcc.city} onChange={e => setEditingAcc({...editingAcc, city: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="釜山"/></div>
                         </div>
 
-                        <div><label className="text-[10px] font-bold text-gray-400 ml-1">住宿名稱</label><input value={editingAcc.name} onChange={e => setEditingAcc({...editingAcc, name: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa" placeholder="飯店名稱"/></div>
+                        <div><label className="text-[10px] font-bold text-gray-400 ml-1">住宿名稱</label><input value={editingAcc.name} onChange={e => setEditingAcc({...editingAcc, name: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-black text-cocoa" placeholder="飯店名稱"/></div>
 
                         <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark space-y-4">
                             <div className="flex flex-col">
@@ -836,12 +836,18 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                         <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark space-y-4">
                             <div className="flex flex-col">
                                 <label className="text-[10px] font-bold text-blue-500 flex items-center gap-1 mb-1"><Compass size={12}/> 取車時間</label>
-                                <input type="datetime-local" value={editingCar.pickupDate} onChange={e => setEditingCar({...editingCar, pickupDate: e.target.value})} className="w-full bg-beige/50 p-3 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{ colorScheme: 'light' }}/>
+                                <div className="flex gap-2">
+                                  <input type="date" value={editingCar.pickupDate} onChange={e => setEditingCar({...editingCar, pickupDate: e.target.value})} className="flex-1 bg-beige/50 p-2 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{ colorScheme: 'light' }}/>
+                                  <input type="time" value={editingCar.pickupTime} onChange={e => setEditingCar({...editingCar, pickupTime: e.target.value})} className="w-24 bg-beige/50 p-2 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{ colorScheme: 'light' }}/>
+                                </div>
                                 <input value={editingCar.pickupLocation} onChange={e => setEditingCar({...editingCar, pickupLocation: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-bold text-cocoa text-xs mt-2" placeholder="取車地點"/>
                             </div>
                             <div className="flex flex-col">
                                 <label className="text-[10px] font-bold text-orange-500 flex items-center gap-1 mb-1"><Compass size={12}/> 還車時間</label>
-                                <input type="datetime-local" value={editingCar.returnDate} onChange={e => setEditingCar({...editingCar, returnDate: e.target.value})} className="w-full bg-beige/50 p-3 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{ colorScheme: 'light' }}/>
+                                <div className="flex gap-2">
+                                  <input type="date" value={editingCar.returnDate} onChange={e => setEditingCar({...editingCar, returnDate: e.target.value})} className="flex-1 bg-beige/50 p-2 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{ colorScheme: 'light' }}/>
+                                  <input type="time" value={editingCar.returnTime} onChange={e => setEditingCar({...editingCar, returnTime: e.target.value})} className="w-24 bg-beige/50 p-2 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{ colorScheme: 'light' }}/>
+                                </div>
                                 <input value={editingCar.returnLocation} onChange={e => setEditingCar({...editingCar, returnLocation: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-bold text-cocoa text-xs mt-2" placeholder="還車地點"/>
                             </div>
                         </div>

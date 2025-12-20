@@ -85,7 +85,7 @@ export const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, tripName }: { i
                 <p className="text-gray-400 font-bold text-center text-sm mb-6">確定要刪除 <span className="text-cocoa">{tripName}</span> 嗎？此動作無法復原。</p>
                 <div className="flex gap-3">
                     <button onClick={onClose} className="flex-1 py-3 rounded-xl font-bold text-gray-400 bg-gray-100 hover:bg-gray-200 transition-colors">取消</button>
-                    <button onClick={onConfirm} className="flex-1 py-3 rounded-xl font-bold text-white bg-red-400 hover:bg-red-500 shadow-hard-sm border-2 border-red-500 active:translate-y-1 active:shadow-none transition-all">刪除</button>
+                    <button onClick={onConfirm} className="flex-1 py-3 rounded-xl font-bold text-white bg-red-400 hover:bg-red-50 shadow-hard-sm border-2 border-red-500 active:translate-y-1 active:shadow-none transition-all">刪除</button>
                 </div>
             </div>
         </div>
@@ -120,7 +120,7 @@ export const DeleteDayConfirmModal = ({ isOpen, onClose, onConfirm, date }: { is
                 <p className="text-gray-400 font-bold text-center text-sm mb-6">確定要刪除 <span className="text-cocoa">{date}</span> 及其所有行程嗎？</p>
                 <div className="flex gap-3">
                     <button onClick={onClose} className="flex-1 py-3 rounded-xl font-bold text-gray-400 bg-gray-100 hover:bg-gray-200 transition-colors">取消</button>
-                    <button onClick={onConfirm} className="flex-1 py-3 rounded-xl font-bold text-white bg-red-400 hover:bg-red-500 shadow-hard-sm border-2 border-red-500 active:translate-y-1 active:shadow-none transition-all">刪除</button>
+                    <button onClick={onConfirm} className="flex-1 py-3 rounded-xl font-bold text-white bg-red-400 hover:bg-red-50 shadow-hard-sm border-2 border-red-500 active:translate-y-1 active:shadow-none transition-all">刪除</button>
                 </div>
             </div>
         </div>
@@ -391,7 +391,7 @@ export const DeleteItemConfirmModal = ({ isOpen, onClose, onConfirm, title }: { 
                 <p className="text-gray-400 font-bold text-center text-sm mb-6">確定要刪除 <span className="text-cocoa">{title}</span> 嗎？</p>
                 <div className="flex gap-3">
                     <button onClick={onClose} className="flex-1 py-3 rounded-xl font-bold text-gray-400 bg-gray-100 hover:bg-gray-200 transition-colors">取消</button>
-                    <button onClick={onConfirm} className="flex-1 py-3 rounded-xl font-bold text-white bg-red-400 hover:bg-red-500 shadow-hard-sm border-2 border-red-500 active:translate-y-1 active:shadow-none transition-all">刪除</button>
+                    <button onClick={onConfirm} className="flex-1 py-3 rounded-xl font-bold text-white bg-red-400 hover:bg-red-50 shadow-hard-sm border-2 border-red-500 active:translate-y-1 active:shadow-none transition-all">刪除</button>
                 </div>
             </div>
         </div>
@@ -523,7 +523,9 @@ export const AddScheduleModal = ({
   const [hasRental, setHasRental] = useState(false);
   const [rentalCompany, setRentalCompany] = useState('');
   const [carModel, setCarModel] = useState('');
+  const [pickupDate, setPickupDate] = useState('');
   const [pickupTime, setPickupTime] = useState('');
+  const [returnDate, setReturnDate] = useState('');
   const [returnTime, setReturnTime] = useState('');
   const [rentalCost, setRentalCost] = useState('');
   const [rentalCurrency, setRentalCurrency] = useState('TWD');
@@ -599,7 +601,9 @@ export const AddScheduleModal = ({
            setHasRental(initialData.carRental.hasRental);
            setRentalCompany(initialData.carRental.company || '');
            setCarModel(initialData.carRental.carModel || '');
+           setPickupDate(initialData.carRental.pickupDate || '');
            setPickupTime(initialData.carRental.pickupTime || '');
+           setReturnDate(initialData.carRental.returnDate || '');
            setReturnTime(initialData.carRental.returnTime || '');
            setRentalCost(initialData.carRental.rentalCost?.toString() || '');
            setRentalCurrency(initialData.carRental.rentalCurrency || 'TWD');
@@ -632,7 +636,7 @@ export const AddScheduleModal = ({
         // Reset Category Specifics
         setFlightAirline(''); setFlightCode(''); setFlightDepTime(''); setFlightArrTime(''); setFlightArrDate(''); setFlightDepAirport(''); setFlightArrAirport(''); setFlightCheckedBag(''); setFlightCarryOnBag(''); setFlightCost(''); setFlightCurrency('TWD'); setFlightHasServiceFee(false); setFlightServiceFeePercentage(''); setFlightParticipants(members.map(m => m.id)); setIsFlightPotential(false);
         setCheckIn(''); setCheckOut(''); setHasBreakfast(false); setHasDinner(false); setStayCost(''); setStayCurrency('TWD'); setStayHasServiceFee(false); setStayServiceFeePercentage(''); setStayParticipants(members.map(m => m.id)); setIsStayPotential(false);
-        setHasRental(false); setRentalCompany(''); setCarModel(''); setPickupTime(''); setReturnTime(''); setRentalCost(''); setRentalCurrency('TWD'); setRentalHasServiceFee(false); setRentalServiceFeePercentage(''); setEstimatedFuelCost(''); setFuelCurrency('TWD'); setRentalExpenses([]); setRentalParticipants(members.map(m => m.id)); setIsRentalPotential(false); setExpenseToDelete(null);
+        setHasRental(false); setRentalCompany(''); setCarModel(''); setPickupDate(''); setPickupTime(''); setReturnDate(''); setReturnTime(''); setRentalCost(''); setRentalCurrency('TWD'); setRentalHasServiceFee(false); setRentalServiceFeePercentage(''); setEstimatedFuelCost(''); setFuelCurrency('TWD'); setRentalExpenses([]); setRentalParticipants(members.map(m => m.id)); setIsRentalPotential(false); setExpenseToDelete(null);
         setHasTicket(false); setTicketCost(''); setSelectedCurrency('TWD'); setHasServiceFee(false); setServiceFeePercentage(''); setParticipantIds(members.map(m => m.id)); setIsPotential(false);
       }
     }
@@ -672,7 +676,7 @@ export const AddScheduleModal = ({
     }
     if (selectedType === 'transport') {
       itemData.carRental = {
-        hasRental, company: hasRental ? rentalCompany : undefined, carModel: hasRental ? carModel : undefined, pickupTime: hasRental ? pickupTime : undefined, returnTime: hasRental ? returnTime : undefined,
+        hasRental, company: hasRental ? rentalCompany : undefined, carModel: hasRental ? carModel : undefined, pickupDate: hasRental ? pickupDate : undefined, pickupTime: hasRental ? pickupTime : undefined, returnDate: hasRental ? returnDate : undefined, returnTime: hasRental ? returnTime : undefined,
         rentalCost: hasRental ? (Number(rentalCost) || 0) : undefined, rentalCurrency: hasRental ? rentalCurrency : undefined, hasServiceFee: hasRental ? rentalHasServiceFee : false, serviceFeePercentage: hasRental ? (Number(rentalServiceFeePercentage) || 0) : undefined,
         estimatedFuelCost: hasRental ? (Number(estimatedFuelCost) || 0) : undefined, fuelCurrency: hasRental ? fuelCurrency : undefined, expenses: hasRental ? rentalExpenses.map(e => ({...e, amount: Number(e.amount)||0, serviceFeePercentage: Number(e.serviceFeePercentage)||0})) : [], participants: hasRental ? rentalParticipants : [], isPotential: hasRental ? isRentalPotential : false
       };
@@ -841,7 +845,11 @@ export const AddScheduleModal = ({
                                  <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">車型</label><input value={carModel} onChange={e => setCarModel(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: Yaris"/></div>
                              </div>
                              <div className="grid grid-cols-2 gap-2">
+                                 <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">取車日期</label><input type="date" value={pickupDate} onChange={e => setPickupDate(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
                                  <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">取車時間</label><input type="time" value={pickupTime} onChange={e => setPickupTime(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
+                             </div>
+                             <div className="grid grid-cols-2 gap-2">
+                                 <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">還車日期</label><input type="date" value={returnDate} onChange={e => setReturnDate(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
                                  <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">還車時間</label><input type="time" value={returnTime} onChange={e => setReturnTime(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
                              </div>
                              

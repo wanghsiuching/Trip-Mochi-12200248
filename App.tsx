@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   MapPin, ArrowRight, Plane, Plus, X, Copy, BookOpen, ChevronLeft, Trash2,
@@ -331,14 +330,13 @@ export default function App() {
                                                 <span className="text-[10px] font-bold text-cyan-600">{item.flightDetails.departureAirport} → {item.flightDetails.arrivalAirport}</span>
                                             </div>
                                             <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-gray-500">
-                                                {/* Fix: Using Clock from lucide-react */}
                                                 <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>DEP: {item.flightDetails.departureTime}</div>
                                                 <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>ARR: {item.flightDetails.arrivalTime}</div>
                                                 <div className="flex items-center gap-1"><Luggage size={12} className="text-teal-500"/>託運: {item.flightDetails.checkedBag || '--'}</div>
                                                 <div className="flex items-center gap-1"><Briefcase size={12} className="text-orange-400"/>手提: {item.flightDetails.carryOnBag || '--'}</div>
                                             </div>
-                                            {/* Fix: Wrap item.flightDetails.cost in Number() for comparison */}
-                                            {(Number(item.flightDetails.cost) || 0) > 0 && <div className="text-right text-[10px] font-black text-sage">費用: {item.flightDetails.currency} {Number(item.flightDetails.cost).toLocaleString()}</div>}
+                                            {/* Fix: Operator '>' cannot be applied to types 'string | number' and 'number' */}
+                                            {Number(item.flightDetails.cost) > 0 && <div className="text-right text-[10px] font-black text-sage">費用: {item.flightDetails.currency} {Number(item.flightDetails.cost).toLocaleString()}</div>}
                                         </div>
                                     )}
 
@@ -349,7 +347,6 @@ export default function App() {
                                                 <div className="flex items-center gap-2"><Bed size={14} className="text-purple-600"/><span className="text-sm font-black text-cocoa">住宿詳情</span></div>
                                             </div>
                                             <div className="flex gap-4 text-[11px] font-bold text-gray-500">
-                                                {/* Fix: Using Clock from lucide-react */}
                                                 <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>CI: {item.checkIn}</div>
                                                 <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>CO: {item.checkOut}</div>
                                             </div>
@@ -357,8 +354,8 @@ export default function App() {
                                                 {item.meals?.breakfast && <span className="text-[10px] bg-white px-2 py-0.5 rounded-full border border-purple-200 text-purple-400 flex items-center gap-1"><Coffee size={10}/> 早餐</span>}
                                                 {item.meals?.dinner && <span className="text-[10px] bg-white px-2 py-0.5 rounded-full border border-purple-200 text-purple-400 flex items-center gap-1"><Utensils size={10}/> 晚餐</span>}
                                             </div>
-                                            {/* Fix: Wrap item.stayDetails.cost in Number() for comparison */}
-                                            {(Number(item.stayDetails.cost) || 0) > 0 && <div className="text-right text-[10px] font-black text-sage">費用: {item.stayDetails.currency} {Number(item.stayDetails.cost).toLocaleString()}</div>}
+                                            {/* Fix: Operator '>' cannot be applied to types 'string | number' and 'number' */}
+                                            {Number(item.stayDetails.cost) > 0 && <div className="text-right text-[10px] font-black text-sage">費用: {item.stayDetails.currency} {Number(item.stayDetails.cost).toLocaleString()}</div>}
                                         </div>
                                     )}
 
@@ -369,13 +366,13 @@ export default function App() {
                                                 <div className="flex items-center gap-2"><Car size={14} className="text-blue-600"/><span className="text-sm font-black text-cocoa">{item.carRental.company} - {item.carRental.carModel}</span></div>
                                             </div>
                                             <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-gray-500">
-                                                {/* Fix: Using Clock from lucide-react */}
-                                                <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>取車: {item.carRental.pickupTime}</div>
-                                                <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>還車: {item.carRental.returnTime}</div>
-                                                {/* Fix: Wrap item.carRental fields in Number() for comparison */}
-                                                {(Number(item.carRental.estimatedFuelCost) || 0) > 0 && <div className="flex items-center gap-1 col-span-2"><Fuel size={12} className="text-orange-400"/>預估油資: {item.carRental.fuelCurrency} {Number(item.carRental.estimatedFuelCost).toLocaleString()}</div>}
+                                                <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>取車: {item.carRental.pickupDate} {item.carRental.pickupTime}</div>
+                                                <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>還車: {item.carRental.returnDate} {item.carRental.returnTime}</div>
+                                                {/* Fix: Operator '>' cannot be applied to types 'string | number' and 'number' */}
+                                                {Number(item.carRental.estimatedFuelCost) > 0 && <div className="flex items-center gap-1 col-span-2"><Fuel size={12} className="text-orange-400"/>預估油資: {item.carRental.fuelCurrency} {Number(item.carRental.estimatedFuelCost).toLocaleString()}</div>}
                                             </div>
-                                            {(Number(item.carRental.rentalCost) || 0) > 0 && <div className="text-right text-[10px] font-black text-sage">租金: {item.carRental.rentalCurrency} {Number(item.carRental.rentalCost).toLocaleString()}</div>}
+                                            {/* Fix: Operator '>' cannot be applied to types 'string | number' and 'number' */}
+                                            {Number(item.carRental.rentalCost) > 0 && <div className="text-right text-[10px] font-black text-sage">租金: {item.carRental.rentalCurrency} {Number(item.carRental.rentalCost).toLocaleString()}</div>}
                                         </div>
                                     )}
 
