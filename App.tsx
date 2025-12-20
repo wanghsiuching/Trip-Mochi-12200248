@@ -358,38 +358,56 @@ export default function App() {
                                     )}
 
                                     {/* Car Rental Info */}
-                                    {item.type === 'transport' && item.carRental?.hasRental && (
-                                        <div className="bg-blue-50/30 p-3 rounded-2xl border border-blue-100/50 space-y-2">
-                                            <div className="flex justify-between items-center border-b border-blue-100/50 pb-2">
-                                                <div className="flex items-center gap-2"><Car size={14} className="text-blue-600"/><span className="text-sm font-black text-cocoa">{item.carRental.company} - {item.carRental.carModel}</span></div>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-gray-500">
-                                                <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>取車: {item.carRental.pickupDate} {item.carRental.pickupTime}</div>
-                                                <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>還車: {item.carRental.returnDate} {item.carRental.returnTime}</div>
-                                                {Number(item.carRental.estimatedFuelCost) > 0 && <div className="flex items-center gap-1 col-span-2"><Fuel size={12} className="text-orange-400"/>預估油資: {item.carRental.fuelCurrency} {Number(item.carRental.estimatedFuelCost).toLocaleString()}</div>}
-                                            </div>
-                                            
-                                            {/* Rental Costs Listing */}
-                                            {Number(item.carRental.rentalCost) > 0 && (
-                                                <div className="flex justify-between items-center text-[10px] font-black text-sage">
-                                                    <span>基本租金</span>
-                                                    <span>{item.carRental.rentalCurrency} {Number(item.carRental.rentalCost).toLocaleString()}</span>
-                                                </div>
-                                            )}
+                                    {item.type === 'transport' && item.carRental?.hasRental && (() => {
+                                        const baseRental = Number(item.carRental.rentalCost) || 0;
+                                        const baseFeePct = Number(item.carRental.serviceFeePercentage) || 0;
+                                        const baseWithFee = baseRental + (item.carRental.hasServiceFee ? (baseRental * baseFeePct / 100) : 0);
+                                        
+                                        let extrasTotal = 0;
+                                        item.carRental.expenses?.forEach(exp => {
+                                            const amt = Number(exp.amount) || 0;
+                                            const feePct = Number(exp.serviceFeePercentage) || 0;
+                                            extrasTotal += amt + (exp.hasServiceFee ? (amt * feePct / 100) : 0);
+                                        });
 
-                                            {/* Extra Expenses Display - Listing added items under divider */}
-                                            {item.carRental.expenses && item.carRental.expenses.length > 0 && (
-                                                <div className="pt-1 mt-1 border-t border-dashed border-blue-200/50 space-y-1">
-                                                    {item.carRental.expenses.map((exp, idx) => (
-                                                        <div key={idx} className="flex justify-between items-center text-[10px] font-bold text-gray-400 italic">
-                                                            <span>• {exp.name}</span>
-                                                            <span className="font-mono">{exp.currency} {Number(exp.amount).toLocaleString()}</span>
-                                                        </div>
-                                                    ))}
+                                        const grandTotal = baseWithFee + extrasTotal;
+
+                                        return (
+                                            <div className="bg-blue-50/30 p-3 rounded-2xl border border-blue-100/50 space-y-2">
+                                                <div className="flex justify-between items-center border-b border-blue-100/50 pb-2">
+                                                    <div className="flex items-center gap-2"><Car size={14} className="text-blue-600"/><span className="text-sm font-black text-cocoa">{item.carRental.company} - {item.carRental.carModel}</span></div>
                                                 </div>
-                                            )}
-                                        </div>
-                                    )}
+                                                <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-gray-500">
+                                                    <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>取車: {item.carRental.pickupDate} {item.carRental.pickupTime}</div>
+                                                    <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>還車: {item.carRental.returnDate} {item.carRental.returnTime}</div>
+                                                    {Number(item.carRental.estimatedFuelCost) > 0 && <div className="flex items-center gap-1 col-span-2"><Fuel size={12} className="text-orange-400"/>預估油資: {item.carRental.fuelCurrency} {Number(item.carRental.estimatedFuelCost).toLocaleString()}</div>}
+                                                </div>
+                                                
+                                                {/* Rental Costs Listing */}
+                                                <div className="pt-1 mt-1 border-t border-dashed border-blue-200/50 space-y-1">
+                                                    <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 italic">
+                                                        <span>基本租金</span>
+                                                        <span className="font-mono">{item.carRental.rentalCurrency} {Math.round(baseWithFee).toLocaleString()}</span>
+                                                    </div>
+                                                    {item.carRental.expenses?.map((exp, idx) => {
+                                                        const expAmt = Number(exp.amount) || 0;
+                                                        const expFeePct = Number(exp.serviceFeePercentage) || 0;
+                                                        const expTotal = expAmt + (exp.hasServiceFee ? (expAmt * expFeePct / 100) : 0);
+                                                        return (
+                                                            <div key={idx} className="flex justify-between items-center text-[10px] font-bold text-gray-400 italic">
+                                                                <span>• {exp.name}</span>
+                                                                <span className="font-mono">{exp.currency || item.carRental?.rentalCurrency} {Math.round(expTotal).toLocaleString()}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                    <div className="flex justify-between items-center text-[11px] font-black text-blue-600 pt-1 border-t border-blue-100 mt-1">
+                                                        <span>租車總計金額</span>
+                                                        <span className="font-mono">{item.carRental.rentalCurrency} {Math.round(grandTotal).toLocaleString()}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })()}
 
                                     {/* Spot/Food Expense Info */}
                                     {(item.type === 'spot' || item.type === 'food') && item.spotDetails?.hasTicket && (
