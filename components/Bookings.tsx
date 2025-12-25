@@ -196,6 +196,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   const openCarEdit = () => {
       // Use existing car rental data or create a default template
       const initialCar: BookingCarRental = (carRental && carRental.company) ? { ...carRental } : { 
+          id: Date.now(),
           company: '', platform: '', carModel: '', ref: '', 
           pickupDate: new Date().toISOString().split('T')[0], pickupTime: '10:00', pickupLocation: '', 
           returnDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], returnTime: '10:00', returnLocation: '', 
@@ -760,15 +761,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                     colorClass="bg-cyan-400" 
                                 />
                                 {editingFlight.hasServiceFee && (
-                                   <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-beige-dark">
-                                        <input 
-                                            type="number"
-                                            value={editingFlight.serviceFeePercentage || ''}
-                                            onChange={(e) => setEditingFlight({...editingFlight, serviceFeePercentage: Number(e.target.value)})}
-                                            placeholder="%"
-                                            className="w-10 bg-transparent text-xs font-bold text-center outline-none text-right text-cocoa border-b border-gray-200"
-                                        />
-                                        <span className="text-xs text-gray-400 font-bold">%</span>
+                                   <div className="flex items-center gap-2 bg-white px-2 py-1 rounded border border-beige-dark"><input type="number" value={editingFlight.serviceFeePercentage || ''} onChange={(e) => setEditingFlight({...editingFlight, serviceFeePercentage: Number(e.target.value)})} placeholder="%" className="w-10 bg-transparent text-xs font-bold text-center outline-none text-cocoa border-b border-gray-200"/>                                        <span className="text-xs text-gray-400 font-bold">%</span>
                                    </div>
                                 )}
                             </div>

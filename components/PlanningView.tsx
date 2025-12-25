@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { ClipboardList, Luggage, Heart, ShoppingCart, PenTool, Trash2, Link, X, Check, Plus, Edit3 } from 'lucide-react';
-import { TodoItem, Member } from '../types';
+import { ClipboardList, Luggage, Heart, ShoppingCart, PenTool, Trash2, Link, X, Check, Plus, Edit3, MessageCircle, Send } from 'lucide-react';
+import { TodoItem, Member, Comment } from '../types';
 
 interface PlanningViewProps {
   lists: { todo: TodoItem[]; packing: TodoItem[]; wish: TodoItem[]; shopping: TodoItem[] };
@@ -30,6 +30,12 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
 
   // Delete Confirmation State
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  // Inline Comment State
+  // Map of itemId -> draft text
+  const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
+  // Map of itemId -> authorId
+  const [commentAuthors, setCommentAuthors] = useState<Record<number, string>>({});
 
   // Reset inputs when switching tabs, default filter to All
   useEffect(() => {
@@ -133,6 +139,38 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
       setDeletingId(null);
   };
 
+  // --- Inline Comment Logic ---
+  const handleInlineCommentChange = (id: number, text: string) => {
+      setCommentDrafts(prev => ({ ...prev, [id]: text }));
+  };
+
+  const cycleCommentAuthor = (id: number) => {
+      setCommentAuthors(prev => {
+          const currentId = prev[id] || members[0]?.id;
+          const currentIndex = members.findIndex(m => m.id === currentId);
+          const nextIndex = (currentIndex + 1) % members.length;
+          return { ...prev, [id]: members[nextIndex].id };
+      });
+  };
+
+  const submitInlineComment = (item: TodoItem) => {
+      const text = commentDrafts[item.id];
+      if (!text || !text.trim()) return;
+
+      const authorId = commentAuthors[item.id] || members[0]?.id;
+      const newComment: Comment = {
+          id: Date.now().toString(),
+          authorId,
+          text: text.trim(),
+          createdAt: new Date().toISOString()
+      };
+
+      const updatedComments = [...(item.comments || []), newComment];
+      onUpdate(currentList, item.id, { comments: updatedComments });
+      
+      setCommentDrafts(prev => ({ ...prev, [item.id]: '' }));
+  };
+
   // --- Filter Logic for List Display ---
   const activeListItems = (lists[currentList] || []).filter(item => {
       // 1. Show all if '全體' is selected
@@ -223,18 +261,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
             <div className="mb-6 bg-white p-4 rounded-[2rem] shadow-hard-sm border-2 border-beige-dark space-y-3 flex-shrink-0">
                 <div className="flex gap-2 items-start">
                     <div className="flex-1 min-w-0 space-y-2">
-                            <input 
-                            type="text" 
+                        <textarea
                             value={newItem} 
                             onChange={e => setNewItem(e.target.value)} 
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
-                                    e.preventDefault();
-                                    handleAdd();
-                                }
-                            }}
                             placeholder={getPlaceholderText()} 
-                            className="w-full bg-beige/50 text-cocoa rounded-xl px-4 py-3.5 text-base outline-none focus:border-sage border-2 border-beige-dark font-bold placeholder-gray-300 transition-colors" 
+                            className="w-full bg-beige/50 text-cocoa rounded-xl px-4 py-3.5 text-base outline-none focus:border-sage border-2 border-beige-dark font-bold placeholder-gray-300 transition-colors resize-none h-[54px] leading-tight"
                         />
                         
                         {/* Extra Input Fields (Note & URL) */}
@@ -302,6 +333,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                     const completedCount = (item.completedBy || []).filter(name => targets.includes(name)).length;
                     const totalTargets = targets.length;
                     const isViewAllMode = filterSelection.includes('全體');
+                    
+                    // Comment Data
+                    const currentDraft = commentDrafts[item.id] || '';
+                    const currentAuthorId = commentAuthors[item.id] || members[0]?.id;
+                    const currentAuthor = members.find(m => m.id === currentAuthorId);
 
                     return (
                         <div key={item.id} className={`p-4 rounded-[1.5rem] border-2 transition-all relative group shadow-hard-sm ${item.done ? 'bg-gray-50 border-beige-dark opacity-80' : 'bg-white border-beige-dark'}`}>
@@ -315,7 +351,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                                 </div>
                             )}
 
-                            <div className="flex items-start gap-3">
+                            <div className="flex items-start gap-3 mb-2">
                                 {/* Checkbox */}
                                 <div className={`flex-shrink-0 pt-0.5 ${!isViewAllMode ? 'cursor-pointer' : 'cursor-default'}`} onMouseDown={(e) => {
                                     if (isViewAllMode && !isGroupTask) return;
@@ -343,11 +379,10 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                                 <div className="flex-1 min-w-0">
                                     {editingId === item.id ? (
                                         <div className="flex flex-col gap-2">
-                                            <input 
-                                                type="text" 
+                                            <textarea 
                                                 value={editingForm.text} 
                                                 onChange={(e) => setEditingForm({...editingForm, text: e.target.value})}
-                                                className="w-full bg-beige/50 text-cocoa border-2 border-sage rounded-lg px-2 py-1 outline-none text-sm font-bold"
+                                                className="w-full bg-beige/50 text-cocoa border-2 border-sage rounded-lg px-2 py-1 outline-none text-sm font-bold resize-none h-20"
                                                 autoFocus
                                                 placeholder="事項名稱"
                                                 onClick={(e) => e.stopPropagation()}
@@ -375,7 +410,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                                         </div>
                                     ) : (
                                         <div>
-                                            <span className={`block font-bold text-base leading-relaxed break-words ${item.done ? 'text-gray-300 line-through' : 'text-cocoa'}`}>{item.text}</span>
+                                            <span className={`block font-bold text-base leading-relaxed break-words whitespace-pre-line ${item.done ? 'text-gray-300 line-through' : 'text-cocoa'}`}>{item.text}</span>
                                             
                                             {/* Note Display */}
                                             {item.note && (
@@ -415,7 +450,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
 
                                 {/* Actions */}
                                 {editingId !== item.id && (
-                                    <div className="flex gap-1 ml-2 relative z-10">
+                                    <div className="flex gap-1 ml-2 relative z-10 flex-col sm:flex-row">
                                         {deletingId === item.id ? (
                                             <div className="flex items-center gap-1 animate-scale-in">
                                                 <button type="button" onMouseDown={(e) => confirmDelete(e, item.id)} className="text-xs bg-red-500 text-white px-3 py-1.5 rounded-full font-bold hover:bg-red-600 shadow-sm border-2 border-red-500">確定?</button>
@@ -429,6 +464,61 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                                         )}
                                     </div>
                                 )}
+                            </div>
+
+                            {/* --- Inline Comments Section --- */}
+                            <div className="mt-3 pt-3 border-t-2 border-dashed border-gray-100">
+                                {/* Comment List */}
+                                {item.comments && item.comments.length > 0 && (
+                                    <div className="space-y-2 mb-3">
+                                        {item.comments.map(c => {
+                                            const author = members.find(m => m.id === c.authorId);
+                                            return (
+                                                <div key={c.id} className="flex gap-2 items-start">
+                                                    <div className="w-5 h-5 rounded-full bg-beige border border-beige-dark flex-shrink-0 overflow-hidden flex items-center justify-center">
+                                                        {author?.avatar ? <img src={author.avatar} className="w-full h-full object-cover"/> : <span className="text-[9px] font-black text-gray-400">{author?.name?.[0]}</span>}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <div className="bg-gray-50 rounded-lg rounded-tl-none px-2 py-1.5 inline-block border border-beige-dark/50">
+                                                            <p className="text-xs font-bold text-cocoa leading-snug whitespace-pre-wrap">{c.text}</p>
+                                                        </div>
+                                                        <div className="text-[9px] font-bold text-gray-300 mt-0.5 ml-1">
+                                                            {author?.name} • {new Date(c.createdAt).toLocaleDateString([], {month:'numeric', day:'numeric'})}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* Inline Comment Input */}
+                                <div className="flex gap-2 items-center">
+                                    <button 
+                                        onClick={() => cycleCommentAuthor(item.id)}
+                                        className="w-7 h-7 rounded-full bg-white border-2 border-beige-dark flex items-center justify-center overflow-hidden hover:border-sage transition-colors flex-shrink-0 shadow-sm"
+                                        title={`切換留言者: ${currentAuthor?.name}`}
+                                    >
+                                        {currentAuthor?.avatar ? <img src={currentAuthor.avatar} className="w-full h-full object-cover"/> : <span className="text-[10px] font-black text-gray-400">{currentAuthor?.name?.[0]}</span>}
+                                    </button>
+                                    <div className="flex-1 relative">
+                                        <input 
+                                            value={currentDraft}
+                                            onChange={e => handleInlineCommentChange(item.id, e.target.value)}
+                                            onKeyDown={e => e.key === 'Enter' && submitInlineComment(item)}
+                                            placeholder="留言..."
+                                            className="w-full bg-gray-50 text-cocoa rounded-xl px-3 py-1.5 outline-none border border-beige-dark/50 font-bold text-xs placeholder-gray-300 focus:border-sage focus:bg-white transition-colors pr-8"
+                                        />
+                                        {currentDraft.trim() && (
+                                            <button 
+                                                onClick={() => submitInlineComment(item)} 
+                                                className="absolute right-1 top-1/2 -translate-y-1/2 text-sage hover:text-sage-dark p-1"
+                                            >
+                                                <Send size={12}/>
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     );

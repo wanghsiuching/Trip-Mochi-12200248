@@ -2,9 +2,9 @@
 import React, { useState } from 'react';
 import { 
   PenTool, List, Wallet, Coins, User, MapPin, Trash2, 
-  Receipt, CreditCard, Clock, Check, ArrowLeft
+  Receipt, CreditCard, Clock, Check, ArrowLeft, Send, MessageCircle
 } from 'lucide-react';
-import { Expense, Member, Currency } from '../types';
+import { Expense, Member, Currency, Comment } from '../types';
 
 interface ExpensesViewProps {
   expenses: Expense[];
@@ -40,6 +40,10 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, members, c
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   
+  // Inline Comment State
+  const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
+  const [commentAuthors, setCommentAuthors] = useState<Record<number, string>>({});
+
   const paymentMethods = ['現金', '信用卡'];
 
   const filteredExpenses = filter === 'all' ? expenses : expenses.filter(e => e.payer === filter || e.involvedMembers?.includes(filter));
@@ -96,7 +100,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, members, c
         image: null,
         images: [],
         date: form.date,
-        time: form.time
+        time: form.time,
+        comments: []
     });
 
     handleClear();
@@ -165,6 +170,39 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, members, c
       setEditingExpense({ ...editingExpense, involvedMembers: updated });
   };
 
+  // --- Inline Comment Logic ---
+  const handleInlineCommentChange = (id: number, text: string) => {
+      setCommentDrafts(prev => ({ ...prev, [id]: text }));
+  };
+
+  const cycleCommentAuthor = (id: number) => {
+      setCommentAuthors(prev => {
+          const currentId = prev[id] || members[0]?.id;
+          const currentIndex = members.findIndex(m => m.id === currentId);
+          const nextIndex = (currentIndex + 1) % members.length;
+          return { ...prev, [id]: members[nextIndex].id };
+      });
+  };
+
+  const submitInlineComment = (e: React.MouseEvent | React.KeyboardEvent, exp: Expense) => {
+      e.stopPropagation(); // Prevent opening detail modal
+      const text = commentDrafts[exp.id];
+      if (!text || !text.trim()) return;
+
+      const authorId = commentAuthors[exp.id] || members[0]?.id;
+      const newComment: Comment = {
+          id: Date.now().toString(),
+          authorId,
+          text: text.trim(),
+          createdAt: new Date().toISOString()
+      };
+
+      const updatedComments = [...(exp.comments || []), newComment];
+      onUpdate({ ...exp, comments: updatedComments });
+      
+      setCommentDrafts(prev => ({ ...prev, [exp.id]: '' }));
+  };
+
   return (
     <div className="w-full mx-auto lg:p-0 pb-48 lg:pb-0 animate-scale-in">
        <div className="lg:hidden sticky top-0 z-30 bg-beige/95 backdrop-blur-md px-4 py-3 border-b border-beige-dark/50 mb-5">
@@ -185,6 +223,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, members, c
        </div>
 
        <div className="px-4 lg:p-0 lg:grid lg:grid-cols-12 lg:gap-8">
+         {/* Input Column */}
          <div className="lg:col-span-5 lg:sticky lg:top-8 flex flex-col gap-6 lg:flex-col-reverse">
             <div className={`${mobileTab === 'input' ? 'block' : 'hidden'} lg:block bg-white p-5 rounded-[2rem] shadow-hard-sm border-2 border-beige-dark mb-10 lg:mb-0`}>
                <h3 className="font-black text-cocoa mb-4 flex items-center gap-2 text-lg"><Wallet className="text-sage" size={24}/> 記帳輸入</h3>
@@ -244,6 +283,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, members, c
                    <button onClick={handleAdd} className="flex-1 bg-sage text-white py-3.5 rounded-2xl font-black shadow-hard-sage active:translate-y-1 active:shadow-none transition-all hover:bg-sage-dark text-lg tracking-wide border-2 border-sage-dark flex items-center justify-center gap-2"><Check size={20}/> 確認記帳</button>
                </div>
             </div>
+            
+            {/* Summary Card */}
             <div className={`${mobileTab === 'list' ? 'block' : 'hidden'} lg:block bg-sage text-white p-6 rounded-[2rem] shadow-hard-sm relative overflow-hidden border-2 border-sage-dark`}>
                <div className="absolute -right-6 -top-6 w-32 h-32 bg-white rounded-full opacity-10 blur-2xl"></div>
                <p className="opacity-80 text-xs mb-1 font-bold">{filter === 'all' ? '總支出' : filter + ' 的支出'} (TWD)</p>
@@ -253,6 +294,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, members, c
                </div>
             </div>
          </div>
+
+         {/* List Column */}
          <div className={`${mobileTab === 'list' ? 'block' : 'hidden'} lg:block lg:col-span-7 lg:mt-0 pb-32`}>
             <div className="mb-4 flex flex-col">
                 <div className="bg-white p-1 rounded-full flex text-xs sm:text-sm font-bold text-gray-400 border-2 border-beige-dark shadow-sm w-full mb-1">
@@ -264,13 +307,104 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, members, c
                 {sortedDates.map(date => {
                     const dailyExpenses = groupedExpenses[date];
                     const dailyTotalTWD = dailyExpenses.reduce((acc, curr) => acc + calculateTWD(curr.amount, curr.currency), 0);
-                    return (<div key={date}><div className="sticky top-0 z-10 bg-beige/95 backdrop-blur-sm py-2 mb-2 flex items-center justify-between border-b border-beige-dark border-dashed"><span className="bg-white text-cocoa px-3 py-1 rounded-full text-xs font-black shadow-sm border border-beige-dark">{date}</span><span className="text-xs font-bold text-gray-400">小計: <span className="text-cocoa font-mono">NT$ {dailyTotalTWD.toLocaleString()}</span></span></div><div className="space-y-3">{dailyExpenses.map(exp => (<div key={exp.id} onClick={() => openDetail(exp)} className="bg-white p-4 rounded-[1.5rem] shadow-hard-sm flex items-center gap-4 active:scale-[0.99] transition-transform cursor-pointer border-2 border-beige-dark hover:border-sage"><div className="w-12 h-12 rounded-full bg-beige flex-shrink-0 flex items-center justify-center text-xl text-gray-300 overflow-hidden border-2 border-beige-dark"><span className="text-sm font-black text-cocoa">{exp.payer[0]}</span></div><div className="flex-1 min-w-0"><div className="flex justify-between items-start mb-0.5"><h4 className="font-black text-cocoa truncate text-base">{exp.title}</h4><span className="font-black text-cocoa font-mono text-lg ml-2 whitespace-nowrap">{exp.currency} {exp.amount.toLocaleString()}</span></div><div className="flex justify-between items-center text-xs text-gray-400 font-bold"><div className="flex items-center gap-2"><span className="bg-beige px-1.5 py-0.5 rounded border border-beige-dark">{exp.payer}</span><span>{exp.paymentMethod}</span>{exp.time && <span><Clock size={10} className="inline mr-0.5"/>{exp.time}</span>}</div><span className="font-mono text-[10px] opacity-70">≈ NT$ {calculateTWD(exp.amount, exp.currency).toLocaleString()}</span></div></div></div>))}</div></div>);
+                    return (
+                        <div key={date}>
+                            <div className="sticky top-0 z-10 bg-beige/95 backdrop-blur-sm py-2 mb-2 flex items-center justify-between border-b border-beige-dark border-dashed">
+                                <span className="bg-white text-cocoa px-3 py-1 rounded-full text-xs font-black shadow-sm border border-beige-dark">{date}</span>
+                                <span className="text-xs font-bold text-gray-400">小計: <span className="text-cocoa font-mono">NT$ {dailyTotalTWD.toLocaleString()}</span></span>
+                            </div>
+                            <div className="space-y-3">
+                                {dailyExpenses.map(exp => {
+                                    const currentDraft = commentDrafts[exp.id] || '';
+                                    const currentAuthorId = commentAuthors[exp.id] || members[0]?.id;
+                                    const currentAuthor = members.find(m => m.id === currentAuthorId);
+
+                                    return (
+                                        <div key={exp.id} onClick={() => openDetail(exp)} className="bg-white p-4 rounded-[1.5rem] shadow-hard-sm active:scale-[0.99] transition-transform cursor-pointer border-2 border-beige-dark hover:border-sage flex flex-col gap-3">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-full bg-beige flex-shrink-0 flex items-center justify-center text-xl text-gray-300 overflow-hidden border-2 border-beige-dark">
+                                                    <span className="text-sm font-black text-cocoa">{exp.payer[0]}</span>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex justify-between items-start mb-0.5">
+                                                        <h4 className="font-black text-cocoa truncate text-base">{exp.title}</h4>
+                                                        <span className="font-black text-cocoa font-mono text-lg ml-2 whitespace-nowrap">{exp.currency} {exp.amount.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center text-xs text-gray-400 font-bold">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="bg-beige px-1.5 py-0.5 rounded border border-beige-dark">{exp.payer}</span>
+                                                            <span>{exp.paymentMethod}</span>
+                                                            {exp.time && <span><Clock size={10} className="inline mr-0.5"/>{exp.time}</span>}
+                                                        </div>
+                                                        <span className="font-mono text-[10px] opacity-70">≈ NT$ {calculateTWD(exp.amount, exp.currency).toLocaleString()}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* --- Inline Comments Section --- */}
+                                            <div className="pt-2 border-t border-dashed border-gray-100" onClick={e => e.stopPropagation()}>
+                                                {/* Comment List */}
+                                                {exp.comments && exp.comments.length > 0 && (
+                                                    <div className="space-y-2 mb-2">
+                                                        {exp.comments.map(c => {
+                                                            const author = members.find(m => m.id === c.authorId);
+                                                            return (
+                                                                <div key={c.id} className="flex gap-2 items-start">
+                                                                    <div className="w-5 h-5 rounded-full bg-beige border border-beige-dark flex-shrink-0 overflow-hidden flex items-center justify-center">
+                                                                        {author?.avatar ? <img src={author.avatar} className="w-full h-full object-cover"/> : <span className="text-[9px] font-black text-gray-400">{author?.name?.[0]}</span>}
+                                                                    </div>
+                                                                    <div className="flex-1">
+                                                                        <div className="bg-gray-50 rounded-lg rounded-tl-none px-2 py-1.5 inline-block border border-beige-dark/50">
+                                                                            <p className="text-xs font-bold text-cocoa leading-snug whitespace-pre-wrap">{c.text}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+
+                                                {/* Inline Comment Input */}
+                                                <div className="flex gap-2 items-center">
+                                                    <button 
+                                                        onClick={() => cycleCommentAuthor(exp.id)}
+                                                        className="w-7 h-7 rounded-full bg-white border-2 border-beige-dark flex items-center justify-center overflow-hidden hover:border-sage transition-colors flex-shrink-0 shadow-sm"
+                                                        title={`切換留言者: ${currentAuthor?.name}`}
+                                                    >
+                                                        {currentAuthor?.avatar ? <img src={currentAuthor.avatar} className="w-full h-full object-cover"/> : <span className="text-[10px] font-black text-gray-400">{currentAuthor?.name?.[0]}</span>}
+                                                    </button>
+                                                    <div className="flex-1 relative">
+                                                        <input 
+                                                            value={currentDraft}
+                                                            onChange={e => handleInlineCommentChange(exp.id, e.target.value)}
+                                                            onKeyDown={e => e.key === 'Enter' && submitInlineComment(e, exp)}
+                                                            placeholder="留言..."
+                                                            className="w-full bg-gray-50 text-cocoa rounded-xl px-3 py-1.5 outline-none border border-beige-dark/50 font-bold text-xs placeholder-gray-300 focus:border-sage focus:bg-white transition-colors pr-8"
+                                                        />
+                                                        {currentDraft.trim() && (
+                                                            <button 
+                                                                onClick={(e) => submitInlineComment(e, exp)} 
+                                                                className="absolute right-1 top-1/2 -translate-y-1/2 text-sage hover:text-sage-dark p-1"
+                                                            >
+                                                                <Send size={12}/>
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
                 })}
                 {filteredExpenses.length === 0 && (<div className="text-center py-12 bg-white rounded-[2rem] border-2 border-dashed border-beige-dark text-gray-300"><Receipt size={40} className="mx-auto mb-2" /><p className="font-bold">沒有支出紀錄</p></div>)}
             </div>
          </div>
        </div>
 
+      {/* Edit Modal (Keeping existing modal logic) */}
       {showEditModal && editingExpense && (
         <div className="fixed inset-0 bg-cocoa/50 z-[100] flex items-center justify-center px-4 backdrop-blur-sm">
             <div className="bg-beige w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border-4 border-beige-dark max-h-[90vh] overflow-y-auto custom-scroll">
@@ -312,6 +446,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, members, c
         </div>
       )}
 
+      {/* Detail Modal (simplified for now, comments are inline) */}
       {showDetailModal && selectedExpense && (
           <div className="fixed inset-0 bg-cocoa/50 z-[100] flex items-center justify-center px-4 backdrop-blur-sm" onClick={() => setShowDetailModal(false)}>
               <div className="bg-beige w-full max-w-sm rounded-[2.5rem] p-6 shadow-2xl border-4 border-beige-dark relative overflow-hidden" onClick={e => e.stopPropagation()}>

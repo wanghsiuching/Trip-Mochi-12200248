@@ -214,6 +214,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   // --- Car Logic ---
   const openCarEdit = () => {
       const initialCar: BookingCarRental = (carRental && carRental.company) ? { ...carRental } : { 
+          id: Date.now(),
           company: '', platform: '', carModel: '', ref: '', 
           pickupDate: new Date().toISOString().slice(0, 16), pickupTime: '10:00', pickupLocation: '', 
           returnDate: new Date(Date.now() + 86400000).toISOString().slice(0, 16), returnTime: '10:00', returnLocation: '', 

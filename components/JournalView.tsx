@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { PenTool, Trash2, X, Feather } from 'lucide-react';
-import { Journal, Member } from '../types';
+import { PenTool, Trash2, X, Feather, Send } from 'lucide-react';
+import { Journal, Member, Comment } from '../types';
 
 interface JournalViewProps {
   journals: Journal[];
@@ -31,6 +31,10 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
   
   // Delete Confirmation State
   const [deletingId, setDeletingId] = useState<number | null>(null);
+
+  // Inline Comment State
+  const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
+  const [commentAuthors, setCommentAuthors] = useState<Record<number, string>>({});
 
   const openAdd = () => {
       setEditingJournal(null);
@@ -66,6 +70,39 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
       }
   };
 
+  // --- Inline Comment Logic ---
+  const handleInlineCommentChange = (id: number, text: string) => {
+      setCommentDrafts(prev => ({ ...prev, [id]: text }));
+  };
+
+  const cycleCommentAuthor = (id: number) => {
+      setCommentAuthors(prev => {
+          const currentId = prev[id] || members[0]?.id;
+          const currentIndex = members.findIndex(m => m.id === currentId);
+          const nextIndex = (currentIndex + 1) % members.length;
+          return { ...prev, [id]: members[nextIndex].id };
+      });
+  };
+
+  const submitInlineComment = (e: React.MouseEvent | React.KeyboardEvent, journal: Journal) => {
+      e.stopPropagation();
+      const text = commentDrafts[journal.id];
+      if (!text || !text.trim()) return;
+
+      const authorId = commentAuthors[journal.id] || members[0]?.id;
+      const newComment: Comment = {
+          id: Date.now().toString(),
+          authorId,
+          text: text.trim(),
+          createdAt: new Date().toISOString()
+      };
+
+      const updatedComments = [...(journal.comments || []), newComment];
+      onUpdate({ ...journal, comments: updatedComments });
+      
+      setCommentDrafts(prev => ({ ...prev, [journal.id]: '' }));
+  };
+
   // Group journals by date (YYYY-MM-DD)
   const groupedJournals = journals.reduce((acc, journal) => {
       const dateKey = journal.date.split('T')[0];
@@ -76,7 +113,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
   const sortedDates = Object.keys(groupedJournals).sort((a, b) => b.localeCompare(a));
 
   return (
-    <div className="w-full lg:p-0">
+    <div className="w-full lg:p-0 animate-scale-in">
       {/* Header - Sticky with proper background and padding */}
       <div className="sticky top-0 bg-beige/95 backdrop-blur-md z-20 px-4 py-3 border-b border-beige-dark border-dashed flex justify-between items-center shadow-sm">
         <div>
@@ -113,6 +150,10 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                     {groupedJournals[date].map(journal => {
                         const journalTime = journal.date.includes('T') ? journal.date.split('T')[1] : '';
                         
+                        const currentDraft = commentDrafts[journal.id] || '';
+                        const currentAuthorId = commentAuthors[journal.id] || members[0]?.id;
+                        const currentAuthor = members.find(m => m.id === currentAuthorId);
+                        
                         return (
                         <div key={journal.id} className="bg-white rounded-[2rem] p-5 shadow-hard-sm border-2 border-beige-dark flex flex-col relative group hover:-translate-y-1 transition-transform duration-300">
                             {/* Author & Actions Header */}
@@ -139,6 +180,62 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                             <p className="text-cocoa text-base leading-7 whitespace-pre-line font-medium mb-4">
                                 {journal.content}
                             </p>
+
+                            {/* Inline Comments Area */}
+                            <div className="pt-3 border-t-2 border-dashed border-gray-100 mt-auto">
+                                {/* Comment List */}
+                                {journal.comments && journal.comments.length > 0 && (
+                                    <div className="space-y-2 mb-3">
+                                        {journal.comments.map(c => {
+                                            const author = members.find(m => m.id === c.authorId);
+                                            return (
+                                                <div key={c.id} className="flex gap-2 items-start">
+                                                    <div className="w-6 h-6 rounded-full bg-beige border border-beige-dark flex-shrink-0 overflow-hidden flex items-center justify-center">
+                                                        {author?.avatar ? <img src={author.avatar} className="w-full h-full object-cover"/> : <span className="text-[9px] font-black text-gray-400">{author?.name?.[0]}</span>}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <div className="bg-gray-50 rounded-lg rounded-tl-none px-3 py-2 inline-block border border-beige-dark/50">
+                                                            <p className="text-xs font-bold text-cocoa leading-snug whitespace-pre-wrap">{c.text}</p>
+                                                        </div>
+                                                        <div className="text-[9px] font-bold text-gray-300 mt-0.5 ml-1">
+                                                            {author?.name} • {new Date(c.createdAt).toLocaleDateString([], {month:'numeric', day:'numeric'})}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* Inline Comment Input */}
+                                <div className="flex gap-2 items-center">
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); cycleCommentAuthor(journal.id); }}
+                                        className="w-8 h-8 rounded-full bg-white border-2 border-beige-dark flex items-center justify-center overflow-hidden hover:border-sage transition-colors flex-shrink-0 shadow-sm"
+                                        title={`切換留言者: ${currentAuthor?.name}`}
+                                    >
+                                        {currentAuthor?.avatar ? <img src={currentAuthor.avatar} className="w-full h-full object-cover"/> : <span className="text-[10px] font-black text-gray-400">{currentAuthor?.name?.[0]}</span>}
+                                    </button>
+                                    <div className="flex-1 relative">
+                                        <input 
+                                            value={currentDraft}
+                                            onChange={e => handleInlineCommentChange(journal.id, e.target.value)}
+                                            onKeyDown={e => e.key === 'Enter' && submitInlineComment(e, journal)}
+                                            placeholder="留言..."
+                                            className="w-full bg-gray-50 text-cocoa rounded-xl px-3 py-2 outline-none border border-beige-dark/50 font-bold text-xs placeholder-gray-300 focus:border-sage focus:bg-white transition-colors pr-9"
+                                            onClick={e => e.stopPropagation()}
+                                        />
+                                        {currentDraft.trim() && (
+                                            <button 
+                                                onClick={(e) => submitInlineComment(e, journal)} 
+                                                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-sage hover:text-sage-dark p-1"
+                                            >
+                                                <Send size={14}/>
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )})}
                 </div>

@@ -172,6 +172,7 @@ export interface BookingFlight {
   tripType?: 'oneway' | 'roundtrip';
   returnDate?: string; // Return departure
   returnArrivalDate?: string; // Return arrival
+  returnDuration?: string;
 }
 
 export interface BookingAccommodation {
@@ -207,6 +208,7 @@ export interface BookingAccommodation {
 }
 
 export interface BookingCarRental {
+  id: number;
   company: string;
   platform: string;
   carModel: string;
@@ -252,6 +254,13 @@ export type Accommodation = BookingAccommodation;
 export type CarRental = BookingCarRental;
 export type Ticket = BookingTicket;
 
+export interface Comment {
+    id: string;
+    authorId: string;
+    text: string;
+    createdAt: string;
+}
+
 export interface Expense {
     id: number;
     amount: number;
@@ -267,6 +276,7 @@ export interface Expense {
     // Added fields
     involvedMembers?: string[];
     images?: string[];
+    comments?: Comment[];
 }
 
 export interface TodoItem {
@@ -279,6 +289,7 @@ export interface TodoItem {
     note?: string;
     url?: string;
     image?: string;
+    comments?: Comment[];
 }
 
 export interface Journal {
@@ -287,6 +298,7 @@ export interface Journal {
     author: string;
     content: string;
     photos: string[];
+    comments?: Comment[];
 }
 
 export const THEME = {
