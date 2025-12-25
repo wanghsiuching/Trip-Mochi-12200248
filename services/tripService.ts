@@ -71,7 +71,7 @@ export const createTrip = async (name: string): Promise<string> => {
       members: [{ id: '1', name: '我', fruit: '🍎' }],
       flights: [],
       accommodations: [],
-      carRental: {},
+      carRentals: [], // Changed from carRental object to carRentals array
       tickets: [],
       expenses: [],
       journals: [],

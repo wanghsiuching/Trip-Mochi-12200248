@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   MapPin, ArrowRight, Plane, Plus, X, Copy, BookOpen, ChevronLeft, Trash2,
@@ -37,7 +38,7 @@ export default function App() {
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
   const [bookingFlights, setBookingFlights] = useState<BookingFlight[]>([]);
   const [bookingAccommodations, setBookingAccommodations] = useState<BookingAccommodation[]>([]);
-  const [bookingCarRental, setBookingCarRental] = useState<BookingCarRental>({} as BookingCarRental);
+  const [bookingCarRentals, setBookingCarRentals] = useState<BookingCarRental[]>([]);
   const [bookingTickets, setBookingTickets] = useState<BookingTicket[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [journals, setJournals] = useState<Journal[]>([]);
@@ -111,7 +112,9 @@ export default function App() {
           setScheduleItems(data.scheduleItems || []);
           setBookingFlights(data.flights || []);
           setBookingAccommodations(data.accommodations || []);
-          setBookingCarRental(data.carRental || {});
+          // Ensure carRentals is treated as an array, fallback to single object legacy data if needed
+          const cars = data.carRentals || (data.carRental && data.carRental.company ? [data.carRental] : []);
+          setBookingCarRentals(cars);
           setBookingTickets(data.tickets || []);
           setExpenses(data.expenses || []);
           setJournals(data.journals || []);
@@ -195,8 +198,19 @@ export default function App() {
   const handleAddMember = (name: string, avatar: string | null) => addTripItem(currentTripId, 'members', { id: Date.now().toString(), name, avatar, fruit: '🍎' });
   const handleUpdateMember = (updated: Member) => updateTripField(currentTripId, 'members', members.map(m => m.id === updated.id ? updated : m));
   const handleDeleteMember = (id: string) => { if (members.length > 1) updateTripField(currentTripId, 'members', members.filter(m => m.id !== id)); };
+  
+  // Handlers for Flights
   const handleAddFlight = (flight: BookingFlight) => addTripItem(currentTripId, 'flights', flight);
-  const handleDeleteFlight = (id: number) => updateTripField(currentTripId, 'flights', bookingFlights.filter(f => f.id !== id));
+  const handleUpdateFlight = (updated: BookingFlight) => updateTripField(currentTripId, 'flights', bookingFlights.map(f => String(f.id) === String(updated.id) ? updated : f));
+  // Fix: Ensure ID comparison is robust (String vs Number)
+  const handleDeleteFlight = (id: number) => updateTripField(currentTripId, 'flights', bookingFlights.filter(f => String(f.id) !== String(id)));
+  
+  // Handlers for Car Rentals
+  const handleAddCar = (car: BookingCarRental) => addTripItem(currentTripId, 'carRentals', car);
+  const handleUpdateCar = (updated: BookingCarRental) => updateTripField(currentTripId, 'carRentals', bookingCarRentals.map(c => String(c.id) === String(updated.id) ? updated : c));
+  // Fix: Ensure ID comparison is robust (String vs Number)
+  const handleDeleteCar = (id: number) => updateTripField(currentTripId, 'carRentals', bookingCarRentals.filter(c => String(c.id) !== String(id)));
+
   const handleSaveItem = (itemData: Omit<ScheduleItem, 'id'>) => { if (editingItem) { updateTripField(currentTripId, 'scheduleItems', scheduleItems.map(item => item.id === editingItem.id ? { ...itemData, id: item.id } : item)); setEditingItem(null); } else { addTripItem(currentTripId, 'scheduleItems', { ...itemData, id: Date.now().toString() }); } };
   const handleEditClick = (item: ScheduleItem) => { setEditingItem(item); setIsAddModalOpen(true); };
   const handleDeleteItemClick = (itemId: string) => setItemToDelete(itemId);
@@ -441,7 +455,7 @@ export default function App() {
               <TripSettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} currencies={currencies} onAddCurrency={addCurrency} onRemoveCurrency={removeCurrency} onClearData={handleClearData} />
             </div>
           )}
-          {activeTab === 'bookings' && (<BookingsView flights={bookingFlights} accommodations={bookingAccommodations} carRental={bookingCarRental} tickets={bookingTickets} currencies={currencies} members={members} onAddFlight={handleAddFlight} onUpdateFlight={(f) => updateTripField(currentTripId, 'flights', bookingFlights.map(x => x.id === f.id ? f : x))} onDeleteFlight={handleDeleteFlight} onAddAccommodation={(a) => addTripItem(currentTripId, 'accommodations', a)} onUpdateAccommodation={(a) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.map(x => x.id === a.id ? a : x))} onDeleteAccommodation={(id) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.filter(x => x.id !== id))} onUpdateCar={(c) => updateTripField(currentTripId, 'carRental', c)} onAddTicket={(t) => addTripItem(currentTripId, 'tickets', t)} onUpdateTicket={(t) => updateTripField(currentTripId, 'tickets', bookingTickets.map(x => x.id === t.id ? t : x))} onDeleteTicket={(id) => updateTripField(currentTripId, 'tickets', bookingTickets.filter(x => x.id !== id))} />)}
+          {activeTab === 'bookings' && (<BookingsView flights={bookingFlights} accommodations={bookingAccommodations} carRentals={bookingCarRentals} tickets={bookingTickets} currencies={currencies} members={members} onAddFlight={handleAddFlight} onUpdateFlight={handleUpdateFlight} onDeleteFlight={handleDeleteFlight} onAddAccommodation={(a) => addTripItem(currentTripId, 'accommodations', a)} onUpdateAccommodation={(a) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.map(x => x.id === a.id ? a : x))} onDeleteAccommodation={(id) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.filter(x => x.id !== id))} onAddCar={handleAddCar} onUpdateCar={handleUpdateCar} onDeleteCar={handleDeleteCar} onAddTicket={(t) => addTripItem(currentTripId, 'tickets', t)} onUpdateTicket={(t) => updateTripField(currentTripId, 'tickets', bookingTickets.map(x => x.id === t.id ? t : x))} onDeleteTicket={(id) => updateTripField(currentTripId, 'tickets', bookingTickets.filter(x => x.id !== id))} />)}
           {activeTab === 'expense' && (<ExpensesView expenses={expenses} members={members} currencies={currencies} onAdd={handleAddExpense} onUpdate={handleUpdateExpense} onDelete={handleDeleteExpense} onShowToast={(m, t) => { if (t === 'error') alert(m); }} />)}
           {activeTab === 'journal' && (<JournalView journals={journals} members={members} onAdd={handleAddJournal} onUpdate={handleUpdateJournal} onDelete={handleDeleteJournal} />)}
           {activeTab === 'planning' && (<PlanningView lists={planningLists} members={members} onAdd={handleAddPlanning} onToggle={handleTogglePlanning} onUpdate={handleUpdatePlanning} onDelete={handleDeletePlanning} />)}

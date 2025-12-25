@@ -1,13 +1,13 @@
 
 import React, { useState } from 'react';
-import { Plane, Bed, Car, Plus, MapPin, Compass, House, PenTool, Briefcase, Info, Luggage, Navigation, Leaf, Link as LinkIcon, X, Calendar as CalendarIcon, ArrowRightLeft, Users, Clock, DollarSign } from 'lucide-react';
+import { Plane, Bed, Car, Plus, MapPin, Compass, House, PenTool, Briefcase, Info, Luggage, Navigation, Leaf, Link as LinkIcon, X, Calendar as CalendarIcon, ArrowRightLeft, Users, Clock, DollarSign, Trash2, AlertCircle } from 'lucide-react';
 import { BookingFlight, BookingAccommodation, BookingCarRental, BookingTicket, Currency, Member } from '../types';
 import { ToggleSwitch } from './Modals';
 
 interface BookingsViewProps {
   flights: BookingFlight[];
   accommodations: BookingAccommodation[];
-  carRental: BookingCarRental;
+  carRentals: BookingCarRental[];
   tickets: BookingTicket[];
   currencies: Currency[];
   members: Member[];
@@ -17,17 +17,19 @@ interface BookingsViewProps {
   onUpdateAccommodation: (acc: BookingAccommodation) => void;
   onDeleteAccommodation: (id: number) => void;
   onAddAccommodation: (acc: BookingAccommodation) => void;
+  onAddCar: (car: BookingCarRental) => void;
   onUpdateCar: (car: BookingCarRental) => void;
+  onDeleteCar: (id: number) => void;
   onAddTicket: (ticket: BookingTicket) => void;
   onUpdateTicket: (ticket: BookingTicket) => void;
   onDeleteTicket: (id: number) => void;
 }
 
 export const BookingsView: React.FC<BookingsViewProps> = ({ 
-    flights, accommodations, carRental, tickets, currencies, members,
+    flights, accommodations, carRentals, tickets, currencies, members,
     onAddFlight, onUpdateFlight, onDeleteFlight, 
     onUpdateAccommodation, onDeleteAccommodation, onAddAccommodation, 
-    onUpdateCar, onAddTicket, onUpdateTicket, onDeleteTicket 
+    onAddCar, onUpdateCar, onDeleteCar, onAddTicket, onUpdateTicket, onDeleteTicket 
 }) => {
   const [subTab, setSubTab] = useState<'flight' | 'hotel' | 'car'>('flight');
 
@@ -40,6 +42,9 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   
   const [showCarModal, setShowCarModal] = useState(false);
   const [editingCar, setEditingCar] = useState<BookingCarRental | null>(null);
+
+  // Delete Confirmation State (Replaces window.confirm)
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
 
   // Helper for Cost Calculation
   const calculateTotal = (cost: number, hasFee: boolean, feePct: number) => {
@@ -75,6 +80,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
   // --- Flight Logic ---
   const openFlightEdit = (flight?: BookingFlight) => {
+      setDeleteConfirm(false);
       if (flight) {
           setEditingFlight({ ...flight });
       } else {
@@ -91,6 +97,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
               depTime: '00:00',
               arrTime: '00:00',
               duration: '2h 0m',
+              returnDuration: '2h 30m',
               aircraft: '',
               checkedBag: '',
               carryOnBag: '',
@@ -116,7 +123,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
   const saveFlight = () => {
       if(editingFlight) {
-          if (flights.find(f => f.id === editingFlight.id)) {
+          if (flights.find(f => String(f.id) === String(editingFlight.id))) {
              onUpdateFlight(editingFlight);
           } else {
              onAddFlight(editingFlight);
@@ -125,8 +132,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
       }
   };
 
-  const deleteFlight = () => {
-      if (editingFlight && window.confirm('確定刪除此航班？')) {
+  const executeDeleteFlight = () => {
+      if (editingFlight) {
           onDeleteFlight(editingFlight.id);
           setShowFlightModal(false);
       }
@@ -143,6 +150,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
   // --- Accommodation Logic ---
   const openAccEdit = (acc?: BookingAccommodation) => {
+      setDeleteConfirm(false);
       if(acc) {
           setEditingAcc({ ...acc, photos: acc.photos || [] });
       } else {
@@ -187,12 +195,19 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
   const saveAcc = () => {
       if(!editingAcc) return;
-      if(accommodations.find(a => a.id === editingAcc.id)) {
+      if(accommodations.find(a => String(a.id) === String(editingAcc.id))) {
           onUpdateAccommodation(editingAcc);
       } else {
           onAddAccommodation(editingAcc);
       }
       setShowAccModal(false);
+  };
+
+  const executeDeleteAcc = () => {
+      if (editingAcc) {
+          onDeleteAccommodation(editingAcc.id);
+          setShowAccModal(false);
+      }
   };
 
   const toggleAccParticipant = (id: string) => {
@@ -212,25 +227,41 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   };
 
   // --- Car Logic ---
-  const openCarEdit = () => {
-      const initialCar: BookingCarRental = (carRental && carRental.company) ? { ...carRental } : { 
-          id: Date.now(),
-          company: '', platform: '', carModel: '', ref: '', 
-          pickupDate: new Date().toISOString().slice(0, 16), pickupTime: '10:00', pickupLocation: '', 
-          returnDate: new Date(Date.now() + 86400000).toISOString().slice(0, 16), returnTime: '10:00', returnLocation: '', 
-          gps: '', url: '', note: '', 
-          price: 0, currency: 'TWD', hasServiceFee: false, serviceFeePercentage: 0, 
-          pax: 4, participants: members.map(m => m.id),
-          hasRental: true
-      };
-      setEditingCar(initialCar);
+  const openCarEdit = (car?: BookingCarRental) => {
+      setDeleteConfirm(false);
+      if (car) {
+          setEditingCar({ ...car });
+      } else {
+          const initialCar: BookingCarRental = { 
+              id: Date.now(),
+              company: '', platform: '', carModel: '', ref: '', 
+              pickupDate: new Date().toISOString().slice(0, 16), pickupTime: '10:00', pickupLocation: '', 
+              returnDate: new Date(Date.now() + 86400000).toISOString().slice(0, 16), returnTime: '10:00', returnLocation: '', 
+              gps: '', url: '', note: '', 
+              price: 0, currency: 'TWD', hasServiceFee: false, serviceFeePercentage: 0, 
+              pax: 4, participants: members.map(m => m.id),
+              hasRental: true
+          };
+          setEditingCar(initialCar);
+      }
       setShowCarModal(true);
   };
 
   const saveCar = () => {
       if (!editingCar) return;
-      onUpdateCar(editingCar);
+      if (carRentals.find(c => String(c.id) === String(editingCar.id))) {
+          onUpdateCar(editingCar);
+      } else {
+          onAddCar(editingCar);
+      }
       setShowCarModal(false);
+  };
+
+  const executeDeleteCar = () => {
+      if (editingCar) {
+          onDeleteCar(editingCar.id);
+          setShowCarModal(false);
+      }
   };
 
   const toggleCarParticipant = (id: string) => {
@@ -346,7 +377,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                                 </div>
                                                 
                                                 <div className="flex flex-col items-center px-4 flex-1">
-                                                    <div className="text-[10px] font-bold text-gray-400 mb-1 tracking-widest opacity-50">飛航時間</div>
+                                                    <div className="text-[10px] font-bold text-gray-400 mb-1 tracking-widest">{flight.returnDuration || '飛航時間'}</div>
                                                     <div className="w-full flex items-center gap-1">
                                                         <div className="w-1 h-1 rounded-full bg-gray-300"></div>
                                                         <div className="h-0.5 flex-1 bg-gray-300 relative">
@@ -439,6 +470,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                 </div>
             )}
 
+            {/* Accommodation Tab */}
             {subTab === 'hotel' && (
                 <div className="animate-scale-in">
                     <div className="mb-4 lg:mb-6 lg:flex lg:justify-end">
@@ -455,6 +487,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
                         return (
                         <div key={acc.id} onClick={() => openAccEdit(acc)} className="bg-white rounded-[2.5rem] overflow-hidden shadow-hard-sm border-2 border-beige-dark flex flex-col group transition-all hover:shadow-lg cursor-pointer active:scale-[0.99] mb-6 relative">
+                            {/* ... accommodation card content ... */}
                             <div className="h-48 relative bg-gray-100 border-b-2 border-dashed border-beige-dark">
                                 <div className="w-full h-full flex items-center justify-center bg-beige"><Bed size={48} className="text-gray-300"/></div>
                                 <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-black text-cocoa shadow-sm border border-beige-dark flex items-center gap-1">
@@ -537,40 +570,49 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                 </div>
             )}
             
+            {/* Car Rental Tab */}
             {subTab === 'car' && (
                <div className="animate-scale-in">
                    <div className="mb-4 lg:mb-6 lg:flex lg:justify-end">
                         <button 
-                            onClick={openCarEdit}
+                            onClick={() => openCarEdit()}
                             className="w-full lg:w-auto lg:px-6 py-3 rounded-2xl border-2 border-dashed border-gray-300 text-gray-400 font-black hover:bg-white hover:border-sage transition-all flex items-center justify-center gap-2"
                         >
-                            {carRental?.company ? <PenTool size={16}/> : <Plus size={16}/>} {carRental?.company ? '編輯租車' : '新增租車'}
+                            <Plus size={16}/> 新增租車
                         </button>
                    </div>
 
-                   {carRental?.company ? (
-                       <div className="w-full bg-white rounded-[2.5rem] overflow-hidden shadow-hard-sm border-2 border-beige-dark flex flex-col group relative">
+                   {carRentals.length === 0 && (
+                       <div className="text-center py-24 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center">
+                           <div className="w-24 h-24 bg-beige rounded-full flex items-center justify-center mb-6"><Car size={32} className="text-gray-400"/></div>
+                           <p className="text-cocoa font-black text-2xl">尚未安排租車</p>
+                       </div>
+                   )}
+
+                   {carRentals.map((car) => (
+                       <div key={car.id} className="w-full bg-white rounded-[2.5rem] overflow-hidden shadow-hard-sm border-2 border-beige-dark flex flex-col group relative mb-6">
                             <div className="bg-blue-50 p-6 border-b-2 border-dashed border-blue-100 flex justify-between items-center relative">
                                 <div className="flex items-center gap-3">
                                     <div className="p-3 bg-white rounded-2xl shadow-sm text-blue-500"><Car size={24}/></div>
                                     <div>
                                         <span className="text-[10px] font-black text-blue-400 tracking-widest uppercase block mb-0.5">RENTAL CAR</span>
-                                        <h3 className="text-2xl font-black text-cocoa leading-none">{carRental.company}</h3>
+                                        <h3 className="text-2xl font-black text-cocoa leading-none">{car.company}</h3>
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <span className="bg-white text-blue-500 px-3 py-1 rounded-full text-xs font-black shadow-sm border border-blue-100">{carRental.platform || 'Rental'}</span>
-                                    <div className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">{carRental.carModel}</div>
+                                    <span className="bg-white text-blue-500 px-3 py-1 rounded-full text-xs font-black shadow-sm border border-blue-100">{car.platform || 'Rental'}</span>
+                                    <div className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">{car.carModel}</div>
                                 </div>
                             </div>
 
                             <div className="p-6">
+                                <button onClick={() => openCarEdit(car)} className="absolute top-4 right-6 w-8 h-8 rounded-full bg-white border-2 border-beige-dark text-gray-300 flex items-center justify-center hover:bg-blue-500 hover:border-blue-500 hover:text-white transition-all shadow-sm z-20"><PenTool size={14}/></button>
                                 <div className="flex items-center justify-between mb-6 relative">
                                     <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-100 -z-0"></div>
                                     <div className="bg-white z-10 pr-4">
                                         <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1">PICK-UP</span>
                                         <div className="text-sm font-black text-cocoa">
-                                            {new Date(carRental.pickupDate).toLocaleString('zh-TW', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})}
+                                            {new Date(car.pickupDate).toLocaleString('zh-TW', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})}
                                         </div>
                                     </div>
                                     <div className="bg-white z-10 px-2">
@@ -581,7 +623,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                     <div className="bg-white z-10 pl-4 text-right">
                                         <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1">RETURN</span>
                                         <div className="text-sm font-black text-cocoa">
-                                            {new Date(carRental.returnDate).toLocaleString('zh-TW', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})}
+                                            {new Date(car.returnDate).toLocaleString('zh-TW', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})}
                                         </div>
                                     </div>
                                 </div>
@@ -592,61 +634,56 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                             <div className="w-2 h-2 rounded-full bg-blue-400"></div>
                                             <div>
                                                 <span className="text-[10px] font-bold text-gray-400 block uppercase">Pick-up Location</span>
-                                                <span className="text-sm font-bold text-cocoa">{carRental.pickupLocation}</span>
+                                                <span className="text-sm font-bold text-cocoa">{car.pickupLocation}</span>
                                             </div>
                                         </div>
-                                        <button onClick={() => openNav(carRental.pickupLocation)} className="text-blue-400 hover:text-blue-600"><Navigation size={16}/></button>
+                                        <button onClick={() => openNav(car.pickupLocation)} className="text-blue-400 hover:text-blue-600"><Navigation size={16}/></button>
                                     </div>
                                     <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-beige-dark">
                                         <div className="flex items-center gap-3">
                                             <div className="w-2 h-2 rounded-full bg-orange-400"></div>
                                             <div>
                                                 <span className="text-[10px] font-bold text-gray-400 block uppercase">Return Location</span>
-                                                <span className="text-sm font-bold text-cocoa">{carRental.returnLocation}</span>
+                                                <span className="text-sm font-bold text-cocoa">{car.returnLocation}</span>
                                             </div>
                                         </div>
-                                        <button onClick={() => openNav(carRental.returnLocation)} className="text-orange-400 hover:text-orange-600"><Navigation size={16}/></button>
+                                        <button onClick={() => openNav(car.returnLocation)} className="text-orange-400 hover:text-orange-600"><Navigation size={16}/></button>
                                     </div>
                                 </div>
 
                                 <div className="flex gap-2 mb-6">
-                                    {carRental.gps && (
-                                        <button onClick={() => openNav('', carRental.gps)} className="flex-1 py-2 bg-white border-2 border-beige-dark rounded-xl text-xs font-bold text-sage flex items-center justify-center gap-1 hover:bg-sage hover:text-white transition-colors">
+                                    {car.gps && (
+                                        <button onClick={() => openNav('', car.gps)} className="flex-1 py-2 bg-white border-2 border-beige-dark rounded-xl text-xs font-bold text-sage flex items-center justify-center gap-1 hover:bg-sage hover:text-white transition-colors">
                                             <MapPin size={14}/> GPS Navigation
                                         </button>
                                     )}
-                                    {carRental.url && (
-                                        <a href={carRental.url} target="_blank" className="flex-1 py-2 bg-white border-2 border-beige-dark rounded-xl text-xs font-bold text-blue-400 flex items-center justify-center gap-1 hover:bg-blue-50 transition-colors">
+                                    {car.url && (
+                                        <a href={car.url} target="_blank" className="flex-1 py-2 bg-white border-2 border-beige-dark rounded-xl text-xs font-bold text-blue-400 flex items-center justify-center gap-1 hover:bg-blue-50 transition-colors">
                                             <LinkIcon size={14}/> Website
                                         </a>
                                     )}
                                 </div>
-                                {carRental.note && <div className="mb-4 text-xs font-bold text-gray-500 bg-yellow-50 p-3 rounded-xl border border-yellow-100">{carRental.note}</div>}
+                                {car.note && <div className="mb-4 text-xs font-bold text-gray-500 bg-yellow-50 p-3 rounded-xl border border-yellow-100">{car.note}</div>}
 
                                 <div className="pt-4 border-t-2 border-dashed border-beige-dark flex justify-between items-center">
                                     <div className="flex -space-x-2">
-                                        {carRental.participants?.slice(0, 3).map((pid, i) => (
+                                        {car.participants?.slice(0, 3).map((pid, i) => (
                                             <div key={i} className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-xs font-bold text-gray-500 shadow-sm">
                                                 {members.find(m => m.id === pid)?.name[0]}
                                             </div>
                                         ))}
-                                        {(carRental.participants?.length || 0) > 3 && <div className="w-8 h-8 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[10px] font-bold">+{carRental.participants!.length - 3}</div>}
+                                        {(car.participants?.length || 0) > 3 && <div className="w-8 h-8 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[10px] font-bold">+{car.participants!.length - 3}</div>}
                                     </div>
                                     <div className="text-right">
                                         <div className="text-[10px] font-bold text-gray-400 uppercase">每人分攤 (含稅)</div>
                                         <div className="text-base font-black text-cocoa font-mono">
-                                            {carRental.currency} {Math.round(calculateTotal(carRental.price, carRental.hasServiceFee, carRental.serviceFeePercentage) / (carRental.participants?.length || 1)).toLocaleString()}
+                                            {car.currency} {Math.round(calculateTotal(car.price, car.hasServiceFee, car.serviceFeePercentage) / (car.participants?.length || 1)).toLocaleString()}
                                         </div>
                                     </div>
                                 </div>
                             </div>
                        </div>
-                   ) : (
-                       <div className="text-center py-24 bg-gray-50 rounded-3xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center">
-                           <div className="w-24 h-24 bg-beige rounded-full flex items-center justify-center mb-6"><Car size={32} className="text-gray-400"/></div>
-                           <p className="text-cocoa font-black text-2xl">尚未安排租車</p>
-                       </div>
-                   )}
+                   ))}
                </div>
             )}
         </div>
@@ -654,7 +691,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
         {showFlightModal && editingFlight && (
             <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-center justify-center px-4 backdrop-blur-sm">
                 <div className="bg-beige w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border-4 border-beige-dark max-h-[90vh] overflow-y-auto custom-scroll">
-                    <h3 className="font-black text-lg mb-4 text-center text-cocoa">{flights.find(f => f.id === editingFlight.id) ? '編輯航班' : '新增航班'}</h3>
+                    <h3 className="font-black text-lg mb-4 text-center text-cocoa">{flights.find(f => String(f.id) === String(editingFlight.id)) ? '編輯航班' : '新增航班'}</h3>
                     
                     <div className="space-y-3">
                         <div className="flex bg-white p-1 rounded-xl border-2 border-beige-dark mb-4">
@@ -724,11 +761,22 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             </div>
                         </div>
 
-                        <input value={editingFlight.duration} onChange={e => setEditingFlight({...editingFlight, duration: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="飛行時間 (例如 2h 30m)"/>
+                        <div className="flex gap-2">
+                            <div className="flex-[1]">
+                                <label className="text-[10px] font-bold text-gray-400 ml-1 block mb-1">去程時間</label>
+                                <input value={editingFlight.duration} onChange={e => setEditingFlight({...editingFlight, duration: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="2h 30m"/>
+                            </div>
+                            {editingFlight.tripType === 'roundtrip' && (
+                                <div className="flex-[1]">
+                                    <label className="text-[10px] font-bold text-gray-400 ml-1 block mb-1">回程時間</label>
+                                    <input value={editingFlight.returnDuration || ''} onChange={e => setEditingFlight({...editingFlight, returnDuration: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="2h 30m"/>
+                                </div>
+                            )}
+                        </div>
 
                         <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark space-y-3">
                             <div className="flex gap-2">
-                               <div className="flex-[2]">
+                                <div className="flex-[2]">
                                   <label className="text-[10px] font-bold text-gray-400 block mb-1">總金額</label>
                                   <input type="number" value={editingFlight.cost || ''} onChange={e => setEditingFlight({...editingFlight, cost: Number(e.target.value)})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="0"/>
                                </div>
@@ -775,8 +823,24 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                     </div>
 
                     <div className="flex gap-3 mt-6">
-                        <button onClick={() => setShowFlightModal(false)} className="flex-1 py-3 rounded-2xl bg-white text-gray-400 font-black border-2 border-beige-dark">取消</button>
-                        <button onClick={saveFlight} className="flex-1 py-3 rounded-2xl bg-sage text-white font-black shadow-hard-sage border-2 border-sage-dark">保存</button>
+                        {editingFlight.id && flights.find(f => String(f.id) === String(editingFlight.id)) && (
+                            deleteConfirm ? (
+                                <div className="flex-1 flex gap-2 animate-scale-in">
+                                    <button onClick={() => setDeleteConfirm(false)} className="flex-1 py-3 rounded-2xl bg-gray-100 text-gray-400 font-black border-2 border-gray-200 hover:bg-gray-200">取消</button>
+                                    <button onClick={executeDeleteFlight} className="flex-1 py-3 rounded-2xl bg-red-500 text-white font-black border-2 border-red-600 shadow-hard-sm hover:bg-red-600 flex items-center justify-center gap-1"><AlertCircle size={16}/> 確認刪除</button>
+                                </div>
+                            ) : (
+                                <button onClick={() => setDeleteConfirm(true)} type="button" className="px-6 py-3 rounded-2xl bg-red-50 text-red-400 font-black border-2 border-red-100 flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
+                                    <Trash2 size={20}/> 刪除
+                                </button>
+                            )
+                        )}
+                        {!deleteConfirm && (
+                            <>
+                                <button onClick={() => setShowFlightModal(false)} className="flex-1 py-3 rounded-2xl bg-white text-gray-400 font-black border-2 border-beige-dark">取消</button>
+                                <button onClick={saveFlight} className="flex-1 py-3 rounded-2xl bg-sage text-white font-black shadow-hard-sage border-2 border-sage-dark">保存</button>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -784,68 +848,75 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
         {showAccModal && editingAcc && (
             <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-center justify-center px-4 backdrop-blur-sm">
-                <div className="bg-beige w-full max-w-md rounded-[2rem] p-6 shadow-2xl border-4 border-beige-dark max-h-[90vh] overflow-y-auto custom-scroll">
-                    <h3 className="font-black text-lg mb-4 text-center text-cocoa">{editingAcc.id && accommodations.find(a => a.id === editingAcc.id) ? '編輯住宿' : '新增住宿'}</h3>
-                    <div className="space-y-4">
+                <div className="bg-beige w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border-4 border-beige-dark max-h-[90vh] overflow-y-auto custom-scroll">
+                    <h3 className="font-black text-lg mb-4 text-center text-cocoa">{accommodations.find(a => String(a.id) === String(editingAcc.id)) ? '編輯住宿' : '新增住宿'}</h3>
+                    <div className="space-y-3">
+                        <div>
+                            <label className="text-[10px] font-bold text-gray-400 ml-1">名稱</label>
+                            <input value={editingAcc.name} onChange={e => setEditingAcc({...editingAcc, name: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="飯店名稱"/>
+                        </div>
                         <div className="grid grid-cols-2 gap-2">
-                            <div><label className="text-[10px] font-bold text-gray-400 ml-1">平台</label><input value={editingAcc.platform} onChange={e => setEditingAcc({...editingAcc, platform: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="Agoda"/></div>
-                            <div><label className="text-[10px] font-bold text-gray-400 ml-1">城市</label><input value={editingAcc.city} onChange={e => setEditingAcc({...editingAcc, city: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="釜山"/></div>
+                             <div>
+                                <label className="text-[10px] font-bold text-gray-400 ml-1">城市</label>
+                                <input value={editingAcc.city} onChange={e => setEditingAcc({...editingAcc, city: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="城市"/>
+                             </div>
+                             <div>
+                                <label className="text-[10px] font-bold text-gray-400 ml-1">平台</label>
+                                <input value={editingAcc.platform} onChange={e => setEditingAcc({...editingAcc, platform: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="Booking/Agoda"/>
+                             </div>
                         </div>
-
-                        <div><label className="text-[10px] font-bold text-gray-400 ml-1">住宿名稱</label><input value={editingAcc.name} onChange={e => setEditingAcc({...editingAcc, name: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa" placeholder="飯店名稱"/></div>
-
-                        <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark space-y-4">
-                            <div className="flex flex-col">
-                                <label className="text-[10px] font-bold text-gray-400 ml-1 flex items-center gap-1 mb-1"><House size={12}/> 入住時間</label>
-                                <input type="datetime-local" value={editingAcc.checkInDate} onChange={e => setEditingAcc({...editingAcc, checkInDate: e.target.value})} className="w-full bg-beige/50 p-3 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{colorScheme: 'light'}}/>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <label className="text-[10px] font-bold text-gray-400 ml-1">Check-in</label>
+                                <input type="datetime-local" value={editingAcc.checkInDate} onChange={e => setEditingAcc({...editingAcc, checkInDate: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" style={{colorScheme:'light'}}/>
                             </div>
-                            <div className="flex flex-col">
-                                <label className="text-[10px] font-bold text-gray-400 ml-1 flex items-center gap-1 mb-1"><House size={12} className="text-orange-400"/> 退房時間</label>
-                                <input type="datetime-local" value={editingAcc.checkOutDate} onChange={e => setEditingAcc({...editingAcc, checkOutDate: e.target.value})} className="w-full bg-beige/50 p-3 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{colorScheme: 'light'}}/>
+                            <div>
+                                <label className="text-[10px] font-bold text-gray-400 ml-1">Check-out</label>
+                                <input type="datetime-local" value={editingAcc.checkOutDate} onChange={e => setEditingAcc({...editingAcc, checkOutDate: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" style={{colorScheme:'light'}}/>
                             </div>
                         </div>
-
+                        <div>
+                            <label className="text-[10px] font-bold text-gray-400 ml-1">地址</label>
+                            <input value={editingAcc.address} onChange={e => setEditingAcc({...editingAcc, address: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="地址"/>
+                        </div>
                         <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark space-y-3">
-                            <div className="flex gap-2">
-                               <div className="flex-[2]">
-                                  <label className="text-[10px] font-bold text-gray-400 block mb-1">總金額</label>
-                                  <input type="number" value={editingAcc.cost || ''} onChange={e => setEditingAcc({...editingAcc, cost: Number(e.target.value)})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="0"/>
-                               </div>
-                               <div className="flex-1">
-                                  <label className="text-[10px] font-bold text-gray-400 block mb-1">幣別</label>
-                                  <select value={editingAcc.currency} onChange={e => setEditingAcc({...editingAcc, currency: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm"><option value="TWD">TWD</option>{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select>
-                               </div>
-                            </div>
-                            <div className="flex items-center justify-between">
-                                <ToggleSwitch 
-                                    checked={editingAcc.hasServiceFee} 
-                                    onChange={(checked) => setEditingAcc({...editingAcc, hasServiceFee: checked})} 
-                                    label="額外稅金/手續費" 
-                                    colorClass="bg-purple-400" 
-                                />
-                                {editingAcc.hasServiceFee && (
-                                    <div className="flex items-center gap-1">
-                                        <input type="number" value={editingAcc.serviceFeePercentage || ''} onChange={(e) => setEditingAcc({...editingAcc, serviceFeePercentage: Number(e.target.value)})} placeholder="%" className="w-12 bg-transparent text-xs font-bold text-center outline-none text-cocoa border-b border-gray-300"/>
-                                        <span className="text-xs text-gray-400 font-bold">%</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            <CostPreview 
-                                cost={editingAcc.cost} 
-                                currency={editingAcc.currency} 
-                                hasFee={editingAcc.hasServiceFee} 
-                                feePct={editingAcc.serviceFeePercentage} 
-                            />
-
-                            <div><label className="text-[10px] font-bold text-gray-400 block mb-2">分攤成員</label><div className="flex flex-wrap gap-2">{members.map(m => (<button key={m.id} onClick={() => toggleAccParticipant(m.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${editingAcc.participants.includes(m.id) ? 'bg-sage text-white border-sage' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{m.name}</button>))}</div></div>
+                             <div className="flex gap-2">
+                                <div className="flex-[2]">
+                                   <label className="text-[10px] font-bold text-gray-400 block mb-1">總金額</label>
+                                   <input type="number" value={editingAcc.cost || ''} onChange={e => setEditingAcc({...editingAcc, cost: Number(e.target.value)})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="0"/>
+                                </div>
+                                <div className="flex-1">
+                                   <label className="text-[10px] font-bold text-gray-400 block mb-1">幣別</label>
+                                   <select value={editingAcc.currency} onChange={e => setEditingAcc({...editingAcc, currency: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm"><option value="TWD">TWD</option>{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select>
+                                </div>
+                             </div>
+                             <CostPreview cost={editingAcc.cost} currency={editingAcc.currency} hasFee={editingAcc.hasServiceFee} feePct={editingAcc.serviceFeePercentage} />
+                             <div>
+                                <label className="text-[10px] font-bold text-gray-400 block mb-2">分攤成員</label>
+                                <div className="flex flex-wrap gap-2">{members.map(m => (<button key={m.id} onClick={() => toggleAccParticipant(m.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${editingAcc.participants?.includes(m.id) ? 'bg-sage text-white border-sage' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{m.name}</button>))}</div>
+                             </div>
                         </div>
-
-                        <div><label className="text-[10px] font-bold text-gray-400 ml-1">備註</label><textarea value={editingAcc.note} onChange={e => setEditingAcc({...editingAcc, note: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold h-20 text-cocoa"></textarea></div>
                     </div>
+                    
                     <div className="flex gap-3 mt-6">
-                        <button onClick={() => setShowAccModal(false)} className="flex-1 py-3 rounded-2xl bg-white text-gray-400 font-black border-2 border-beige-dark">取消</button>
-                        <button onClick={saveAcc} className="flex-1 py-3 rounded-2xl bg-sage text-white font-black">保存</button>
+                        {editingAcc.id && accommodations.find(a => String(a.id) === String(editingAcc.id)) && (
+                            deleteConfirm ? (
+                                <div className="flex-1 flex gap-2 animate-scale-in">
+                                    <button onClick={() => setDeleteConfirm(false)} className="flex-1 py-3 rounded-2xl bg-gray-100 text-gray-400 font-black border-2 border-gray-200 hover:bg-gray-200">取消</button>
+                                    <button onClick={executeDeleteAcc} className="flex-1 py-3 rounded-2xl bg-red-500 text-white font-black border-2 border-red-600 shadow-hard-sm hover:bg-red-600 flex items-center justify-center gap-1"><AlertCircle size={16}/> 確認刪除</button>
+                                </div>
+                            ) : (
+                                <button onClick={() => setDeleteConfirm(true)} type="button" className="px-6 py-3 rounded-2xl bg-red-50 text-red-400 font-black border-2 border-red-100 flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
+                                    <Trash2 size={20}/> 刪除
+                                </button>
+                            )
+                        )}
+                        {!deleteConfirm && (
+                            <>
+                                <button onClick={() => setShowAccModal(false)} className="flex-1 py-3 rounded-2xl bg-white text-gray-400 font-black border-2 border-beige-dark">取消</button>
+                                <button onClick={saveAcc} className="flex-1 py-3 rounded-2xl bg-sage text-white font-black shadow-hard-sage border-2 border-sage-dark">保存</button>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -854,7 +925,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
         {showCarModal && editingCar && (
             <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-center justify-center px-4 backdrop-blur-sm">
                 <div className="bg-beige w-full max-w-md rounded-[2rem] p-6 shadow-2xl border-4 border-beige-dark max-h-[90vh] overflow-y-auto custom-scroll">
-                    <h3 className="font-black text-lg mb-4 text-center text-cocoa">編輯租車</h3>
+                    <h3 className="font-black text-lg mb-4 text-center text-cocoa">{carRentals.find(c => String(c.id) === String(editingCar.id)) ? '編輯租車' : '新增租車'}</h3>
                     <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-2">
                             <div><label className="text-[10px] font-bold text-gray-400 ml-1">平台</label><input value={editingCar.platform} onChange={e => setEditingCar({...editingCar, platform: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="Klook"/></div>
@@ -905,8 +976,24 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                         <div><label className="text-[10px] font-bold text-gray-400 ml-1">備註</label><textarea value={editingCar.note} onChange={e => setEditingCar({...editingCar, note: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold h-20 text-cocoa"></textarea></div>
                     </div>
                     <div className="flex gap-3 mt-6">
-                        <button onClick={() => setShowCarModal(false)} className="flex-1 py-3 rounded-2xl bg-white text-gray-400 font-black border-2 border-beige-dark">取消</button>
-                        <button onClick={saveCar} className="flex-1 py-3 rounded-2xl bg-sage text-white font-black">保存</button>
+                        {carRentals.find(c => String(c.id) === String(editingCar.id)) && (
+                            deleteConfirm ? (
+                                <div className="flex-1 flex gap-2 animate-scale-in">
+                                    <button onClick={() => setDeleteConfirm(false)} className="flex-1 py-3 rounded-2xl bg-gray-100 text-gray-400 font-black border-2 border-gray-200 hover:bg-gray-200">取消</button>
+                                    <button onClick={executeDeleteCar} className="flex-1 py-3 rounded-2xl bg-red-500 text-white font-black border-2 border-red-600 shadow-hard-sm hover:bg-red-600 flex items-center justify-center gap-1"><AlertCircle size={16}/> 確認刪除</button>
+                                </div>
+                            ) : (
+                                <button onClick={() => setDeleteConfirm(true)} type="button" className="px-6 py-3 rounded-2xl bg-red-50 text-red-400 font-black border-2 border-red-100 flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
+                                    <Trash2 size={20}/> 刪除
+                                </button>
+                            )
+                        )}
+                        {!deleteConfirm && (
+                            <>
+                                <button onClick={() => setShowCarModal(false)} className="flex-1 py-3 rounded-2xl bg-white text-gray-400 font-black border-2 border-beige-dark">取消</button>
+                                <button onClick={saveCar} className="flex-1 py-3 rounded-2xl bg-sage text-white font-black">保存</button>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
