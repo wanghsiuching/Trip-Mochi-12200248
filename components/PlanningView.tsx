@@ -131,16 +131,12 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
       setCommentDrafts(prev => ({ ...prev, [id]: text }));
   };
 
-  const cycleCommentAuthor = (id: number) => {
-      setCommentAuthors(prev => {
-          const currentId = prev[id] || members[0]?.id;
-          const currentIndex = members.findIndex(m => m.id === currentId);
-          const nextIndex = (currentIndex + 1) % members.length;
-          return { ...prev, [id]: members[nextIndex].id };
-      });
+  const selectCommentAuthor = (itemId: number, memberId: string) => {
+      setCommentAuthors(prev => ({ ...prev, [itemId]: memberId }));
   };
 
-  const submitInlineComment = (item: TodoItem) => {
+  const submitInlineComment = (e: React.MouseEvent | React.KeyboardEvent, item: TodoItem) => {
+      e.stopPropagation();
       const text = commentDrafts[item.id];
       if (!text || !text.trim()) return;
 
@@ -507,34 +503,43 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                                     </div>
                                 )}
 
-                                <div className="flex gap-2 items-center">
-                                    <button 
-                                        onClick={() => cycleCommentAuthor(item.id)}
-                                        className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-full bg-white border-2 border-beige-dark shadow-sm hover:border-sage transition-all flex-shrink-0"
-                                        title={`目前留言者: ${currentAuthor?.name} (點擊切換)`}
-                                    >
-                                        <div className="w-5 h-5 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border border-gray-200">
-                                            {currentAuthor?.avatar ? <img src={currentAuthor.avatar} className="w-full h-full object-cover"/> : <span className="text-[9px] font-black text-gray-400">{currentAuthor?.name?.[0]}</span>}
-                                        </div>
-                                        <span className="text-xs font-black text-cocoa max-w-[4rem] truncate">{currentAuthor?.name}</span>
-                                    </button>
-                                    <div className="flex-1 relative">
-                                        <input 
-                                            value={currentDraft}
-                                            onChange={e => handleInlineCommentChange(item.id, e.target.value)}
-                                            onKeyDown={e => e.key === 'Enter' && submitInlineComment(item)}
-                                            placeholder="留言..."
-                                            className="w-full bg-gray-50 text-cocoa rounded-xl px-3 py-1.5 outline-none border border-beige-dark/50 font-bold text-xs placeholder-gray-300 focus:border-sage focus:bg-white transition-colors pr-8"
-                                        />
-                                        {currentDraft.trim() && (
-                                            <button 
-                                                onClick={() => submitInlineComment(item)} 
-                                                className="absolute right-1 top-1/2 -translate-y-1/2 text-sage hover:text-sage-dark p-1"
+                                {/* Member Selector (Scrollable) */}
+                                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-2 items-center" onMouseDown={e => e.stopPropagation()}>
+                                    {members.map(m => {
+                                        const isSelected = (commentAuthors[item.id] || members[0]?.id) === m.id;
+                                        return (
+                                            <button
+                                                key={m.id}
+                                                onClick={(e) => { e.stopPropagation(); selectCommentAuthor(item.id, m.id); }}
+                                                className={`flex-shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-full border-2 transition-all ${isSelected ? 'bg-sage text-white border-sage shadow-sm' : 'bg-white text-gray-400 border-beige-dark hover:bg-gray-50'}`}
                                             >
-                                                <Send size={12}/>
+                                                <div className="w-4 h-4 rounded-full overflow-hidden border border-white/50 flex items-center justify-center bg-beige text-[8px] font-black text-cocoa">
+                                                    {m.avatar ? <img src={m.avatar} className="w-full h-full object-cover" loading="lazy"/> : m.name[0]}
+                                                </div>
+                                                <span className="text-xs font-bold">{m.name}</span>
                                             </button>
-                                        )}
-                                    </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Input Field */}
+                                <div className="relative">
+                                    <input 
+                                        value={currentDraft}
+                                        onChange={e => handleInlineCommentChange(item.id, e.target.value)}
+                                        onKeyDown={e => e.key === 'Enter' && submitInlineComment(e, item)}
+                                        placeholder={`用 ${currentAuthor?.name} 的身份留言...`}
+                                        className="w-full bg-gray-50 text-cocoa rounded-xl px-3 py-2 outline-none border border-beige-dark/50 font-bold text-xs placeholder-gray-300 focus:border-sage focus:bg-white transition-colors pr-9"
+                                        onClick={e => e.stopPropagation()}
+                                    />
+                                    {currentDraft.trim() && (
+                                        <button 
+                                            onClick={(e) => submitInlineComment(e, item)} 
+                                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-sage hover:text-sage-dark p-1"
+                                        >
+                                            <Send size={14}/>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>

@@ -10,7 +10,7 @@ import {
   Tab, ViewState, ScheduleItem, SavedTrip, Currency, Member, THEME, TripDay,
   BookingFlight, BookingAccommodation, BookingCarRental, BookingTicket, Expense, Journal, TodoItem
 } from './types';
-import { BottomNav } from './components/UI';
+import { BottomNav } from './components/CommonUI';
 import { 
   AddScheduleModal, CreateTripModal, DeleteConfirmModal, SearchErrorModal, DeleteItemConfirmModal, TripSettingsModal, PotentialExpensesModal, EditDayDetailsModal, DeleteDayConfirmModal 
 } from './components/Modals';
@@ -281,7 +281,11 @@ export default function App() {
             <h1 className="text-3xl font-black text-cocoa tracking-tight">{currentTripName}</h1>
             <div onClick={handleShare} className="flex items-center gap-2 mt-2 cursor-pointer group"><span className="text-xs font-bold text-sage bg-white px-3 py-1.5 rounded-lg border-2 border-beige-dark group-hover:border-sage flex items-center gap-2 shadow-hard-sm">Code: {currentTripId} <Copy size={12} /></span>{copyFeedback && <span className="text-xs text-sage font-bold animate-pulse bg-white px-2 py-1 rounded-lg">已複製代碼！</span>}</div>
           </div>
-          <div className="flex items-center gap-3 pt-6"><button onClick={() => setIsSettingsModalOpen(true)} className="p-3 bg-white rounded-full shadow-hard-sm border-2 border-beige-dark text-gray-400 hover:text-sage"><Settings size={20} strokeWidth={2.5} /></button></div>
+          <div className="flex items-center gap-3 pt-6">
+            {activeTab === 'schedule' && (
+              <button onClick={() => setIsSettingsModalOpen(true)} className="p-3 bg-white rounded-full shadow-hard-sm border-2 border-beige-dark text-gray-400 hover:text-sage"><Settings size={20} strokeWidth={2.5} /></button>
+            )}
+          </div>
         </header>
 
         <main className="min-h-[calc(100vh-160px)]">

@@ -145,9 +145,11 @@ export const addTripItem = async (tripId: string, collectionName: string, item: 
     const tripRef = doc(db, 'trips', tripId);
     // Firestore does not allow 'undefined' values. Clean the item first.
     const cleanedItem = cleanData(item);
-    await updateDoc(tripRef, {
+    // Use setDoc with merge: true instead of updateDoc to implicitly create the document if it's missing (upsert)
+    // This fixes "No document to update" errors if the trip was deleted but local state still references it.
+    await setDoc(tripRef, {
       [collectionName]: arrayUnion(cleanedItem)
-    });
+    }, { merge: true });
   } catch (error) {
     console.error(`Failed to add item to ${collectionName}:`, error);
     throw new Error("更新資料失敗");
@@ -162,9 +164,10 @@ export const updateTripField = async (tripId: string, field: string, value: any)
     const tripRef = doc(db, 'trips', tripId);
     // Firestore does not allow 'undefined' values. Clean the value first.
     const cleanedValue = cleanData(value);
-    await updateDoc(tripRef, {
+    // Use setDoc with merge: true to avoid "No document to update" errors
+    await setDoc(tripRef, {
       [field]: cleanedValue
-    });
+    }, { merge: true });
   } catch (error) {
     console.error(`Failed to update field ${field}:`, error);
     throw new Error("同步資料失敗");
