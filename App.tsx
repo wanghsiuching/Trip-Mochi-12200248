@@ -83,6 +83,21 @@ export default function App() {
       return fruits[Math.abs(hash) % fruits.length];
   };
 
+  // Expanded Fruit List for Timeline
+  const SCHEDULE_ICONS = [
+      '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈',
+      '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆', '🥕',
+      '🌽', '🌶️', '🫑', '🥒', '🥬', '🥦', '🍄', '🥜', '🌰', '🍠'
+  ];
+
+  const getScheduleIcon = (id: string) => {
+      let hash = 0;
+      for (let i = 0; i < id.length; i++) {
+          hash = id.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return SCHEDULE_ICONS[Math.abs(hash) % SCHEDULE_ICONS.length];
+  };
+
   const currentFruit = getACFruit(currentLocation);
 
   const getMemberNames = (ids?: string[]) => {
@@ -327,14 +342,19 @@ export default function App() {
                       if (item.type === 'spot') { icon = MapPin; colorClass = 'bg-green-100 text-green-600'; }
                       if (item.type === 'flight') { icon = Plane; colorClass = 'bg-cyan-100 text-cyan-600'; }
                       const IconComp = icon;
-                      const dotColor = ['bg-sage', 'bg-orange-400', 'bg-blue-400', 'bg-purple-400', 'bg-pink-400', 'bg-yellow-400'][index % 6];
                       const partIds = item.type === 'flight' ? item.flightDetails?.participants : item.type === 'stay' ? item.stayDetails?.participants : item.type === 'transport' ? item.carRental?.participants : (item.type === 'spot' || item.type === 'food') ? item.spotDetails?.participants : [];
                       const participantNames = getMemberNames(partIds);
+                      const fruitIcon = getScheduleIcon(item.id);
 
                       return (
                         <div key={item.id} className="relative pl-8 group mb-8">
                           <button onClick={(e) => { e.stopPropagation(); handleDeleteItemClick(item.id); }} className="absolute right-0 -top-3 bg-red-100 text-red-400 p-1.5 rounded-full opacity-0 group-hover:opacity-100 z-30 border border-red-200 shadow-sm"><X size={12} strokeWidth={3} /></button>
-                          <div className={`absolute -left-[12px] top-8 w-4 h-4 rounded-full border-4 border-beige shadow-sm ${dotColor} z-10`}></div>
+                          
+                          {/* Fruit Icon Timeline Indicator */}
+                          <div className="absolute -left-[15px] top-6 z-10 flex items-center justify-center w-8 h-8 bg-beige rounded-full">
+                              <span className="text-xl animate-fruit-dance drop-shadow-sm filter cursor-default select-none hover:scale-125 transition-transform">{fruitIcon}</span>
+                          </div>
+
                           <div onClick={() => handleEditClick(item)} className="bg-white rounded-[2rem] shadow-hard-sm border-2 border-beige-dark overflow-hidden relative transition-all cursor-pointer hover:border-sage group-hover:-translate-y-1">
                             <div className="p-5">
                                 <div className="flex justify-between items-start mb-4">

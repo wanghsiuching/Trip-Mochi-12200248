@@ -42,6 +42,15 @@
         animation: scale-in 0.2s ease-out forwards;
       }
 
+      @keyframes fruit-wiggle {
+        0%, 100% { transform: scale(1) rotate(-8deg); }
+        50% { transform: scale(1.2) rotate(8deg); }
+      }
+      .animate-fruit-dance {
+        animation: fruit-wiggle 3s ease-in-out infinite;
+        display: inline-block;
+      }
+
       /* Safe Area for Mobile */
       .pb-safe {
         padding-bottom: env(safe-area-inset-bottom);
