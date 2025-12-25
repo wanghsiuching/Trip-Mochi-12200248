@@ -16,37 +16,35 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
   const [currentList, setCurrentList] = useState<'todo' | 'packing' | 'wish' | 'shopping'>('todo');
   const [newItem, setNewItem] = useState('');
   
-  // Extra Fields
   const [newNote, setNewNote] = useState('');
   const [newUrl, setNewUrl] = useState('');
   const [showExtraInput, setShowExtraInput] = useState(false);
   
-  // Unified Filter & Assignment State
   const [filterSelection, setFilterSelection] = useState<string[]>(['全體']);
 
-  // Editing State
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editingForm, setEditingForm] = useState<{text: string, note: string, url: string}>({text: '', note: '', url: ''});
 
-  // Delete Confirmation State
   const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // Inline Comment State
-  // Map of itemId -> draft text
   const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
-  // Map of itemId -> authorId
   const [commentAuthors, setCommentAuthors] = useState<Record<number, string>>({});
+  
+  // Comment Edit/Delete State
+  const [editingComment, setEditingComment] = useState<{ itemId: number, commentId: string, text: string } | null>(null);
+  const [deletingComment, setDeletingComment] = useState<{ itemId: number, commentId: string } | null>(null);
 
-  // Reset inputs when switching tabs, default filter to All
   useEffect(() => {
       setFilterSelection(['全體']);
       setNewItem('');
       setNewNote('');
       setNewUrl('');
       setShowExtraInput(false);
+      setEditingComment(null); 
+      setDeletingComment(null);
   }, [currentList]);
 
-  // Logic to toggle filter pills
   const toggleMemberFilter = (name: string) => {
       if (name === '全體') {
           setFilterSelection(['全體']);
@@ -54,28 +52,20 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
       }
 
       if (currentList === 'todo') {
-          // Multi-select logic for Todo
           setFilterSelection(prev => {
-              // If currently 'All', clear it and start fresh with the clicked name
               let newSel = prev.includes('全體') ? [] : [...prev];
-
               if (newSel.includes(name)) {
                   newSel = newSel.filter(n => n !== name);
               } else {
                   newSel.push(name);
               }
-
-              // If deselecting the last one, revert to 'All'
               return newSel.length === 0 ? ['全體'] : newSel;
           });
       } else {
-          // Single-select logic for packing/wish/shopping
           setFilterSelection(prev => {
-              // If clicking the already selected member, revert to 'All'
               if (prev.includes(name)) {
                   return ['全體'];
               }
-              // Otherwise switch to this member (Single Select)
               return [name];
           });
       }
@@ -84,15 +74,12 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
   const handleAdd = () => {
     if (!newItem.trim()) return;
     
-    // Determine assignee based on filter selection
     let finalAssignee: string | string[];
-
     if (filterSelection.includes('全體')) {
         finalAssignee = '全體';
     } else if (filterSelection.length === 1) {
         finalAssignee = filterSelection[0];
     } else {
-        // Multi-assign
         finalAssignee = filterSelection;
     }
 
@@ -171,18 +158,41 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
       setCommentDrafts(prev => ({ ...prev, [item.id]: '' }));
   };
 
-  // --- Filter Logic for List Display ---
+  // --- Comment Actions ---
+  const startEditComment = (itemId: number, comment: Comment) => {
+      setDeletingComment(null);
+      setEditingComment({ itemId, commentId: comment.id, text: comment.text });
+  };
+
+  const cancelEditComment = () => {
+      setEditingComment(null);
+  };
+
+  const saveEditComment = (item: TodoItem) => {
+      if (!editingComment) return;
+      const updatedComments = item.comments?.map(c => 
+          c.id === editingComment.commentId ? { ...c, text: editingComment.text } : c
+      );
+      onUpdate(currentList, item.id, { comments: updatedComments });
+      setEditingComment(null);
+  };
+
+  const promptDeleteComment = (itemId: number, commentId: string) => {
+      setEditingComment(null);
+      setDeletingComment({ itemId, commentId });
+  };
+
+  const confirmDeleteComment = (item: TodoItem) => {
+      if (!deletingComment) return;
+      const updatedComments = item.comments?.filter(c => c.id !== deletingComment.commentId);
+      onUpdate(currentList, item.id, { comments: updatedComments });
+      setDeletingComment(null);
+  };
+
   const activeListItems = (lists[currentList] || []).filter(item => {
-      // 1. Show all if '全體' is selected
       if (filterSelection.includes('全體')) return true;
-
-      // 2. Logic: Show item if it's assigned to 'All', 
-      //    OR if the item's assignee overlaps with the selected members.
       if (item.assignee === '全體') return true;
-
       const itemAssignees = Array.isArray(item.assignee) ? item.assignee : [item.assignee];
-      
-      // Check for intersection
       return itemAssignees.some(person => filterSelection.includes(person));
   });
 
@@ -196,7 +206,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
 
   return (
     <div className="w-full lg:p-0 animate-scale-in">
-        {/* Sticky Header Tabs */}
         <div className="sticky top-0 z-30 bg-beige/95 backdrop-blur-md px-4 py-3 border-b border-beige-dark/50 mb-5 lg:static lg:bg-transparent lg:p-0 lg:border-none lg:mb-6">
             <div className="bg-white p-1.5 rounded-full flex text-sm font-bold text-gray-400 border-2 border-beige-dark shadow-sm w-full max-w-lg mx-auto lg:mx-0">
                 {[
@@ -226,10 +235,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
             </div>
         </div>
 
-        {/* Content Area */}
         <div className="px-4 pb-4 lg:p-0">
-            
-            {/* --- UNIFIED FILTER & ASSIGN BAR --- */}
             <div className="mb-4">
                 <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-2 items-center">
                     <button
@@ -257,7 +263,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                 </div>
             </div>
 
-            {/* --- INPUT AREA (Card) --- */}
             <div className="mb-6 bg-white p-4 rounded-[2rem] shadow-hard-sm border-2 border-beige-dark space-y-3 flex-shrink-0">
                 <div className="flex gap-2 items-start">
                     <div className="flex-1 min-w-0 space-y-2">
@@ -267,8 +272,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                             placeholder={getPlaceholderText()} 
                             className="w-full bg-beige/50 text-cocoa rounded-xl px-4 py-3.5 text-base outline-none focus:border-sage border-2 border-beige-dark font-bold placeholder-gray-300 transition-colors resize-none h-[54px] leading-tight"
                         />
-                        
-                        {/* Extra Input Fields (Note & URL) */}
                         {showExtraInput && (
                             <div className="space-y-2 animate-scale-in">
                                 <input 
@@ -291,7 +294,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                             </div>
                         )}
                     </div>
-                    
                     <div className="flex flex-col gap-2">
                         <button 
                             onClick={() => setShowExtraInput(!showExtraInput)}
@@ -299,7 +301,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                         >
                             <Edit3 size={20} />
                         </button>
-
                         <button onClick={handleAdd} className="w-14 h-[54px] flex-shrink-0 text-white bg-sage rounded-xl border-2 border-sage-dark shadow-hard-sage active:shadow-none active:translate-y-[3px] transition-all text-xl flex items-center justify-center">
                             <Plus size={24} strokeWidth={3} />
                         </button>
@@ -307,14 +308,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                 </div>
             </div>
 
-            {/* --- LIST CONTENT --- */}
             <div className="space-y-3 pb-20 lg:pb-0">
                 {activeListItems.length === 0 && (
                     <div className="text-center py-10 text-gray-300 opacity-60 bg-white rounded-[2rem] border-2 border-dashed border-beige-dark">
                         <ClipboardList size={40} className="mx-auto mb-2" />
-                        <p className="text-sm font-bold">
-                            這裡空空如也
-                        </p>
+                        <p className="text-sm font-bold">這裡空空如也</p>
                     </div>
                 )}
                 
@@ -334,7 +332,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                     const totalTargets = targets.length;
                     const isViewAllMode = filterSelection.includes('全體');
                     
-                    // Comment Data
                     const currentDraft = commentDrafts[item.id] || '';
                     const currentAuthorId = commentAuthors[item.id] || members[0]?.id;
                     const currentAuthor = members.find(m => m.id === currentAuthorId);
@@ -352,7 +349,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                             )}
 
                             <div className="flex items-start gap-3 mb-2">
-                                {/* Checkbox */}
                                 <div className={`flex-shrink-0 pt-0.5 ${!isViewAllMode ? 'cursor-pointer' : 'cursor-default'}`} onMouseDown={(e) => {
                                     if (isViewAllMode && !isGroupTask) return;
                                     if (!isGroupTask) {
@@ -375,7 +371,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                                     )}
                                 </div>
 
-                                {/* Content */}
                                 <div className="flex-1 min-w-0">
                                     {editingId === item.id ? (
                                         <div className="flex flex-col gap-2">
@@ -411,24 +406,11 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                                     ) : (
                                         <div>
                                             <span className={`block font-bold text-base leading-relaxed break-words whitespace-pre-line ${item.done ? 'text-gray-300 line-through' : 'text-cocoa'}`}>{item.text}</span>
-                                            
-                                            {/* Note Display */}
-                                            {item.note && (
-                                                <p className={`text-xs mt-1 whitespace-pre-line font-bold ${item.done ? 'text-gray-300' : 'text-gray-400'}`}>
-                                                    {item.note}
-                                                </p>
-                                            )}
-
-                                            {/* URL Display */}
-                                            {item.url && (
-                                                <a href={item.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 mt-2 text-xs font-bold bg-blue-50 text-blue-500 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors border border-blue-100">
-                                                    <Link size={12} /> 相關連結
-                                                </a>
-                                            )}
+                                            {item.note && <p className={`text-xs mt-1 whitespace-pre-line font-bold ${item.done ? 'text-gray-300' : 'text-gray-400'}`}>{item.note}</p>}
+                                            {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 mt-2 text-xs font-bold bg-blue-50 text-blue-500 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors border border-blue-100"><Link size={12} /> 相關連結</a>}
                                         </div>
                                     )}
 
-                                    {/* Member Buttons (Only for Group Tasks) */}
                                     {isGroupTask && (
                                         <div className="mt-2 flex flex-wrap gap-2">
                                             {members.filter(m => targets.includes(m.name)).map(m => {
@@ -448,7 +430,6 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                                     )}
                                 </div>
 
-                                {/* Actions */}
                                 {editingId !== item.id && (
                                     <div className="flex gap-1 ml-2 relative z-10 flex-col sm:flex-row">
                                         {deletingId === item.id ? (
@@ -466,25 +447,59 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                                 )}
                             </div>
 
-                            {/* --- Inline Comments Section --- */}
                             <div className="mt-3 pt-3 border-t-2 border-dashed border-gray-100">
-                                {/* Comment List */}
                                 {item.comments && item.comments.length > 0 && (
                                     <div className="space-y-2 mb-3">
                                         {item.comments.map(c => {
                                             const author = members.find(m => m.id === c.authorId);
+                                            const isEditing = editingComment?.commentId === c.id && editingComment?.itemId === item.id;
+                                            const isDeleting = deletingComment?.commentId === c.id && deletingComment?.itemId === item.id;
+
                                             return (
-                                                <div key={c.id} className="flex gap-2 items-start">
+                                                <div key={c.id} className="flex gap-2 items-start group/comment">
                                                     <div className="w-5 h-5 rounded-full bg-beige border border-beige-dark flex-shrink-0 overflow-hidden flex items-center justify-center">
                                                         {author?.avatar ? <img src={author.avatar} className="w-full h-full object-cover"/> : <span className="text-[9px] font-black text-gray-400">{author?.name?.[0]}</span>}
                                                     </div>
-                                                    <div className="flex-1">
-                                                        <div className="bg-gray-50 rounded-lg rounded-tl-none px-2 py-1.5 inline-block border border-beige-dark/50">
-                                                            <p className="text-xs font-bold text-cocoa leading-snug whitespace-pre-wrap">{c.text}</p>
-                                                        </div>
-                                                        <div className="text-[9px] font-bold text-gray-300 mt-0.5 ml-1">
-                                                            {author?.name} • {new Date(c.createdAt).toLocaleDateString([], {month:'numeric', day:'numeric'})}
-                                                        </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        {isEditing ? (
+                                                            <div className="flex flex-col gap-2">
+                                                                <textarea 
+                                                                    value={editingComment.text} 
+                                                                    onChange={(e) => setEditingComment({ ...editingComment, text: e.target.value })}
+                                                                    className="w-full bg-white border-2 border-sage rounded-lg px-2 py-1 text-xs font-bold text-cocoa outline-none resize-none h-16"
+                                                                    autoFocus
+                                                                />
+                                                                <div className="flex gap-2 justify-end">
+                                                                    <button onClick={() => cancelEditComment()} className="px-2 py-1 rounded-lg bg-gray-100 text-gray-400 hover:bg-gray-200 text-[10px] font-bold">取消</button>
+                                                                    <button onClick={() => saveEditComment(item)} className="px-2 py-1 rounded-lg bg-sage text-white hover:bg-sage-dark text-[10px] font-bold">儲存</button>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <>
+                                                                <div className="bg-gray-50 rounded-lg rounded-tl-none px-2 py-1.5 inline-block border border-beige-dark/50 max-w-full">
+                                                                    <p className="text-xs font-bold text-cocoa leading-snug whitespace-pre-wrap break-words">{c.text}</p>
+                                                                </div>
+                                                                <div className="flex items-center justify-between mt-0.5 ml-1 pr-1">
+                                                                    <div className="text-[9px] font-bold text-gray-300">
+                                                                        {author?.name} • {new Date(c.createdAt).toLocaleDateString([], {month:'numeric', day:'numeric'})}
+                                                                    </div>
+                                                                    
+                                                                    <div className="flex items-center gap-1.5">
+                                                                        {isDeleting ? (
+                                                                            <div className="flex items-center gap-1 animate-scale-in">
+                                                                                <button onClick={() => confirmDeleteComment(item)} className="bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold hover:bg-red-600 shadow-sm">確定?</button>
+                                                                                <button onClick={() => setDeletingComment(null)} className="text-gray-300 hover:text-gray-500"><X size={12}/></button>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <div className="flex gap-1.5 opacity-100 lg:opacity-0 lg:group-hover/comment:opacity-100 transition-opacity">
+                                                                                <button onClick={() => startEditComment(item.id, c)} className="text-gray-300 hover:text-sage transition-colors"><PenTool size={10}/></button>
+                                                                                <button onClick={() => promptDeleteComment(item.id, c.id)} className="text-gray-300 hover:text-red-400 transition-colors"><Trash2 size={10}/></button>
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            </>
+                                                        )}
                                                     </div>
                                                 </div>
                                             );
@@ -492,14 +507,16 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                                     </div>
                                 )}
 
-                                {/* Inline Comment Input */}
                                 <div className="flex gap-2 items-center">
                                     <button 
                                         onClick={() => cycleCommentAuthor(item.id)}
-                                        className="w-7 h-7 rounded-full bg-white border-2 border-beige-dark flex items-center justify-center overflow-hidden hover:border-sage transition-colors flex-shrink-0 shadow-sm"
-                                        title={`切換留言者: ${currentAuthor?.name}`}
+                                        className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-full bg-white border-2 border-beige-dark shadow-sm hover:border-sage transition-all flex-shrink-0"
+                                        title={`目前留言者: ${currentAuthor?.name} (點擊切換)`}
                                     >
-                                        {currentAuthor?.avatar ? <img src={currentAuthor.avatar} className="w-full h-full object-cover"/> : <span className="text-[10px] font-black text-gray-400">{currentAuthor?.name?.[0]}</span>}
+                                        <div className="w-5 h-5 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border border-gray-200">
+                                            {currentAuthor?.avatar ? <img src={currentAuthor.avatar} className="w-full h-full object-cover"/> : <span className="text-[9px] font-black text-gray-400">{currentAuthor?.name?.[0]}</span>}
+                                        </div>
+                                        <span className="text-xs font-black text-cocoa max-w-[4rem] truncate">{currentAuthor?.name}</span>
                                     </button>
                                     <div className="flex-1 relative">
                                         <input 

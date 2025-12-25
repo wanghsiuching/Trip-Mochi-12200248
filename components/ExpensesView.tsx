@@ -368,10 +368,13 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, members, c
                                                 <div className="flex gap-2 items-center">
                                                     <button 
                                                         onClick={() => cycleCommentAuthor(exp.id)}
-                                                        className="w-7 h-7 rounded-full bg-white border-2 border-beige-dark flex items-center justify-center overflow-hidden hover:border-sage transition-colors flex-shrink-0 shadow-sm"
-                                                        title={`切換留言者: ${currentAuthor?.name}`}
+                                                        className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-full bg-white border-2 border-beige-dark shadow-sm hover:border-sage transition-all flex-shrink-0"
+                                                        title={`目前留言者: ${currentAuthor?.name} (點擊切換)`}
                                                     >
-                                                        {currentAuthor?.avatar ? <img src={currentAuthor.avatar} className="w-full h-full object-cover"/> : <span className="text-[10px] font-black text-gray-400">{currentAuthor?.name?.[0]}</span>}
+                                                        <div className="w-5 h-5 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border border-gray-200">
+                                                            {currentAuthor?.avatar ? <img src={currentAuthor.avatar} className="w-full h-full object-cover"/> : <span className="text-[9px] font-black text-gray-400">{currentAuthor?.name?.[0]}</span>}
+                                                        </div>
+                                                        <span className="text-xs font-black text-cocoa max-w-[4rem] truncate">{currentAuthor?.name}</span>
                                                     </button>
                                                     <div className="flex-1 relative">
                                                         <input 
