@@ -195,7 +195,17 @@ export default function App() {
   };
   const handleUpdatePlanning = (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number, updates: Partial<TodoItem>) => updateTripField(currentTripId, 'planning', { ...planningLists, [type]: planningLists[type].map(item => item.id === id ? { ...item, ...updates } : item) });
   const handleDeletePlanning = (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number) => updateTripField(currentTripId, 'planning', { ...planningLists, [type]: planningLists[type].filter(item => item.id !== id) });
-  const handleAddMember = (name: string, avatar: string | null) => addTripItem(currentTripId, 'members', { id: Date.now().toString(), name, avatar, fruit: '🍎' });
+  
+  const handleAddMember = (name: string, avatar: string | null) => {
+      const fruits = [
+          '🍎', '🍏', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', 
+          '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆',
+          '🥕', '🌽', '🌶️', '🫑', '🥒', '🥬', '🥦', '🍄', '🥜', '🌰'
+      ];
+      const randomFruit = fruits[Math.floor(Math.random() * fruits.length)];
+      addTripItem(currentTripId, 'members', { id: Date.now().toString(), name, avatar, fruit: randomFruit });
+  };
+  
   const handleUpdateMember = (updated: Member) => updateTripField(currentTripId, 'members', members.map(m => m.id === updated.id ? updated : m));
   const handleDeleteMember = (id: string) => { if (members.length > 1) updateTripField(currentTripId, 'members', members.filter(m => m.id !== id)); };
   
@@ -215,7 +225,7 @@ export default function App() {
   const handleEditClick = (item: ScheduleItem) => { setEditingItem(item); setIsAddModalOpen(true); };
   const handleDeleteItemClick = (itemId: string) => setItemToDelete(itemId);
   const confirmDeleteItem = () => { if (itemToDelete) { updateTripField(currentTripId, 'scheduleItems', scheduleItems.filter(item => item.id !== itemToDelete)); setItemToDelete(null); } };
-  const handleMoveItem = (index: number, direction: 'up' | 'down') => { const currentDayItems = scheduleItems.filter(i => i.date === selectedDate); const itemA = currentDayItems[index]; const targetIndex = direction === 'up' ? index - 1 : index + 1; const itemB = currentDayItems[targetIndex]; const newArr = [...scheduleItems]; const idxA = newArr.findIndex(i => i.id === itemA.id); const idxB = newArr.findIndex(i => i.id === itemB.id); if (idxA > -1 && idxB > -1) { [newArr[idxA], newArr[idxB]] = [newArr[idxB], newArr[idxA]]; updateTripField(currentTripId, 'scheduleItems', newArr); } };
+  const handleMoveItem = (index: number, direction: 'up' | 'down') => { const currentDayItems = scheduleItems.filter(i => i.date === selectedDate); const itemA = currentDayItems[index]; const targetIndex = direction === 'up' ? index - 1 : index + 1; const itemB = currentDayItems[targetIndex]; const itemAId = itemA.id; const itemBId = itemB.id; const newArr = [...scheduleItems]; const idxA = newArr.findIndex(i => i.id === itemAId); const idxB = newArr.findIndex(i => i.id === itemBId); if (idxA > -1 && idxB > -1) { [newArr[idxA], newArr[idxB]] = [newArr[idxB], newArr[idxA]]; updateTripField(currentTripId, 'scheduleItems', newArr); } };
   const openMap = (location: string) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`, '_blank');
   const handleAddDay = () => { const lastDay = tripDays[tripDays.length - 1]; const nextDate = new Date(lastDay.date); nextDate.setDate(nextDate.getDate() + 1); updateTripField(currentTripId, 'tripDays', [...tripDays, { date: nextDate.toISOString().split('T')[0], location: lastDay.location }]); };
   const confirmDeleteDay = () => { if (tripDays.length > 1) { const newDays = tripDays.filter(d => d.date !== selectedDate); updateTripField(currentTripId, 'tripDays', newDays); updateTripField(currentTripId, 'scheduleItems', scheduleItems.filter(item => item.date !== selectedDate)); if (!newDays.find(d => d.date === selectedDate)) setSelectedDate(newDays[0].date); setIsDeleteDayModalOpen(false); } };
