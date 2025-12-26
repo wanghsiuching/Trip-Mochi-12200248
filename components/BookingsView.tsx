@@ -48,15 +48,16 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
   // Helper for Cost Calculation
   const calculateTotal = (cost: number, hasFee: boolean, feePct: number) => {
-      if (!hasFee) return cost;
-      return cost + (cost * Number(feePct) / 100);
+      const base = Number(cost) || 0;
+      if (!hasFee) return base;
+      return base + (base * Number(feePct) / 100);
   };
 
   // Helper for Exchange Rate
   const getExchangeRate = (code: string) => currencies.find(c => c.code === code)?.rate || 1;
 
   const CostPreview = ({ cost, currency, hasFee, feePct }: any) => {
-      const total = calculateTotal(Number(cost) || 0, hasFee, Number(feePct) || 0);
+      const total = calculateTotal(cost, hasFee, feePct);
       const rate = getExchangeRate(currency);
       const twd = Math.round(total * rate);
 
@@ -191,6 +192,29 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
           });
       }
       setShowAccModal(true);
+  };
+
+  // Helper to calculate nights and update state
+  const handleAccDateChange = (field: 'checkInDate' | 'checkOutDate', value: string) => {
+      if (!editingAcc) return;
+      
+      let newNights = editingAcc.nights;
+      const otherDate = field === 'checkInDate' ? editingAcc.checkOutDate : editingAcc.checkInDate;
+      
+      if (value && otherDate) {
+          const d1 = new Date(field === 'checkInDate' ? value : otherDate);
+          const d2 = new Date(field === 'checkInDate' ? otherDate : value);
+          // Calculate difference in milliseconds
+          const diffTime = d2.getTime() - d1.getTime();
+          // Convert to days (ceil to handle partial days as 1 night)
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+          // Ensure at least 1 night if dates are valid
+          if (!isNaN(diffDays)) {
+             newNights = diffDays > 0 ? diffDays : 1;
+          }
+      }
+
+      setEditingAcc({ ...editingAcc, [field]: value, nights: newNights });
   };
 
   const saveAcc = () => {
@@ -431,7 +455,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                                  <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">TOTAL COST</span>
                                                  <div className="flex flex-col">
                                                      <div className="flex items-baseline gap-1">
-                                                         <span className="text-sm font-black text-cocoa font-mono">{flight.currency} {totalCost.toLocaleString()}</span>
+                                                         <span className="text-sm font-black text-cocoa font-mono">{flight.currency} {Math.round(totalCost).toLocaleString()}</span>
                                                          {flight.currency !== 'TWD' && (
                                                              <span className="text-[10px] text-gray-400 font-bold ml-1">
                                                                  (≈ TWD {Math.round(totalCost * getExchangeRate(flight.currency)).toLocaleString()})
@@ -507,7 +531,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <div className="text-2xl font-black text-cocoa font-mono">{acc.currency} {totalCost.toLocaleString()}</div>
+                                        <div className="text-2xl font-black text-cocoa font-mono">{acc.currency} {Math.round(totalCost).toLocaleString()}</div>
                                         {acc.currency !== 'TWD' && (
                                             <div className="text-[10px] font-bold text-gray-400 font-mono">≈ TWD {Math.round(totalCost * getExchangeRate(acc.currency)).toLocaleString()}</div>
                                         )}
@@ -589,7 +613,9 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                        </div>
                    )}
 
-                   {carRentals.map((car) => (
+                   {carRentals.map((car) => {
+                       const totalCost = calculateTotal(car.price, car.hasServiceFee, car.serviceFeePercentage);
+                       return (
                        <div key={car.id} className="w-full bg-white rounded-[2.5rem] overflow-hidden shadow-hard-sm border-2 border-beige-dark flex flex-col group relative mb-6">
                             <div className="bg-blue-50 p-6 border-b-2 border-dashed border-blue-100 flex justify-between items-center relative">
                                 <div className="flex items-center gap-3">
@@ -600,8 +626,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <span className="bg-white text-blue-500 px-3 py-1 rounded-full text-xs font-black shadow-sm border border-blue-100">{car.platform || 'Rental'}</span>
-                                    <div className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">{car.carModel}</div>
+                                    <div className="text-lg font-black text-cocoa font-mono">{car.currency} {Math.round(totalCost).toLocaleString()}</div>
+                                    <div className="text-[10px] font-bold text-gray-400 mt-0.5 uppercase tracking-wider">Total (Inc. Tax)</div>
                                 </div>
                             </div>
 
@@ -677,13 +703,13 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                     <div className="text-right">
                                         <div className="text-[10px] font-bold text-gray-400 uppercase">每人分攤 (含稅)</div>
                                         <div className="text-base font-black text-cocoa font-mono">
-                                            {car.currency} {Math.round(calculateTotal(car.price, car.hasServiceFee, car.serviceFeePercentage) / (car.participants?.length || 1)).toLocaleString()}
+                                            {car.currency} {Math.round(totalCost / (car.participants?.length || 1)).toLocaleString()}
                                         </div>
                                     </div>
                                 </div>
                             </div>
                        </div>
-                   ))}
+                   )})}
                </div>
             )}
         </div>
@@ -780,7 +806,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                   <label className="text-[10px] font-bold text-gray-400 block mb-1">總金額</label>
                                   <input type="number" value={editingFlight.cost || ''} onChange={e => setEditingFlight({...editingFlight, cost: Number(e.target.value)})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="0"/>
                                </div>
-                               <div className="flex-1">
+                                <div className="flex-1">
                                   <label className="text-[10px] font-bold text-gray-400 block mb-1">幣別</label>
                                   <select value={editingFlight.currency} onChange={e => setEditingFlight({...editingFlight, currency: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm"><option value="TWD">TWD</option>{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select>
                                </div>
@@ -868,27 +894,47 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                         <div className="grid grid-cols-2 gap-2">
                             <div>
                                 <label className="text-[10px] font-bold text-gray-400 ml-1">Check-in</label>
-                                <input type="datetime-local" value={editingAcc.checkInDate} onChange={e => setEditingAcc({...editingAcc, checkInDate: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" style={{colorScheme:'light'}}/>
+                                <input type="datetime-local" value={editingAcc.checkInDate} onChange={e => handleAccDateChange('checkInDate', e.target.value)} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" style={{colorScheme:'light'}}/>
                             </div>
                             <div>
                                 <label className="text-[10px] font-bold text-gray-400 ml-1">Check-out</label>
-                                <input type="datetime-local" value={editingAcc.checkOutDate} onChange={e => setEditingAcc({...editingAcc, checkOutDate: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" style={{colorScheme:'light'}}/>
+                                <input type="datetime-local" value={editingAcc.checkOutDate} onChange={e => handleAccDateChange('checkOutDate', e.target.value)} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" style={{colorScheme:'light'}}/>
                             </div>
                         </div>
-                        <div>
-                            <label className="text-[10px] font-bold text-gray-400 ml-1">地址</label>
-                            <input value={editingAcc.address} onChange={e => setEditingAcc({...editingAcc, address: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="地址"/>
+                        <div className="flex gap-2">
+                            <div className="flex-[2]">
+                                <label className="text-[10px] font-bold text-gray-400 ml-1">地址</label>
+                                <input value={editingAcc.address} onChange={e => setEditingAcc({...editingAcc, address: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="地址"/>
+                            </div>
+                            <div className="flex-1">
+                                <label className="text-[10px] font-bold text-gray-400 ml-1">Nights</label>
+                                <input type="number" value={editingAcc.nights || 1} readOnly className="w-full bg-gray-100 p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm text-center"/>
+                            </div>
                         </div>
                         <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark space-y-3">
                              <div className="flex gap-2">
                                 <div className="flex-[2]">
-                                   <label className="text-[10px] font-bold text-gray-400 block mb-1">總金額</label>
+                                   <label className="text-[10px] font-bold text-gray-400 block mb-1">總金額 (未稅)</label>
                                    <input type="number" value={editingAcc.cost || ''} onChange={e => setEditingAcc({...editingAcc, cost: Number(e.target.value)})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="0"/>
                                 </div>
                                 <div className="flex-1">
                                    <label className="text-[10px] font-bold text-gray-400 block mb-1">幣別</label>
                                    <select value={editingAcc.currency} onChange={e => setEditingAcc({...editingAcc, currency: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm"><option value="TWD">TWD</option>{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select>
                                 </div>
+                             </div>
+                             <div className="flex items-center justify-between">
+                                <ToggleSwitch 
+                                    checked={editingAcc.hasServiceFee} 
+                                    onChange={(checked) => setEditingAcc({...editingAcc, hasServiceFee: checked})} 
+                                    label="額外稅金/手續費" 
+                                    colorClass="bg-purple-400" 
+                                />
+                                {editingAcc.hasServiceFee && (
+                                    <div className="flex items-center gap-1">
+                                        <input type="number" value={editingAcc.serviceFeePercentage || ''} onChange={(e) => setEditingAcc({...editingAcc, serviceFeePercentage: Number(e.target.value)})} placeholder="%" className="w-12 bg-transparent text-xs font-bold text-center outline-none text-cocoa border-b border-gray-300"/>
+                                        <span className="text-xs text-gray-400 font-bold">%</span>
+                                    </div>
+                                )}
                              </div>
                              <CostPreview cost={editingAcc.cost} currency={editingAcc.currency} hasFee={editingAcc.hasServiceFee} feePct={editingAcc.serviceFeePercentage} />
                              <div>
@@ -954,7 +1000,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                         <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark space-y-3">
                             <div className="flex gap-2">
                                <div className="flex-[2]">
-                                  <label className="text-[10px] font-bold text-gray-400 block mb-1">總金額</label>
+                                  <label className="text-[10px] font-bold text-gray-400 block mb-1">總金額 (未稅)</label>
                                   <input type="number" value={editingCar.price || ''} onChange={e => setEditingCar({...editingCar, price: Number(e.target.value)})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="0"/>
                                </div>
                                <div className="flex-1">
@@ -962,6 +1008,21 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                   <select value={editingCar.currency} onChange={e => setEditingCar({...editingCar, currency: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm"><option value="TWD">TWD</option>{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}</select>
                                </div>
                             </div>
+
+                            <div className="flex items-center justify-between">
+                                <ToggleSwitch 
+                                    checked={editingCar.hasServiceFee} 
+                                    onChange={(checked) => setEditingCar({...editingCar, hasServiceFee: checked})} 
+                                    label="額外稅金/手續費" 
+                                    colorClass="bg-blue-400" 
+                                />
+                                {editingCar.hasServiceFee && (
+                                    <div className="flex items-center gap-1">
+                                        <input type="number" value={editingCar.serviceFeePercentage || ''} onChange={(e) => setEditingCar({...editingCar, serviceFeePercentage: Number(e.target.value)})} placeholder="%" className="w-12 bg-transparent text-xs font-bold text-center outline-none text-cocoa border-b border-gray-300"/>
+                                        <span className="text-xs text-gray-400 font-bold">%</span>
+                                    </div>
+                                )}
+                             </div>
 
                             <CostPreview 
                                 cost={editingCar.price} 
