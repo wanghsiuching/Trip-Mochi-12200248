@@ -12,14 +12,14 @@ import {
 } from './types';
 import { BottomNav } from './components/CommonUI';
 import { 
-  AddScheduleModal, CreateTripModal, DeleteConfirmModal, SearchErrorModal, DeleteItemConfirmModal, TripSettingsModal, PotentialExpensesModal, EditDayDetailsModal, DeleteDayConfirmModal 
+  AddScheduleModal, CreateTripModal, DeleteConfirmModal, SearchErrorModal, DeleteItemConfirmModal, TripSettingsModal, PotentialExpensesModal, EditDayDetailsModal, DeleteDayConfirmModal, BackupConfirmModal
 } from './components/Modals';
 import { BookingsView } from './components/BookingsView';
 import { ExpensesView } from './components/ExpensesView';
 import { JournalView } from './components/JournalView';
 import { PlanningView } from './components/PlanningView';
 import { MembersView } from './components/MembersView';
-import { createTrip, joinTripByCode, subscribeToTrip, addTripItem, updateTripField } from './services/tripService';
+import { createTrip, joinTripByCode, subscribeToTrip, addTripItem, updateTripField, duplicateTrip } from './services/tripService';
 
 export default function App() {
   const [view, setView] = useState<ViewState>('landing');
@@ -60,6 +60,7 @@ export default function App() {
   const [isPotentialModalOpen, setIsPotentialModalOpen] = useState(false);
   const [isEditDayModalOpen, setIsEditDayModalOpen] = useState(false);
   const [isDeleteDayModalOpen, setIsDeleteDayModalOpen] = useState(false);
+  const [isBackupConfirmOpen, setIsBackupConfirmOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
@@ -194,6 +195,31 @@ export default function App() {
     });
   };
 
+  const handleOpenBackupModal = () => {
+      setIsBackupConfirmOpen(true);
+  };
+
+  const executeBackupTrip = async () => {
+    if (!currentTripId) return;
+    
+    setLoading(true);
+    setIsBackupConfirmOpen(false); // Close confirm modal
+    try {
+        const newId = await duplicateTrip(currentTripId);
+        const newName = `${currentTripName} (副本)`;
+        const today = new Date().toISOString().split('T')[0];
+        setSavedTrips(prev => [{ id: newId, name: newName, date: today }, ...prev]);
+        
+        setIsSettingsModalOpen(false); // Close settings modal
+        alert(`行程副本建立成功！代碼：${newId}`);
+    } catch(e) {
+        console.error(e);
+        alert("建立副本失敗");
+    } finally {
+        setLoading(false);
+    }
+  }
+
   const handleAddExpense = (newExpense: Omit<Expense, 'id'>) => addTripItem(currentTripId, 'expenses', { ...newExpense, id: Date.now() });
   const handleUpdateExpense = (updated: Expense) => updateTripField(currentTripId, 'expenses', expenses.map(e => e.id === updated.id ? updated : e));
   const handleDeleteExpense = (id: number) => updateTripField(currentTripId, 'expenses', expenses.filter(e => e.id !== id));
@@ -247,8 +273,7 @@ export default function App() {
   const handleUpdateDayDetails = (newDate: string, newLoc: string) => { updateTripField(currentTripId, 'tripDays', tripDays.map(d => d.date === selectedDate ? { date: newDate, location: newLoc } : d)); updateTripField(currentTripId, 'scheduleItems', scheduleItems.map(item => item.date === selectedDate ? { ...item, date: newDate } : item)); setSelectedDate(newDate); setIsEditDayModalOpen(false); };
   const addCurrency = (c: Currency) => updateTripField(currentTripId, 'currencies', [...currencies, c]);
   const removeCurrency = (code: string) => updateTripField(currentTripId, 'currencies', currencies.filter(c => c.code !== code));
-  const handleClearData = () => { if (window.confirm("警告：這將會清除您本機的所有行程資料！")) { localStorage.removeItem('trip_mochi_index'); window.location.reload(); } };
-
+  
   if (loading) {
     return (
       <div className="min-h-screen bg-beige flex flex-col items-center justify-center relative overflow-hidden">
@@ -486,7 +511,8 @@ export default function App() {
               <PotentialExpensesModal isOpen={isPotentialModalOpen} onClose={() => setIsPotentialModalOpen(false)} items={scheduleItems} currencies={currencies} members={members} />
               <EditDayDetailsModal isOpen={isEditDayModalOpen} onClose={() => setIsEditDayModalOpen(false)} onConfirm={handleUpdateDayDetails} initialDate={selectedDate} initialLocation={currentLocation} />
               <DeleteDayConfirmModal isOpen={isDeleteDayModalOpen} onClose={() => setIsDeleteDayModalOpen(false)} onConfirm={confirmDeleteDay} date={selectedDate} />
-              <TripSettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} currencies={currencies} onAddCurrency={addCurrency} onRemoveCurrency={removeCurrency} onClearData={handleClearData} />
+              <TripSettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} currencies={currencies} onAddCurrency={addCurrency} onRemoveCurrency={removeCurrency} onDuplicate={handleOpenBackupModal} />
+              <BackupConfirmModal isOpen={isBackupConfirmOpen} onClose={() => setIsBackupConfirmOpen(false)} onConfirm={executeBackupTrip} tripName={currentTripName} />
             </div>
           )}
           {activeTab === 'bookings' && (<BookingsView flights={bookingFlights} accommodations={bookingAccommodations} carRentals={bookingCarRentals} tickets={bookingTickets} currencies={currencies} members={members} onAddFlight={handleAddFlight} onUpdateFlight={handleUpdateFlight} onDeleteFlight={handleDeleteFlight} onAddAccommodation={(a) => addTripItem(currentTripId, 'accommodations', a)} onUpdateAccommodation={(a) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.map(x => x.id === a.id ? a : x))} onDeleteAccommodation={(id) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.filter(x => x.id !== id))} onAddCar={handleAddCar} onUpdateCar={handleUpdateCar} onDeleteCar={handleDeleteCar} onAddTicket={(t) => addTripItem(currentTripId, 'tickets', t)} onUpdateTicket={(t) => updateTripField(currentTripId, 'tickets', bookingTickets.map(x => x.id === t.id ? t : x))} onDeleteTicket={(id) => updateTripField(currentTripId, 'tickets', bookingTickets.filter(x => x.id !== id))} />)}

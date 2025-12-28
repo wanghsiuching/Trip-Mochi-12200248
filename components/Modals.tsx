@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Camera, Utensils, Train, Bed, PenTool, Trash2, AlertCircle, Map, Coffee, Moon, AlignLeft, Ticket, Coins, Users, Plus, X, Settings, Car, Clock, DollarSign, Navigation, ExternalLink, Fuel, Calendar, Plane, Edit3, Luggage } from 'lucide-react';
+import { Camera, Utensils, Train, Bed, PenTool, Trash2, AlertCircle, Map, Coffee, Moon, AlignLeft, Ticket, Coins, Users, Plus, X, Settings, Car, Clock, DollarSign, Navigation, ExternalLink, Fuel, Calendar, Plane, Edit3, Luggage, Copy, Save } from 'lucide-react';
 import { ItemType, ScheduleItem, Currency, Member, THEME, ExpenseItem } from '../types';
 
 // Helper for consistent fruit icon
@@ -139,11 +139,11 @@ export const DeleteDayConfirmModal = ({ isOpen, onClose, onConfirm, date }: { is
 };
 
 export const TripSettingsModal = ({ 
-    isOpen, onClose, currencies, onAddCurrency, onRemoveCurrency, onClearData
+    isOpen, onClose, currencies, onAddCurrency, onRemoveCurrency, onDuplicate
 }: { 
     isOpen: boolean, onClose: () => void, 
     currencies: Currency[], onAddCurrency: (c: Currency) => void, onRemoveCurrency: (code: string) => void,
-    onClearData?: () => void
+    onDuplicate?: () => void
 }) => {
     const [newCurrencyCode, setNewCurrencyCode] = useState('');
     const [newCurrencyRate, setNewCurrencyRate] = useState('');
@@ -187,18 +187,41 @@ export const TripSettingsModal = ({
                      </div>
                 </div>
 
-                {onClearData && (
-                    <div className="border-t border-dashed border-gray-200 pt-6">
-                        <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center gap-2">危險區域</h4>
+                {/* Backup Section */}
+                <div className="border-t border-dashed border-gray-200 pt-6">
+                    <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center gap-2"><Save size={16}/> 備份</h4>
+                    {onDuplicate && (
+                        <>
                         <button 
-                            onClick={onClearData} 
-                            className="w-full py-3 bg-red-50 text-red-500 font-black rounded-xl border-2 border-red-100 hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDuplicate(); }} 
+                            className="w-full py-3 bg-blue-50 text-blue-500 font-black rounded-xl border-2 border-blue-100 hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                            type="button"
                         >
-                            <Trash2 size={16}/> 清除所有行程資料
+                            <Copy size={16}/> 建立行程副本
                         </button>
-                        <p className="text-[10px] text-gray-400 mt-2 text-center">這將會清除您瀏覽器中所有暫存的行程，無法復原。</p>
-                    </div>
-                )}
+                        <p className="text-[10px] text-gray-400 mt-2 text-center">這將會建立一個內容完全相同但代碼不同的新行程 (副本)，不會影響目前裝置上的資料。</p>
+                        </>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export const BackupConfirmModal = ({ isOpen, onClose, onConfirm, tripName }: { isOpen: boolean, onClose: () => void, onConfirm: () => void, tripName: string }) => {
+    if (!isOpen) return null;
+    return (
+        <div className="fixed inset-0 bg-cocoa/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={onClose}>
+             <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl border-2 border-beige-dark animate-scale-in" onClick={e => e.stopPropagation()}>
+                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-500 border-2 border-blue-200">
+                    <Copy size={24} />
+                </div>
+                <h3 className="text-xl font-black text-cocoa mb-2 text-center">建立行程副本</h3>
+                <p className="text-gray-400 font-bold text-center text-sm mb-6">確定要複製 <span className="text-cocoa">{tripName}</span> 嗎？<br/>這將會產生一個全新的行程代碼。</p>
+                <div className="flex gap-3">
+                    <button onClick={onClose} className="flex-1 py-3 rounded-xl font-bold text-gray-400 bg-gray-100 hover:bg-gray-200 transition-colors">取消</button>
+                    <button onClick={onConfirm} className="flex-1 py-3 rounded-xl font-bold text-white bg-blue-500 hover:bg-blue-600 shadow-hard-sm border-2 border-blue-600 active:translate-y-1 active:shadow-none transition-all">建立副本</button>
+                </div>
             </div>
         </div>
     );
@@ -207,7 +230,8 @@ export const TripSettingsModal = ({
 export const PotentialExpensesModal = ({ 
     isOpen, onClose, items, currencies, members 
 }: { 
-    isOpen: boolean, onClose: () => void, items: ScheduleItem[], currencies: Currency[], members: Member[] 
+    isOpen: boolean, onClose: () => void, 
+    items: ScheduleItem[], currencies: Currency[], members: Member[] 
 }) => {
     if (!isOpen) return null;
 
@@ -755,6 +779,7 @@ export const AddScheduleModal = ({
           </>
         ) : (
           <div className="space-y-4">
+             {/* ... details form content ... */}
              <div className="flex items-center justify-between mb-4">
                 <button onClick={() => !initialData && setStep('category')} className={`text-gray-400 font-bold text-sm ${initialData ? 'opacity-0 cursor-default' : 'hover:text-sage'}`}>← 返回種類</button>
                 <h3 className="text-xl font-black text-cocoa tracking-widest">{initialData ? '編輯項目' : '輸入細節'}</h3>
@@ -766,6 +791,7 @@ export const AddScheduleModal = ({
                 <label className="text-xs font-bold text-gray-400 block mb-1">標題</label>
                 <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} className="w-full text-lg font-bold text-cocoa outline-none placeholder:text-gray-300 bg-transparent" placeholder={selectedType === 'flight' ? "例如: 台北 -> 東京" : "例如：清水寺..."} />
              </div>
+             {/* ... rest of the form ... */}
              <div className="flex gap-4">
                 <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm flex-1">
                    <label className="text-xs font-bold text-gray-400 block mb-1">時間</label>
@@ -787,10 +813,12 @@ export const AddScheduleModal = ({
              {selectedType === 'flight' && (
                  <div className="space-y-4 pt-2 border-t-2 border-dashed border-beige-dark animate-scale-in">
                      <div className="bg-cyan-50/50 p-3 rounded-2xl border-2 border-cyan-100 space-y-3">
+                         {/* ... flight inputs ... */}
                          <div className="grid grid-cols-2 gap-2">
                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">航空公司</label><input value={flightAirline} onChange={e => setFlightAirline(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: EVA"/></div>
                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">航班代碼</label><input value={flightCode} onChange={e => setFlightCode(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: BR123"/></div>
                          </div>
+                         {/* ... more flight inputs ... */}
                          {/* Route/Times */}
                          <div className="grid grid-cols-2 gap-2">
                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">去程起飛</label><input type="time" value={flightDepTime} onChange={e => setFlightDepTime(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
@@ -832,6 +860,7 @@ export const AddScheduleModal = ({
              {selectedType === 'stay' && (
                <div className="space-y-4 pt-2 border-t-2 border-dashed border-beige-dark animate-scale-in">
                  <div className="space-y-3 bg-purple-50/50 p-3 rounded-2xl border-2 border-purple-100 mt-2">
+                      {/* ... stay inputs ... */}
                       <div className="grid grid-cols-2 gap-2">
                           <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">入住時間</label><input type="time" value={checkIn} onChange={e => setCheckIn(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
                           <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">退房時間</label><input type="time" value={checkOut} onChange={e => setCheckOut(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
@@ -865,6 +894,7 @@ export const AddScheduleModal = ({
              {/* === TRANSPORT SECTION === */}
              {selectedType === 'transport' && (
                  <div className="border-t-2 border-dashed border-beige-dark pt-4">
+                     {/* ... transport inputs ... */}
                      <div className="flex items-center justify-between mb-4">
                          <div className="flex items-center gap-2 text-blue-500 font-bold"><Car size={18} /> <span>是否租車</span></div>
                          <button onClick={() => setHasRental(!hasRental)} className={`w-12 h-7 rounded-full p-1 transition-colors ${hasRental ? 'bg-blue-500' : 'bg-gray-200'}`}><div className={`w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${hasRental ? 'translate-x-5' : 'translate-x-0'}`} /></button>
@@ -946,6 +976,7 @@ export const AddScheduleModal = ({
              {/* === SPOT / FOOD SECTION === */}
              {(selectedType === 'spot' || selectedType === 'food') && (
                <div className="space-y-4 pt-2 border-t-2 border-dashed border-beige-dark animate-scale-in">
+                 {/* ... spot inputs ... */}
                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sage font-bold">
                         {selectedType === 'food' ? <Utensils size={18}/> : <Ticket size={18} />} 

@@ -94,6 +94,51 @@ export const createTrip = async (name: string): Promise<string> => {
 };
 
 /**
+ * Duplicates an existing trip with a new code.
+ */
+export const duplicateTrip = async (originalTripId: string): Promise<string> => {
+  try {
+    const originalRef = doc(db, 'trips', originalTripId);
+    const snap = await getDoc(originalRef);
+
+    if (!snap.exists()) {
+      throw new Error("找不到原始行程資料");
+    }
+
+    const data = snap.data();
+    let newCode = generateTripCode();
+    let collision = true;
+    let attempts = 0;
+
+    while (collision && attempts < 5) {
+      const docRef = doc(db, 'trips', newCode);
+      const s = await getDoc(docRef);
+      if (!s.exists()) {
+        collision = false;
+      } else {
+        newCode = generateTripCode();
+        attempts++;
+      }
+    }
+
+    const newData = {
+      ...data,
+      id: newCode,
+      name: `${data.name} (副本)`,
+      createdAt: Timestamp.now(),
+    };
+
+    const newTripRef = doc(db, 'trips', newCode);
+    await setDoc(newTripRef, newData);
+    
+    return newCode;
+  } catch (error) {
+    console.error("Duplicate trip failed", error);
+    throw new Error("建立副本失敗");
+  }
+};
+
+/**
  * Joins an existing trip by its 6-digit code.
  */
 export const joinTripByCode = async (code: string): Promise<any> => {
