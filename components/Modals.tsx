@@ -180,10 +180,10 @@ export const TripSettingsModal = ({
                              </div>
                          ))}
                      </div>
-                     <div className="flex gap-2">
-                         <input value={newCurrencyCode} onChange={e => setNewCurrencyCode(e.target.value)} placeholder="幣別 (JPY)" className="w-24 bg-gray-50 px-3 py-2 rounded-xl text-sm font-bold outline-none border border-transparent focus:border-sage text-cocoa"/>
-                         <input type="number" value={newCurrencyRate} onChange={e => setNewCurrencyRate(e.target.value)} placeholder="匯率 (0.21)" className="flex-1 bg-gray-50 px-3 py-2 rounded-xl text-sm font-bold outline-none border border-transparent focus:border-sage text-cocoa"/>
-                         <button onClick={handleAddCurrency} disabled={!newCurrencyCode || !newCurrencyRate} className="p-2 bg-sage text-white rounded-xl shadow-hard-sm-sage disabled:opacity-50"><Plus size={20}/></button>
+                     <div className="flex gap-2 items-center">
+                         <input value={newCurrencyCode} onChange={e => setNewCurrencyCode(e.target.value)} placeholder="幣別 (JPY)" className="w-24 h-11 bg-gray-50 px-3 rounded-xl text-sm font-bold outline-none border border-transparent focus:border-sage text-cocoa"/>
+                         <input type="number" value={newCurrencyRate} onChange={e => setNewCurrencyRate(e.target.value)} placeholder="匯率 (0.21)" className="flex-1 h-11 bg-gray-50 px-3 rounded-xl text-sm font-bold outline-none border border-transparent focus:border-sage text-cocoa"/>
+                         <button onClick={handleAddCurrency} disabled={!newCurrencyCode || !newCurrencyRate} className="h-11 w-11 flex-shrink-0 flex items-center justify-center bg-sage text-white rounded-xl shadow-hard-sm-sage disabled:opacity-50 hover:bg-sage-dark transition-colors"><Plus size={20}/></button>
                      </div>
                 </div>
 

@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
-import { Plane, Bed, Car, Plus, MapPin, Compass, House, PenTool, Briefcase, Info, Luggage, Navigation, Leaf, Link as LinkIcon, X, Calendar as CalendarIcon, ArrowRightLeft, Users, Clock, DollarSign, Trash2, AlertCircle } from 'lucide-react';
-import { BookingFlight, BookingAccommodation, BookingCarRental, BookingTicket, Currency, Member } from '../types';
+import { Plane, Bed, Car, Plus, MapPin, Compass, House, PenTool, Briefcase, Info, Luggage, Navigation, Leaf, Link as LinkIcon, X, Calendar as CalendarIcon, ArrowRightLeft, Users, Clock, DollarSign, Trash2, AlertCircle, Fuel } from 'lucide-react';
+import { BookingFlight, BookingAccommodation, BookingCarRental, BookingTicket, Currency, Member, ExpenseItem } from '../types';
 import { ToggleSwitch } from './Modals';
 
 interface BookingsViewProps {
@@ -254,7 +254,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   const openCarEdit = (car?: BookingCarRental) => {
       setDeleteConfirm(false);
       if (car) {
-          setEditingCar({ ...car });
+          setEditingCar({ ...car, expenses: car.expenses || [] });
       } else {
           const initialCar: BookingCarRental = { 
               id: Date.now(),
@@ -264,19 +264,75 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
               gps: '', url: '', note: '', 
               price: 0, currency: 'TWD', hasServiceFee: false, serviceFeePercentage: 0, 
               pax: 4, participants: members.map(m => m.id),
-              hasRental: true
+              hasRental: true,
+              expenses: [],
+              rentalCost: 0 // Initialize compatibility field
           };
           setEditingCar(initialCar);
       }
       setShowCarModal(true);
   };
 
+  // Car Expense Helpers
+  const addCarExpense = () => {
+      if (!editingCar) return;
+      const newExp: ExpenseItem = { id: Date.now().toString(), name: '', amount: '', currency: editingCar.currency || 'TWD', hasServiceFee: false, serviceFeePercentage: '' };
+      setEditingCar({ ...editingCar, expenses: [...(editingCar.expenses || []), newExp] });
+  };
+
+  const updateCarExpense = (id: string, field: keyof ExpenseItem, value: any) => {
+      if (!editingCar) return;
+      const updatedExpenses = editingCar.expenses?.map(e => e.id === id ? { ...e, [field]: value } : e) || [];
+      setEditingCar({ ...editingCar, expenses: updatedExpenses });
+  };
+
+  const removeCarExpense = (id: string) => {
+      if (!editingCar) return;
+      const updatedExpenses = editingCar.expenses?.filter(e => e.id !== id) || [];
+      setEditingCar({ ...editingCar, expenses: updatedExpenses });
+  };
+
+  const getCarGrandTotal = () => {
+        if (!editingCar) return 0;
+        
+        // 1. Base Rental
+        const base = calculateTotal(Number(editingCar.price), editingCar.hasServiceFee, Number(editingCar.serviceFeePercentage));
+        
+        // 2. Expenses
+        let expensesTotal = 0;
+        const targetCurrency = editingCar.currency || 'TWD';
+        const targetRate = getExchangeRate(targetCurrency); // Rate of the rental currency relative to TWD (e.g. JPY=0.21)
+        
+        editingCar.expenses?.forEach(exp => {
+            const amt = Number(exp.amount) || 0;
+            const sub = calculateTotal(amt, exp.hasServiceFee || false, Number(exp.serviceFeePercentage));
+            
+            // Convert expense to TWD first
+            const expRate = getExchangeRate(exp.currency || 'TWD');
+            const amountInTWD = sub * expRate;
+            
+            // Convert TWD to Target Currency (Rental Currency)
+            // If JPY rate is 0.21 (1 JPY = 0.21 TWD), then 1 TWD = 1/0.21 JPY
+            expensesTotal += amountInTWD / (targetRate || 1);
+        });
+
+        // 3. Fuel (if needed, but usually kept separate in display, but for grand total lets include if user wants)
+        // Ignoring fuel for strict "Booking Cost" unless needed, but "Schedule" separates them. 
+        // For Booking view, usually we care about "Prepaid" or "Expected Rental Counter Cost". 
+        // We'll stick to Base + Extras.
+
+        return base + expensesTotal;
+  };
+
   const saveCar = () => {
       if (!editingCar) return;
+      // Sync rentalCost with price for schedule compatibility
+      const carToSave = { ...editingCar, rentalCost: editingCar.price, rentalCurrency: editingCar.currency };
+      
       if (carRentals.find(c => String(c.id) === String(editingCar.id))) {
-          onUpdateCar(editingCar);
+          onUpdateCar(carToSave);
       } else {
-          onAddCar(editingCar);
+          onAddCar(carToSave);
       }
       setShowCarModal(false);
   };
@@ -614,7 +670,16 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                    )}
 
                    {carRentals.map((car) => {
-                       const totalCost = calculateTotal(car.price, car.hasServiceFee, car.serviceFeePercentage);
+                       const baseCost = calculateTotal(car.price, car.hasServiceFee, car.serviceFeePercentage);
+                       let extraCost = 0;
+                       car.expenses?.forEach(exp => {
+                           const expBase = calculateTotal(Number(exp.amount), exp.hasServiceFee || false, Number(exp.serviceFeePercentage));
+                           const expRate = getExchangeRate(exp.currency || 'TWD');
+                           const baseRate = getExchangeRate(car.currency || 'TWD');
+                           extraCost += (expBase * expRate) / baseRate; // approximate conversion to base currency
+                       });
+                       const totalCost = baseCost + extraCost;
+
                        return (
                        <div key={car.id} className="w-full bg-white rounded-[2.5rem] overflow-hidden shadow-hard-sm border-2 border-beige-dark flex flex-col group relative mb-6">
                             <div className="bg-blue-50 p-6 border-b-2 border-dashed border-blue-100 flex justify-between items-center relative">
@@ -627,7 +692,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                 </div>
                                 <div className="text-right">
                                     <div className="text-lg font-black text-cocoa font-mono">{car.currency} {Math.round(totalCost).toLocaleString()}</div>
-                                    <div className="text-[10px] font-bold text-gray-400 mt-0.5 uppercase tracking-wider">Total (Inc. Tax)</div>
+                                    <div className="text-[10px] font-bold text-gray-400 mt-0.5 uppercase tracking-wider">Total (Inc. Extras)</div>
                                 </div>
                             </div>
 
@@ -689,6 +754,21 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         </a>
                                     )}
                                 </div>
+                                
+                                {(car.expenses && car.expenses.length > 0) && (
+                                    <div className="mb-4 bg-blue-50/50 p-3 rounded-xl border border-blue-100">
+                                        <p className="text-[10px] font-bold text-blue-400 uppercase mb-2">額外支出明細</p>
+                                        <div className="space-y-1">
+                                            {car.expenses.map((exp, idx) => (
+                                                <div key={idx} className="flex justify-between text-xs font-bold text-gray-500">
+                                                    <span>• {exp.name}</span>
+                                                    <span className="font-mono text-cocoa">{exp.currency} {Number(exp.amount).toLocaleString()}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {car.note && <div className="mb-4 text-xs font-bold text-gray-500 bg-yellow-50 p-3 rounded-xl border border-yellow-100">{car.note}</div>}
 
                                 <div className="pt-4 border-t-2 border-dashed border-beige-dark flex justify-between items-center">
@@ -701,7 +781,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         {(car.participants?.length || 0) > 3 && <div className="w-8 h-8 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[10px] font-bold">+{car.participants!.length - 3}</div>}
                                     </div>
                                     <div className="text-right">
-                                        <div className="text-[10px] font-bold text-gray-400 uppercase">每人分攤 (含稅)</div>
+                                        <div className="text-[10px] font-bold text-gray-400 uppercase">每人分攤 (含稅+雜支)</div>
                                         <div className="text-base font-black text-cocoa font-mono">
                                             {car.currency} {Math.round(totalCost / (car.participants?.length || 1)).toLocaleString()}
                                         </div>
@@ -891,7 +971,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                 <input value={editingAcc.platform} onChange={e => setEditingAcc({...editingAcc, platform: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="Booking/Agoda"/>
                              </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                                 <label className="text-[10px] font-bold text-gray-400 ml-1">Check-in</label>
                                 <input type="datetime-local" value={editingAcc.checkInDate} onChange={e => handleAccDateChange('checkInDate', e.target.value)} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" style={{colorScheme:'light'}}/>
@@ -1000,7 +1080,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                         <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark space-y-3">
                             <div className="flex gap-2">
                                <div className="flex-[2]">
-                                  <label className="text-[10px] font-bold text-gray-400 block mb-1">總金額 (未稅)</label>
+                                  <label className="text-[10px] font-bold text-gray-400 block mb-1">基本租金 (未稅)</label>
                                   <input type="number" value={editingCar.price || ''} onChange={e => setEditingCar({...editingCar, price: Number(e.target.value)})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="0"/>
                                </div>
                                <div className="flex-1">
@@ -1024,12 +1104,69 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                 )}
                              </div>
 
-                            <CostPreview 
-                                cost={editingCar.price} 
-                                currency={editingCar.currency} 
-                                hasFee={editingCar.hasServiceFee} 
-                                feePct={editingCar.serviceFeePercentage} 
-                            />
+                             {/* Extra Expenses Section */}
+                             <div className="pt-2 border-t border-dashed border-blue-200 mt-2">
+                                <div className="flex justify-between items-center mb-2">
+                                    <div className="text-xs font-bold text-gray-500 flex items-center gap-1"><Plus size={12}/> 額外支出 (過路費/保險等)</div>
+                                    <button onClick={addCarExpense} className="text-[10px] bg-white border border-blue-200 text-blue-500 px-2 py-1 rounded-lg font-bold shadow-sm hover:bg-blue-50">新增項目</button>
+                                </div>
+                                {editingCar.expenses?.map(exp => (
+                                    <div key={exp.id} className="bg-gray-50 p-3 rounded-xl border border-beige-dark shadow-sm mb-2">
+                                        <div className="flex gap-2 mb-2">
+                                            <input value={exp.name} onChange={e => updateCarExpense(exp.id, 'name', e.target.value)} placeholder="項目名稱" className="flex-1 bg-white p-2 rounded-lg border border-beige-dark text-xs font-bold text-cocoa outline-none focus:border-blue-300"/>
+                                            <button onClick={() => removeCarExpense(exp.id)} className="text-red-400 p-1 hover:text-red-600 transition-colors"><X size={16}/></button>
+                                        </div>
+                                        <div className="flex gap-2 items-center">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex gap-1">
+                                                    <input type="number" value={exp.amount} onChange={e => updateCarExpense(exp.id, 'amount', e.target.value)} placeholder="金額" className="flex-1 bg-white p-2 rounded-lg border border-beige-dark text-xs font-bold text-cocoa outline-none focus:border-blue-300 min-w-0"/>
+                                                    <div className="w-24 flex-shrink-0">
+                                                        <select value={exp.currency || 'TWD'} onChange={e => updateCarExpense(exp.id, 'currency', e.target.value)} className="w-full bg-white p-2 rounded-lg border border-beige-dark outline-none text-xs font-bold text-cocoa">
+                                                            <option value="TWD">TWD</option>
+                                                            {currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="mt-2 flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                                <ToggleSwitch 
+                                                    checked={exp.hasServiceFee || false} 
+                                                    onChange={(checked) => updateCarExpense(exp.id, 'hasServiceFee', checked)} 
+                                                    label="含稅" 
+                                                    colorClass="bg-blue-300"
+                                                />
+                                                {exp.hasServiceFee && (
+                                                    <div className="flex items-center bg-white px-1.5 py-0.5 rounded border border-beige-dark">
+                                                        <input type="number" value={exp.serviceFeePercentage || ''} onChange={e => updateCarExpense(exp.id, 'serviceFeePercentage', e.target.value)} className="w-6 bg-transparent text-[10px] font-bold text-right outline-none" placeholder="0"/>
+                                                        <span className="text-[10px] text-gray-400 ml-0.5">%</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {Number(exp.amount) > 0 && (
+                                                <div className="text-[10px] font-black text-blue-500">
+                                                    約 TWD ${Math.round(calculateTotal(Number(exp.amount), exp.hasServiceFee || false, Number(exp.serviceFeePercentage)) * (currencies.find(c => c.code === exp.currency)?.rate || (exp.currency === 'TWD' ? 1 : 1))).toLocaleString()}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                             </div>
+
+                            {/* Total Display */}
+                            <div className="mt-2 bg-gray-50 p-3 rounded-xl border border-dashed border-gray-200 space-y-1">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">總計 (含稅/雜支)</span>
+                                    <span className="text-sm font-black text-cocoa font-mono">{editingCar.currency} {Math.round(getCarGrandTotal()).toLocaleString()}</span>
+                                </div>
+                                {editingCar.currency !== 'TWD' && (
+                                    <div className="flex justify-between items-center border-t border-gray-100 pt-1">
+                                        <span className="text-[10px] font-black text-sage uppercase tracking-widest">約台幣 (TWD)</span>
+                                        <span className="text-sm font-black text-sage font-mono">${Math.round(getCarGrandTotal() * getExchangeRate(editingCar.currency)).toLocaleString()}</span>
+                                    </div>
+                                )}
+                            </div>
 
                             <div><label className="text-[10px] font-bold text-gray-400 block mb-2">分攤成員</label><div className="flex flex-wrap gap-2">{members.map(m => (<button key={m.id} onClick={() => toggleCarParticipant(m.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${editingCar.participants?.includes(m.id) ? 'bg-sage text-white border-sage' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{m.name}</button>))}</div></div>
                         </div>
