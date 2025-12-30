@@ -1,17 +1,32 @@
 
 import React, { useState, useEffect } from 'react';
-import { Camera, Utensils, Train, Bed, PenTool, Trash2, AlertCircle, Map, Coffee, Moon, AlignLeft, Ticket, Coins, Users, Plus, X, Settings, Car, Clock, DollarSign, Navigation, ExternalLink, Fuel, Calendar, Plane, Edit3, Luggage, Copy, Save } from 'lucide-react';
+import { Camera, Utensils, Train, Bed, PenTool, Trash2, AlertCircle, Map, Coffee, Moon, AlignLeft, Ticket, Coins, Users, Plus, X, Settings, Car, Clock, DollarSign, Navigation, ExternalLink, Fuel, Calendar, Plane, Edit3, Luggage, Copy, Save, Shuffle } from 'lucide-react';
 import { ItemType, ScheduleItem, Currency, Member, THEME, ExpenseItem } from '../types';
 
-// Helper for consistent fruit icon
+// Updated extensive fruit/food icon list (40+ items)
+const FRUIT_ICONS = [
+    '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈',
+    '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆', '🥔',
+    '🥕', '🌽', '🌶️', '🫑', '🥒', '🥬', '🥦', '🍄', '🥜', '🌰',
+    '🍞', '🥐', '🥖', '🥨', '🥯', '🥞', '🧇', '🧀', '🍔', '🍟',
+    '🍕', '🌭', '🥪', '🌮', '🌯', '🥚', '🍳', '🥘', '🍲', '🥗',
+    '🍿', '🍱', '🍘', '🍙', '🍚', '🍛', '🍜', '🍝', '🍠', '🍢',
+    '🍣', '🍤', '🍥', '🥮', '🍡', '🥟', '🥠', '🍦', '🍧', '🍨',
+    '🍩', '🍪', '🎂', '🍰', '🧁', '🥧', '🍫', '🍬', '🍭', '🍮',
+    '🍯', '🍼', '🥛', '☕', '🍵', '🍶', '🍺', '🍻', '🥂', '🍷'
+];
+
+// Helper to get a random fruit
+const getRandomFruit = () => FRUIT_ICONS[Math.floor(Math.random() * FRUIT_ICONS.length)];
+
+// Helper for consistent fruit icon (Fallback for legacy data)
 const getACFruit = (str: string) => {
-    const fruits = ['🍎', '🍊', '🍐', '🍑', '🍒', '🥥'];
     if (!str) return '🍎';
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
         hash = str.charCodeAt(i) + ((hash << 5) - hash);
     }
-    return fruits[Math.abs(hash) % fruits.length];
+    return FRUIT_ICONS[Math.abs(hash) % FRUIT_ICONS.length];
 };
 
 // UI Components for Modal
@@ -181,8 +196,8 @@ export const TripSettingsModal = ({
                          ))}
                      </div>
                      <div className="flex gap-2 items-center">
-                         <input value={newCurrencyCode} onChange={e => setNewCurrencyCode(e.target.value)} placeholder="幣別 (JPY)" className="w-24 h-11 bg-gray-50 px-3 rounded-xl text-sm font-bold outline-none border border-transparent focus:border-sage text-cocoa"/>
-                         <input type="number" value={newCurrencyRate} onChange={e => setNewCurrencyRate(e.target.value)} placeholder="匯率 (0.21)" className="flex-1 h-11 bg-gray-50 px-3 rounded-xl text-sm font-bold outline-none border border-transparent focus:border-sage text-cocoa"/>
+                         <input value={newCurrencyCode} onChange={e => setNewCurrencyCode(e.target.value)} placeholder="幣別" className="w-24 h-11 bg-gray-50 px-3 rounded-xl text-sm font-bold outline-none border border-transparent focus:border-sage text-cocoa text-center"/>
+                         <input type="number" value={newCurrencyRate} onChange={e => setNewCurrencyRate(e.target.value)} placeholder="匯率" className="w-32 h-11 bg-gray-50 px-3 rounded-xl text-sm font-bold outline-none border border-transparent focus:border-sage text-cocoa text-center"/>
                          <button onClick={handleAddCurrency} disabled={!newCurrencyCode || !newCurrencyRate} className="h-11 w-11 flex-shrink-0 flex items-center justify-center bg-sage text-white rounded-xl shadow-hard-sm-sage disabled:opacity-50 hover:bg-sage-dark transition-colors"><Plus size={20}/></button>
                      </div>
                 </div>
@@ -433,7 +448,7 @@ export const DeleteItemConfirmModal = ({ isOpen, onClose, onConfirm, title }: { 
     );
 };
 
-export const EditDayDetailsModal = ({ isOpen, onClose, onConfirm, initialDate, initialLocation }: { isOpen: boolean, onClose: () => void, onConfirm: (date: string, loc: string) => void, initialDate: string, initialLocation: string }) => {
+export const EditDayDetailsModal = ({ isOpen, onClose, onConfirm, initialDate, initialLocation, initialFruit }: { isOpen: boolean, onClose: () => void, onConfirm: (date: string, loc: string, fruit: string) => void, initialDate: string, initialLocation: string, initialFruit: string }) => {
     const [loc, setLoc] = useState(initialLocation);
     const [date, setDate] = useState(initialDate);
     
@@ -441,6 +456,12 @@ export const EditDayDetailsModal = ({ isOpen, onClose, onConfirm, initialDate, i
         setLoc(initialLocation); 
         setDate(initialDate);
     }, [initialLocation, initialDate, isOpen]);
+
+    const handleConfirm = () => {
+        // Randomly select a fruit from the pool upon confirmation
+        const randomFruit = getRandomFruit();
+        onConfirm(date, loc, randomFruit);
+    };
     
     if (!isOpen) return null;
     return (
@@ -469,8 +490,11 @@ export const EditDayDetailsModal = ({ isOpen, onClose, onConfirm, initialDate, i
                     </div>
 
                     <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-3">
-                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-xl shadow-sm border border-beige-dark">
-                            {getACFruit(loc)}
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-xl shadow-sm border border-beige-dark flex-shrink-0 cursor-default select-none relative group">
+                            {initialFruit || '🍎'}
+                            <div className="absolute inset-0 bg-black/10 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Shuffle size={14} className="text-white"/>
+                            </div>
                         </div>
                         <div className="flex-1">
                             <label className="text-[10px] font-bold text-gray-400 block mb-1">主要地點</label>
@@ -481,17 +505,18 @@ export const EditDayDetailsModal = ({ isOpen, onClose, onConfirm, initialDate, i
                                 className="w-full bg-transparent font-bold text-cocoa outline-none text-sm"
                                 onKeyDown={e => {
                                     if (e.key === 'Enter' && loc && date) {
-                                        onConfirm(date, loc);
+                                        handleConfirm();
                                     }
                                 }}
                             />
                         </div>
                     </div>
+                    <p className="text-[10px] text-gray-400 font-bold text-center mt-2 italic">* 確認修改時將會隨機更換水果圖示</p>
                 </div>
 
                 <div className="flex gap-3">
                     <button onClick={onClose} className="flex-1 py-3 rounded-xl font-bold text-gray-400 bg-gray-100 hover:bg-gray-200 transition-colors">取消</button>
-                    <button onClick={() => onConfirm(date, loc)} disabled={!loc || !date} className="flex-1 py-3 rounded-xl font-bold text-white bg-sage hover:bg-sage-dark shadow-hard-sage border-2 border-sage active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 disabled:shadow-none">確認修改</button>
+                    <button onClick={handleConfirm} disabled={!loc || !date} className="flex-1 py-3 rounded-xl font-bold text-white bg-sage hover:bg-sage-dark shadow-hard-sage border-2 border-sage active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 disabled:shadow-none">確認修改</button>
                 </div>
             </div>
         </div>

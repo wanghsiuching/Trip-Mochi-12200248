@@ -66,8 +66,8 @@ export default function App() {
 
   // --- Optimized Swap State ---
   const [swappingFromIndex, setSwappingFromIndex] = useState<number | null>(null);
-  const [justActivatedSwap, setJustActivatedSwap] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ignoreClickRef = useRef(false); // Ref to ignore the immediate click after long press
 
   const dates = tripDays.map((day, i) => {
     const d = new Date(day.date);
@@ -77,7 +77,8 @@ export default function App() {
     return { ...day, dayNum: i + 1, month, day: dateNum, weekday };
   });
 
-  const currentLocation = tripDays.find(d => d.date === selectedDate)?.location || '旅行地點';
+  const currentDayObj = tripDays.find(d => d.date === selectedDate);
+  const currentLocation = currentDayObj?.location || '旅行地點';
 
   const getACFruit = (str: string) => {
       const fruits = ['🍎', '🍊', '🍐', '🍑', '🍒', '🥥'];
@@ -103,7 +104,7 @@ export default function App() {
       return SCHEDULE_ICONS[Math.abs(hash) % SCHEDULE_ICONS.length];
   };
 
-  const currentFruit = getACFruit(currentLocation);
+  const currentFruit = currentDayObj?.fruit || getACFruit(currentLocation);
 
   const getMemberNames = (ids?: string[]) => {
       if (!ids || ids.length === 0) return '';
@@ -278,17 +279,17 @@ export default function App() {
         return;
     }
     
-    updateTripField(currentTripId, 'tripDays', [...tripDays, { date: dateStr, location: latestDay.location }]);
+    updateTripField(currentTripId, 'tripDays', [...tripDays, { date: dateStr, location: latestDay.location, fruit: latestDay.fruit }]);
   };
 
   const confirmDeleteDay = () => { if (tripDays.length > 1) { const newDays = tripDays.filter(d => d.date !== selectedDate); updateTripField(currentTripId, 'tripDays', newDays); updateTripField(currentTripId, 'scheduleItems', scheduleItems.filter(item => item.date !== selectedDate)); if (!newDays.find(d => d.date === selectedDate)) setSelectedDate(newDays[0].date); setIsDeleteDayModalOpen(false); } };
   
-  const handleUpdateDayDetails = (newDate: string, newLoc: string) => { 
+  const handleUpdateDayDetails = (newDate: string, newLoc: string, newFruit: string) => { 
     if (newDate !== selectedDate && tripDays.some(d => d.date === newDate)) {
         alert('日期重複：' + newDate + ' 已存在於行程中！');
         return;
     }
-    updateTripField(currentTripId, 'tripDays', tripDays.map(d => d.date === selectedDate ? { date: newDate, location: newLoc } : d)); 
+    updateTripField(currentTripId, 'tripDays', tripDays.map(d => d.date === selectedDate ? { date: newDate, location: newLoc, fruit: newFruit } : d)); 
     updateTripField(currentTripId, 'scheduleItems', scheduleItems.map(item => item.date === selectedDate ? { ...item, date: newDate } : item)); 
     setSelectedDate(newDate); 
     setIsEditDayModalOpen(false); 
@@ -329,14 +330,12 @@ export default function App() {
   };
 
   const handleDayTouchStart = (idx: number) => {
+    ignoreClickRef.current = false;
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
     
-    // Reset flags
-    setJustActivatedSwap(false);
-
     longPressTimer.current = setTimeout(() => {
         setSwappingFromIndex(idx);
-        setJustActivatedSwap(true);
+        ignoreClickRef.current = true; // Prevents immediate click trigger upon release
         if (window.navigator.vibrate) window.navigator.vibrate(80);
     }, 600); // Wait 600ms for long press
   };
@@ -348,11 +347,18 @@ export default function App() {
     }
   };
 
+  // Cancel long press on scroll
+  const handleDayTouchMove = () => {
+      if (longPressTimer.current) {
+          clearTimeout(longPressTimer.current);
+          longPressTimer.current = null;
+      }
+  };
+
   const handleDayItemClick = (idx: number, dateStr: string) => {
-    // If the mode was JUST activated by long press, skip this click to avoid 
-    // immediate self-swap or instant cancellation on the same element.
-    if (justActivatedSwap) {
-        setJustActivatedSwap(false);
+    // If just finished a long press, ignore the immediate click
+    if (ignoreClickRef.current) {
+        ignoreClickRef.current = false;
         return;
     }
 
@@ -462,6 +468,7 @@ export default function App() {
                             key={date.date} 
                             data-day-index={idx}
                             onTouchStart={() => handleDayTouchStart(idx)}
+                            onTouchMove={handleDayTouchMove}
                             onTouchEnd={handleDayTouchEnd}
                             onMouseDown={() => handleDayTouchStart(idx)} // Support mouse long press
                             onMouseUp={handleDayTouchEnd}
@@ -627,7 +634,7 @@ export default function App() {
               <AddScheduleModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSave={handleSaveItem} initialData={editingItem} currencies={currencies} members={members} currentDate={selectedDate} />
               <DeleteItemConfirmModal isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} onConfirm={confirmDeleteItem} title={scheduleItems.find(i => i.id === itemToDelete)?.title || '此項目'} />
               <PotentialExpensesModal isOpen={isPotentialModalOpen} onClose={() => setIsPotentialModalOpen(false)} items={scheduleItems} currencies={currencies} members={members} />
-              <EditDayDetailsModal isOpen={isEditDayModalOpen} onClose={() => setIsEditDayModalOpen(false)} onConfirm={handleUpdateDayDetails} initialDate={selectedDate} initialLocation={currentLocation} />
+              <EditDayDetailsModal isOpen={isEditDayModalOpen} onClose={() => setIsEditDayModalOpen(false)} onConfirm={handleUpdateDayDetails} initialDate={selectedDate} initialLocation={currentLocation} initialFruit={currentFruit} />
               <DeleteDayConfirmModal isOpen={isDeleteDayModalOpen} onClose={() => setIsDeleteDayModalOpen(false)} onConfirm={confirmDeleteDay} date={selectedDate} />
               <TripSettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} currencies={currencies} onAddCurrency={addCurrency} onRemoveCurrency={removeCurrency} onDuplicate={handleOpenBackupModal} />
               <BackupConfirmModal isOpen={isBackupConfirmOpen} onClose={() => setIsBackupConfirmOpen(false)} onConfirm={executeBackupTrip} tripName={currentTripName} />

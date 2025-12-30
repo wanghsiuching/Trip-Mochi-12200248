@@ -18,6 +18,7 @@ export interface Member {
 export interface TripDay {
   date: string; // YYYY-MM-DD
   location: string;
+  fruit?: string; // Icon for the day
 }
 
 export interface TripDate extends TripDay {
