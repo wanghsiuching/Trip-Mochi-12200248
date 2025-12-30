@@ -64,6 +64,11 @@ export default function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
+  // Day Swap State
+  const [swapSourceIndex, setSwapSourceIndex] = useState<number | null>(null);
+  // Fix: Use ReturnType<typeof setTimeout> instead of NodeJS.Timeout to avoid namespace errors in browser environments.
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const dates = tripDays.map((day, i) => {
     const d = new Date(day.date);
     const month = d.getMonth() + 1;
@@ -84,7 +89,6 @@ export default function App() {
       return fruits[Math.abs(hash) % fruits.length];
   };
 
-  // Expanded Fruit List for Timeline
   const SCHEDULE_ICONS = [
       '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈',
       '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆', '🥕',
@@ -128,7 +132,6 @@ export default function App() {
           setScheduleItems(data.scheduleItems || []);
           setBookingFlights(data.flights || []);
           setBookingAccommodations(data.accommodations || []);
-          // Ensure carRentals is treated as an array, fallback to single object legacy data if needed
           const cars = data.carRentals || (data.carRental && data.carRental.company ? [data.carRental] : []);
           setBookingCarRentals(cars);
           setBookingTickets(data.tickets || []);
@@ -141,7 +144,7 @@ export default function App() {
           setLoading(false);
       });
       return () => unsubscribe();
-  }, [currentTripId]);
+  }, [currentTripId, selectedDate]);
 
   useEffect(() => {
       if (savedTrips.length > 0) localStorage.setItem('trip_mochi_index', JSON.stringify(savedTrips));
@@ -201,16 +204,14 @@ export default function App() {
 
   const executeBackupTrip = async () => {
     if (!currentTripId) return;
-    
     setLoading(true);
-    setIsBackupConfirmOpen(false); // Close confirm modal
+    setIsBackupConfirmOpen(false);
     try {
         const newId = await duplicateTrip(currentTripId);
         const newName = `${currentTripName} (副本)`;
         const today = new Date().toISOString().split('T')[0];
         setSavedTrips(prev => [{ id: newId, name: newName, date: today }, ...prev]);
-        
-        setIsSettingsModalOpen(false); // Close settings modal
+        setIsSettingsModalOpen(false);
         alert(`行程副本建立成功！代碼：${newId}`);
     } catch(e) {
         console.error(e);
@@ -250,16 +251,12 @@ export default function App() {
   const handleUpdateMember = (updated: Member) => updateTripField(currentTripId, 'members', members.map(m => m.id === updated.id ? updated : m));
   const handleDeleteMember = (id: string) => { if (members.length > 1) updateTripField(currentTripId, 'members', members.filter(m => m.id !== id)); };
   
-  // Handlers for Flights
   const handleAddFlight = (flight: BookingFlight) => addTripItem(currentTripId, 'flights', flight);
   const handleUpdateFlight = (updated: BookingFlight) => updateTripField(currentTripId, 'flights', bookingFlights.map(f => String(f.id) === String(updated.id) ? updated : f));
-  // Fix: Ensure ID comparison is robust (String vs Number)
   const handleDeleteFlight = (id: number) => updateTripField(currentTripId, 'flights', bookingFlights.filter(f => String(f.id) !== String(id)));
   
-  // Handlers for Car Rentals
   const handleAddCar = (car: BookingCarRental) => addTripItem(currentTripId, 'carRentals', car);
   const handleUpdateCar = (updated: BookingCarRental) => updateTripField(currentTripId, 'carRentals', bookingCarRentals.map(c => String(c.id) === String(updated.id) ? updated : c));
-  // Fix: Ensure ID comparison is robust (String vs Number)
   const handleDeleteCar = (id: number) => updateTripField(currentTripId, 'carRentals', bookingCarRentals.filter(c => String(c.id) !== String(id)));
 
   const handleSaveItem = (itemData: Omit<ScheduleItem, 'id'>) => { if (editingItem) { updateTripField(currentTripId, 'scheduleItems', scheduleItems.map(item => item.id === editingItem.id ? { ...itemData, id: item.id } : item)); setEditingItem(null); } else { addTripItem(currentTripId, 'scheduleItems', { ...itemData, id: Date.now().toString() }); } };
@@ -268,12 +265,91 @@ export default function App() {
   const confirmDeleteItem = () => { if (itemToDelete) { updateTripField(currentTripId, 'scheduleItems', scheduleItems.filter(item => item.id !== itemToDelete)); setItemToDelete(null); } };
   const handleMoveItem = (index: number, direction: 'up' | 'down') => { const currentDayItems = scheduleItems.filter(i => i.date === selectedDate); const itemA = currentDayItems[index]; const targetIndex = direction === 'up' ? index - 1 : index + 1; const itemB = currentDayItems[targetIndex]; const itemAId = itemA.id; const itemBId = itemB.id; const newArr = [...scheduleItems]; const idxA = newArr.findIndex(i => i.id === itemAId); const idxB = newArr.findIndex(i => i.id === itemBId); if (idxA > -1 && idxB > -1) { [newArr[idxA], newArr[idxB]] = [newArr[idxB], newArr[idxA]]; updateTripField(currentTripId, 'scheduleItems', newArr); } };
   const openMap = (location: string) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`, '_blank');
-  const handleAddDay = () => { const lastDay = tripDays[tripDays.length - 1]; const nextDate = new Date(lastDay.date); nextDate.setDate(nextDate.getDate() + 1); updateTripField(currentTripId, 'tripDays', [...tripDays, { date: nextDate.toISOString().split('T')[0], location: lastDay.location }]); };
+  
+  // Revised handleAddDay with Duplicate Date Check
+  const handleAddDay = () => {
+    const sortedByDate = [...tripDays].sort((a, b) => a.date.localeCompare(b.date));
+    const latestDay = sortedByDate[sortedByDate.length - 1];
+    const nextDate = new Date(latestDay.date);
+    nextDate.setDate(nextDate.getDate() + 1);
+    const dateStr = nextDate.toISOString().split('T')[0];
+    
+    // Check for duplicates
+    if (tripDays.some(d => d.date === dateStr)) {
+        alert('日期重複：' + dateStr + ' 已存在於行程中！');
+        return;
+    }
+    
+    updateTripField(currentTripId, 'tripDays', [...tripDays, { date: dateStr, location: latestDay.location }]);
+  };
+
   const confirmDeleteDay = () => { if (tripDays.length > 1) { const newDays = tripDays.filter(d => d.date !== selectedDate); updateTripField(currentTripId, 'tripDays', newDays); updateTripField(currentTripId, 'scheduleItems', scheduleItems.filter(item => item.date !== selectedDate)); if (!newDays.find(d => d.date === selectedDate)) setSelectedDate(newDays[0].date); setIsDeleteDayModalOpen(false); } };
-  const handleUpdateDayDetails = (newDate: string, newLoc: string) => { updateTripField(currentTripId, 'tripDays', tripDays.map(d => d.date === selectedDate ? { date: newDate, location: newLoc } : d)); updateTripField(currentTripId, 'scheduleItems', scheduleItems.map(item => item.date === selectedDate ? { ...item, date: newDate } : item)); setSelectedDate(newDate); setIsEditDayModalOpen(false); };
+  
+  // Revised handleUpdateDayDetails with Duplicate Date Check
+  const handleUpdateDayDetails = (newDate: string, newLoc: string) => { 
+    if (newDate !== selectedDate && tripDays.some(d => d.date === newDate)) {
+        alert('日期重複：' + newDate + ' 已存在於行程中！');
+        return;
+    }
+    updateTripField(currentTripId, 'tripDays', tripDays.map(d => d.date === selectedDate ? { date: newDate, location: newLoc } : d)); 
+    updateTripField(currentTripId, 'scheduleItems', scheduleItems.map(item => item.date === selectedDate ? { ...item, date: newDate } : item)); 
+    setSelectedDate(newDate); 
+    setIsEditDayModalOpen(false); 
+  };
+  
   const addCurrency = (c: Currency) => updateTripField(currentTripId, 'currencies', [...currencies, c]);
   const removeCurrency = (code: string) => updateTripField(currentTripId, 'currencies', currencies.filter(c => c.code !== code));
   
+  // --- Day Swap Interaction Logic ---
+  const handleDateTouchStart = (idx: number) => {
+    longPressTimer.current = setTimeout(() => {
+        setSwapSourceIndex(idx);
+        if (window.navigator.vibrate) window.navigator.vibrate(50);
+    }, 600);
+  };
+
+  const handleDateTouchEnd = () => {
+    if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+    }
+  };
+
+  const handleDateClick = (dateStr: string, idx: number) => {
+    if (swapSourceIndex !== null) {
+        if (swapSourceIndex !== idx) {
+            // Logically swap content between Source and Target while keeping calendar order
+            const sourceDay = tripDays[swapSourceIndex];
+            const targetDay = tripDays[idx];
+            
+            const sourceDate = sourceDay.date;
+            const targetDate = targetDay.date;
+
+            // 1. Swap Location Info in tripDays
+            const newTripDays = [...tripDays];
+            const tempLoc = newTripDays[swapSourceIndex].location;
+            newTripDays[swapSourceIndex].location = newTripDays[idx].location;
+            newTripDays[idx].location = tempLoc;
+            
+            // 2. Swap Schedule Items (move items between the two dates)
+            const newScheduleItems = scheduleItems.map(item => {
+                if (item.date === sourceDate) return { ...item, date: targetDate };
+                if (item.date === targetDate) return { ...item, date: sourceDate };
+                return item;
+            });
+
+            updateTripField(currentTripId, 'tripDays', newTripDays);
+            updateTripField(currentTripId, 'scheduleItems', newScheduleItems);
+            
+            // UI Feedback: Select the target day we just "moved" to
+            setSelectedDate(targetDate);
+        }
+        setSwapSourceIndex(null);
+    } else {
+        setSelectedDate(dateStr);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-beige flex flex-col items-center justify-center relative overflow-hidden">
@@ -346,10 +422,37 @@ export default function App() {
                     <button onClick={() => setIsEditDayModalOpen(true)} className="text-sm font-black text-cocoa flex items-center gap-1.5"><CalendarCheck size={14} className="text-sage" /> 行程日期 <Edit3 size={10} className="text-gray-300"/></button>
                     <div className="flex items-center gap-2">{tripDays.length > 1 && <button onClick={() => setIsDeleteDayModalOpen(true)} className="p-1.5 bg-red-100 text-red-500 rounded-full border border-red-200"><Trash2 size={12} /></button>}<button onClick={() => setIsEditDayModalOpen(true)} className="text-[10px] font-bold px-2 py-1 rounded-full border bg-white border-[#E0E5D5] text-cocoa flex items-center gap-1 shadow-sm"><span>{currentFruit} {currentLocation}</span></button></div>
                  </div>
+                 
+                 {/* Swap Mode Hint */}
+                 {swapSourceIndex !== null && (
+                    <div className="bg-orange-100 text-orange-800 text-[10px] font-black py-1 px-3 rounded-full mb-2 flex items-center justify-between animate-pulse">
+                        <span>🔁 內容交換中... 點擊另一天以對調兩天行程</span>
+                        <button onClick={() => setSwapSourceIndex(null)} className="p-0.5 bg-white rounded-full"><X size={10}/></button>
+                    </div>
+                 )}
+
                  <div ref={scrollRef} className="flex space-x-2 overflow-x-auto no-scrollbar pb-1 snap-x">
-                   {dates.map((date) => {
+                   {dates.map((date, idx) => {
                      const isSelected = selectedDate === date.date;
-                     return (<div key={date.date} onClick={() => setSelectedDate(date.date)} className={`flex-shrink-0 flex flex-col items-center justify-center w-[3.5rem] h-16 rounded-2xl transition-all snap-center cursor-pointer relative overflow-hidden ${isSelected ? `bg-sage shadow-hard-sm-sage border-sage text-white scale-105 border-2` : 'bg-white border-2 border-[#E0E5D5] text-gray-400 hover:border-sage'}`}><span className={`text-[9px] font-black uppercase mb-0.5 ${isSelected ? 'opacity-90' : 'text-[#B0A590]'}`}>Day {date.dayNum}</span><span className="text-lg font-black leading-none">{date.day}</span><span className={`text-[10px] font-bold mt-0.5 ${isSelected ? 'opacity-80' : 'opacity-60'}`}>{date.weekday}</span></div>);
+                     const isBeingSwapped = swapSourceIndex === idx;
+                     return (
+                        <div 
+                            key={date.date} 
+                            onClick={() => handleDateClick(date.date, idx)}
+                            onTouchStart={() => handleDateTouchStart(idx)}
+                            onTouchEnd={handleDateTouchEnd}
+                            onMouseDown={() => handleDateTouchStart(idx)}
+                            onMouseUp={handleDateTouchEnd}
+                            className={`flex-shrink-0 flex flex-col items-center justify-center w-[3.5rem] h-16 rounded-2xl transition-all snap-center cursor-pointer relative overflow-hidden 
+                                ${isBeingSwapped ? 'bg-orange-100 border-orange-400 scale-110 rotate-3 animate-pulse border-2' : 
+                                  isSelected ? `bg-sage shadow-hard-sm-sage border-sage text-white scale-105 border-2` : 
+                                  'bg-white border-2 border-[#E0E5D5] text-gray-400 hover:border-sage'}`}
+                        >
+                            <span className={`text-[9px] font-black uppercase mb-0.5 ${isSelected ? 'opacity-90' : 'text-[#B0A590]'}`}>Day {date.dayNum}</span>
+                            <span className="text-lg font-black leading-none">{date.day}</span>
+                            <span className={`text-[10px] font-bold mt-0.5 ${isSelected ? 'opacity-80' : 'opacity-60'}`}>{date.weekday}</span>
+                        </div>
+                     );
                    })}
                    <button onClick={handleAddDay} className="flex-shrink-0 flex flex-col items-center justify-center w-[3.5rem] h-16 rounded-2xl border-2 border-dashed border-[#E0E5D5] text-gray-300 hover:text-sage bg-white/50 snap-center"><Plus size={24} strokeWidth={3} /></button>
                  </div>
@@ -370,16 +473,12 @@ export default function App() {
                       const partIds = item.type === 'flight' ? item.flightDetails?.participants : item.type === 'stay' ? item.stayDetails?.participants : item.type === 'transport' ? item.carRental?.participants : (item.type === 'spot' || item.type === 'food') ? item.spotDetails?.participants : [];
                       const participantNames = getMemberNames(partIds);
                       const fruitIcon = getScheduleIcon(item.id);
-
                       return (
                         <div key={item.id} className="relative pl-8 group mb-8">
                           <button onClick={(e) => { e.stopPropagation(); handleDeleteItemClick(item.id); }} className="absolute right-0 -top-3 bg-red-100 text-red-400 p-1.5 rounded-full opacity-0 group-hover:opacity-100 z-30 border border-red-200 shadow-sm"><X size={12} strokeWidth={3} /></button>
-                          
-                          {/* Fruit Icon Timeline Indicator */}
                           <div className="absolute -left-[15px] top-6 z-10 flex items-center justify-center w-8 h-8 bg-beige rounded-full">
                               <span className="text-xl animate-fruit-dance drop-shadow-sm filter cursor-default select-none hover:scale-125 transition-transform">{fruitIcon}</span>
                           </div>
-
                           <div onClick={() => handleEditClick(item)} className="bg-white rounded-[2rem] shadow-hard-sm border-2 border-beige-dark overflow-hidden relative transition-all cursor-pointer hover:border-sage group-hover:-translate-y-1">
                             <div className="p-5">
                                 <div className="flex justify-between items-start mb-4">
@@ -393,9 +492,7 @@ export default function App() {
                             </div>
                             <div className="relative w-full h-0 border-t-2 border-dashed border-beige-dark flex justify-between items-center"><div className="absolute -left-3 -top-3 w-6 h-6 bg-beige rounded-full border-r-2 border-beige-dark"></div><div className="absolute -right-3 -top-3 w-6 h-6 bg-beige rounded-full border-l-2 border-beige-dark"></div></div>
                             <div className="bg-[#FAF9F6] p-5">
-                                {/* DETAIL LISTING BELOW DASHED LINE */}
                                 <div className="space-y-3">
-                                    {/* Flight Info */}
                                     {item.type === 'flight' && item.flightDetails && (
                                         <div className="bg-cyan-50/30 p-3 rounded-2xl border border-cyan-100/50 space-y-2">
                                             <div className="flex justify-between items-center border-b border-cyan-100/50 pb-2">
@@ -411,8 +508,6 @@ export default function App() {
                                             {Number(item.flightDetails.cost) > 0 && <div className="text-right text-[10px] font-black text-sage">費用: {item.flightDetails.currency} {Number(item.flightDetails.cost).toLocaleString()}</div>}
                                         </div>
                                     )}
-
-                                    {/* Stay Info */}
                                     {item.type === 'stay' && item.stayDetails && (
                                         <div className="bg-purple-50/30 p-3 rounded-2xl border border-purple-100/50 space-y-2">
                                             <div className="flex justify-between items-center border-b border-purple-100/50 pb-2">
@@ -429,22 +524,17 @@ export default function App() {
                                             {Number(item.stayDetails.cost) > 0 && <div className="text-right text-[10px] font-black text-sage">費用: {item.stayDetails.currency} {Number(item.stayDetails.cost).toLocaleString()}</div>}
                                         </div>
                                     )}
-
-                                    {/* Car Rental Info */}
                                     {item.type === 'transport' && item.carRental?.hasRental && (() => {
                                         const baseRental = Number(item.carRental.rentalCost) || 0;
                                         const baseFeePct = Number(item.carRental.serviceFeePercentage) || 0;
                                         const baseWithFee = baseRental + (item.carRental.hasServiceFee ? (baseRental * baseFeePct / 100) : 0);
-                                        
                                         let extrasTotal = 0;
                                         item.carRental.expenses?.forEach(exp => {
                                             const amt = Number(exp.amount) || 0;
                                             const feePct = Number(exp.serviceFeePercentage) || 0;
                                             extrasTotal += amt + (exp.hasServiceFee ? (amt * feePct / 100) : 0);
                                         });
-
                                         const grandTotal = baseWithFee + extrasTotal;
-
                                         return (
                                             <div className="bg-blue-50/30 p-3 rounded-2xl border border-blue-100/50 space-y-2">
                                                 <div className="flex justify-between items-center border-b border-blue-100/50 pb-2">
@@ -455,8 +545,6 @@ export default function App() {
                                                     <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>還車: {item.carRental.returnDate} {item.carRental.returnTime}</div>
                                                     {Number(item.carRental.estimatedFuelCost) > 0 && <div className="flex items-center gap-1 col-span-2"><Fuel size={12} className="text-orange-400"/>預估油資: {item.carRental.fuelCurrency} {Number(item.carRental.estimatedFuelCost).toLocaleString()}</div>}
                                                 </div>
-                                                
-                                                {/* Rental Costs Listing */}
                                                 <div className="pt-1 mt-1 border-t border-dashed border-blue-200/50 space-y-1">
                                                     <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 italic">
                                                         <span>基本租金</span>
@@ -481,19 +569,15 @@ export default function App() {
                                             </div>
                                         );
                                     })()}
-
-                                    {/* Spot/Food Expense Info */}
                                     {(item.type === 'spot' || item.type === 'food') && item.spotDetails?.hasTicket && (
                                         <div className="bg-white p-3 rounded-2xl border border-beige-dark flex justify-between items-center">
                                             <div className="flex items-center gap-2"><Ticket size={14} className="text-sage"/><span className="text-xs font-bold text-cocoa">{item.type === 'food' ? '餐飲支出' : '預訂門票'}</span></div>
                                             <span className="text-sm font-black text-sage font-mono">{item.spotDetails.currency} {Number(item.spotDetails.ticketCost).toLocaleString()}</span>
                                         </div>
                                     )}
-
                                     {item.notes && (
                                         <div className="flex gap-2 items-start bg-yellow-50/50 p-2 rounded-xl border border-yellow-100/50"><StickyNote size={14} className="text-yellow-400 mt-0.5" /><p className="text-xs font-bold text-gray-500 whitespace-pre-wrap">{item.notes}</p></div>
                                     )}
-
                                     {participantNames && (
                                         <div className="mt-2 pt-2 border-t border-dashed border-gray-200 flex items-start gap-2"><Users size={12} className="text-gray-400 mt-0.5" /><div className="flex flex-col"><span className="text-[9px] font-black text-gray-400 uppercase">MEMBERS</span><span className="text-xs font-bold text-cocoa">{participantNames}</span></div></div>
                                     )}
