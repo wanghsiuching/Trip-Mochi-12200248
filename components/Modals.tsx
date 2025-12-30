@@ -212,7 +212,7 @@ export const BackupConfirmModal = ({ isOpen, onClose, onConfirm, tripName }: { i
     if (!isOpen) return null;
     return (
         <div className="fixed inset-0 bg-cocoa/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={onClose}>
-             <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl border-2 border-beige-dark animate-scale-in" onClick={e => e.stopPropagation()}>
+             <div className="bg-white p-6 rounded-3xl w-full max-sm shadow-2xl border-2 border-beige-dark animate-scale-in" onClick={e => e.stopPropagation()}>
                 <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-500 border-2 border-blue-200">
                     <Copy size={24} />
                 </div>
@@ -830,7 +830,7 @@ export const AddScheduleModal = ({
                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">抵達機場</label><input value={flightArrAirport} onChange={e => setFlightArrAirport(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="KIX T1"/></div>
                          </div>
                          <div className="grid grid-cols-2 gap-2">
-                             <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">托運行李</label><input value={flightCheckedBag} onChange={e => setFlightCheckedBag(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="23kg"/></div>
+                             <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">託運行李</label><input value={flightCheckedBag} onChange={e => setFlightCheckedBag(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="23kg"/></div>
                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">手提行李</label><input value={flightCarryOnBag} onChange={e => setFlightCarryOnBag(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="7kg"/></div>
                          </div>
                          {/* Cost */}

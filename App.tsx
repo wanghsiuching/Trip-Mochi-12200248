@@ -64,10 +64,9 @@ export default function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  // Day Swap State
-  const [swapSourceIndex, setSwapSourceIndex] = useState<number | null>(null);
-  // Fix: Use ReturnType<typeof setTimeout> instead of NodeJS.Timeout to avoid namespace errors in browser environments.
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Reordering State (Drag & Touch)
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
   const dates = tripDays.map((day, i) => {
     const d = new Date(day.date);
@@ -241,7 +240,7 @@ export default function App() {
   const handleAddMember = (name: string, avatar: string | null) => {
       const fruits = [
           '🍎', '🍏', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', 
-          '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆',
+          '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '宣告者',
           '🥕', '🌽', '🌶️', '🫑', '🥒', '🥬', '🥦', '🍄', '🥜', '🌰'
       ];
       const randomFruit = fruits[Math.floor(Math.random() * fruits.length)];
@@ -266,7 +265,6 @@ export default function App() {
   const handleMoveItem = (index: number, direction: 'up' | 'down') => { const currentDayItems = scheduleItems.filter(i => i.date === selectedDate); const itemA = currentDayItems[index]; const targetIndex = direction === 'up' ? index - 1 : index + 1; const itemB = currentDayItems[targetIndex]; const itemAId = itemA.id; const itemBId = itemB.id; const newArr = [...scheduleItems]; const idxA = newArr.findIndex(i => i.id === itemAId); const idxB = newArr.findIndex(i => i.id === itemBId); if (idxA > -1 && idxB > -1) { [newArr[idxA], newArr[idxB]] = [newArr[idxB], newArr[idxA]]; updateTripField(currentTripId, 'scheduleItems', newArr); } };
   const openMap = (location: string) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`, '_blank');
   
-  // Revised handleAddDay with Duplicate Date Check
   const handleAddDay = () => {
     const sortedByDate = [...tripDays].sort((a, b) => a.date.localeCompare(b.date));
     const latestDay = sortedByDate[sortedByDate.length - 1];
@@ -274,7 +272,6 @@ export default function App() {
     nextDate.setDate(nextDate.getDate() + 1);
     const dateStr = nextDate.toISOString().split('T')[0];
     
-    // Check for duplicates
     if (tripDays.some(d => d.date === dateStr)) {
         alert('日期重複：' + dateStr + ' 已存在於行程中！');
         return;
@@ -285,7 +282,6 @@ export default function App() {
 
   const confirmDeleteDay = () => { if (tripDays.length > 1) { const newDays = tripDays.filter(d => d.date !== selectedDate); updateTripField(currentTripId, 'tripDays', newDays); updateTripField(currentTripId, 'scheduleItems', scheduleItems.filter(item => item.date !== selectedDate)); if (!newDays.find(d => d.date === selectedDate)) setSelectedDate(newDays[0].date); setIsDeleteDayModalOpen(false); } };
   
-  // Revised handleUpdateDayDetails with Duplicate Date Check
   const handleUpdateDayDetails = (newDate: string, newLoc: string) => { 
     if (newDate !== selectedDate && tripDays.some(d => d.date === newDate)) {
         alert('日期重複：' + newDate + ' 已存在於行程中！');
@@ -300,54 +296,78 @@ export default function App() {
   const addCurrency = (c: Currency) => updateTripField(currentTripId, 'currencies', [...currencies, c]);
   const removeCurrency = (code: string) => updateTripField(currentTripId, 'currencies', currencies.filter(c => c.code !== code));
   
-  // --- Day Swap Interaction Logic ---
-  const handleDateTouchStart = (idx: number) => {
-    longPressTimer.current = setTimeout(() => {
-        setSwapSourceIndex(idx);
-        if (window.navigator.vibrate) window.navigator.vibrate(50);
-    }, 600);
+  // --- Enhanced Reordering Logic (Desktop & Mobile Support) ---
+  const handleDropLogic = (sourceIdx: number, targetIdx: number) => {
+    if (sourceIdx === null || targetIdx === null || sourceIdx === targetIdx) {
+        setDraggedIndex(null);
+        setDragOverIndex(null);
+        return;
+    }
+
+    const newTripDays = [...tripDays];
+    const sourceDay = newTripDays[sourceIdx];
+    const originalDates = tripDays.map(d => d.date).sort((a, b) => a.localeCompare(b));
+
+    newTripDays.splice(sourceIdx, 1);
+    newTripDays.splice(targetIdx, 0, sourceDay);
+
+    const dateMapping: Record<string, string> = {};
+    const updatedTripDays = newTripDays.map((day, i) => {
+        const oldDate = day.date;
+        const newDate = originalDates[i];
+        dateMapping[oldDate] = newDate;
+        return { ...day, date: newDate };
+    });
+
+    const updatedScheduleItems = scheduleItems.map(item => {
+        const newDate = dateMapping[item.date];
+        return newDate ? { ...item, date: newDate } : item;
+    });
+
+    updateTripField(currentTripId, 'tripDays', updatedTripDays);
+    updateTripField(currentTripId, 'scheduleItems', updatedScheduleItems);
+    setSelectedDate(dateMapping[sourceDay.date]);
+
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+    if (window.navigator.vibrate) window.navigator.vibrate(20);
   };
 
-  const handleDateTouchEnd = () => {
-    if (longPressTimer.current) {
-        clearTimeout(longPressTimer.current);
-        longPressTimer.current = null;
-    }
+  // HTML5 Drag Handlers
+  const handleDragStart = (idx: number) => setDraggedIndex(idx);
+  const handleDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    if (idx !== dragOverIndex) setDragOverIndex(idx);
+  };
+  const handleDrop = (idx: number) => handleDropLogic(draggedIndex!, idx);
+
+  // Touch Handlers for Mobile Reordering
+  const handleTouchStart = (idx: number) => {
+      setDraggedIndex(idx);
+      if (window.navigator.vibrate) window.navigator.vibrate(10);
   };
 
-  const handleDateClick = (dateStr: string, idx: number) => {
-    if (swapSourceIndex !== null) {
-        if (swapSourceIndex !== idx) {
-            // Logically swap content between Source and Target while keeping calendar order
-            const sourceDay = tripDays[swapSourceIndex];
-            const targetDay = tripDays[idx];
-            
-            const sourceDate = sourceDay.date;
-            const targetDate = targetDay.date;
+  const handleTouchMove = (e: React.TouchEvent) => {
+      if (draggedIndex === null) return;
+      const touch = e.touches[0];
+      // Detect element under touch point
+      const el = document.elementFromPoint(touch.clientX, touch.clientY);
+      const dayBlock = el?.closest('[data-day-index]');
+      if (dayBlock) {
+          const idx = parseInt(dayBlock.getAttribute('data-day-index') || '-1');
+          if (idx !== -1 && idx !== dragOverIndex) {
+              setDragOverIndex(idx);
+          }
+      }
+  };
 
-            // 1. Swap Location Info in tripDays
-            const newTripDays = [...tripDays];
-            const tempLoc = newTripDays[swapSourceIndex].location;
-            newTripDays[swapSourceIndex].location = newTripDays[idx].location;
-            newTripDays[idx].location = tempLoc;
-            
-            // 2. Swap Schedule Items (move items between the two dates)
-            const newScheduleItems = scheduleItems.map(item => {
-                if (item.date === sourceDate) return { ...item, date: targetDate };
-                if (item.date === targetDate) return { ...item, date: sourceDate };
-                return item;
-            });
-
-            updateTripField(currentTripId, 'tripDays', newTripDays);
-            updateTripField(currentTripId, 'scheduleItems', newScheduleItems);
-            
-            // UI Feedback: Select the target day we just "moved" to
-            setSelectedDate(targetDate);
-        }
-        setSwapSourceIndex(null);
-    } else {
-        setSelectedDate(dateStr);
-    }
+  const handleTouchEnd = () => {
+      if (draggedIndex !== null && dragOverIndex !== null) {
+          handleDropLogic(draggedIndex, dragOverIndex);
+      } else {
+          setDraggedIndex(null);
+          setDragOverIndex(null);
+      }
   };
 
   if (loading) {
@@ -423,28 +443,31 @@ export default function App() {
                     <div className="flex items-center gap-2">{tripDays.length > 1 && <button onClick={() => setIsDeleteDayModalOpen(true)} className="p-1.5 bg-red-100 text-red-500 rounded-full border border-red-200"><Trash2 size={12} /></button>}<button onClick={() => setIsEditDayModalOpen(true)} className="text-[10px] font-bold px-2 py-1 rounded-full border bg-white border-[#E0E5D5] text-cocoa flex items-center gap-1 shadow-sm"><span>{currentFruit} {currentLocation}</span></button></div>
                  </div>
                  
-                 {/* Swap Mode Hint */}
-                 {swapSourceIndex !== null && (
-                    <div className="bg-orange-100 text-orange-800 text-[10px] font-black py-1 px-3 rounded-full mb-2 flex items-center justify-between animate-pulse">
-                        <span>🔁 內容交換中... 點擊另一天以對調兩天行程</span>
-                        <button onClick={() => setSwapSourceIndex(null)} className="p-0.5 bg-white rounded-full"><X size={10}/></button>
-                    </div>
-                 )}
-
-                 <div ref={scrollRef} className="flex space-x-2 overflow-x-auto no-scrollbar pb-1 snap-x">
+                 <div 
+                    ref={scrollRef} 
+                    className="flex space-x-2 overflow-x-auto no-scrollbar pb-1 snap-x touch-pan-x"
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                 >
                    {dates.map((date, idx) => {
                      const isSelected = selectedDate === date.date;
-                     const isBeingSwapped = swapSourceIndex === idx;
+                     const isDragged = draggedIndex === idx;
+                     const isOver = dragOverIndex === idx;
+
                      return (
                         <div 
                             key={date.date} 
-                            onClick={() => handleDateClick(date.date, idx)}
-                            onTouchStart={() => handleDateTouchStart(idx)}
-                            onTouchEnd={handleDateTouchEnd}
-                            onMouseDown={() => handleDateTouchStart(idx)}
-                            onMouseUp={handleDateTouchEnd}
+                            data-day-index={idx}
+                            draggable
+                            onDragStart={() => handleDragStart(idx)}
+                            onDragOver={(e) => handleDragOver(e, idx)}
+                            onDragEnd={() => setDraggedIndex(null)}
+                            onDrop={() => handleDrop(idx)}
+                            onTouchStart={() => handleTouchStart(idx)}
+                            onClick={() => setSelectedDate(date.date)}
                             className={`flex-shrink-0 flex flex-col items-center justify-center w-[3.5rem] h-16 rounded-2xl transition-all snap-center cursor-pointer relative overflow-hidden 
-                                ${isBeingSwapped ? 'bg-orange-100 border-orange-400 scale-110 rotate-3 animate-pulse border-2' : 
+                                ${isDragged ? 'opacity-40 scale-90 border-dashed border-gray-400 bg-gray-100' : 
+                                  isOver ? 'bg-orange-50 border-orange-400 scale-105 shadow-md border-2 z-10' : 
                                   isSelected ? `bg-sage shadow-hard-sm-sage border-sage text-white scale-105 border-2` : 
                                   'bg-white border-2 border-[#E0E5D5] text-gray-400 hover:border-sage'}`}
                         >
@@ -456,7 +479,10 @@ export default function App() {
                    })}
                    <button onClick={handleAddDay} className="flex-shrink-0 flex flex-col items-center justify-center w-[3.5rem] h-16 rounded-2xl border-2 border-dashed border-[#E0E5D5] text-gray-300 hover:text-sage bg-white/50 snap-center"><Plus size={24} strokeWidth={3} /></button>
                  </div>
-                 <div className="mt-2 text-right"><button onClick={() => setIsPotentialModalOpen(true)} className="bg-yellow-100 text-yellow-600 p-2 rounded-xl border border-yellow-200 shadow-sm text-xs font-bold inline-flex items-center gap-1"><Coins size={12}/> 潛在花費</button></div>
+                 <div className="mt-2 text-right flex justify-between items-center px-1">
+                    <span className="text-[10px] font-black text-gray-400 italic">💡 長按並拖移日期可重新排序</span>
+                    <button onClick={() => setIsPotentialModalOpen(true)} className="bg-yellow-100 text-yellow-600 p-2 rounded-xl border border-yellow-200 shadow-sm text-xs font-bold inline-flex items-center gap-1"><Coins size={12}/> 潛在花費</button>
+                 </div>
                </div>
 
                <div className="px-5 pt-2">
