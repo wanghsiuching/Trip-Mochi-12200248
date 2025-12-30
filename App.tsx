@@ -371,6 +371,13 @@ export default function App() {
     }
   };
 
+  // --- Jump to Schedule Logic ---
+  const handleJumpToSchedule = (date: string, itemId: string) => {
+      setActiveTab('schedule');
+      setSelectedDate(date);
+      // Optional: Logic to scroll to specific item could be added here if refs were managed globally
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-beige flex flex-col items-center justify-center relative overflow-hidden">
@@ -630,7 +637,7 @@ export default function App() {
           {activeTab === 'expense' && (<ExpensesView expenses={expenses} members={members} currencies={currencies} onAdd={handleAddExpense} onUpdate={handleUpdateExpense} onDelete={handleDeleteExpense} onShowToast={(m, t) => { if (t === 'error') alert(m); }} />)}
           {activeTab === 'journal' && (<JournalView journals={journals} members={members} onAdd={handleAddJournal} onUpdate={handleUpdateJournal} onDelete={handleDeleteJournal} />)}
           {activeTab === 'planning' && (<PlanningView lists={planningLists} members={members} onAdd={handleAddPlanning} onToggle={handleTogglePlanning} onUpdate={handleUpdatePlanning} onDelete={handleDeletePlanning} />)}
-          {activeTab === 'members' && (<MembersView members={members} scheduleItems={scheduleItems} currencies={currencies} onAdd={handleAddMember} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} />)}
+          {activeTab === 'members' && (<MembersView members={members} scheduleItems={scheduleItems} currencies={currencies} onAdd={handleAddMember} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} onJumpToSchedule={handleJumpToSchedule} />)}
         </main>
         <BottomNav activeTab={activeTab} setTab={setActiveTab} />
       </div>
