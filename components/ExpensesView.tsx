@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { 
   PenTool, List, Wallet, Coins, User, MapPin, Trash2, 
-  Receipt, CreditCard, Clock, Check, ArrowLeft, Send, MessageCircle
+  Receipt, CreditCard, Clock, Check, ArrowLeft, Send, MessageCircle, X
 } from 'lucide-react';
 import { Expense, Member, Currency, Comment } from '../types';
 
@@ -43,6 +43,10 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, members, c
   // Inline Comment State
   const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
   const [commentAuthors, setCommentAuthors] = useState<Record<number, string>>({});
+  
+  // Comment Edit/Delete State
+  const [editingComment, setEditingComment] = useState<{ itemId: number, commentId: string, text: string } | null>(null);
+  const [deletingComment, setDeletingComment] = useState<{ itemId: number, commentId: string } | null>(null);
 
   const paymentMethods = ['現金', '信用卡'];
 
@@ -175,17 +179,12 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, members, c
       setCommentDrafts(prev => ({ ...prev, [id]: text }));
   };
 
-  const cycleCommentAuthor = (id: number) => {
-      setCommentAuthors(prev => {
-          const currentId = prev[id] || members[0]?.id;
-          const currentIndex = members.findIndex(m => m.id === currentId);
-          const nextIndex = (currentIndex + 1) % members.length;
-          return { ...prev, [id]: members[nextIndex].id };
-      });
+  const selectCommentAuthor = (itemId: number, memberId: string) => {
+      setCommentAuthors(prev => ({ ...prev, [itemId]: memberId }));
   };
 
   const submitInlineComment = (e: React.MouseEvent | React.KeyboardEvent, exp: Expense) => {
-      e.stopPropagation(); // Prevent opening detail modal
+      e.stopPropagation();
       const text = commentDrafts[exp.id];
       if (!text || !text.trim()) return;
 
@@ -201,6 +200,37 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, members, c
       onUpdate({ ...exp, comments: updatedComments });
       
       setCommentDrafts(prev => ({ ...prev, [exp.id]: '' }));
+  };
+
+  // --- Comment Actions ---
+  const startEditComment = (itemId: number, comment: Comment) => {
+      setDeletingComment(null);
+      setEditingComment({ itemId, commentId: comment.id, text: comment.text });
+  };
+
+  const cancelEditComment = () => {
+      setEditingComment(null);
+  };
+
+  const saveEditComment = (exp: Expense) => {
+      if (!editingComment) return;
+      const updatedComments = exp.comments?.map(c => 
+          c.id === editingComment.commentId ? { ...c, text: editingComment.text } : c
+      );
+      onUpdate({ ...exp, comments: updatedComments });
+      setEditingComment(null);
+  };
+
+  const promptDeleteComment = (itemId: number, commentId: string) => {
+      setEditingComment(null);
+      setDeletingComment({ itemId, commentId });
+  };
+
+  const confirmDeleteComment = (exp: Expense) => {
+      if (!deletingComment) return;
+      const updatedComments = exp.comments?.filter(c => c.id !== deletingComment.commentId);
+      onUpdate({ ...exp, comments: updatedComments });
+      setDeletingComment(null);
   };
 
   return (
@@ -341,22 +371,62 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, members, c
                                                 </div>
                                             </div>
 
-                                            {/* --- Inline Comments Section --- */}
-                                            <div className="pt-2 border-t border-dashed border-gray-100" onClick={e => e.stopPropagation()}>
+                                            {/* --- Inline Comments Section (Dashed Line Below) --- */}
+                                            <div className="pt-3 border-t-2 border-dashed border-gray-100" onClick={e => e.stopPropagation()}>
                                                 {/* Comment List */}
                                                 {exp.comments && exp.comments.length > 0 && (
-                                                    <div className="space-y-2 mb-2">
+                                                    <div className="space-y-2 mb-3">
                                                         {exp.comments.map(c => {
                                                             const author = members.find(m => m.id === c.authorId);
+                                                            const isEditing = editingComment?.commentId === c.id && editingComment?.itemId === exp.id;
+                                                            const isDeleting = deletingComment?.commentId === c.id && deletingComment?.itemId === exp.id;
+
                                                             return (
-                                                                <div key={c.id} className="flex gap-2 items-start">
-                                                                    <div className="w-5 h-5 rounded-full bg-beige border border-beige-dark flex-shrink-0 overflow-hidden flex items-center justify-center">
+                                                                <div key={c.id} className="flex gap-2 items-start group/comment">
+                                                                    <div className="w-6 h-6 rounded-full bg-beige border border-beige-dark flex-shrink-0 overflow-hidden flex items-center justify-center">
                                                                         {author?.avatar ? <img src={author.avatar} className="w-full h-full object-cover"/> : <span className="text-[9px] font-black text-gray-400">{author?.name?.[0]}</span>}
                                                                     </div>
-                                                                    <div className="flex-1">
-                                                                        <div className="bg-gray-50 rounded-lg rounded-tl-none px-2 py-1.5 inline-block border border-beige-dark/50">
-                                                                            <p className="text-xs font-bold text-cocoa leading-snug whitespace-pre-wrap">{c.text}</p>
-                                                                        </div>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        {isEditing ? (
+                                                                            <div className="flex flex-col gap-2">
+                                                                                <textarea 
+                                                                                    value={editingComment.text} 
+                                                                                    onChange={(e) => setEditingComment({ ...editingComment, text: e.target.value })}
+                                                                                    className="w-full bg-white border-2 border-sage rounded-lg px-2 py-1.5 text-xs font-bold text-cocoa outline-none resize-none h-16"
+                                                                                    autoFocus
+                                                                                />
+                                                                                <div className="flex gap-2 justify-end">
+                                                                                    <button onClick={() => cancelEditComment()} className="px-2 py-1 rounded-lg bg-gray-100 text-gray-400 hover:bg-gray-200 text-[10px] font-bold">取消</button>
+                                                                                    <button onClick={() => saveEditComment(exp)} className="px-2 py-1 rounded-lg bg-sage text-white hover:bg-sage-dark text-[10px] font-bold">儲存</button>
+                                                                                </div>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <>
+                                                                                <div className="bg-gray-50 rounded-lg rounded-tl-none px-3 py-2 inline-block border border-beige-dark/50 max-w-full">
+                                                                                    <p className="text-xs font-bold text-cocoa leading-snug whitespace-pre-wrap break-words">{c.text}</p>
+                                                                                </div>
+                                                                                <div className="flex items-center justify-between mt-0.5 ml-1 pr-1">
+                                                                                    <div className="text-[9px] font-bold text-gray-300">
+                                                                                        {author?.name} • {new Date(c.createdAt).toLocaleDateString([], {month:'numeric', day:'numeric'})}
+                                                                                    </div>
+                                                                                    
+                                                                                    {/* Action Buttons */}
+                                                                                    <div className="flex items-center gap-1.5">
+                                                                                        {isDeleting ? (
+                                                                                            <div className="flex items-center gap-1 animate-scale-in">
+                                                                                                <button onClick={() => confirmDeleteComment(exp)} className="bg-red-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold hover:bg-red-600 shadow-sm">確定?</button>
+                                                                                                <button onClick={() => setDeletingComment(null)} className="text-gray-300 hover:text-gray-500"><X size={12}/></button>
+                                                                                            </div>
+                                                                                        ) : (
+                                                                                            <div className="flex gap-1.5 opacity-100 lg:opacity-0 lg:group-hover/comment:opacity-100 transition-opacity">
+                                                                                                <button onClick={() => startEditComment(exp.id, c)} className="text-gray-300 hover:text-sage transition-colors"><PenTool size={10}/></button>
+                                                                                                <button onClick={() => promptDeleteComment(exp.id, c.id)} className="text-gray-300 hover:text-red-400 transition-colors"><Trash2 size={10}/></button>
+                                                                                            </div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             );
@@ -364,35 +434,43 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, members, c
                                                     </div>
                                                 )}
 
-                                                {/* Inline Comment Input */}
-                                                <div className="flex gap-2 items-center">
-                                                    <button 
-                                                        onClick={() => cycleCommentAuthor(exp.id)}
-                                                        className="flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-full bg-white border-2 border-beige-dark shadow-sm hover:border-sage transition-all flex-shrink-0"
-                                                        title={`目前留言者: ${currentAuthor?.name} (點擊切換)`}
-                                                    >
-                                                        <div className="w-5 h-5 rounded-full overflow-hidden bg-gray-100 flex items-center justify-center border border-gray-200">
-                                                            {currentAuthor?.avatar ? <img src={currentAuthor.avatar} className="w-full h-full object-cover"/> : <span className="text-[9px] font-black text-gray-400">{currentAuthor?.name?.[0]}</span>}
-                                                        </div>
-                                                        <span className="text-xs font-black text-cocoa max-w-[4rem] truncate">{currentAuthor?.name}</span>
-                                                    </button>
-                                                    <div className="flex-1 relative">
-                                                        <input 
-                                                            value={currentDraft}
-                                                            onChange={e => handleInlineCommentChange(exp.id, e.target.value)}
-                                                            onKeyDown={e => e.key === 'Enter' && submitInlineComment(e, exp)}
-                                                            placeholder="留言..."
-                                                            className="w-full bg-gray-50 text-cocoa rounded-xl px-3 py-1.5 outline-none border border-beige-dark/50 font-bold text-xs placeholder-gray-300 focus:border-sage focus:bg-white transition-colors pr-8"
-                                                        />
-                                                        {currentDraft.trim() && (
-                                                            <button 
-                                                                onClick={(e) => submitInlineComment(e, exp)} 
-                                                                className="absolute right-1 top-1/2 -translate-y-1/2 text-sage hover:text-sage-dark p-1"
+                                                {/* Member Selector (Scrollable) */}
+                                                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-2 items-center">
+                                                    {members.map(m => {
+                                                        const isSelected = (commentAuthors[exp.id] || members[0]?.id) === m.id;
+                                                        return (
+                                                            <button
+                                                                key={m.id}
+                                                                onClick={(e) => { e.stopPropagation(); selectCommentAuthor(exp.id, m.id); }}
+                                                                className={`flex-shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-full border-2 transition-all ${isSelected ? 'bg-sage text-white border-sage shadow-sm' : 'bg-white text-gray-400 border-beige-dark hover:bg-gray-50'}`}
                                                             >
-                                                                <Send size={12}/>
+                                                                <div className="w-4 h-4 rounded-full overflow-hidden border border-white/50 flex items-center justify-center bg-beige text-[8px] font-black text-cocoa">
+                                                                    {m.avatar ? <img src={m.avatar} className="w-full h-full object-cover" loading="lazy"/> : m.name[0]}
+                                                                </div>
+                                                                <span className="text-xs font-bold">{m.name}</span>
                                                             </button>
-                                                        )}
-                                                    </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {/* Input Field */}
+                                                <div className="relative">
+                                                    <input 
+                                                        value={currentDraft}
+                                                        onChange={e => handleInlineCommentChange(exp.id, e.target.value)}
+                                                        onKeyDown={e => e.key === 'Enter' && submitInlineComment(e, exp)}
+                                                        placeholder={`用 ${currentAuthor?.name} 的身份留言...`}
+                                                        className="w-full bg-gray-50 text-cocoa rounded-xl px-3 py-2 outline-none border border-beige-dark/50 font-bold text-xs placeholder-gray-300 focus:border-sage focus:bg-white transition-colors pr-9"
+                                                        onClick={e => e.stopPropagation()}
+                                                    />
+                                                    {currentDraft.trim() && (
+                                                        <button 
+                                                            onClick={(e) => submitInlineComment(e, exp)} 
+                                                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-sage hover:text-sage-dark p-1"
+                                                        >
+                                                            <Send size={14}/>
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -407,7 +485,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, members, c
          </div>
        </div>
 
-      {/* Edit Modal (Keeping existing modal logic) */}
+      {/* Edit Modal */}
       {showEditModal && editingExpense && (
         <div className="fixed inset-0 bg-cocoa/50 z-[100] flex items-center justify-center px-4 backdrop-blur-sm">
             <div className="bg-beige w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border-4 border-beige-dark max-h-[90vh] overflow-y-auto custom-scroll">
@@ -449,7 +527,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({ expenses, members, c
         </div>
       )}
 
-      {/* Detail Modal (simplified for now, comments are inline) */}
+      {/* Detail Modal */}
       {showDetailModal && selectedExpense && (
           <div className="fixed inset-0 bg-cocoa/50 z-[100] flex items-center justify-center px-4 backdrop-blur-sm" onClick={() => setShowDetailModal(false)}>
               <div className="bg-beige w-full max-w-sm rounded-[2.5rem] p-6 shadow-2xl border-4 border-beige-dark relative overflow-hidden" onClick={e => e.stopPropagation()}>
