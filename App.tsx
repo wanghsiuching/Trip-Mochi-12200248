@@ -64,8 +64,9 @@ export default function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  // Swap State (Replacement for Drag & Drop)
+  // --- Optimized Swap State ---
   const [swappingFromIndex, setSwappingFromIndex] = useState<number | null>(null);
+  const [justActivatedSwap, setJustActivatedSwap] = useState(false);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dates = tripDays.map((day, i) => {
@@ -296,7 +297,7 @@ export default function App() {
   const addCurrency = (c: Currency) => updateTripField(currentTripId, 'currencies', [...currencies, c]);
   const removeCurrency = (code: string) => updateTripField(currentTripId, 'currencies', currencies.filter(c => c.code !== code));
   
-  // --- New Reordering Logic: Long Press + Click to Swap ---
+  // --- Enhanced Reordering Logic: Long Press -> Released -> Click Target to Swap ---
   const handleSwapLogic = (idx1: number, idx2: number) => {
     if (idx1 === idx2) return;
 
@@ -307,11 +308,11 @@ export default function App() {
     const date1 = day1.date;
     const date2 = day2.date;
 
-    // Swap logical contents (locations) but keep the chronological dates associated with positions
+    // Swap logical contents (locations) but keep the original dates at their respective positions
     newTripDays[idx1] = { ...day2, date: date1 };
     newTripDays[idx2] = { ...day1, date: date2 };
 
-    // Swap schedule items by mapping their dates
+    // Update all schedule items to follow their day contents to the new date
     const updatedScheduleItems = scheduleItems.map(item => {
         if (item.date === date1) return { ...item, date: date2 };
         if (item.date === date2) return { ...item, date: date1 };
@@ -321,7 +322,7 @@ export default function App() {
     updateTripField(currentTripId, 'tripDays', newTripDays);
     updateTripField(currentTripId, 'scheduleItems', updatedScheduleItems);
     
-    // Set view to the target date after swap
+    // Switch view to the date we just moved the content to
     setSelectedDate(date2);
 
     if (window.navigator.vibrate) window.navigator.vibrate([30, 50, 30]);
@@ -330,10 +331,14 @@ export default function App() {
   const handleDayTouchStart = (idx: number) => {
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
     
+    // Reset flags
+    setJustActivatedSwap(false);
+
     longPressTimer.current = setTimeout(() => {
         setSwappingFromIndex(idx);
+        setJustActivatedSwap(true);
         if (window.navigator.vibrate) window.navigator.vibrate(80);
-    }, 600); // Long press threshold
+    }, 600); // Wait 600ms for long press
   };
 
   const handleDayTouchEnd = () => {
@@ -344,17 +349,24 @@ export default function App() {
   };
 
   const handleDayItemClick = (idx: number, dateStr: string) => {
+    // If the mode was JUST activated by long press, skip this click to avoid 
+    // immediate self-swap or instant cancellation on the same element.
+    if (justActivatedSwap) {
+        setJustActivatedSwap(false);
+        return;
+    }
+
     if (swappingFromIndex !== null) {
         if (swappingFromIndex === idx) {
-            // Cancel swap mode if clicking the same item
+            // Cancel mode if clicking the same day again
             setSwappingFromIndex(null);
         } else {
-            // Execute swap
+            // Execute swap with the target day
             handleSwapLogic(swappingFromIndex, idx);
             setSwappingFromIndex(null);
         }
     } else {
-        // Normal date selection
+        // Normal behavior: Select date
         setSelectedDate(dateStr);
     }
   };
@@ -441,9 +453,10 @@ export default function App() {
                      return (
                         <div 
                             key={date.date} 
+                            data-day-index={idx}
                             onTouchStart={() => handleDayTouchStart(idx)}
                             onTouchEnd={handleDayTouchEnd}
-                            onMouseDown={() => handleDayTouchStart(idx)} // Mouse support
+                            onMouseDown={() => handleDayTouchStart(idx)} // Support mouse long press
                             onMouseUp={handleDayTouchEnd}
                             onClick={() => handleDayItemClick(idx, date.date)}
                             className={`flex-shrink-0 flex flex-col items-center justify-center w-[3.5rem] h-16 rounded-2xl transition-all snap-center cursor-pointer relative overflow-hidden select-none
@@ -452,7 +465,11 @@ export default function App() {
                                   isSelected ? `bg-sage shadow-hard-sm-sage border-sage text-white scale-105 border-2` : 
                                   'bg-white border-2 border-[#E0E5D5] text-gray-400 hover:border-sage'}`}
                         >
-                            {isSwapping && <div className="absolute top-0 left-0 w-full bg-orange-400 text-white text-[7px] font-black text-center py-0.5 uppercase tracking-tighter">交換中</div>}
+                            {isSwapping && (
+                                <div className="absolute top-0 left-0 w-full bg-orange-400 text-white text-[7px] font-black text-center py-0.5 uppercase tracking-tighter shadow-sm z-30">
+                                    對調中
+                                </div>
+                            )}
                             <span className={`text-[9px] font-black uppercase mb-0.5 ${isSelected ? 'opacity-90' : 'text-[#B0A590]'}`}>Day {date.dayNum}</span>
                             <span className="text-lg font-black leading-none">{date.day}</span>
                             <span className={`text-[10px] font-bold mt-0.5 ${isSelected ? 'opacity-80' : 'opacity-60'}`}>{date.weekday}</span>
@@ -463,7 +480,7 @@ export default function App() {
                  </div>
                  <div className="mt-2 text-right flex justify-between items-center px-1">
                     <span className="text-[10px] font-black text-gray-400 italic">
-                        {swappingFromIndex !== null ? '💡 點擊另一個日期來進行交換' : '💡 長按日期方塊後，點擊其他日期可交換'}
+                        {swappingFromIndex !== null ? '💡 點擊其他日期來完成對調' : '💡 長按日期方塊後釋放，再點擊目標可對調'}
                     </span>
                     <button onClick={() => setIsPotentialModalOpen(true)} className="bg-yellow-100 text-yellow-600 p-2 rounded-xl border border-yellow-200 shadow-sm text-xs font-bold inline-flex items-center gap-1"><Coins size={12}/> 潛在花費</button>
                  </div>
