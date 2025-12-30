@@ -64,9 +64,9 @@ export default function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
-  // Reordering State (Drag & Touch)
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  // Swap State (Replacement for Drag & Drop)
+  const [swappingFromIndex, setSwappingFromIndex] = useState<number | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dates = tripDays.map((day, i) => {
     const d = new Date(day.date);
@@ -240,7 +240,7 @@ export default function App() {
   const handleAddMember = (name: string, avatar: string | null) => {
       const fruits = [
           '🍎', '🍏', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', 
-          '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '宣告者',
+          '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆',
           '🥕', '🌽', '🌶️', '🫑', '🥒', '🥬', '🥦', '🍄', '🥜', '🌰'
       ];
       const randomFruit = fruits[Math.floor(Math.random() * fruits.length)];
@@ -296,78 +296,67 @@ export default function App() {
   const addCurrency = (c: Currency) => updateTripField(currentTripId, 'currencies', [...currencies, c]);
   const removeCurrency = (code: string) => updateTripField(currentTripId, 'currencies', currencies.filter(c => c.code !== code));
   
-  // --- Enhanced Reordering Logic (Desktop & Mobile Support) ---
-  const handleDropLogic = (sourceIdx: number, targetIdx: number) => {
-    if (sourceIdx === null || targetIdx === null || sourceIdx === targetIdx) {
-        setDraggedIndex(null);
-        setDragOverIndex(null);
-        return;
-    }
+  // --- New Reordering Logic: Long Press + Click to Swap ---
+  const handleSwapLogic = (idx1: number, idx2: number) => {
+    if (idx1 === idx2) return;
 
     const newTripDays = [...tripDays];
-    const sourceDay = newTripDays[sourceIdx];
-    const originalDates = tripDays.map(d => d.date).sort((a, b) => a.localeCompare(b));
+    const day1 = { ...newTripDays[idx1] };
+    const day2 = { ...newTripDays[idx2] };
+    
+    const date1 = day1.date;
+    const date2 = day2.date;
 
-    newTripDays.splice(sourceIdx, 1);
-    newTripDays.splice(targetIdx, 0, sourceDay);
+    // Swap logical contents (locations) but keep the chronological dates associated with positions
+    newTripDays[idx1] = { ...day2, date: date1 };
+    newTripDays[idx2] = { ...day1, date: date2 };
 
-    const dateMapping: Record<string, string> = {};
-    const updatedTripDays = newTripDays.map((day, i) => {
-        const oldDate = day.date;
-        const newDate = originalDates[i];
-        dateMapping[oldDate] = newDate;
-        return { ...day, date: newDate };
-    });
-
+    // Swap schedule items by mapping their dates
     const updatedScheduleItems = scheduleItems.map(item => {
-        const newDate = dateMapping[item.date];
-        return newDate ? { ...item, date: newDate } : item;
+        if (item.date === date1) return { ...item, date: date2 };
+        if (item.date === date2) return { ...item, date: date1 };
+        return item;
     });
 
-    updateTripField(currentTripId, 'tripDays', updatedTripDays);
+    updateTripField(currentTripId, 'tripDays', newTripDays);
     updateTripField(currentTripId, 'scheduleItems', updatedScheduleItems);
-    setSelectedDate(dateMapping[sourceDay.date]);
+    
+    // Set view to the target date after swap
+    setSelectedDate(date2);
 
-    setDraggedIndex(null);
-    setDragOverIndex(null);
-    if (window.navigator.vibrate) window.navigator.vibrate(20);
+    if (window.navigator.vibrate) window.navigator.vibrate([30, 50, 30]);
   };
 
-  // HTML5 Drag Handlers
-  const handleDragStart = (idx: number) => setDraggedIndex(idx);
-  const handleDragOver = (e: React.DragEvent, idx: number) => {
-    e.preventDefault();
-    if (idx !== dragOverIndex) setDragOverIndex(idx);
-  };
-  const handleDrop = (idx: number) => handleDropLogic(draggedIndex!, idx);
-
-  // Touch Handlers for Mobile Reordering
-  const handleTouchStart = (idx: number) => {
-      setDraggedIndex(idx);
-      if (window.navigator.vibrate) window.navigator.vibrate(10);
+  const handleDayTouchStart = (idx: number) => {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current);
+    
+    longPressTimer.current = setTimeout(() => {
+        setSwappingFromIndex(idx);
+        if (window.navigator.vibrate) window.navigator.vibrate(80);
+    }, 600); // Long press threshold
   };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-      if (draggedIndex === null) return;
-      const touch = e.touches[0];
-      // Detect element under touch point
-      const el = document.elementFromPoint(touch.clientX, touch.clientY);
-      const dayBlock = el?.closest('[data-day-index]');
-      if (dayBlock) {
-          const idx = parseInt(dayBlock.getAttribute('data-day-index') || '-1');
-          if (idx !== -1 && idx !== dragOverIndex) {
-              setDragOverIndex(idx);
-          }
-      }
+  const handleDayTouchEnd = () => {
+    if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
+    }
   };
 
-  const handleTouchEnd = () => {
-      if (draggedIndex !== null && dragOverIndex !== null) {
-          handleDropLogic(draggedIndex, dragOverIndex);
-      } else {
-          setDraggedIndex(null);
-          setDragOverIndex(null);
-      }
+  const handleDayItemClick = (idx: number, dateStr: string) => {
+    if (swappingFromIndex !== null) {
+        if (swappingFromIndex === idx) {
+            // Cancel swap mode if clicking the same item
+            setSwappingFromIndex(null);
+        } else {
+            // Execute swap
+            handleSwapLogic(swappingFromIndex, idx);
+            setSwappingFromIndex(null);
+        }
+    } else {
+        // Normal date selection
+        setSelectedDate(dateStr);
+    }
   };
 
   if (loading) {
@@ -443,34 +432,27 @@ export default function App() {
                     <div className="flex items-center gap-2">{tripDays.length > 1 && <button onClick={() => setIsDeleteDayModalOpen(true)} className="p-1.5 bg-red-100 text-red-500 rounded-full border border-red-200"><Trash2 size={12} /></button>}<button onClick={() => setIsEditDayModalOpen(true)} className="text-[10px] font-bold px-2 py-1 rounded-full border bg-white border-[#E0E5D5] text-cocoa flex items-center gap-1 shadow-sm"><span>{currentFruit} {currentLocation}</span></button></div>
                  </div>
                  
-                 <div 
-                    ref={scrollRef} 
-                    className="flex space-x-2 overflow-x-auto no-scrollbar pb-1 snap-x touch-pan-x"
-                    onTouchMove={handleTouchMove}
-                    onTouchEnd={handleTouchEnd}
-                 >
+                 <div ref={scrollRef} className="flex space-x-2 overflow-x-auto no-scrollbar pb-1 snap-x touch-pan-x">
                    {dates.map((date, idx) => {
                      const isSelected = selectedDate === date.date;
-                     const isDragged = draggedIndex === idx;
-                     const isOver = dragOverIndex === idx;
+                     const isSwapping = swappingFromIndex === idx;
+                     const isPotentialTarget = swappingFromIndex !== null && swappingFromIndex !== idx;
 
                      return (
                         <div 
                             key={date.date} 
-                            data-day-index={idx}
-                            draggable
-                            onDragStart={() => handleDragStart(idx)}
-                            onDragOver={(e) => handleDragOver(e, idx)}
-                            onDragEnd={() => setDraggedIndex(null)}
-                            onDrop={() => handleDrop(idx)}
-                            onTouchStart={() => handleTouchStart(idx)}
-                            onClick={() => setSelectedDate(date.date)}
-                            className={`flex-shrink-0 flex flex-col items-center justify-center w-[3.5rem] h-16 rounded-2xl transition-all snap-center cursor-pointer relative overflow-hidden 
-                                ${isDragged ? 'opacity-40 scale-90 border-dashed border-gray-400 bg-gray-100' : 
-                                  isOver ? 'bg-orange-50 border-orange-400 scale-105 shadow-md border-2 z-10' : 
+                            onTouchStart={() => handleDayTouchStart(idx)}
+                            onTouchEnd={handleDayTouchEnd}
+                            onMouseDown={() => handleDayTouchStart(idx)} // Mouse support
+                            onMouseUp={handleDayTouchEnd}
+                            onClick={() => handleDayItemClick(idx, date.date)}
+                            className={`flex-shrink-0 flex flex-col items-center justify-center w-[3.5rem] h-16 rounded-2xl transition-all snap-center cursor-pointer relative overflow-hidden select-none
+                                ${isSwapping ? 'animate-pulse bg-orange-100 border-orange-400 scale-110 shadow-lg border-2 z-20' : 
+                                  isPotentialTarget ? 'bg-white border-dashed border-orange-200 opacity-90 scale-95' :
                                   isSelected ? `bg-sage shadow-hard-sm-sage border-sage text-white scale-105 border-2` : 
                                   'bg-white border-2 border-[#E0E5D5] text-gray-400 hover:border-sage'}`}
                         >
+                            {isSwapping && <div className="absolute top-0 left-0 w-full bg-orange-400 text-white text-[7px] font-black text-center py-0.5 uppercase tracking-tighter">交換中</div>}
                             <span className={`text-[9px] font-black uppercase mb-0.5 ${isSelected ? 'opacity-90' : 'text-[#B0A590]'}`}>Day {date.dayNum}</span>
                             <span className="text-lg font-black leading-none">{date.day}</span>
                             <span className={`text-[10px] font-bold mt-0.5 ${isSelected ? 'opacity-80' : 'opacity-60'}`}>{date.weekday}</span>
@@ -480,7 +462,9 @@ export default function App() {
                    <button onClick={handleAddDay} className="flex-shrink-0 flex flex-col items-center justify-center w-[3.5rem] h-16 rounded-2xl border-2 border-dashed border-[#E0E5D5] text-gray-300 hover:text-sage bg-white/50 snap-center"><Plus size={24} strokeWidth={3} /></button>
                  </div>
                  <div className="mt-2 text-right flex justify-between items-center px-1">
-                    <span className="text-[10px] font-black text-gray-400 italic">💡 長按並拖移日期可重新排序</span>
+                    <span className="text-[10px] font-black text-gray-400 italic">
+                        {swappingFromIndex !== null ? '💡 點擊另一個日期來進行交換' : '💡 長按日期方塊後，點擊其他日期可交換'}
+                    </span>
                     <button onClick={() => setIsPotentialModalOpen(true)} className="bg-yellow-100 text-yellow-600 p-2 rounded-xl border border-yellow-200 shadow-sm text-xs font-bold inline-flex items-center gap-1"><Coins size={12}/> 潛在花費</button>
                  </div>
                </div>
