@@ -12,7 +12,7 @@ import {
 } from './types';
 import { BottomNav } from './components/CommonUI';
 import { 
-  AddScheduleModal, CreateTripModal, DeleteConfirmModal, SearchErrorModal, DeleteItemConfirmModal, TripSettingsModal, PotentialExpensesModal, EditDayDetailsModal, DeleteDayConfirmModal, BackupConfirmModal
+  AddScheduleModal, CreateTripModal, DeleteConfirmModal, SearchErrorModal, DeleteItemConfirmModal, TripSettingsModal, PotentialExpensesModal, EditDayDetailsModal, DeleteDayConfirmModal, BackupConfirmModal, ScheduleDetailModal
 } from './components/Modals';
 import { BookingsView } from './components/BookingsView';
 import { ExpensesView } from './components/ExpensesView';
@@ -53,6 +53,7 @@ export default function App() {
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
+  const [viewingItem, setViewingItem] = useState<ScheduleItem | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [deleteModalTarget, setDeleteModalTarget] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
@@ -79,6 +80,7 @@ export default function App() {
 
   const currentDayObj = tripDays.find(d => d.date === selectedDate);
   const currentLocation = currentDayObj?.location || '旅行地點';
+  const currentFruit = currentDayObj?.fruit || '🍎';
 
   const getACFruit = (str: string) => {
       const fruits = ['🍎', '🍊', '🍐', '🍑', '🍒', '🥥'];
@@ -103,8 +105,6 @@ export default function App() {
       }
       return SCHEDULE_ICONS[Math.abs(hash) % SCHEDULE_ICONS.length];
   };
-
-  const currentFruit = currentDayObj?.fruit || getACFruit(currentLocation);
 
   const getMemberNames = (ids?: string[]) => {
       if (!ids || ids.length === 0) return '';
@@ -520,7 +520,7 @@ export default function App() {
                           <div className="absolute -left-[15px] top-6 z-10 flex items-center justify-center w-8 h-8 bg-beige rounded-full">
                               <span className="text-xl animate-fruit-dance drop-shadow-sm filter cursor-default select-none hover:scale-125 transition-transform">{fruitIcon}</span>
                           </div>
-                          <div onClick={() => handleEditClick(item)} className="bg-white rounded-[2rem] shadow-hard-sm border-2 border-beige-dark overflow-hidden relative transition-all cursor-pointer hover:border-sage group-hover:-translate-y-1">
+                          <div onClick={() => setViewingItem(item)} className="bg-white rounded-[2rem] shadow-hard-sm border-2 border-beige-dark overflow-hidden relative transition-all cursor-pointer hover:border-sage group-hover:-translate-y-1">
                             <div className="p-5">
                                 <div className="flex justify-between items-start mb-4">
                                     <div className="flex items-center gap-3">
@@ -632,6 +632,7 @@ export default function App() {
                </div>
               <button onClick={() => { setEditingItem(null); setIsAddModalOpen(true); }} className="fixed bottom-24 right-5 bg-cocoa text-white shadow-hard-sage active:translate-y-1 active:shadow-none z-30 flex items-center gap-2 px-4 py-3 rounded-[2rem] border-2 border-cocoa"><Plus size={20} strokeWidth={3} /><span className="font-bold tracking-widest text-base">新增</span></button>
               <AddScheduleModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSave={handleSaveItem} initialData={editingItem} currencies={currencies} members={members} currentDate={selectedDate} />
+              <ScheduleDetailModal isOpen={!!viewingItem} onClose={() => setViewingItem(null)} item={viewingItem} onEdit={() => { if(viewingItem) { setViewingItem(null); handleEditClick(viewingItem); } }} currencies={currencies} members={members} />
               <DeleteItemConfirmModal isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} onConfirm={confirmDeleteItem} title={scheduleItems.find(i => i.id === itemToDelete)?.title || '此項目'} />
               <PotentialExpensesModal isOpen={isPotentialModalOpen} onClose={() => setIsPotentialModalOpen(false)} items={scheduleItems} currencies={currencies} members={members} />
               <EditDayDetailsModal isOpen={isEditDayModalOpen} onClose={() => setIsEditDayModalOpen(false)} onConfirm={handleUpdateDayDetails} initialDate={selectedDate} initialLocation={currentLocation} initialFruit={currentFruit} />

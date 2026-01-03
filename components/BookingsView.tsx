@@ -1,7 +1,6 @@
-
 import React, { useState } from 'react';
-import { Plane, Bed, Car, Plus, MapPin, Compass, House, PenTool, Briefcase, Info, Luggage, Navigation, Leaf, Link as LinkIcon, X, Calendar as CalendarIcon, ArrowRightLeft, Users, Clock, DollarSign, Trash2, AlertCircle, Fuel } from 'lucide-react';
-import { BookingFlight, BookingAccommodation, BookingCarRental, BookingTicket, Currency, Member, ExpenseItem } from '../types';
+import { Plane, Bed, Car, Plus, MapPin, Compass, House, PenTool, Briefcase, Info, Luggage, Navigation, Leaf, Link as LinkIcon, X, Calendar as CalendarIcon, ArrowRightLeft, Users, Clock, DollarSign, Trash2 } from 'lucide-react';
+import { BookingFlight, BookingAccommodation, BookingCarRental, BookingTicket, Currency, Member } from '../types';
 import { ToggleSwitch } from './Modals';
 
 interface BookingsViewProps {
@@ -43,21 +42,17 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   const [showCarModal, setShowCarModal] = useState(false);
   const [editingCar, setEditingCar] = useState<BookingCarRental | null>(null);
 
-  // Delete Confirmation State (Replaces window.confirm)
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
-
   // Helper for Cost Calculation
   const calculateTotal = (cost: number, hasFee: boolean, feePct: number) => {
-      const base = Number(cost) || 0;
-      if (!hasFee) return base;
-      return base + (base * Number(feePct) / 100);
+      if (!hasFee) return cost;
+      return cost + (cost * Number(feePct) / 100);
   };
 
   // Helper for Exchange Rate
   const getExchangeRate = (code: string) => currencies.find(c => c.code === code)?.rate || 1;
 
   const CostPreview = ({ cost, currency, hasFee, feePct }: any) => {
-      const total = calculateTotal(cost, hasFee, feePct);
+      const total = calculateTotal(Number(cost) || 0, hasFee, Number(feePct) || 0);
       const rate = getExchangeRate(currency);
       const twd = Math.round(total * rate);
 
@@ -81,7 +76,6 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
   // --- Flight Logic ---
   const openFlightEdit = (flight?: BookingFlight) => {
-      setDeleteConfirm(false);
       if (flight) {
           setEditingFlight({ ...flight });
       } else {
@@ -124,7 +118,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
   const saveFlight = () => {
       if(editingFlight) {
-          if (flights.find(f => String(f.id) === String(editingFlight.id))) {
+          if (flights.find(f => f.id === editingFlight.id)) {
              onUpdateFlight(editingFlight);
           } else {
              onAddFlight(editingFlight);
@@ -133,8 +127,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
       }
   };
 
-  const executeDeleteFlight = () => {
-      if (editingFlight) {
+  const deleteFlight = () => {
+      if (editingFlight && window.confirm('確定刪除此航班？')) {
           onDeleteFlight(editingFlight.id);
           setShowFlightModal(false);
       }
@@ -151,7 +145,6 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
   // --- Accommodation Logic ---
   const openAccEdit = (acc?: BookingAccommodation) => {
-      setDeleteConfirm(false);
       if(acc) {
           setEditingAcc({ ...acc, photos: acc.photos || [] });
       } else {
@@ -194,44 +187,14 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
       setShowAccModal(true);
   };
 
-  // Helper to calculate nights and update state
-  const handleAccDateChange = (field: 'checkInDate' | 'checkOutDate', value: string) => {
-      if (!editingAcc) return;
-      
-      let newNights = editingAcc.nights;
-      const otherDate = field === 'checkInDate' ? editingAcc.checkOutDate : editingAcc.checkInDate;
-      
-      if (value && otherDate) {
-          const d1 = new Date(field === 'checkInDate' ? value : otherDate);
-          const d2 = new Date(field === 'checkInDate' ? otherDate : value);
-          // Calculate difference in milliseconds
-          const diffTime = d2.getTime() - d1.getTime();
-          // Convert to days (ceil to handle partial days as 1 night)
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-          // Ensure at least 1 night if dates are valid
-          if (!isNaN(diffDays)) {
-             newNights = diffDays > 0 ? diffDays : 1;
-          }
-      }
-
-      setEditingAcc({ ...editingAcc, [field]: value, nights: newNights });
-  };
-
   const saveAcc = () => {
       if(!editingAcc) return;
-      if(accommodations.find(a => String(a.id) === String(editingAcc.id))) {
+      if(accommodations.find(a => a.id === editingAcc.id)) {
           onUpdateAccommodation(editingAcc);
       } else {
           onAddAccommodation(editingAcc);
       }
       setShowAccModal(false);
-  };
-
-  const executeDeleteAcc = () => {
-      if (editingAcc) {
-          onDeleteAccommodation(editingAcc.id);
-          setShowAccModal(false);
-      }
   };
 
   const toggleAccParticipant = (id: string) => {
@@ -252,9 +215,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
   // --- Car Logic ---
   const openCarEdit = (car?: BookingCarRental) => {
-      setDeleteConfirm(false);
       if (car) {
-          setEditingCar({ ...car, expenses: car.expenses || [] });
+          setEditingCar({ ...car });
       } else {
           const initialCar: BookingCarRental = { 
               id: Date.now(),
@@ -264,81 +226,25 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
               gps: '', url: '', note: '', 
               price: 0, currency: 'TWD', hasServiceFee: false, serviceFeePercentage: 0, 
               pax: 4, participants: members.map(m => m.id),
-              hasRental: true,
-              expenses: [],
-              rentalCost: 0 // Initialize compatibility field
+              hasRental: true
           };
           setEditingCar(initialCar);
       }
       setShowCarModal(true);
   };
 
-  // Car Expense Helpers
-  const addCarExpense = () => {
-      if (!editingCar) return;
-      const newExp: ExpenseItem = { id: Date.now().toString(), name: '', amount: '', currency: editingCar.currency || 'TWD', hasServiceFee: false, serviceFeePercentage: '' };
-      setEditingCar({ ...editingCar, expenses: [...(editingCar.expenses || []), newExp] });
-  };
-
-  const updateCarExpense = (id: string, field: keyof ExpenseItem, value: any) => {
-      if (!editingCar) return;
-      const updatedExpenses = editingCar.expenses?.map(e => e.id === id ? { ...e, [field]: value } : e) || [];
-      setEditingCar({ ...editingCar, expenses: updatedExpenses });
-  };
-
-  const removeCarExpense = (id: string) => {
-      if (!editingCar) return;
-      const updatedExpenses = editingCar.expenses?.filter(e => e.id !== id) || [];
-      setEditingCar({ ...editingCar, expenses: updatedExpenses });
-  };
-
-  const getCarGrandTotal = () => {
-        if (!editingCar) return 0;
-        
-        // 1. Base Rental
-        const base = calculateTotal(Number(editingCar.price), editingCar.hasServiceFee, Number(editingCar.serviceFeePercentage));
-        
-        // 2. Expenses
-        let expensesTotal = 0;
-        const targetCurrency = editingCar.currency || 'TWD';
-        const targetRate = getExchangeRate(targetCurrency); // Rate of the rental currency relative to TWD (e.g. JPY=0.21)
-        
-        editingCar.expenses?.forEach(exp => {
-            const amt = Number(exp.amount) || 0;
-            const sub = calculateTotal(amt, exp.hasServiceFee || false, Number(exp.serviceFeePercentage));
-            
-            // Convert expense to TWD first
-            const expRate = getExchangeRate(exp.currency || 'TWD');
-            const amountInTWD = sub * expRate;
-            
-            // Convert TWD to Target Currency (Rental Currency)
-            // If JPY rate is 0.21 (1 JPY = 0.21 TWD), then 1 TWD = 1/0.21 JPY
-            expensesTotal += amountInTWD / (targetRate || 1);
-        });
-
-        // 3. Fuel (if needed, but usually kept separate in display, but for grand total lets include if user wants)
-        // Ignoring fuel for strict "Booking Cost" unless needed, but "Schedule" separates them. 
-        // For Booking view, usually we care about "Prepaid" or "Expected Rental Counter Cost". 
-        // We'll stick to Base + Extras.
-
-        return base + expensesTotal;
-  };
-
   const saveCar = () => {
       if (!editingCar) return;
-      // Sync rentalCost with price for schedule compatibility
-      const carToSave = { ...editingCar, rentalCost: editingCar.price, rentalCurrency: editingCar.currency };
-      
-      if (carRentals.find(c => String(c.id) === String(editingCar.id))) {
-          onUpdateCar(carToSave);
+      if (carRentals.find(c => c.id === editingCar.id)) {
+          onUpdateCar(editingCar);
       } else {
-          onAddCar(carToSave);
+          onAddCar(editingCar);
       }
       setShowCarModal(false);
   };
 
-  const executeDeleteCar = () => {
-      if (editingCar) {
+  const deleteCar = () => {
+      if (editingCar && window.confirm('確定刪除此租車紀錄？')) {
           onDeleteCar(editingCar.id);
           setShowCarModal(false);
       }
@@ -440,7 +346,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                                 <span className="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md inline-block mt-1 w-max ml-auto">{flight.destCity}</span>
                                             </div>
                                         </div>
-                                        <div className="flex items-center justify-between text-[11px] font-black text-gray-500 bg-white border border-dashed border-gray-300 rounded-lg py-1.5 px-4 font-mono">
+                                        <div className="flex items-center justify-between text-[10px] font-bold text-gray-400 bg-white border border-dashed border-gray-300 rounded-lg py-1 px-4">
                                             <span>DEP: {displayDate}</span>
                                             <span>ARR: {displayArrDate}</span>
                                         </div>
@@ -461,7 +367,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                                     <div className="w-full flex items-center gap-1">
                                                         <div className="w-1 h-1 rounded-full bg-gray-300"></div>
                                                         <div className="h-0.5 flex-1 bg-gray-300 relative">
-                                                            <Plane className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 bg-gray-50 rounded-full border border-gray-200 p-0.5 -rotate-90" />
+                                                            <ArrowRightLeft className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 bg-gray-50 rounded-full p-0.5" />
                                                         </div>
                                                         <div className="w-1 h-1 rounded-full bg-gray-300"></div>
                                                     </div>
@@ -472,7 +378,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                                     <span className="text-xs font-bold text-sage bg-sage-light px-2 py-0.5 rounded-md inline-block mt-1 w-max ml-auto">{flight.originCity}</span>
                                                 </div>
                                             </div>
-                                            <div className="flex items-center justify-between text-[11px] font-black text-gray-500 bg-white border border-dashed border-gray-300 rounded-lg py-1.5 px-4 font-mono">
+                                            <div className="flex items-center justify-between text-[10px] font-bold text-gray-400 bg-white border border-dashed border-gray-300 rounded-lg py-1 px-4">
                                                 <span>DEP: {displayReturnDate}</span>
                                                 <span>ARR: {displayReturnArrDate}</span>
                                             </div>
@@ -511,7 +417,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                                  <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">TOTAL COST</span>
                                                  <div className="flex flex-col">
                                                      <div className="flex items-baseline gap-1">
-                                                         <span className="text-sm font-black text-cocoa font-mono">{flight.currency} {Math.round(totalCost).toLocaleString()}</span>
+                                                         <span className="text-sm font-black text-cocoa font-mono">{flight.currency} {totalCost.toLocaleString()}</span>
                                                          {flight.currency !== 'TWD' && (
                                                              <span className="text-[10px] text-gray-400 font-bold ml-1">
                                                                  (≈ TWD {Math.round(totalCost * getExchangeRate(flight.currency)).toLocaleString()})
@@ -854,6 +760,17 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             )}
                         </div>
 
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm">
+                                <label className="text-[10px] font-bold text-gray-400 block mb-1">託運行李</label>
+                                <input value={editingFlight.checkedBag || ''} onChange={e => setEditingFlight({...editingFlight, checkedBag: e.target.value})} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="23kg"/>
+                            </div>
+                            <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm">
+                                <label className="text-[10px] font-bold text-gray-400 block mb-1">手提行李</label>
+                                <input value={editingFlight.carryOnBag || ''} onChange={e => setEditingFlight({...editingFlight, carryOnBag: e.target.value})} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="7kg"/>
+                            </div>
+                        </div>
+
                         <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark space-y-3">
                             <div className="flex gap-2">
                                <div className="flex-[2]">
@@ -904,7 +821,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
                     <div className="flex gap-3 mt-6">
                         {editingFlight.id && flights.find(f => f.id === editingFlight.id) && (
-                            <button onClick={executeDeleteFlight} type="button" className="px-6 py-3 rounded-2xl bg-red-50 text-red-400 font-black border-2 border-red-100 flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
+                            <button onClick={deleteFlight} type="button" className="px-6 py-3 rounded-2xl bg-red-50 text-red-400 font-black border-2 border-red-100 flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
                                 <Trash2 size={20}/> 刪除
                             </button>
                         )}
@@ -1025,84 +942,12 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                </div>
                             </div>
 
-                            <div className="flex items-center justify-between">
-                                <ToggleSwitch 
-                                    checked={editingCar.hasServiceFee} 
-                                    onChange={(checked) => setEditingCar({...editingCar, hasServiceFee: checked})} 
-                                    label="額外稅金/手續費" 
-                                    colorClass="bg-blue-400" 
-                                />
-                                {editingCar.hasServiceFee && (
-                                    <div className="flex items-center gap-1">
-                                        <input type="number" value={editingCar.serviceFeePercentage || ''} onChange={(e) => setEditingCar({...editingCar, serviceFeePercentage: Number(e.target.value)})} placeholder="%" className="w-12 bg-transparent text-xs font-bold text-center outline-none text-cocoa border-b border-gray-300"/>
-                                        <span className="text-xs text-gray-400 font-bold">%</span>
-                                    </div>
-                                )}
-                             </div>
-
-                             {/* Extra Expenses Section */}
-                             <div className="pt-2 border-t border-dashed border-blue-200 mt-2">
-                                <div className="flex justify-between items-center mb-2">
-                                    <div className="text-xs font-bold text-gray-500 flex items-center gap-1"><Plus size={12}/> 額外支出 (過路費/保險等)</div>
-                                    <button onClick={addCarExpense} className="text-[10px] bg-white border border-blue-200 text-blue-500 px-2 py-1 rounded-lg font-bold shadow-sm hover:bg-blue-50">新增項目</button>
-                                </div>
-                                {editingCar.expenses?.map(exp => (
-                                    <div key={exp.id} className="bg-gray-50 p-3 rounded-xl border border-beige-dark shadow-sm mb-2">
-                                        <div className="flex gap-2 mb-2">
-                                            <input value={exp.name} onChange={e => updateCarExpense(exp.id, 'name', e.target.value)} placeholder="項目名稱" className="flex-1 bg-white p-2 rounded-lg border border-beige-dark text-xs font-bold text-cocoa outline-none focus:border-blue-300"/>
-                                            <button onClick={() => removeCarExpense(exp.id)} className="text-red-400 p-1 hover:text-red-600 transition-colors"><X size={16}/></button>
-                                        </div>
-                                        <div className="flex gap-2 items-center">
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex gap-1">
-                                                    <input type="number" value={exp.amount} onChange={e => updateCarExpense(exp.id, 'amount', e.target.value)} placeholder="金額" className="flex-1 bg-white p-2 rounded-lg border border-beige-dark text-xs font-bold text-cocoa outline-none focus:border-blue-300 min-w-0"/>
-                                                    <div className="w-24 flex-shrink-0">
-                                                        <select value={exp.currency || 'TWD'} onChange={e => updateCarExpense(exp.id, 'currency', e.target.value)} className="w-full bg-white p-2 rounded-lg border border-beige-dark outline-none text-xs font-bold text-cocoa">
-                                                            <option value="TWD">TWD</option>
-                                                            {currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="mt-2 flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <ToggleSwitch 
-                                                    checked={exp.hasServiceFee || false} 
-                                                    onChange={(checked) => updateCarExpense(exp.id, 'hasServiceFee', checked)} 
-                                                    label="含稅" 
-                                                    colorClass="bg-blue-300"
-                                                />
-                                                {exp.hasServiceFee && (
-                                                    <div className="flex items-center bg-white px-1.5 py-0.5 rounded border border-beige-dark">
-                                                        <input type="number" value={exp.serviceFeePercentage || ''} onChange={e => updateCarExpense(exp.id, 'serviceFeePercentage', e.target.value)} className="w-6 bg-transparent text-[10px] font-bold text-right outline-none" placeholder="0"/>
-                                                        <span className="text-[10px] text-gray-400 ml-0.5">%</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            {Number(exp.amount) > 0 && (
-                                                <div className="text-[10px] font-black text-blue-500">
-                                                    約 TWD ${Math.round(calculateTotal(Number(exp.amount), exp.hasServiceFee || false, Number(exp.serviceFeePercentage)) * (currencies.find(c => c.code === exp.currency)?.rate || (exp.currency === 'TWD' ? 1 : 1))).toLocaleString()}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                             </div>
-
-                            {/* Total Display */}
-                            <div className="mt-2 bg-gray-50 p-3 rounded-xl border border-dashed border-gray-200 space-y-1">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">總計 (含稅/雜支)</span>
-                                    <span className="text-sm font-black text-cocoa font-mono">{editingCar.currency} {Math.round(getCarGrandTotal()).toLocaleString()}</span>
-                                </div>
-                                {editingCar.currency !== 'TWD' && (
-                                    <div className="flex justify-between items-center border-t border-gray-100 pt-1">
-                                        <span className="text-[10px] font-black text-sage uppercase tracking-widest">約台幣 (TWD)</span>
-                                        <span className="text-sm font-black text-sage font-mono">${Math.round(getCarGrandTotal() * getExchangeRate(editingCar.currency)).toLocaleString()}</span>
-                                    </div>
-                                )}
-                            </div>
+                            <CostPreview 
+                                cost={editingCar.price} 
+                                currency={editingCar.currency} 
+                                hasFee={editingCar.hasServiceFee} 
+                                feePct={editingCar.serviceFeePercentage} 
+                            />
 
                             <div><label className="text-[10px] font-bold text-gray-400 block mb-2">分攤成員</label><div className="flex flex-wrap gap-2">{members.map(m => (<button key={m.id} onClick={() => toggleCarParticipant(m.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${editingCar.participants?.includes(m.id) ? 'bg-sage text-white border-sage' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{m.name}</button>))}</div></div>
                         </div>
@@ -1111,7 +956,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                     </div>
                     <div className="flex gap-3 mt-6">
                         {carRentals.find(c => c.id === editingCar.id) && (
-                            <button onClick={executeDeleteCar} type="button" className="px-6 py-3 rounded-2xl bg-red-50 text-red-400 font-black border-2 border-red-100 flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
+                            <button onClick={deleteCar} type="button" className="px-6 py-3 rounded-2xl bg-red-50 text-red-400 font-black border-2 border-red-100 flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
                                 <Trash2 size={20}/> 刪除
                             </button>
                         )}
