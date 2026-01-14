@@ -69,6 +69,7 @@ export default function App() {
   const [swappingFromIndex, setSwappingFromIndex] = useState<number | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const ignoreClickRef = useRef(false); // Ref to ignore the immediate click after long press
+  const touchStartPos = useRef<{x: number, y: number} | null>(null); // To track movement delta
 
   const dates = tripDays.map((day, i) => {
     const d = new Date(day.date);
@@ -329,8 +330,11 @@ export default function App() {
     if (window.navigator.vibrate) window.navigator.vibrate([30, 50, 30]);
   };
 
-  const handleDayTouchStart = (idx: number) => {
+  const handleDayTouchStart = (idx: number, e: React.TouchEvent) => {
     ignoreClickRef.current = false;
+    // Capture start position to prevent micro-movements from killing the timer
+    touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
     
     longPressTimer.current = setTimeout(() => {
@@ -345,13 +349,20 @@ export default function App() {
         clearTimeout(longPressTimer.current);
         longPressTimer.current = null;
     }
+    // Don't clear touchStartPos here immediately if we need it later, but generally fine
   };
 
-  // Cancel long press on scroll
-  const handleDayTouchMove = () => {
-      if (longPressTimer.current) {
-          clearTimeout(longPressTimer.current);
-          longPressTimer.current = null;
+  // Cancel long press on scroll ONLY if movement is significant
+  const handleDayTouchMove = (e: React.TouchEvent) => {
+      if (longPressTimer.current && touchStartPos.current) {
+          const dx = Math.abs(e.touches[0].clientX - touchStartPos.current.x);
+          const dy = Math.abs(e.touches[0].clientY - touchStartPos.current.y);
+          
+          // Allow 10px of movement before cancelling to handle shaky fingers/sensitive screens
+          if (dx > 10 || dy > 10) {
+              clearTimeout(longPressTimer.current);
+              longPressTimer.current = null;
+          }
       }
   };
 
@@ -467,10 +478,13 @@ export default function App() {
                         <div 
                             key={date.date} 
                             data-day-index={idx}
-                            onTouchStart={() => handleDayTouchStart(idx)}
+                            onTouchStart={(e) => handleDayTouchStart(idx, e)}
                             onTouchMove={handleDayTouchMove}
                             onTouchEnd={handleDayTouchEnd}
-                            onMouseDown={() => handleDayTouchStart(idx)} // Support mouse long press
+                            onMouseDown={(e) => { 
+                                // Support mouse long press similarly (basic version)
+                                handleDayTouchStart(idx, { touches: [{ clientX: e.clientX, clientY: e.clientY }] } as any) 
+                            }} 
                             onMouseUp={handleDayTouchEnd}
                             onClick={() => handleDayItemClick(idx, date.date)}
                             className={`flex-shrink-0 flex flex-col items-center justify-center w-[3.5rem] h-16 rounded-2xl transition-all snap-center cursor-pointer relative overflow-hidden select-none
