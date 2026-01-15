@@ -2,7 +2,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import { getAuth } from 'firebase/auth';
 
 // Hardcoded Firebase configuration as requested for robust connection
 const firebaseConfig = {
@@ -17,7 +16,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
-const auth = getAuth(app);
 
 // Enable Offline Persistence for a smoother travel experience
 if (typeof window !== 'undefined') {
@@ -30,4 +28,4 @@ if (typeof window !== 'undefined') {
   });
 }
 
-export { db, storage, auth };
+export { db, storage };

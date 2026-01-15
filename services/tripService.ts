@@ -1,14 +1,14 @@
 
-import { db, auth } from '../firebase';
+import { db } from '../firebase';
 import { 
   doc, 
   setDoc, 
   getDoc, 
+  updateDoc, 
   onSnapshot, 
   arrayUnion, 
   Timestamp 
 } from 'firebase/firestore';
-import { signInAnonymously } from 'firebase/auth';
 
 /**
  * Utility to recursively remove undefined properties from an object.
@@ -40,23 +40,11 @@ export const generateTripCode = (): string => {
   return code;
 };
 
-const ensureAuth = async () => {
-  if (!auth.currentUser) {
-    try {
-      await signInAnonymously(auth);
-    } catch (error) {
-      console.error("Authentication failed:", error);
-      throw new Error("無法連線至資料庫，請檢查網路設定");
-    }
-  }
-};
-
 /**
  * Creates a new trip document with a unique 6-digit ID.
  * Performs collision check to ensure ID uniqueness.
  */
 export const createTrip = async (name: string): Promise<string> => {
-  await ensureAuth();
   try {
     let code = generateTripCode();
     let collision = true;
@@ -83,7 +71,7 @@ export const createTrip = async (name: string): Promise<string> => {
       members: [{ id: '1', name: '我', fruit: '🍎' }],
       flights: [],
       accommodations: [],
-      carRentals: [], 
+      carRentals: [], // Changed from carRental object to carRentals array
       tickets: [],
       expenses: [],
       journals: [],
@@ -109,7 +97,6 @@ export const createTrip = async (name: string): Promise<string> => {
  * Duplicates an existing trip with a new code.
  */
 export const duplicateTrip = async (originalTripId: string): Promise<string> => {
-  await ensureAuth();
   try {
     const originalRef = doc(db, 'trips', originalTripId);
     const snap = await getDoc(originalRef);
@@ -155,7 +142,6 @@ export const duplicateTrip = async (originalTripId: string): Promise<string> => 
  * Joins an existing trip by its 6-digit code.
  */
 export const joinTripByCode = async (code: string): Promise<any> => {
-  await ensureAuth();
   try {
     const cleanCode = code.trim().toUpperCase();
     if (!cleanCode) throw new Error("請輸入代碼");
@@ -178,48 +164,34 @@ export const joinTripByCode = async (code: string): Promise<any> => {
  * Subscribes to real-time updates for a specific trip.
  */
 export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) => {
-  let internalUnsub: (() => void) | undefined;
-  let isActive = true;
+  try {
+    const tripRef = doc(db, 'trips', tripId);
+    
+    const unsubscribe = onSnapshot(tripRef, (docSnap) => {
+      if (docSnap.exists()) {
+        onUpdate(docSnap.data());
+      }
+    }, (error) => {
+      console.error("Real-time sync error:", error);
+    });
 
-  const init = async () => {
-    try {
-      await ensureAuth();
-      if (!isActive) return;
-      
-      const tripRef = doc(db, 'trips', tripId);
-      
-      internalUnsub = onSnapshot(tripRef, (docSnap) => {
-        if (docSnap.exists()) {
-          onUpdate(docSnap.data());
-        }
-      }, (error) => {
-        console.error("Real-time sync error:", error);
-      });
-    } catch (error) {
-      console.error("Failed to subscribe to trip:", error);
-    }
-  };
-
-  init();
-
-  return () => {
-    isActive = false;
-    if (internalUnsub) {
-      internalUnsub();
-    }
-  };
+    return unsubscribe;
+  } catch (error) {
+    console.error("Failed to subscribe to trip:", error);
+    return () => {};
+  }
 };
 
 /**
  * Adds an item to a specific array field in the trip document atomically.
  */
 export const addTripItem = async (tripId: string, collectionName: string, item: any): Promise<void> => {
-  await ensureAuth();
   try {
     const tripRef = doc(db, 'trips', tripId);
     // Firestore does not allow 'undefined' values. Clean the item first.
     const cleanedItem = cleanData(item);
     // Use setDoc with merge: true instead of updateDoc to implicitly create the document if it's missing (upsert)
+    // This fixes "No document to update" errors if the trip was deleted but local state still references it.
     await setDoc(tripRef, {
       [collectionName]: arrayUnion(cleanedItem)
     }, { merge: true });
@@ -233,7 +205,6 @@ export const addTripItem = async (tripId: string, collectionName: string, item: 
  * Updates a specific field or replaces a full list in the trip document.
  */
 export const updateTripField = async (tripId: string, field: string, value: any): Promise<void> => {
-  await ensureAuth();
   try {
     const tripRef = doc(db, 'trips', tripId);
     // Firestore does not allow 'undefined' values. Clean the value first.

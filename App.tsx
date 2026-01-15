@@ -1,305 +1,226 @@
-
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
-  MapPin, ArrowRight, Plane, Plus, X, Copy, BookOpen, ChevronLeft, Trash2,
-  ChevronUp, ChevronDown, Navigation, StickyNote, Settings, AlertCircle, 
-  CalendarCheck, Coins, Edit3, Users, Luggage, Briefcase, Bed, Car, Coffee, Utensils, Fuel, Ticket, Clock
+  Plane, Plus, ArrowRight, BookOpen, Trash2, ChevronLeft, Copy, 
+  CalendarCheck, Edit3, Coins, Settings, Share
 } from 'lucide-react';
-
 import { 
-  Tab, ViewState, ScheduleItem, SavedTrip, Currency, Member, THEME, TripDay,
-  BookingFlight, BookingAccommodation, BookingCarRental, BookingTicket, Expense, Journal, TodoItem
+  createTrip, joinTripByCode, subscribeToTrip, updateTripField, addTripItem, duplicateTrip 
+} from './services/tripService';
+import { 
+  TripDay, ScheduleItem, BookingFlight, BookingAccommodation, 
+  BookingCarRental, BookingTicket, Expense, Journal, TodoItem, Member, Currency, 
+  SavedTrip, Tab, ViewState, THEME, TripDate
 } from './types';
-import { BottomNav } from './components/CommonUI';
 import { 
-  AddScheduleModal, CreateTripModal, DeleteConfirmModal, SearchErrorModal, DeleteItemConfirmModal, TripSettingsModal, PotentialExpensesModal, EditDayDetailsModal, DeleteDayConfirmModal, BackupConfirmModal, ScheduleDetailModal
+  CreateTripModal, DeleteConfirmModal, SearchErrorModal, DeleteDayConfirmModal, 
+  TripSettingsModal, BackupConfirmModal, PotentialExpensesModal, EditDayDetailsModal, AddScheduleModal, ScheduleDetailModal
 } from './components/Modals';
+import { ScheduleView } from './components/ScheduleView';
 import { BookingsView } from './components/BookingsView';
 import { ExpensesView } from './components/ExpensesView';
 import { JournalView } from './components/JournalView';
 import { PlanningView } from './components/PlanningView';
 import { MembersView } from './components/MembersView';
-import { createTrip, joinTripByCode, subscribeToTrip, addTripItem, updateTripField, duplicateTrip } from './services/tripService';
+import { BottomNav } from './components/UI';
+
+const generateDates = (days: TripDay[]): TripDate[] => {
+    return days.map((d, index) => {
+        const dateObj = new Date(d.date);
+        return {
+            ...d,
+            dayNum: index + 1,
+            month: dateObj.getMonth() + 1,
+            day: dateObj.getDate(),
+            weekday: dateObj.toLocaleDateString('zh-TW', { weekday: 'short' }),
+            full: d.date
+        };
+    });
+};
 
 export default function App() {
+  // State
   const [view, setView] = useState<ViewState>('landing');
-  const [activeTab, setActiveTab] = useState<Tab>('schedule');
-  const [selectedDate, setSelectedDate] = useState('');
-  const scrollRef = useRef<HTMLDivElement>(null);
-  
-  const [loading, setLoading] = useState(true);
-  const [copyFeedback, setCopyFeedback] = useState(false);
-  
+  const [loading, setLoading] = useState(false);
   const [currentTripId, setCurrentTripId] = useState<string>('');
   const [currentTripName, setCurrentTripName] = useState('');
-  const [savedTrips, setSavedTrips] = useState<SavedTrip[]>([]);
+  const [activeTab, setActiveTab] = useState<Tab>('schedule');
   
+  // Trip Data State
   const [tripDays, setTripDays] = useState<TripDay[]>([]);
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
-  const [bookingFlights, setBookingFlights] = useState<BookingFlight[]>([]);
-  const [bookingAccommodations, setBookingAccommodations] = useState<BookingAccommodation[]>([]);
-  const [bookingCarRentals, setBookingCarRentals] = useState<BookingCarRental[]>([]);
-  const [bookingTickets, setBookingTickets] = useState<BookingTicket[]>([]);
+  const [members, setMembers] = useState<Member[]>([]);
+  const [flights, setFlights] = useState<BookingFlight[]>([]);
+  const [accommodations, setAccommodations] = useState<BookingAccommodation[]>([]);
+  const [carRentals, setCarRentals] = useState<BookingCarRental[]>([]);
+  const [tickets, setTickets] = useState<BookingTicket[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [journals, setJournals] = useState<Journal[]>([]);
-  const [planningLists, setPlanningLists] = useState<{
-      todo: TodoItem[];
-      packing: TodoItem[];
-      wish: TodoItem[];
-      shopping: TodoItem[];
-  }>({ todo: [], packing: [], wish: [], shopping: [] });
+  const [lists, setLists] = useState<{ todo: TodoItem[]; packing: TodoItem[]; wish: TodoItem[]; shopping: TodoItem[] }>({ todo: [], packing: [], wish: [], shopping: [] });
   const [currencies, setCurrencies] = useState<Currency[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
+
+  // Local State
+  const [savedTrips, setSavedTrips] = useState<SavedTrip[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>('');
   
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
-  const [viewingItem, setViewingItem] = useState<ScheduleItem | null>(null);
+  // UI State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [deleteModalTarget, setDeleteModalTarget] = useState<string | null>(null);
-  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [copyFeedback, setCopyFeedback] = useState(false);
+  
+  // Settings / Modals
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [isPotentialModalOpen, setIsPotentialModalOpen] = useState(false);
   const [isEditDayModalOpen, setIsEditDayModalOpen] = useState(false);
   const [isDeleteDayModalOpen, setIsDeleteDayModalOpen] = useState(false);
-  const [isBackupConfirmOpen, setIsBackupConfirmOpen] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
+  const [isPotentialModalOpen, setIsPotentialModalOpen] = useState(false);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<ScheduleItem | null>(null);
 
-  // --- Optimized Swap State ---
-  const [swappingFromIndex, setSwappingFromIndex] = useState<number | null>(null);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const ignoreClickRef = useRef(false); // Ref to ignore the immediate click after long press
-  const touchStartPos = useRef<{x: number, y: number} | null>(null); // To track movement delta
-
-  const dates = tripDays.map((day, i) => {
-    const d = new Date(day.date);
-    const month = d.getMonth() + 1;
-    const dateNum = d.getDate();
-    const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
-    return { ...day, dayNum: i + 1, month, day: dateNum, weekday };
-  });
-
-  const currentDayObj = tripDays.find(d => d.date === selectedDate);
-  const currentLocation = currentDayObj?.location || '旅行地點';
-  const currentFruit = currentDayObj?.fruit || '🍎';
-
-  const getACFruit = (str: string) => {
-      const fruits = ['🍎', '🍊', '🍐', '🍑', '🍒', '🥥'];
-      if (!str) return '✈️';
-      let hash = 0;
-      for (let i = 0; i < str.length; i++) {
-          hash = str.charCodeAt(i) + ((hash << 5) - hash);
-      }
-      return fruits[Math.abs(hash) % fruits.length];
-  };
-
-  const SCHEDULE_ICONS = [
-      '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈',
-      '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆', '🥕',
-      '🌽', '🌶️', '🫑', '🥒', '🥬', '🥦', '🍄', '🥜', '🌰', '🍠'
-  ];
-
-  const getScheduleIcon = (id: string) => {
-      let hash = 0;
-      for (let i = 0; i < id.length; i++) {
-          hash = id.charCodeAt(i) + ((hash << 5) - hash);
-      }
-      return SCHEDULE_ICONS[Math.abs(hash) % SCHEDULE_ICONS.length];
-  };
-
-  const getMemberNames = (ids?: string[]) => {
-      if (!ids || ids.length === 0) return '';
-      return ids.map(id => members.find(m => m.id === id)?.name).filter(Boolean).join(', ');
-  };
-
+  // Load Saved Trips
   useEffect(() => {
-    const storedTrips = localStorage.getItem('trip_mochi_index');
-    if (storedTrips) setSavedTrips(JSON.parse(storedTrips));
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const urlTripCode = params.get('tripCode');
-      if (urlTripCode) handleJoinTrip(urlTripCode);
-      else setLoading(false);
-    } catch (e) {
-      setLoading(false);
-    }
+      const loaded = localStorage.getItem('saved_trips');
+      if (loaded) setSavedTrips(JSON.parse(loaded));
   }, []);
 
+  // Subscribe to Trip
   useEffect(() => {
-      if (!currentTripId) return;
-      const unsubscribe = subscribeToTrip(currentTripId, (data) => {
-          setTripDays(data.tripDays || []);
-          if (!selectedDate && data.tripDays?.length > 0) setSelectedDate(data.tripDays[0].date);
-          else if (data.tripDays?.length > 0 && !data.tripDays.find((d: TripDay) => d.date === selectedDate)) setSelectedDate(data.tripDays[0].date);
-          setScheduleItems(data.scheduleItems || []);
-          setBookingFlights(data.flights || []);
-          setBookingAccommodations(data.accommodations || []);
-          const cars = data.carRentals || (data.carRental && data.carRental.company ? [data.carRental] : []);
-          setBookingCarRentals(cars);
-          setBookingTickets(data.tickets || []);
-          setExpenses(data.expenses || []);
-          setJournals(data.journals || []);
-          setPlanningLists(data.planning || { todo: [], packing: [], wish: [], shopping: [] });
-          setCurrencies(data.currencies || []);
-          setMembers(data.members || []);
-          setCurrentTripName(data.name || '未命名行程');
+      if (currentTripId) {
+          const unsubscribe = subscribeToTrip(currentTripId, (data) => {
+              if (data) {
+                  setCurrentTripName(data.name);
+                  setTripDays(data.tripDays || []);
+                  setScheduleItems(data.scheduleItems || []);
+                  setMembers(data.members || []);
+                  setFlights(data.flights || []);
+                  setAccommodations(data.accommodations || []);
+                  setCarRentals(data.carRentals || []);
+                  setTickets(data.tickets || []);
+                  setExpenses(data.expenses || []);
+                  setJournals(data.journals || []);
+                  setLists(data.planning || { todo: [], packing: [], wish: [], shopping: [] });
+                  setCurrencies(data.currencies || []);
+                  
+                  // Set initial selected date if empty
+                  if (!selectedDate && data.tripDays && data.tripDays.length > 0) {
+                      setSelectedDate(data.tripDays[0].date);
+                  }
+              }
+          });
+          return () => unsubscribe();
+      }
+  }, [currentTripId]);
+
+  // Derived State
+  const dates = useMemo(() => generateDates(tripDays), [tripDays]);
+  const currentDayData = tripDays.find(d => d.date === selectedDate);
+  const currentFruit = currentDayData?.fruit || '🍎';
+  const currentLocation = currentDayData?.location || '';
+  const currentItinerary = scheduleItems.filter(item => item.date === selectedDate).sort((a, b) => a.time.localeCompare(b.time));
+
+  // Handlers
+  const handleCreateTrip = async (name: string) => {
+      setLoading(true);
+      try {
+          const id = await createTrip(name);
+          const newSaved = [...savedTrips, { id, name, date: new Date().toISOString() }];
+          setSavedTrips(newSaved);
+          localStorage.setItem('saved_trips', JSON.stringify(newSaved));
+          
+          setCurrentTripId(id);
+          setView('app');
+          setIsCreateModalOpen(false);
+      } catch (e) {
+          setSearchError('建立失敗，請重試');
+      } finally {
           setLoading(false);
-      });
-      return () => unsubscribe();
-  }, [currentTripId, selectedDate]);
-
-  useEffect(() => {
-      if (savedTrips.length > 0) localStorage.setItem('trip_mochi_index', JSON.stringify(savedTrips));
-  }, [savedTrips]);
-
-  const handleCreateTrip = async (customName: string) => {
-    setIsCreateModalOpen(false); setLoading(true);
-    try {
-        const newId = await createTrip(customName);
-        const today = new Date().toISOString().split('T')[0];
-        setSavedTrips(prev => [{ id: newId, name: customName, date: today }, ...prev]);
-        openTrip(newId, customName);
-    } catch (e) {
-        alert('建立失敗'); setLoading(false);
-    }
+      }
   };
 
-  const handleJoinTrip = async (inputDetail: string) => {
-    if(!inputDetail) return; setIsSearching(true);
-    const cleanId = inputDetail.trim().toUpperCase();
-    try {
-        const tripData = await joinTripByCode(cleanId);
-        if (!savedTrips.find(t => t.id === cleanId)) setSavedTrips(prev => [{ id: cleanId, name: tripData.name, date: new Date().toISOString().split('T')[0] }, ...prev]);
-        openTrip(cleanId, tripData.name);
-    } catch (e) { setSearchError('找不到此行程碼'); } finally { setIsSearching(false); }
-  };
-
-  const handleDeleteTrip = () => {
-    if (!deleteModalTarget) return;
-    setSavedTrips(prev => prev.filter(t => t.id !== deleteModalTarget));
-    setDeleteModalTarget(null);
+  const handleJoinTrip = async (code: string) => {
+      if (!code) return;
+      setLoading(true);
+      try {
+          const data = await joinTripByCode(code);
+          if (data) {
+              const exists = savedTrips.find(t => t.id === data.id);
+              if (!exists) {
+                  const newSaved = [...savedTrips, { id: data.id, name: data.name, date: new Date().toISOString() }];
+                  setSavedTrips(newSaved);
+                  localStorage.setItem('saved_trips', JSON.stringify(newSaved));
+              }
+              setCurrentTripId(data.id);
+              setView('app');
+          }
+      } catch (e) {
+          setSearchError('找不到此行程，請檢查代碼');
+      } finally {
+          setLoading(false);
+      }
   };
 
   const openTrip = (id: string, name: string) => {
-    setCurrentTripId(id); setCurrentTripName(name);
-    try {
-      const newUrl = `${window.location.pathname}?tripCode=${id}`;
-      window.history.pushState({ path: newUrl }, '', newUrl);
-    } catch (e) {}
-    setView('app'); window.scrollTo(0, 0);
+      setCurrentTripId(id);
+      setView('app');
+  };
+
+  const handleDeleteTrip = () => {
+      if (deleteModalTarget) {
+          const newSaved = savedTrips.filter(t => t.id !== deleteModalTarget);
+          setSavedTrips(newSaved);
+          localStorage.setItem('saved_trips', JSON.stringify(newSaved));
+          setDeleteModalTarget(null);
+      }
   };
 
   const handleBackToHome = () => {
-      setView('landing'); setCurrentTripId('');
-      try { window.history.pushState({ path: window.location.pathname }, '', window.location.pathname); } catch (e) {}
+      setView('landing');
+      setCurrentTripId('');
+      setActiveTab('schedule');
   };
 
   const handleShare = () => {
-    navigator.clipboard.writeText(currentTripId).then(() => {
-      setCopyFeedback(true); setTimeout(() => setCopyFeedback(false), 2000);
-    });
+      navigator.clipboard.writeText(currentTripId);
+      setCopyFeedback(true);
+      setTimeout(() => setCopyFeedback(false), 2000);
   };
 
-  const handleOpenBackupModal = () => {
-      setIsBackupConfirmOpen(true);
+  // Schedule Handlers
+  const handleAddItem = async (item: Omit<ScheduleItem, 'id'>) => {
+      const newItem = { ...item, id: Date.now().toString() };
+      await addTripItem(currentTripId, 'scheduleItems', newItem);
+      setShowAddModal(false);
   };
 
-  const executeBackupTrip = async () => {
-    if (!currentTripId) return;
-    setLoading(true);
-    setIsBackupConfirmOpen(false);
-    try {
-        const newId = await duplicateTrip(currentTripId);
-        const newName = `${currentTripName} (副本)`;
-        const today = new Date().toISOString().split('T')[0];
-        setSavedTrips(prev => [{ id: newId, name: newName, date: today }, ...prev]);
-        setIsSettingsModalOpen(false);
-        alert(`行程副本建立成功！代碼：${newId}`);
-    } catch(e) {
-        console.error(e);
-        alert("建立副本失敗");
-    } finally {
-        setLoading(false);
-    }
-  }
-
-  const handleAddExpense = (newExpense: Omit<Expense, 'id'>) => addTripItem(currentTripId, 'expenses', { ...newExpense, id: Date.now() });
-  const handleUpdateExpense = (updated: Expense) => updateTripField(currentTripId, 'expenses', expenses.map(e => e.id === updated.id ? updated : e));
-  const handleDeleteExpense = (id: number) => updateTripField(currentTripId, 'expenses', expenses.filter(e => e.id !== id));
-  const handleAddJournal = (newJournal: Journal) => addTripItem(currentTripId, 'journals', newJournal);
-  const handleUpdateJournal = (updated: Journal) => updateTripField(currentTripId, 'journals', journals.map(j => j.id === updated.id ? updated : j));
-  const handleDeleteJournal = (id: number) => updateTripField(currentTripId, 'journals', journals.filter(j => j.id !== id));
-  const handleAddPlanning = (type: 'todo' | 'packing' | 'wish' | 'shopping', text: string, assignee: string | string[], image?: string, note?: string, url?: string) => {
-      const newItem = { id: Date.now(), text, assignee, completedBy: [], done: false, image, note, url };
-      updateTripField(currentTripId, 'planning', { ...planningLists, [type]: [...planningLists[type], newItem] });
-  };
-  const handleTogglePlanning = (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number, memberName?: string) => {
-      const newLists = { ...planningLists, [type]: planningLists[type].map(item => { if (item.id !== id) return item; if (type === 'todo' && (item.assignee === '全體' || (Array.isArray(item.assignee) && item.assignee.length > 1))) { if (!memberName) return item; const currentCompleted = item.completedBy || []; const newCompleted = currentCompleted.includes(memberName) ? currentCompleted.filter(m => m !== memberName) : [...currentCompleted, memberName]; let targets: string[] = []; if (item.assignee === '全體') targets = members.map(m => m.name); else if (Array.isArray(item.assignee)) targets = item.assignee; else targets = [item.assignee as string]; const allDone = targets.every(t => newCompleted.includes(t)); return { ...item, completedBy: newCompleted, done: allDone }; } else { return { ...item, done: !item.done }; } }) };
-      updateTripField(currentTripId, 'planning', newLists);
-  };
-  const handleUpdatePlanning = (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number, updates: Partial<TodoItem>) => updateTripField(currentTripId, 'planning', { ...planningLists, [type]: planningLists[type].map(item => item.id === id ? { ...item, ...updates } : item) });
-  const handleDeletePlanning = (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number) => updateTripField(currentTripId, 'planning', { ...planningLists, [type]: planningLists[type].filter(item => item.id !== id) });
-  
-  const handleAddMember = (name: string, avatar: string | null) => {
-      const fruits = [
-          '🍎', '🍏', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', 
-          '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆',
-          '🥕', '🌽', '🌶️', '🫑', '🥒', '🥬', '🥦', '🍄', '🥜', '🌰'
-      ];
-      const randomFruit = fruits[Math.floor(Math.random() * fruits.length)];
-      addTripItem(currentTripId, 'members', { id: Date.now().toString(), name, avatar, fruit: randomFruit });
-  };
-  
-  const handleUpdateMember = (updated: Member) => updateTripField(currentTripId, 'members', members.map(m => m.id === updated.id ? updated : m));
-  const handleDeleteMember = (id: string) => { if (members.length > 1) updateTripField(currentTripId, 'members', members.filter(m => m.id !== id)); };
-  
-  const handleAddFlight = (flight: BookingFlight) => addTripItem(currentTripId, 'flights', flight);
-  const handleUpdateFlight = (updated: BookingFlight) => updateTripField(currentTripId, 'flights', bookingFlights.map(f => String(f.id) === String(updated.id) ? updated : f));
-  const handleDeleteFlight = (id: number) => updateTripField(currentTripId, 'flights', bookingFlights.filter(f => String(f.id) !== String(id)));
-  
-  const handleAddCar = (car: BookingCarRental) => addTripItem(currentTripId, 'carRentals', car);
-  const handleUpdateCar = (updated: BookingCarRental) => updateTripField(currentTripId, 'carRentals', bookingCarRentals.map(c => String(c.id) === String(updated.id) ? updated : c));
-  const handleDeleteCar = (id: number) => updateTripField(currentTripId, 'carRentals', bookingCarRentals.filter(c => String(c.id) !== String(id)));
-
-  const handleSaveItem = (itemData: Omit<ScheduleItem, 'id'>) => { if (editingItem) { updateTripField(currentTripId, 'scheduleItems', scheduleItems.map(item => item.id === editingItem.id ? { ...itemData, id: item.id } : item)); setEditingItem(null); } else { addTripItem(currentTripId, 'scheduleItems', { ...itemData, id: Date.now().toString() }); } };
-  const handleEditClick = (item: ScheduleItem) => { setEditingItem(item); setIsAddModalOpen(true); };
-  const handleDeleteItemClick = (itemId: string) => setItemToDelete(itemId);
-  const confirmDeleteItem = () => { if (itemToDelete) { updateTripField(currentTripId, 'scheduleItems', scheduleItems.filter(item => item.id !== itemToDelete)); setItemToDelete(null); } };
-  const handleMoveItem = (index: number, direction: 'up' | 'down') => { const currentDayItems = scheduleItems.filter(i => i.date === selectedDate); const itemA = currentDayItems[index]; const targetIndex = direction === 'up' ? index - 1 : index + 1; const itemB = currentDayItems[targetIndex]; const itemAId = itemA.id; const itemBId = itemB.id; const newArr = [...scheduleItems]; const idxA = newArr.findIndex(i => i.id === itemAId); const idxB = newArr.findIndex(i => i.id === itemBId); if (idxA > -1 && idxB > -1) { [newArr[idxA], newArr[idxB]] = [newArr[idxB], newArr[idxA]]; updateTripField(currentTripId, 'scheduleItems', newArr); } };
-  const openMap = (location: string) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`, '_blank');
-  
-  const handleAddDay = () => {
-    const sortedByDate = [...tripDays].sort((a, b) => a.date.localeCompare(b.date));
-    const latestDay = sortedByDate[sortedByDate.length - 1];
-    const nextDate = new Date(latestDay.date);
-    nextDate.setDate(nextDate.getDate() + 1);
-    const dateStr = nextDate.toISOString().split('T')[0];
-    
-    if (tripDays.some(d => d.date === dateStr)) {
-        alert('日期重複：' + dateStr + ' 已存在於行程中！');
-        return;
-    }
-    
-    updateTripField(currentTripId, 'tripDays', [...tripDays, { date: dateStr, location: latestDay.location, fruit: latestDay.fruit }]);
+  const handleUpdateItem = async (item: ScheduleItem) => {
+      const newItems = scheduleItems.map(i => i.id === item.id ? item : i);
+      await updateTripField(currentTripId, 'scheduleItems', newItems);
+      setSelectedItem(null);
+      setShowDetailModal(false);
   };
 
-  const confirmDeleteDay = () => { if (tripDays.length > 1) { const newDays = tripDays.filter(d => d.date !== selectedDate); updateTripField(currentTripId, 'tripDays', newDays); updateTripField(currentTripId, 'scheduleItems', scheduleItems.filter(item => item.date !== selectedDate)); if (!newDays.find(d => d.date === selectedDate)) setSelectedDate(newDays[0].date); setIsDeleteDayModalOpen(false); } };
-  
-  const handleUpdateDayDetails = (newDate: string, newLoc: string, newFruit: string) => { 
-    if (newDate !== selectedDate && tripDays.some(d => d.date === newDate)) {
-        alert('日期重複：' + newDate + ' 已存在於行程中！');
-        return;
-    }
-    updateTripField(currentTripId, 'tripDays', tripDays.map(d => d.date === selectedDate ? { date: newDate, location: newLoc, fruit: newFruit } : d)); 
-    updateTripField(currentTripId, 'scheduleItems', scheduleItems.map(item => item.date === selectedDate ? { ...item, date: newDate } : item)); 
-    setSelectedDate(newDate); 
-    setIsEditDayModalOpen(false); 
+  const handleDeleteItem = async (id: string) => {
+      const newItems = scheduleItems.filter(i => i.id !== id);
+      await updateTripField(currentTripId, 'scheduleItems', newItems);
   };
-  
-  const addCurrency = (c: Currency) => updateTripField(currentTripId, 'currencies', [...currencies, c]);
-  const removeCurrency = (code: string) => updateTripField(currentTripId, 'currencies', currencies.filter(c => c.code !== code));
-  
+
+  const handleAddDay = async () => {
+      if (!currentTripId) return;
+      const lastDay = tripDays.length > 0 ? tripDays[tripDays.length - 1] : { date: new Date().toISOString().split('T')[0] };
+      const nextDate = new Date(lastDay.date);
+      nextDate.setDate(nextDate.getDate() + 1);
+      const dateStr = nextDate.toISOString().split('T')[0];
+      const newDays = [...tripDays, { date: dateStr, location: 'New Day', fruit: '🍎' }];
+      await updateTripField(currentTripId, 'tripDays', newDays);
+  };
+
   // --- Enhanced Reordering Logic: Long Press -> Released -> Click Target to Swap ---
+  const [swappingFromIndex, setSwappingFromIndex] = useState<number | null>(null);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ignoreClickRef = useRef(false); // Ref to ignore the immediate click after long press
+  const touchStartPos = useRef<{ x: number, y: number } | null>(null); // Store start position
+
   const handleSwapLogic = (idx1: number, idx2: number) => {
     if (idx1 === idx2) return;
 
@@ -330,13 +251,21 @@ export default function App() {
     if (window.navigator.vibrate) window.navigator.vibrate([30, 50, 30]);
   };
 
-  const handleDayTouchStart = (idx: number, e: React.TouchEvent) => {
+  const handleDayTouchStart = (idx: number, e: React.TouchEvent | React.MouseEvent) => {
     ignoreClickRef.current = false;
-    // Capture start position to prevent micro-movements from killing the timer
-    touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
     
+    // Store initial touch position safely for both Touch and Mouse events
+    let clientX, clientY;
+    if ('touches' in e) {
+         clientX = e.touches[0].clientX;
+         clientY = e.touches[0].clientY;
+    } else {
+         clientX = (e as React.MouseEvent).clientX;
+         clientY = (e as React.MouseEvent).clientY;
+    }
+    touchStartPos.current = { x: clientX, y: clientY };
+
     longPressTimer.current = setTimeout(() => {
         setSwappingFromIndex(idx);
         ignoreClickRef.current = true; // Prevents immediate click trigger upon release
@@ -349,17 +278,19 @@ export default function App() {
         clearTimeout(longPressTimer.current);
         longPressTimer.current = null;
     }
-    // Don't clear touchStartPos here immediately if we need it later, but generally fine
+    touchStartPos.current = null;
   };
 
-  // Cancel long press on scroll ONLY if movement is significant
+  // Cancel long press on scroll ONLY if movement exceeds threshold
   const handleDayTouchMove = (e: React.TouchEvent) => {
       if (longPressTimer.current && touchStartPos.current) {
-          const dx = Math.abs(e.touches[0].clientX - touchStartPos.current.x);
-          const dy = Math.abs(e.touches[0].clientY - touchStartPos.current.y);
+          const touch = e.touches[0];
+          const moveX = Math.abs(touch.clientX - touchStartPos.current.x);
+          const moveY = Math.abs(touch.clientY - touchStartPos.current.y);
           
-          // Allow 10px of movement before cancelling to handle shaky fingers/sensitive screens
-          if (dx > 10 || dy > 10) {
+          // Only cancel if moved more than 10px (intended scroll)
+          // This allows for micro-movements/jitter when holding down
+          if (moveX > 10 || moveY > 10) {
               clearTimeout(longPressTimer.current);
               longPressTimer.current = null;
           }
@@ -393,6 +324,7 @@ export default function App() {
       setActiveTab('schedule');
       setSelectedDate(date);
       // Optional: Logic to scroll to specific item could be added here if refs were managed globally
+      // For now, selecting date is sufficient
   };
 
   if (loading) {
@@ -481,10 +413,7 @@ export default function App() {
                             onTouchStart={(e) => handleDayTouchStart(idx, e)}
                             onTouchMove={handleDayTouchMove}
                             onTouchEnd={handleDayTouchEnd}
-                            onMouseDown={(e) => { 
-                                // Support mouse long press similarly (basic version)
-                                handleDayTouchStart(idx, { touches: [{ clientX: e.clientX, clientY: e.clientY }] } as any) 
-                            }} 
+                            onMouseDown={(e) => handleDayTouchStart(idx, e as any)}
                             onMouseUp={handleDayTouchEnd}
                             onClick={() => handleDayItemClick(idx, date.date)}
                             className={`flex-shrink-0 flex flex-col items-center justify-center w-[3.5rem] h-16 rounded-2xl transition-all snap-center cursor-pointer relative overflow-hidden select-none
@@ -514,154 +443,247 @@ export default function App() {
                  </div>
                </div>
 
-               <div className="px-5 pt-2">
-                  <div className="relative border-l-[3px] border-beige-dark ml-4 space-y-8 py-2">
-                    {scheduleItems.filter(item => item.date === selectedDate).length === 0 && (<div className="pl-8 text-gray-400 font-bold italic py-10">此日期尚無行程，點擊右下角新增！</div>)}
-                    {scheduleItems.filter(item => item.date === selectedDate).map((item, index) => {
-                      let icon = MapPin; let colorClass = 'bg-gray-100 text-gray-500';
-                      if (item.type === 'food') { icon = Utensils; colorClass = 'bg-orange-100 text-orange-500'; }
-                      if (item.type === 'transport') { icon = Navigation; colorClass = 'bg-blue-100 text-blue-500'; }
-                      if (item.type === 'stay') { icon = Bed; colorClass = 'bg-purple-100 text-purple-500'; }
-                      if (item.type === 'spot') { icon = MapPin; colorClass = 'bg-green-100 text-green-600'; }
-                      if (item.type === 'flight') { icon = Plane; colorClass = 'bg-cyan-100 text-cyan-600'; }
-                      const IconComp = icon;
-                      const partIds = item.type === 'flight' ? item.flightDetails?.participants : item.type === 'stay' ? item.stayDetails?.participants : item.type === 'transport' ? item.carRental?.participants : (item.type === 'spot' || item.type === 'food') ? item.spotDetails?.participants : [];
-                      const participantNames = getMemberNames(partIds);
-                      const fruitIcon = getScheduleIcon(item.id);
-                      return (
-                        <div key={item.id} className="relative pl-8 group mb-8">
-                          <button onClick={(e) => { e.stopPropagation(); handleDeleteItemClick(item.id); }} className="absolute right-0 -top-3 bg-red-100 text-red-400 p-1.5 rounded-full opacity-0 group-hover:opacity-100 z-30 border border-red-200 shadow-sm"><X size={12} strokeWidth={3} /></button>
-                          <div className="absolute -left-[15px] top-6 z-10 flex items-center justify-center w-8 h-8 bg-beige rounded-full">
-                              <span className="text-xl animate-fruit-dance drop-shadow-sm filter cursor-default select-none hover:scale-125 transition-transform">{fruitIcon}</span>
-                          </div>
-                          <div onClick={() => setViewingItem(item)} className="bg-white rounded-[2rem] shadow-hard-sm border-2 border-beige-dark overflow-hidden relative transition-all cursor-pointer hover:border-sage group-hover:-translate-y-1">
-                            <div className="p-5">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className="flex items-center gap-3">
-                                         <div className={`p-3 rounded-2xl ${colorClass} border-2 border-white shadow-sm`}><IconComp size={22} strokeWidth={2.5} /></div>
-                                         <div><div className="flex items-center gap-2 mb-1"><span className="font-mono text-sm font-black text-white bg-sage px-2 py-0.5 rounded-lg shadow-sm">{item.time}</span><span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">{item.type}</span></div><h3 className="text-xl font-black text-cocoa tracking-tight leading-tight">{item.title}</h3></div>
-                                    </div>
-                                    <div className="flex flex-col gap-1"><button onClick={(e) => { e.stopPropagation(); handleMoveItem(index, 'up'); }} disabled={index === 0} className={`p-1 rounded-full border border-beige-dark ${index === 0 ? 'opacity-0' : 'text-gray-300 hover:bg-sage hover:text-white'}`}><ChevronUp size={12} /></button><button onClick={(e) => { e.stopPropagation(); handleMoveItem(index, 'down'); }} disabled={index === scheduleItems.filter(i => i.date === selectedDate).length - 1} className={`p-1 rounded-full border border-beige-dark ${index === scheduleItems.filter(i => i.date === selectedDate).length - 1 ? 'opacity-0' : 'text-gray-300 hover:bg-sage hover:text-white'}`}><ChevronDown size={12} /></button></div>
-                                </div>
-                                <div className="flex items-center text-gray-500 text-sm gap-2 font-bold bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 w-full"><MapPin size={16} className="text-sage" /><span className="truncate flex-1">{item.location}</span><button onClick={(e) => { e.stopPropagation(); openMap(item.location); }} className="p-1.5 bg-white rounded-lg text-cocoa hover:text-white hover:bg-sage shadow-sm border border-gray-200 transition-colors"><Navigation size={12} strokeWidth={2.5} /></button></div>
-                            </div>
-                            <div className="relative w-full h-0 border-t-2 border-dashed border-beige-dark flex justify-between items-center"><div className="absolute -left-3 -top-3 w-6 h-6 bg-beige rounded-full border-r-2 border-beige-dark"></div><div className="absolute -right-3 -top-3 w-6 h-6 bg-beige rounded-full border-l-2 border-beige-dark"></div></div>
-                            <div className="bg-[#FAF9F6] p-5">
-                                <div className="space-y-3">
-                                    {item.type === 'flight' && item.flightDetails && (
-                                        <div className="bg-cyan-50/30 p-3 rounded-2xl border border-cyan-100/50 space-y-2">
-                                            <div className="flex justify-between items-center border-b border-cyan-100/50 pb-2">
-                                                <div className="flex items-center gap-2"><Plane size={14} className="text-cyan-600"/><span className="text-sm font-black text-cocoa">{item.flightDetails.airline} {item.flightDetails.flightCode}</span></div>
-                                                <span className="text-[10px] font-bold text-cyan-600">{item.flightDetails.departureAirport} → {item.flightDetails.arrivalAirport}</span>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-gray-500">
-                                                <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>DEP: {item.flightDetails.departureTime}</div>
-                                                <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>ARR: {item.flightDetails.arrivalTime}</div>
-                                                <div className="flex items-center gap-1"><Luggage size={12} className="text-teal-500"/>託運: {item.flightDetails.checkedBag || '--'}</div>
-                                                <div className="flex items-center gap-1"><Briefcase size={12} className="text-orange-400"/>手提: {item.flightDetails.carryOnBag || '--'}</div>
-                                            </div>
-                                            {Number(item.flightDetails.cost) > 0 && <div className="text-right text-[10px] font-black text-sage">費用: {item.flightDetails.currency} {Number(item.flightDetails.cost).toLocaleString()}</div>}
-                                        </div>
-                                    )}
-                                    {item.type === 'stay' && item.stayDetails && (
-                                        <div className="bg-purple-50/30 p-3 rounded-2xl border border-purple-100/50 space-y-2">
-                                            <div className="flex justify-between items-center border-b border-purple-100/50 pb-2">
-                                                <div className="flex items-center gap-2"><Bed size={14} className="text-purple-600"/><span className="text-sm font-black text-cocoa">住宿詳情</span></div>
-                                            </div>
-                                            <div className="flex gap-4 text-[11px] font-bold text-gray-500">
-                                                <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>CI: {item.checkIn}</div>
-                                                <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>CO: {item.checkOut}</div>
-                                            </div>
-                                            <div className="flex gap-3 mt-1">
-                                                {item.meals?.breakfast && <span className="text-[10px] bg-white px-2 py-0.5 rounded-full border border-purple-200 text-purple-400 flex items-center gap-1"><Coffee size={10}/> 早餐</span>}
-                                                {item.meals?.dinner && <span className="text-[10px] bg-white px-2 py-0.5 rounded-full border border-purple-200 text-purple-400 flex items-center gap-1"><Utensils size={10}/> 晚餐</span>}
-                                            </div>
-                                            {Number(item.stayDetails.cost) > 0 && <div className="text-right text-[10px] font-black text-sage">費用: {item.stayDetails.currency} {Number(item.stayDetails.cost).toLocaleString()}</div>}
-                                        </div>
-                                    )}
-                                    {item.type === 'transport' && item.carRental?.hasRental && (() => {
-                                        const baseRental = Number(item.carRental.rentalCost) || 0;
-                                        const baseFeePct = Number(item.carRental.serviceFeePercentage) || 0;
-                                        const baseWithFee = baseRental + (item.carRental.hasServiceFee ? (baseRental * baseFeePct / 100) : 0);
-                                        let extrasTotal = 0;
-                                        item.carRental.expenses?.forEach(exp => {
-                                            const amt = Number(exp.amount) || 0;
-                                            const feePct = Number(exp.serviceFeePercentage) || 0;
-                                            extrasTotal += amt + (exp.hasServiceFee ? (amt * feePct / 100) : 0);
-                                        });
-                                        const grandTotal = baseWithFee + extrasTotal;
-                                        return (
-                                            <div className="bg-blue-50/30 p-3 rounded-2xl border border-blue-100/50 space-y-2">
-                                                <div className="flex justify-between items-center border-b border-blue-100/50 pb-2">
-                                                    <div className="flex items-center gap-2"><Car size={14} className="text-blue-600"/><span className="text-sm font-black text-cocoa">{item.carRental.company} - {item.carRental.carModel}</span></div>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-gray-500">
-                                                    <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>取車: {item.carRental.pickupDate} {item.carRental.pickupTime}</div>
-                                                    <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>還車: {item.carRental.returnDate} {item.carRental.returnTime}</div>
-                                                    {Number(item.carRental.estimatedFuelCost) > 0 && <div className="flex items-center gap-1 col-span-2"><Fuel size={12} className="text-orange-400"/>預估油資: {item.carRental.fuelCurrency} {Number(item.carRental.estimatedFuelCost).toLocaleString()}</div>}
-                                                </div>
-                                                <div className="pt-1 mt-1 border-t border-dashed border-blue-200/50 space-y-1">
-                                                    <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 italic">
-                                                        <span>基本租金</span>
-                                                        <span className="font-mono">{item.carRental.rentalCurrency} {Math.round(baseWithFee).toLocaleString()}</span>
-                                                    </div>
-                                                    {item.carRental.expenses?.map((exp, idx) => {
-                                                        const expAmt = Number(exp.amount) || 0;
-                                                        const expFeePct = Number(exp.serviceFeePercentage) || 0;
-                                                        const expTotal = expAmt + (exp.hasServiceFee ? (expAmt * expFeePct / 100) : 0);
-                                                        return (
-                                                            <div key={idx} className="flex justify-between items-center text-[10px] font-bold text-gray-400 italic">
-                                                                <span>• {exp.name}</span>
-                                                                <span className="font-mono">{exp.currency || item.carRental?.rentalCurrency} {Math.round(expTotal).toLocaleString()}</span>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                    <div className="flex justify-between items-center text-[11px] font-black text-blue-600 pt-1 border-t border-blue-100 mt-1">
-                                                        <span>租車總計金額</span>
-                                                        <span className="font-mono">{item.carRental.rentalCurrency} {Math.round(grandTotal).toLocaleString()}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        );
-                                    })()}
-                                    {(item.type === 'spot' || item.type === 'food') && item.spotDetails?.hasTicket && (
-                                        <div className="bg-white p-3 rounded-2xl border border-beige-dark flex justify-between items-center">
-                                            <div className="flex items-center gap-2"><Ticket size={14} className="text-sage"/><span className="text-xs font-bold text-cocoa">{item.type === 'food' ? '餐飲支出' : '預訂門票'}</span></div>
-                                            <span className="text-sm font-black text-sage font-mono">{item.spotDetails.currency} {Number(item.spotDetails.ticketCost).toLocaleString()}</span>
-                                        </div>
-                                    )}
-                                    {item.notes && (
-                                        <div className="flex gap-2 items-start bg-yellow-50/50 p-2 rounded-xl border border-yellow-100/50"><StickyNote size={14} className="text-yellow-400 mt-0.5" /><p className="text-xs font-bold text-gray-500 whitespace-pre-wrap">{item.notes}</p></div>
-                                    )}
-                                    {participantNames && (
-                                        <div className="mt-2 pt-2 border-t border-dashed border-gray-200 flex items-start gap-2"><Users size={12} className="text-gray-400 mt-0.5" /><div className="flex flex-col"><span className="text-[9px] font-black text-gray-400 uppercase">MEMBERS</span><span className="text-xs font-bold text-cocoa">{participantNames}</span></div></div>
-                                    )}
-                                </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
+               <div className="px-4">
+                 <button onClick={() => { setSelectedItem(null); setShowAddModal(true); }} className="w-full bg-white border-2 border-dashed border-beige-dark text-gray-400 font-bold py-3 rounded-2xl hover:bg-sage-light hover:text-sage hover:border-sage transition-all flex items-center justify-center gap-2 mb-4">
+                     <Plus size={20}/> 新增行程
+                 </button>
+                 <ScheduleView 
+                    dates={dates}
+                    selectedDate={dates.find(d => d.date === selectedDate)!}
+                    onSelectDate={(d) => setSelectedDate(d.date)}
+                    itinerary={currentItinerary}
+                    onSave={async (item) => {
+                        if (item.id && scheduleItems.find(i => i.id === item.id)) {
+                             await updateTripField(currentTripId, 'scheduleItems', scheduleItems.map(i => i.id === item.id ? item : i));
+                        } else {
+                             await addTripItem(currentTripId, 'scheduleItems', { ...item, id: Date.now().toString() });
+                        }
+                    }}
+                    onDelete={handleDeleteItem}
+                    tripStatus="during" 
+                    countdownDays={0}
+                    countdownHours={0}
+                    countdownProgress={0}
+                    currentDayNum={0}
+                    tripProgress={0}
+                 />
+                 <div className="mt-4 space-y-3">
+                   {currentItinerary.map(item => (
+                       <div key={item.id} onClick={() => { setSelectedItem(item); setShowDetailModal(true); }}>
+                           {/* Render handled by ScheduleView, this is just to capture clicks if needed or for detail view triggers via props in ScheduleView */}
+                       </div>
+                   ))}
+                 </div>
                </div>
-              <button onClick={() => { setEditingItem(null); setIsAddModalOpen(true); }} className="fixed bottom-24 right-5 bg-cocoa text-white shadow-hard-sage active:translate-y-1 active:shadow-none z-30 flex items-center gap-2 px-4 py-3 rounded-[2rem] border-2 border-cocoa"><Plus size={20} strokeWidth={3} /><span className="font-bold tracking-widest text-base">新增</span></button>
-              <AddScheduleModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSave={handleSaveItem} initialData={editingItem} currencies={currencies} members={members} currentDate={selectedDate} />
-              <ScheduleDetailModal isOpen={!!viewingItem} onClose={() => setViewingItem(null)} item={viewingItem} onEdit={() => { if(viewingItem) { setViewingItem(null); handleEditClick(viewingItem); } }} currencies={currencies} members={members} />
-              <DeleteItemConfirmModal isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} onConfirm={confirmDeleteItem} title={scheduleItems.find(i => i.id === itemToDelete)?.title || '此項目'} />
-              <PotentialExpensesModal isOpen={isPotentialModalOpen} onClose={() => setIsPotentialModalOpen(false)} items={scheduleItems} currencies={currencies} members={members} />
-              <EditDayDetailsModal isOpen={isEditDayModalOpen} onClose={() => setIsEditDayModalOpen(false)} onConfirm={handleUpdateDayDetails} initialDate={selectedDate} initialLocation={currentLocation} initialFruit={currentFruit} />
-              <DeleteDayConfirmModal isOpen={isDeleteDayModalOpen} onClose={() => setIsDeleteDayModalOpen(false)} onConfirm={confirmDeleteDay} date={selectedDate} />
-              <TripSettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} currencies={currencies} onAddCurrency={addCurrency} onRemoveCurrency={removeCurrency} onDuplicate={handleOpenBackupModal} />
-              <BackupConfirmModal isOpen={isBackupConfirmOpen} onClose={() => setIsBackupConfirmOpen(false)} onConfirm={executeBackupTrip} tripName={currentTripName} />
             </div>
           )}
-          {activeTab === 'bookings' && (<BookingsView flights={bookingFlights} accommodations={bookingAccommodations} carRentals={bookingCarRentals} tickets={bookingTickets} currencies={currencies} members={members} onAddFlight={handleAddFlight} onUpdateFlight={handleUpdateFlight} onDeleteFlight={handleDeleteFlight} onAddAccommodation={(a) => addTripItem(currentTripId, 'accommodations', a)} onUpdateAccommodation={(a) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.map(x => x.id === a.id ? a : x))} onDeleteAccommodation={(id) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.filter(x => x.id !== id))} onAddCar={handleAddCar} onUpdateCar={handleUpdateCar} onDeleteCar={handleDeleteCar} onAddTicket={(t) => addTripItem(currentTripId, 'tickets', t)} onUpdateTicket={(t) => updateTripField(currentTripId, 'tickets', bookingTickets.map(x => x.id === t.id ? t : x))} onDeleteTicket={(id) => updateTripField(currentTripId, 'tickets', bookingTickets.filter(x => x.id !== id))} />)}
-          {activeTab === 'expense' && (<ExpensesView expenses={expenses} members={members} currencies={currencies} onAdd={handleAddExpense} onUpdate={handleUpdateExpense} onDelete={handleDeleteExpense} onShowToast={(m, t) => { if (t === 'error') alert(m); }} />)}
-          {activeTab === 'journal' && (<JournalView journals={journals} members={members} onAdd={handleAddJournal} onUpdate={handleUpdateJournal} onDelete={handleDeleteJournal} />)}
-          {activeTab === 'planning' && (<PlanningView lists={planningLists} members={members} onAdd={handleAddPlanning} onToggle={handleTogglePlanning} onUpdate={handleUpdatePlanning} onDelete={handleDeletePlanning} />)}
-          {activeTab === 'members' && (<MembersView members={members} scheduleItems={scheduleItems} currencies={currencies} onAdd={handleAddMember} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} onJumpToSchedule={handleJumpToSchedule} />)}
+
+          {activeTab === 'bookings' && (
+              <BookingsView 
+                  flights={flights}
+                  accommodations={accommodations}
+                  carRentals={carRentals}
+                  tickets={tickets}
+                  currencies={currencies}
+                  members={members}
+                  onAddFlight={async (f) => await addTripItem(currentTripId, 'flights', f)}
+                  onUpdateFlight={async (f) => await updateTripField(currentTripId, 'flights', flights.map(i => i.id === f.id ? f : i))}
+                  onDeleteFlight={async (id) => await updateTripField(currentTripId, 'flights', flights.filter(i => i.id !== id))}
+                  onAddAccommodation={async (a) => await addTripItem(currentTripId, 'accommodations', a)}
+                  onUpdateAccommodation={async (a) => await updateTripField(currentTripId, 'accommodations', accommodations.map(i => i.id === a.id ? a : i))}
+                  onDeleteAccommodation={async (id) => await updateTripField(currentTripId, 'accommodations', accommodations.filter(i => i.id !== id))}
+                  onAddCar={async (c) => await addTripItem(currentTripId, 'carRentals', c)}
+                  onUpdateCar={async (c) => await updateTripField(currentTripId, 'carRentals', carRentals.map(i => i.id === c.id ? c : i))}
+                  onDeleteCar={async (id) => await updateTripField(currentTripId, 'carRentals', carRentals.filter(i => i.id !== id))}
+                  onAddTicket={async (t) => await addTripItem(currentTripId, 'tickets', t)}
+                  onUpdateTicket={async (t) => await updateTripField(currentTripId, 'tickets', tickets.map(i => i.id === t.id ? t : i))}
+                  onDeleteTicket={async (id) => await updateTripField(currentTripId, 'tickets', tickets.filter(i => i.id !== id))}
+              />
+          )}
+
+          {activeTab === 'expense' && (
+              <ExpensesView 
+                  expenses={expenses}
+                  members={members}
+                  currencies={currencies}
+                  onAdd={async (e) => await addTripItem(currentTripId, 'expenses', { ...e, id: Date.now() })}
+                  onUpdate={async (e) => await updateTripField(currentTripId, 'expenses', expenses.map(i => i.id === e.id ? e : i))}
+                  onDelete={async (id) => await updateTripField(currentTripId, 'expenses', expenses.filter(i => i.id !== id))}
+                  onShowToast={() => {}} 
+              />
+          )}
+
+          {activeTab === 'journal' && (
+              <JournalView 
+                  journals={journals}
+                  members={members}
+                  onAdd={async (j) => await addTripItem(currentTripId, 'journals', j)}
+                  onUpdate={async (j) => await updateTripField(currentTripId, 'journals', journals.map(i => i.id === j.id ? j : i))}
+                  onDelete={async (id) => await updateTripField(currentTripId, 'journals', journals.filter(i => i.id !== id))}
+              />
+          )}
+
+          {activeTab === 'planning' && (
+              <PlanningView 
+                  lists={lists}
+                  members={members}
+                  onAdd={async (type, text, assignee, image, note, url) => {
+                      const newItem: TodoItem = { id: Date.now(), text, done: false, assignee, image, note, url };
+                      const newLists = { ...lists, [type]: [...lists[type], newItem] };
+                      await updateTripField(currentTripId, 'planning', newLists);
+                  }}
+                  onToggle={async (type, id, memberName) => {
+                      const newLists = { ...lists };
+                      newLists[type] = newLists[type].map(item => {
+                          if (item.id !== id) return item;
+                          // If group task and member specified
+                          if (memberName) {
+                              const currentCompleted = item.completedBy || [];
+                              const newCompleted = currentCompleted.includes(memberName) 
+                                  ? currentCompleted.filter(n => n !== memberName) 
+                                  : [...currentCompleted, memberName];
+                              
+                              // Check if all assignees completed
+                              const assignees = Array.isArray(item.assignee) ? item.assignee : [item.assignee];
+                              const allDone = assignees.every(p => newCompleted.includes(p));
+                              return { ...item, completedBy: newCompleted, done: allDone };
+                          }
+                          return { ...item, done: !item.done };
+                      });
+                      await updateTripField(currentTripId, 'planning', newLists);
+                  }}
+                  onUpdate={async (type, id, updates) => {
+                      const newLists = { ...lists };
+                      newLists[type] = newLists[type].map(item => item.id === id ? { ...item, ...updates } : item);
+                      await updateTripField(currentTripId, 'planning', newLists);
+                  }}
+                  onDelete={async (type, id) => {
+                      const newLists = { ...lists };
+                      newLists[type] = newLists[type].filter(item => item.id !== id);
+                      await updateTripField(currentTripId, 'planning', newLists);
+                  }}
+              />
+          )}
+
+          {activeTab === 'members' && (
+              <MembersView 
+                  members={members}
+                  scheduleItems={scheduleItems}
+                  currencies={currencies}
+                  onAdd={async (name, avatar) => await addTripItem(currentTripId, 'members', { id: Date.now().toString(), name, avatar, fruit: '🍎' })}
+                  onUpdate={async (m) => await updateTripField(currentTripId, 'members', members.map(i => i.id === m.id ? m : i))}
+                  onDelete={async (id) => await updateTripField(currentTripId, 'members', members.filter(i => i.id !== id))}
+                  onJumpToSchedule={handleJumpToSchedule}
+              />
+          )}
         </main>
+        
         <BottomNav activeTab={activeTab} setTab={setActiveTab} />
+
+        {/* Modals */}
+        <TripSettingsModal 
+            isOpen={isSettingsModalOpen} 
+            onClose={() => setIsSettingsModalOpen(false)} 
+            currencies={currencies}
+            onAddCurrency={async (c) => await addTripItem(currentTripId, 'currencies', c)}
+            onRemoveCurrency={async (code) => await updateTripField(currentTripId, 'currencies', currencies.filter(c => c.code !== code))}
+            onDuplicate={() => setIsBackupModalOpen(true)}
+        />
+        
+        <BackupConfirmModal 
+            isOpen={isBackupModalOpen} 
+            onClose={() => setIsBackupModalOpen(false)} 
+            onConfirm={async () => {
+                try {
+                    setLoading(true);
+                    const newId = await duplicateTrip(currentTripId);
+                    const newSaved = [...savedTrips, { id: newId, name: `${currentTripName} (副本)`, date: new Date().toISOString() }];
+                    setSavedTrips(newSaved);
+                    localStorage.setItem('saved_trips', JSON.stringify(newSaved));
+                    setIsBackupModalOpen(false);
+                    setIsSettingsModalOpen(false);
+                    alert(`副本建立成功！代碼: ${newId}`);
+                } catch(e) {
+                    alert('建立失敗');
+                } finally {
+                    setLoading(false);
+                }
+            }}
+            tripName={currentTripName}
+        />
+
+        <EditDayDetailsModal 
+            isOpen={isEditDayModalOpen} 
+            onClose={() => setIsEditDayModalOpen(false)} 
+            onConfirm={async (date, location, fruit) => {
+                const newDays = tripDays.map(d => d.date === selectedDate ? { ...d, date, location, fruit } : d);
+                // Also update schedule items if date changed
+                if (date !== selectedDate) {
+                    const newItems = scheduleItems.map(i => i.date === selectedDate ? { ...i, date } : i);
+                    await updateTripField(currentTripId, 'scheduleItems', newItems);
+                    setSelectedDate(date);
+                }
+                await updateTripField(currentTripId, 'tripDays', newDays);
+                setIsEditDayModalOpen(false);
+            }} 
+            initialDate={selectedDate}
+            initialLocation={currentLocation}
+            initialFruit={currentFruit}
+        />
+
+        <DeleteDayConfirmModal 
+            isOpen={isDeleteDayModalOpen} 
+            onClose={() => setIsDeleteDayModalOpen(false)} 
+            onConfirm={async () => {
+                const newDays = tripDays.filter(d => d.date !== selectedDate);
+                const newItems = scheduleItems.filter(i => i.date !== selectedDate);
+                await updateTripField(currentTripId, 'tripDays', newDays);
+                await updateTripField(currentTripId, 'scheduleItems', newItems);
+                if (newDays.length > 0) setSelectedDate(newDays[0].date);
+                setIsDeleteDayModalOpen(false);
+            }} 
+            date={selectedDate} 
+        />
+
+        <PotentialExpensesModal 
+            isOpen={isPotentialModalOpen} 
+            onClose={() => setIsPotentialModalOpen(false)} 
+            items={scheduleItems} 
+            currencies={currencies} 
+            members={members} 
+        />
+
+        <AddScheduleModal 
+            isOpen={showAddModal} 
+            onClose={() => setShowAddModal(false)} 
+            onSave={handleAddItem}
+            initialData={null}
+            currencies={currencies}
+            members={members}
+            currentDate={selectedDate}
+        />
+
+        <ScheduleDetailModal 
+            isOpen={showDetailModal} 
+            onClose={() => setShowDetailModal(false)} 
+            item={selectedItem}
+            onEdit={() => { setShowDetailModal(false); setShowAddModal(true); }}
+            currencies={currencies}
+            members={members}
+        />
+
+        {/* Reuse AddScheduleModal for Editing */}
+        {showAddModal && selectedItem && (
+             <AddScheduleModal 
+                isOpen={showAddModal} 
+                onClose={() => { setShowAddModal(false); setSelectedItem(null); }} 
+                onSave={handleUpdateItem}
+                initialData={selectedItem}
+                currencies={currencies}
+                members={members}
+                currentDate={selectedDate}
+            />
+        )}
       </div>
     </div>
   );
