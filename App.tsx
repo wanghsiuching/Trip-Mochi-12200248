@@ -65,6 +65,8 @@ export default function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
 
+  const [highlightExpenseId, setHighlightExpenseId] = useState<string | null>(null);
+
   // --- Optimized Swap State ---
   const [swappingFromIndex, setSwappingFromIndex] = useState<number | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -95,7 +97,7 @@ export default function App() {
   const SCHEDULE_ICONS = [
       '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈',
       '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆', '🥕',
-      '🌽', '🌶️', '🫑', '🥒', '🥬', '🥦', '🍄', '🥜', '🌰', '🍠'
+      '🌽', '🌶️', '🫑', '🥒', '🥬', '🥦', '🍄', '遷', '🌰', '🍠'
   ];
 
   const getScheduleIcon = (id: string) => {
@@ -243,7 +245,7 @@ export default function App() {
       const fruits = [
           '🍎', '🍏', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', 
           '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆',
-          '🥕', '🌽', '🌶️', '🫑', '🥒', '🥬', '🥦', '🍄', '🥜', '🌰'
+          '🥕', '🌽', '🌶️', '🫑', '🥒', '🥬', '🥦', '🍄', '遷', '🌰'
       ];
       const randomFruit = fruits[Math.floor(Math.random() * fruits.length)];
       addTripItem(currentTripId, 'members', { id: Date.now().toString(), name, avatar, fruit: randomFruit });
@@ -381,7 +383,13 @@ export default function App() {
   const handleJumpToSchedule = (date: string, itemId: string) => {
       setActiveTab('schedule');
       setSelectedDate(date);
-      // Optional: Logic to scroll to specific item could be added here if refs were managed globally
+  };
+
+  const handleJumpToExpense = (expenseId: string) => {
+      setActiveTab('expense');
+      setHighlightExpenseId(expenseId);
+      // Reset after a delay so subsequent jumps work
+      setTimeout(() => setHighlightExpenseId(null), 5000);
   };
 
   if (loading) {
@@ -642,10 +650,10 @@ export default function App() {
             </div>
           )}
           {activeTab === 'bookings' && (<BookingsView flights={bookingFlights} accommodations={bookingAccommodations} carRentals={bookingCarRentals} tickets={bookingTickets} currencies={currencies} members={members} onAddFlight={handleAddFlight} onUpdateFlight={handleUpdateFlight} onDeleteFlight={handleDeleteFlight} onAddAccommodation={(a) => addTripItem(currentTripId, 'accommodations', a)} onUpdateAccommodation={(a) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.map(x => x.id === a.id ? a : x))} onDeleteAccommodation={(id) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.filter(x => x.id !== id))} onAddCar={handleAddCar} onUpdateCar={handleUpdateCar} onDeleteCar={handleDeleteCar} onAddTicket={(t) => addTripItem(currentTripId, 'tickets', t)} onUpdateTicket={(t) => updateTripField(currentTripId, 'tickets', bookingTickets.map(x => x.id === t.id ? t : x))} onDeleteTicket={(id) => updateTripField(currentTripId, 'tickets', bookingTickets.filter(x => x.id !== id))} />)}
-          {activeTab === 'expense' && (<ExpensesView expenses={expenses} members={members} currencies={currencies} onAdd={handleAddExpense} onUpdate={handleUpdateExpense} onDelete={handleDeleteExpense} onShowToast={(m, t) => { if (t === 'error') alert(m); }} />)}
+          {activeTab === 'expense' && (<ExpensesView expenses={expenses} members={members} currencies={currencies} onAdd={handleAddExpense} onUpdate={handleUpdateExpense} onDelete={handleDeleteExpense} onShowToast={(m, t) => { if (t === 'error') alert(m); }} highlightId={highlightExpenseId} />)}
           {activeTab === 'journal' && (<JournalView journals={journals} members={members} onAdd={handleAddJournal} onUpdate={handleUpdateJournal} onDelete={handleDeleteJournal} />)}
           {activeTab === 'planning' && (<PlanningView lists={planningLists} members={members} onAdd={handleAddPlanning} onToggle={handleTogglePlanning} onUpdate={handleUpdatePlanning} onDelete={handleDeletePlanning} />)}
-          {activeTab === 'members' && (<MembersView members={members} scheduleItems={scheduleItems} currencies={currencies} onAdd={handleAddMember} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} onJumpToSchedule={handleJumpToSchedule} />)}
+          {activeTab === 'members' && (<MembersView members={members} scheduleItems={scheduleItems} expenses={expenses} currencies={currencies} onAdd={handleAddMember} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} onJumpToSchedule={handleJumpToSchedule} onJumpToExpense={handleJumpToExpense} />)}
         </main>
         <BottomNav activeTab={activeTab} setTab={setActiveTab} />
       </div>

@@ -1,19 +1,23 @@
 
 import React, { useState } from 'react';
-import { Member, ScheduleItem, Currency } from '../types';
-import { User, PenTool, X, Lock, Plus, Info, DollarSign, Navigation, Calendar } from 'lucide-react';
+import { Member, ScheduleItem, Currency, Expense } from '../types';
+import { User, PenTool, X, Lock, Plus, Info, DollarSign, Navigation, Calendar, ArrowRight, CheckCircle2, Clock } from 'lucide-react';
 
 interface MembersViewProps {
   members: Member[];
   scheduleItems: ScheduleItem[];
+  expenses: Expense[];
   currencies: Currency[];
   onAdd: (name: string, avatar: string | null) => void;
   onUpdate: (member: Member) => void;
   onDelete: (id: string) => void;
   onJumpToSchedule: (date: string, itemId: string) => void;
+  onJumpToExpense: (expenseId: string) => void;
 }
 
-export const MembersView: React.FC<MembersViewProps> = ({ members, scheduleItems, currencies, onAdd, onUpdate, onDelete, onJumpToSchedule }) => {
+export const MembersView: React.FC<MembersViewProps> = ({ 
+  members, scheduleItems, expenses, currencies, onAdd, onUpdate, onDelete, onJumpToSchedule, onJumpToExpense 
+}) => {
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
@@ -22,22 +26,55 @@ export const MembersView: React.FC<MembersViewProps> = ({ members, scheduleItems
   
   // Detail Modal State
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
-  const [jumpTarget, setJumpTarget] = useState<{ id: string, date: string, title: string } | null>(null);
+  const [jumpTarget, setJumpTarget] = useState<{ id: string, date: string, title: string, type: 'schedule' | 'expense' } | null>(null);
   
   const [form, setForm] = useState<{ id: string; name: string; avatar: string | null }>({ id: '', name: '', avatar: null });
 
+  // Helper for TWD conversion
+  const toTWD = (amount: number, currency: string) => {
+    if (currency === 'TWD') return amount;
+    const rate = currencies.find(c => c.code === currency)?.rate || 1;
+    return amount * rate;
+  };
+
   // Calculate Member Costs
   const calculateMemberCosts = (memberId: string) => {
-      let totalShared = 0;
-      let totalPotential = 0;
-      const breakdown: { id: string, date: string, title: string, amount: number, type: string, isPotential: boolean }[] = [];
+      const member = members.find(m => m.id === memberId);
+      if (!member) return { totalShared: 0, totalPotential: 0, totalSettled: 0, totalPending: 0, breakdown: [] };
+      
+      let totalShared = 0; // Confirmed real expenses
+      let totalSettled = 0; // Portions of real expenses paid/payer
+      let totalPending = 0; // Portions of real expenses still owed
+      let totalPotential = 0; // Estimated future costs from schedule
+      
+      const breakdown: { id: string, date: string, title: string, amount: number, type: string, isPotential: boolean, isSettled?: boolean, category: 'schedule' | 'expense' }[] = [];
 
-      const toTWD = (amount: number, currency: string) => {
-          if (currency === 'TWD') return amount;
-          const rate = currencies.find(c => c.code === currency)?.rate || 1;
-          return amount * rate;
-      };
+      // 1. Process real expenses
+      expenses.forEach(exp => {
+        if (exp.involvedMembers?.includes(member.name)) {
+          const expTWD = toTWD(exp.amount, exp.currency);
+          const splitCount = exp.involvedMembers.length || 1;
+          const myShare = expTWD / splitCount;
+          const isSettled = exp.payer === member.name || (exp.settledMembers || []).includes(member.name);
 
+          totalShared += myShare;
+          if (isSettled) totalSettled += myShare;
+          else totalPending += myShare;
+
+          breakdown.push({
+            id: exp.id.toString(),
+            date: exp.date,
+            title: exp.title,
+            amount: myShare,
+            type: '支出',
+            isPotential: false,
+            isSettled,
+            category: 'expense'
+          });
+        }
+      });
+
+      // 2. Process schedule potential costs
       const processItemCost = (id: string, date: string, title: string, type: string, cost: number, currency: string, hasFee: boolean, feePct: number, participants: string[], isPotential: boolean) => {
           if (participants && participants.includes(memberId)) {
               const base = Number(cost) || 0;
@@ -48,105 +85,37 @@ export const MembersView: React.FC<MembersViewProps> = ({ members, scheduleItems
 
               if (isPotential) {
                   totalPotential += twdAmount;
-              } else {
-                  totalShared += twdAmount;
-              }
-
-              if (twdAmount > 0) {
-                  breakdown.push({
-                      id,
-                      date,
-                      title,
-                      amount: twdAmount,
-                      type,
-                      isPotential
-                  });
+                  if (twdAmount > 0) {
+                      breakdown.push({
+                          id,
+                          date,
+                          title,
+                          amount: twdAmount,
+                          type,
+                          isPotential: true,
+                          category: 'schedule'
+                      });
+                  }
               }
           }
       };
 
       scheduleItems.forEach(item => {
-          // Flight
           if (item.type === 'flight' && item.flightDetails) {
-              processItemCost(
-                  item.id, item.date,
-                  item.title, '機票',
-                  Number(item.flightDetails.cost),
-                  item.flightDetails.currency || 'TWD',
-                  item.flightDetails.hasServiceFee || false,
-                  Number(item.flightDetails.serviceFeePercentage),
-                  item.flightDetails.participants || [],
-                  item.flightDetails.isPotential || false
-              );
+              processItemCost(item.id, item.date, item.title, '機票', Number(item.flightDetails.cost), item.flightDetails.currency || 'TWD', item.flightDetails.hasServiceFee || false, Number(item.flightDetails.serviceFeePercentage), item.flightDetails.participants || [], item.flightDetails.isPotential || false);
           }
-          // Stay
           if (item.type === 'stay' && item.stayDetails) {
-              processItemCost(
-                  item.id, item.date,
-                  item.title, '住宿',
-                  Number(item.stayDetails.cost),
-                  item.stayDetails.currency || 'TWD',
-                  item.stayDetails.hasServiceFee || false,
-                  Number(item.stayDetails.serviceFeePercentage),
-                  item.stayDetails.participants || [],
-                  item.stayDetails.isPotential || false
-              );
+              processItemCost(item.id, item.date, item.title, '住宿', Number(item.stayDetails.cost), item.stayDetails.currency || 'TWD', item.stayDetails.hasServiceFee || false, Number(item.stayDetails.serviceFeePercentage), item.stayDetails.participants || [], item.stayDetails.isPotential || false);
           }
-          // Transport (Rental)
           if (item.type === 'transport' && item.carRental && item.carRental.hasRental) {
-              // Rental Cost
-              processItemCost(
-                  item.id, item.date,
-                  `${item.title} (租車)`, '交通',
-                  Number(item.carRental.rentalCost),
-                  item.carRental.rentalCurrency || 'TWD',
-                  item.carRental.hasServiceFee || false,
-                  Number(item.carRental.serviceFeePercentage),
-                  item.carRental.participants || [],
-                  item.carRental.isPotential || false
-              );
-              // Expenses
-              item.carRental.expenses?.forEach(exp => {
-                  processItemCost(
-                      item.id, item.date,
-                      `${item.title} (${exp.name})`, '交通雜支',
-                      Number(exp.amount),
-                      exp.currency || 'TWD',
-                      exp.hasServiceFee || false,
-                      Number(exp.serviceFeePercentage),
-                      item.carRental?.participants || [],
-                      item.carRental?.isPotential || false
-                  );
-              });
-              // Fuel
-              if (item.carRental.estimatedFuelCost) {
-                   processItemCost(
-                      item.id, item.date,
-                      `${item.title} (油資預估)`, '油資',
-                      Number(item.carRental.estimatedFuelCost),
-                      item.carRental.fuelCurrency || 'TWD',
-                      false, 0,
-                      item.carRental.participants || [],
-                      true
-                  );
-              }
+              processItemCost(item.id, item.date, `${item.title} (租車)`, '交通', Number(item.carRental.rentalCost), item.carRental.rentalCurrency || 'TWD', item.carRental.hasServiceFee || false, Number(item.carRental.serviceFeePercentage), item.carRental.participants || [], item.carRental.isPotential || false);
           }
-          // Spot/Food
           if ((item.type === 'spot' || item.type === 'food') && item.spotDetails?.hasTicket) {
-               processItemCost(
-                  item.id, item.date,
-                  item.title, item.type === 'food' ? '餐飲' : '門票',
-                  Number(item.spotDetails.ticketCost),
-                  item.spotDetails.currency || 'TWD',
-                  item.spotDetails.hasServiceFee || false,
-                  Number(item.spotDetails.serviceFeePercentage),
-                  item.spotDetails.participants || [],
-                  item.spotDetails.isPotential || false
-              );
+               processItemCost(item.id, item.date, item.title, item.type === 'food' ? '餐飲' : '門票', Number(item.spotDetails.ticketCost), item.spotDetails.currency || 'TWD', item.spotDetails.hasServiceFee || false, Number(item.spotDetails.serviceFeePercentage), item.spotDetails.participants || [], item.spotDetails.isPotential || false);
           }
       });
 
-      return { totalShared: Math.round(totalShared), totalPotential: Math.round(totalPotential), breakdown };
+      return { totalShared: Math.round(totalShared), totalPotential: Math.round(totalPotential), totalSettled: Math.round(totalSettled), totalPending: Math.round(totalPending), breakdown };
   };
 
   const initiateAction = (action: { type: 'add' | 'edit' | 'delete', payload?: any }) => {
@@ -189,14 +158,18 @@ export const MembersView: React.FC<MembersViewProps> = ({ members, scheduleItems
 
   const confirmJump = () => {
       if (jumpTarget) {
-          onJumpToSchedule(jumpTarget.date, jumpTarget.id);
+          if (jumpTarget.type === 'schedule') {
+            onJumpToSchedule(jumpTarget.date, jumpTarget.id);
+          } else {
+            onJumpToExpense(jumpTarget.id);
+          }
           setJumpTarget(null);
           setSelectedMemberId(null);
       }
   };
 
   const selectedMemberData = selectedMemberId ? members.find(m => m.id === selectedMemberId) : null;
-  const selectedMemberCost = selectedMemberId ? calculateMemberCosts(selectedMemberId) : { totalShared: 0, totalPotential: 0, breakdown: [] };
+  const financial = selectedMemberId ? calculateMemberCosts(selectedMemberId) : { totalShared: 0, totalPotential: 0, totalSettled: 0, totalPending: 0, breakdown: [] };
 
   return (
     <div className="space-y-6 p-4 lg:p-0 pb-24 lg:pb-0 h-full overflow-y-auto custom-scroll animate-scale-in">
@@ -226,8 +199,8 @@ export const MembersView: React.FC<MembersViewProps> = ({ members, scheduleItems
                             </div>
                             
                             <div className="w-full bg-white rounded-xl p-2 border border-beige-dark text-center">
-                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">分攤總額</p>
-                                <p className="text-sm font-black text-sage font-mono">NT$ {costs.totalShared.toLocaleString()}</p>
+                                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">未清帳款</p>
+                                <p className={`text-sm font-black font-mono ${costs.totalPending > 0 ? 'text-orange-500' : 'text-sage'}`}>NT$ {costs.totalPending.toLocaleString()}</p>
                             </div>
 
                             <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -244,9 +217,9 @@ export const MembersView: React.FC<MembersViewProps> = ({ members, scheduleItems
             <div className="mt-8 p-4 bg-teal-50 rounded-2xl text-xs text-teal-600 leading-relaxed border-2 border-teal-100 font-bold">
                 <p className="font-black mb-1 flex items-center gap-1 text-sm"><Info size={16}/> 修璟提示</p>
                 <ul className="list-disc list-inside space-y-1 ml-1 opacity-90">
-                    <li>新增/刪除成員需輸入管理密碼 (預設 0000)。</li>
-                    <li>點擊卡片可查看詳細分攤內容。</li>
-                    <li>首頁右上角齒輪圖案可以設定匯率。</li>
+                    <li>記帳頁面可標記成員是否已補繳費。</li>
+                    <li>點擊成員卡片可看個人收支明細，並可快速跳轉。</li>
+                    <li>代墊金額為本人付款總額，應付份額為參與分攤後的總額。</li>
                 </ul>
             </div>
         </div>
@@ -255,7 +228,7 @@ export const MembersView: React.FC<MembersViewProps> = ({ members, scheduleItems
         {selectedMemberId && selectedMemberData && (
             <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedMemberId(null)}>
                 <div className="bg-beige w-full max-w-md rounded-[2.5rem] p-6 shadow-2xl border-4 border-beige-dark animate-scale-in max-h-[85vh] overflow-y-auto custom-scroll relative" onClick={e => e.stopPropagation()}>
-                    <button onClick={() => setSelectedMemberId(null)} className="absolute top-4 right-4 p-2 bg-white rounded-full text-gray-400 hover:text-cocoa border border-beige-dark"><X size={16}/></button>
+                    <button onClick={() => setSelectedMemberId(null)} className="absolute top-4 right-4 p-2 bg-white rounded-full text-gray-400 hover:text-cocoa border border-beige-dark shadow-sm"><X size={16}/></button>
                     
                     <div className="flex flex-col items-center mb-6">
                         <div className="w-20 h-20 rounded-full bg-white border-4 border-beige-dark overflow-hidden shadow-sm mb-3">
@@ -264,36 +237,51 @@ export const MembersView: React.FC<MembersViewProps> = ({ members, scheduleItems
                         <h3 className="text-2xl font-black text-cocoa flex items-center gap-2">
                             {selectedMemberData.name} <span className="text-2xl">{selectedMemberData.fruit}</span>
                         </h3>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">個人收支結報</p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3 mb-6">
-                        <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark text-center">
-                            <span className="text-xs font-bold text-gray-400 block mb-1">確認分攤</span>
-                            <span className="text-xl font-black text-sage font-mono">NT$ {selectedMemberCost.totalShared.toLocaleString()}</span>
+                    <div className="grid grid-cols-3 gap-2 mb-6">
+                        <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark text-center">
+                            <span className="text-[9px] font-bold text-gray-400 block mb-1">應付份額</span>
+                            <span className="text-sm font-black text-cocoa font-mono">{financial.totalShared.toLocaleString()}</span>
                         </div>
-                        <div className="bg-yellow-50 p-4 rounded-2xl border-2 border-yellow-200 text-center">
-                            <span className="text-xs font-bold text-yellow-600 block mb-1">潛在花費</span>
-                            <span className="text-xl font-black text-yellow-700 font-mono">NT$ {selectedMemberCost.totalPotential.toLocaleString()}</span>
+                        <div className="bg-sage-light/30 p-3 rounded-2xl border-2 border-sage/20 text-center">
+                            <span className="text-[9px] font-bold text-sage block mb-1">已繳清</span>
+                            <span className="text-sm font-black text-sage font-mono">{financial.totalSettled.toLocaleString()}</span>
+                        </div>
+                        <div className="bg-orange-50 p-3 rounded-2xl border-2 border-orange-100 text-center">
+                            <span className="text-[9px] font-bold text-orange-400 block mb-1">待補繳</span>
+                            <span className="text-sm font-black text-orange-500 font-mono">{financial.totalPending.toLocaleString()}</span>
                         </div>
                     </div>
 
                     <div className="space-y-3">
-                        <h4 className="text-sm font-black text-cocoa flex items-center gap-2"><DollarSign size={16} className="text-sage"/> 費用明細 (來自行程)</h4>
-                        {selectedMemberCost.breakdown.length === 0 ? (
-                            <div className="text-center py-8 text-gray-400 text-xs font-bold bg-white rounded-2xl border border-dashed border-beige-dark">暫無分攤項目</div>
+                        <h4 className="text-sm font-black text-cocoa flex items-center gap-2 mb-3"><DollarSign size={16} className="text-sage"/> 分攤明細 (點擊跳轉明細)</h4>
+                        {financial.breakdown.length === 0 ? (
+                            <div className="text-center py-10 text-gray-400 text-xs font-bold bg-white rounded-2xl border border-dashed border-beige-dark">暫無分攤紀錄</div>
                         ) : (
-                            selectedMemberCost.breakdown.map((item, idx) => (
+                            financial.breakdown.map((item, idx) => (
                                 <div 
                                     key={idx} 
-                                    onClick={() => setJumpTarget({ id: item.id, date: item.date, title: item.title })}
-                                    className={`p-3 rounded-2xl border flex justify-between items-start gap-3 cursor-pointer transition-colors active:scale-[0.99] ${item.isPotential ? 'bg-yellow-50 border-yellow-100 hover:bg-yellow-100' : 'bg-white border-beige-dark hover:bg-gray-50'}`}
+                                    onClick={() => setJumpTarget({ id: item.id, date: item.date, title: item.title, type: item.category })}
+                                    className={`p-3 rounded-2xl border flex justify-between items-center gap-3 cursor-pointer transition-all active:scale-[0.98] ${item.isPotential ? 'bg-yellow-50 border-yellow-100' : item.isSettled ? 'bg-white border-beige-dark' : 'bg-orange-50 border-orange-100 ring-1 ring-orange-100/50'}`}
                                 >
-                                    <div className="flex flex-col items-start gap-1 flex-1">
-                                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-black ${item.isPotential ? 'bg-yellow-200 text-yellow-700' : 'bg-gray-100 text-gray-500'}`}>{item.type}</span>
-                                        <span className="text-sm font-bold text-cocoa leading-tight">{item.title}</span>
-                                        <span className="text-[10px] font-bold text-gray-400">{item.date}</span>
+                                    <div className="flex gap-3 items-center flex-1 min-w-0">
+                                        <div className={`p-2 rounded-xl ${item.isPotential ? 'bg-yellow-200 text-yellow-700' : item.isSettled ? 'bg-sage-light text-sage' : 'bg-white text-orange-400 shadow-sm'}`}>
+                                            {item.isPotential ? <Clock size={16}/> : item.isSettled ? <CheckCircle2 size={16}/> : <Clock size={16}/>}
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-sm font-black text-cocoa truncate">{item.title}</span>
+                                            <span className="text-[9px] font-bold text-gray-400">{item.date}</span>
+                                        </div>
                                     </div>
-                                    <span className={`text-sm font-black font-mono whitespace-nowrap mt-1 ${item.isPotential ? 'text-yellow-600' : 'text-cocoa'}`}>NT$ {Math.round(item.amount).toLocaleString()}</span>
+                                    <div className="text-right flex items-center gap-2">
+                                        <div className="flex flex-col">
+                                            <span className={`text-sm font-black font-mono ${item.isSettled ? 'text-gray-400' : 'text-orange-500'}`}>NT$ {Math.round(item.amount).toLocaleString()}</span>
+                                            <span className="text-[8px] font-bold text-gray-300 uppercase">{item.isPotential ? 'POTENTIAL' : item.isSettled ? 'SETTLED' : 'UNPAID'}</span>
+                                        </div>
+                                        <ArrowRight size={14} className="text-gray-300"/>
+                                    </div>
                                 </div>
                             ))
                         )}
@@ -315,9 +303,9 @@ export const MembersView: React.FC<MembersViewProps> = ({ members, scheduleItems
                     <div className="w-14 h-14 bg-blue-50 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-3 border-2 border-blue-100">
                         <Navigation size={24} />
                     </div>
-                    <h3 className="font-black text-lg text-cocoa mb-2">跳轉至行程?</h3>
+                    <h3 className="font-black text-lg text-cocoa mb-2">跳轉至{jumpTarget.type === 'schedule' ? '行程' : '記帳'}?</h3>
                     <p className="text-xs text-gray-400 mb-6 font-bold leading-relaxed">
-                        是否前往行程表查看<br/><span className="text-cocoa text-sm">{jumpTarget.title}</span> 的詳細內容？
+                        是否前往查看<br/><span className="text-cocoa text-sm">{jumpTarget.title}</span> 的詳細內容？
                     </p>
                     <div className="flex gap-2">
                         <button onClick={() => setJumpTarget(null)} className="flex-1 py-3 rounded-xl font-bold text-gray-400 bg-gray-100 hover:bg-gray-200 transition-colors">取消</button>

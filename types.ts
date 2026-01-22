@@ -276,6 +276,7 @@ export interface Expense {
     
     // Added fields
     involvedMembers?: string[];
+    settledMembers?: string[]; // New field: List of members who paid the payer back
     images?: string[];
     comments?: Comment[];
 }
