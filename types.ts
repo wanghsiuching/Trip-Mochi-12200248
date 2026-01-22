@@ -32,101 +32,41 @@ export interface TripDate extends TripDay {
 export interface ExpenseItem {
   id: string;
   name: string;
-  amount: number | string; // Changed to allow empty string input
-  currency?: string;
-  hasServiceFee?: boolean;
-  serviceFeePercentage?: number | string; // Changed to allow empty input
-}
-
-export interface CarRentalDetails {
-  hasRental: boolean;
-  company?: string;
-  carModel?: string;
-  pickupDate?: string;
-  pickupTime?: string;
-  returnDate?: string;
-  returnTime?: string;
-  
-  // Base Rental Cost
-  rentalCost?: number | string;
-  rentalCurrency?: string;
-  hasServiceFee?: boolean;
-  serviceFeePercentage?: number | string;
-  
-  // Fuel
-  estimatedFuelCost?: number | string;
-  fuelCurrency?: string;
-
-  expenses?: ExpenseItem[];
-  participants?: string[];
-  isPotential?: boolean;
-}
-
-export interface StayDetails {
-  cost?: number | string;
+  amount: number | string;
   currency?: string;
   hasServiceFee?: boolean;
   serviceFeePercentage?: number | string;
-  participants?: string[];
-  isPotential?: boolean;
-}
-
-export interface FlightDetails {
-  airline?: string;
-  flightCode?: string;
-  departureTime?: string;
-  arrivalTime?: string;
-  arrivalDate?: string; // Added for detailed schedule
-  departureAirport?: string;
-  arrivalAirport?: string;
-  checkedBag?: string;
-  carryOnBag?: string;
-  
-  cost?: number | string;
-  currency?: string;
-  hasServiceFee?: boolean;
-  serviceFeePercentage?: number | string;
-  participants?: string[];
-  isPotential?: boolean;
 }
 
 export interface ScheduleItem {
   id: string;
-  date: string; // YYYY-MM-DD
+  date: string; 
   time: string;
   title: string;
   type: ItemType;
   location: string;
   gps?: { lat: string; lng: string };
   notes?: string;
-  
-  // Accommodation specific fields
   checkIn?: string;
   checkOut?: string;
   meals?: { breakfast: boolean; dinner: boolean };
-  
-  // Detailed Data Structures
-  carRental?: CarRentalDetails;
-  stayDetails?: StayDetails;
-  flightDetails?: FlightDetails;
-  
-  // Spot/Food specific fields
+  carRental?: any;
+  stayDetails?: any;
+  flightDetails?: any;
   spotDetails?: {
     hasTicket: boolean;
     ticketCost?: number;
-    currency?: string; // Currency code
+    currency?: string;
     hasServiceFee?: boolean;
     serviceFee?: number;
     serviceFeePercentage?: number;
-    participants?: string[]; // List of member IDs
+    participants?: string[];
     isPotential?: boolean;
   };
-
-  // Additional fields for ScheduleView
   address?: string;
   googleMapUrl?: string;
   naverMapUrl?: string;
-  note?: string; // Alias for notes
+  note?: string;
   images?: string[];
 }
 
@@ -135,125 +75,6 @@ export interface SavedTrip {
   name: string;
   date: string;
 }
-
-export interface BookingFlight {
-  id: number;
-  airline: string;
-  code: string;
-  date: string; // Departure date/time
-  arrivalDate?: string; // Added for departure flight arrival
-  origin: string;
-  originCity: string;
-  dest: string;
-  destCity: string;
-  depTime: string;
-  arrTime: string;
-  duration: string;
-  aircraft: string;
-  baggage: string;
-  color: string;
-  purchaseDate: string;
-  platform: string;
-  type: string;
-  note: string;
-  
-  // Added fields
-  checkedBag?: string;
-  carryOnBag?: string;
-  departureAirport?: string;
-  arrivalAirport?: string;
-  cost: number;
-  currency: string;
-  hasServiceFee: boolean;
-  serviceFeePercentage: number;
-  participants: string[];
-  isPotential?: boolean;
-
-  // Added missing fields for BookingsView
-  tripType?: 'oneway' | 'roundtrip';
-  returnDate?: string; // Return departure
-  returnArrivalDate?: string; // Return arrival
-  returnDuration?: string;
-}
-
-export interface BookingAccommodation {
-  id: number;
-  name: string;
-  city: string;
-  platform: string;
-  ref: string;
-  address: string;
-  gps: string;
-  url: string;
-  checkInDate: string;
-  checkOutDate: string;
-  checkInTime: string;
-  latestCheckInTime: string;
-  checkOutTime: string;
-  nights: number;
-  pax: number;
-  priceKRW?: number;
-  priceTWD?: number;
-  photos: string[]; // base64 strings
-  note: string;
-  googleMapUrl?: string;
-  naverMapUrl?: string;
-  checkIn: string; // display time
-
-  // Added fields
-  cost: number;
-  currency: string;
-  hasServiceFee: boolean;
-  serviceFeePercentage: number;
-  participants: string[];
-}
-
-export interface BookingCarRental {
-  id: number;
-  company: string;
-  platform: string;
-  carModel: string;
-  ref: string;
-  pickupDate: string;
-  pickupTime: string;
-  pickupLocation: string;
-  returnDate: string;
-  returnTime: string;
-  returnLocation: string;
-  gps: string;
-  url: string;
-  note: string;
-  price: number;
-  currency: string;
-  pax: number;
-
-  // Added fields
-  hasServiceFee: boolean;
-  serviceFeePercentage: number;
-  participants: string[];
-  
-  // Optional for ScheduleItem compatibility/usage
-  hasRental?: boolean;
-  rentalCost?: number | string;
-  rentalCurrency?: string;
-  estimatedFuelCost?: number | string;
-  fuelCurrency?: string;
-  expenses?: ExpenseItem[];
-  isPotential?: boolean;
-}
-
-export interface BookingTicket {
-  id: number;
-  name: string;
-  platform: string;
-  files: string[]; // base64 strings
-}
-
-// Aliases for Components
-export type Flight = BookingFlight;
-export type Accommodation = BookingAccommodation;
-export type CarRental = BookingCarRental;
-export type Ticket = BookingTicket;
 
 export interface Comment {
     id: string;
@@ -276,21 +97,23 @@ export interface Expense {
     
     // Added fields
     involvedMembers?: string[];
-    settledMembers?: string[]; // New field: List of members who paid the payer back
+    settledMembers?: string[]; 
     images?: string[];
     comments?: Comment[];
+    
+    // Credit card fields
+    isCreditCard?: boolean;
+    serviceFeePercentage?: number;
 }
 
 export interface TodoItem {
     id: number;
     text: string;
     done: boolean;
-    // Added fields
     assignee: string | string[];
     completedBy?: string[];
     note?: string;
     url?: string;
-    image?: string;
     comments?: Comment[];
 }
 
@@ -301,6 +124,102 @@ export interface Journal {
     content: string;
     photos: string[];
     comments?: Comment[];
+}
+
+// Added missing Booking interfaces
+export interface BookingFlight {
+  id: number;
+  airline: string;
+  code: string;
+  date: string;
+  arrivalDate: string;
+  returnDate?: string;
+  returnArrivalDate?: string;
+  origin: string;
+  originCity: string;
+  dest: string;
+  destCity: string;
+  duration: string;
+  returnDuration?: string;
+  aircraft: string;
+  checkedBag: string;
+  carryOnBag: string;
+  baggage: string;
+  color: string;
+  purchaseDate: string;
+  platform: string;
+  type: string;
+  tripType: 'oneway' | 'roundtrip';
+  cost: number;
+  currency: string;
+  hasServiceFee: boolean;
+  serviceFeePercentage: number;
+  participants: string[];
+  note: string;
+  departureAirport?: string;
+  arrivalAirport?: string;
+  depTime?: string;
+  arrTime?: string;
+}
+
+export interface BookingAccommodation {
+  id: number;
+  name: string;
+  city: string;
+  platform: string;
+  ref?: string;
+  address: string;
+  gps?: string;
+  url?: string;
+  checkInDate: string;
+  checkOutDate: string;
+  checkInTime?: string;
+  latestCheckInTime?: string;
+  checkOutTime?: string;
+  checkIn?: string;
+  nights: number;
+  cost: number;
+  currency: string;
+  hasServiceFee: boolean;
+  serviceFeePercentage: number;
+  participants: string[];
+  pax?: number;
+  photos?: string[];
+  note: string;
+}
+
+export interface BookingCarRental {
+  id: number;
+  company: string;
+  platform: string;
+  carModel: string;
+  ref?: string;
+  pickupDate: string;
+  pickupTime?: string;
+  pickupLocation: string;
+  returnDate: string;
+  returnTime?: string;
+  returnLocation: string;
+  gps?: string;
+  url?: string;
+  note: string;
+  price: number;
+  currency: string;
+  hasServiceFee: boolean;
+  serviceFeePercentage: number;
+  pax?: number;
+  participants: string[];
+  hasRental: boolean;
+}
+
+export interface BookingTicket {
+  id: number;
+  name: string;
+  date: string;
+  cost: number;
+  currency: string;
+  participants: string[];
+  note?: string;
 }
 
 export const THEME = {
