@@ -7,6 +7,7 @@ import {
   Percent
 } from 'lucide-react';
 import { Expense, Member, Currency, Comment } from '../types';
+import { ToggleSwitch } from './Modals';
 
 interface ExpensesViewProps {
   expenses: Expense[];
@@ -25,7 +26,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   const [form, setForm] = useState({ 
       amount: '', title: '', currency: 'TWD', payer: members[0]?.name || '我', involvedMembers: [] as string[],
       paymentMethod: '現金', location: '', 
-      isCreditCard: false, serviceFeePercentage: '1.5',
+      isCreditCard: false, hasServiceFee: false, serviceFeePercentage: '1.5',
       date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5)
   });
   
@@ -50,13 +51,13 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     }
   }, [highlightId, mobileTab]);
 
-  const calculateTotalWithFee = (amount: number, isCard: boolean, feePct: number) => {
-      if (!isCard) return amount;
+  const calculateTotalWithFee = (amount: number, hasFee: boolean, feePct: number) => {
+      if (!hasFee) return amount;
       return amount + (amount * (feePct / 100));
   };
 
-  const calculateTWD = (amount: number, currency: string, isCard: boolean = false, feePct: number = 0) => {
-      const totalAmount = calculateTotalWithFee(amount, isCard, feePct);
+  const calculateTWD = (amount: number, currency: string, hasFee: boolean = false, feePct: number = 0) => {
+      const totalAmount = calculateTotalWithFee(amount, hasFee, feePct);
       if (currency === 'TWD') return totalAmount;
       const rateObj = currencies.find(c => c.code === currency);
       const rate = rateObj ? rateObj.rate : 1;
@@ -68,7 +69,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     : expenses.filter(e => e.payer === filter || e.involvedMembers?.includes(filter));
 
   const totalTWD = filteredExpenses.reduce((acc, curr) => 
-    acc + calculateTWD(curr.amount, curr.currency, curr.isCreditCard, curr.serviceFeePercentage), 0);
+    acc + calculateTWD(curr.amount, curr.currency, curr.hasServiceFee, curr.serviceFeePercentage), 0);
   
   const getMemberStats = (memberName: string) => {
     let paidUpfrontTWD = 0;
@@ -77,7 +78,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     let pendingToOthers = 0;
 
     expenses.forEach(exp => {
-      const expTWD = calculateTWD(exp.amount, exp.currency, exp.isCreditCard, exp.serviceFeePercentage);
+      const expTWD = calculateTWD(exp.amount, exp.currency, exp.hasServiceFee, exp.serviceFeePercentage);
       const involved = exp.involvedMembers || [];
       const splitCount = involved.length || 1;
       const perPersonShare = expTWD / splitCount;
@@ -134,7 +135,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
         settledMembers: [form.payer], 
         paymentMethod: form.isCreditCard ? '信用卡' : '現金', 
         isCreditCard: form.isCreditCard,
-        serviceFeePercentage: form.isCreditCard ? Number(form.serviceFeePercentage) : 0,
+        hasServiceFee: form.hasServiceFee,
+        serviceFeePercentage: form.hasServiceFee ? Number(form.serviceFeePercentage) : 0,
         location: form.location,
         image: null, images: [], date: form.date, time: form.time, comments: []
     });
@@ -194,18 +196,20 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                             </div>
                         </div>
 
-                        {form.isCreditCard && (
-                            <div className="bg-blue-50 p-3 rounded-xl border-2 border-blue-100 flex justify-between items-center animate-scale-in">
-                                <div className="flex items-center gap-2">
-                                    <Percent size={14} className="text-blue-500"/>
-                                    <span className="text-xs font-bold text-blue-600">海外/刷卡手續費</span>
-                                </div>
-                                <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-blue-200">
-                                    <input type="number" value={form.serviceFeePercentage} onChange={e => setForm({...form, serviceFeePercentage: e.target.value})} className="w-10 text-center text-sm font-black text-cocoa outline-none bg-transparent" />
+                        <div className="flex items-center justify-between mt-2 mb-1 px-1">
+                            <ToggleSwitch 
+                                checked={form.hasServiceFee} 
+                                onChange={(checked) => setForm({...form, hasServiceFee: checked})} 
+                                label="額外手續費/稅金" 
+                                colorClass="bg-blue-400" 
+                            />
+                            {form.hasServiceFee && (
+                                <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-beige-dark shadow-sm">
+                                    <input type="number" value={form.serviceFeePercentage} onChange={e => setForm({...form, serviceFeePercentage: e.target.value})} className="w-10 bg-transparent text-xs font-bold text-center outline-none text-cocoa border-b border-gray-200" placeholder="1.5"/>
                                     <span className="text-xs font-bold text-gray-400">%</span>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
 
                         <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
                             <label className="text-[10px] text-gray-400 block mb-1 font-bold">項目名稱</label>
@@ -214,7 +218,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
                         <div className="bg-gray-50 p-3 rounded-xl border border-dashed border-beige-dark flex justify-between items-center">
                             <span className="text-xs font-bold text-gray-400">概算總額 (含手續費)</span>
-                            <span className="text-sm font-black text-sage">TWD {calculateTWD(Number(form.amount)||0, form.currency, form.isCreditCard, Number(form.serviceFeePercentage)||0).toLocaleString()}</span>
+                            <span className="text-sm font-black text-sage">TWD {calculateTWD(Number(form.amount)||0, form.currency, form.hasServiceFee, Number(form.serviceFeePercentage)||0).toLocaleString()}</span>
                         </div>
 
                         <div>
@@ -281,7 +285,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                         <div className="space-y-4">
                             {groupedExpenses[date].map(exp => {
                                 const isPayer = filter !== 'all' && exp.payer === filter;
-                                const finalAmountTWD = calculateTWD(exp.amount, exp.currency, exp.isCreditCard, exp.serviceFeePercentage);
+                                const finalAmountTWD = calculateTWD(exp.amount, exp.currency, exp.hasServiceFee, exp.serviceFeePercentage);
                                 const splitAmountTWD = finalAmountTWD / (exp.involvedMembers?.length || 1);
 
                                 return (

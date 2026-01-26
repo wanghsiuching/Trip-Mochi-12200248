@@ -103,6 +103,7 @@ export interface Expense {
     
     // Credit card fields
     isCreditCard?: boolean;
+    hasServiceFee?: boolean;
     serviceFeePercentage?: number;
 }
 
