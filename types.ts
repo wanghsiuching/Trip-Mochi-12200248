@@ -105,6 +105,10 @@ export interface Expense {
     isCreditCard?: boolean;
     hasServiceFee?: boolean;
     serviceFeePercentage?: number;
+
+    // Public Fund Fields
+    category?: 'general' | 'public_fund'; // Default is 'general'
+    fundType?: 'deposit' | 'expense'; // Only for category === 'public_fund'
 }
 
 export interface TodoItem {
