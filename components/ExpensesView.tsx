@@ -4,10 +4,11 @@ import {
   PenTool, List, Wallet, Coins, User, MapPin, Trash2, 
   Receipt, CreditCard, Clock, Check, ArrowLeft, Send, MessageCircle, X,
   ArrowUpRight, ArrowDownLeft, Scale, CheckCircle2, Circle, AlertCircle, HelpCircle,
-  Percent, Landmark, PiggyBank, Edit3, Calendar as CalendarIcon, Tag, Users
+  Percent, Landmark, PiggyBank, Edit3, Calendar as CalendarIcon, Tag, Users,
+  PlusCircle, MinusCircle, ReceiptText, Heart, ShoppingBag, Sparkles
 } from 'lucide-react';
 import { Expense, Member, Currency, Comment } from '../types';
-import { ToggleSwitch } from './Modals';
+import { ToggleSwitch, DeleteItemConfirmModal } from './Modals';
 
 interface ExpensesViewProps {
   expenses: Expense[];
@@ -23,6 +24,9 @@ interface ExpensesViewProps {
 export const ExpensesView: React.FC<ExpensesViewProps> = ({ 
   expenses, members, currencies, onAdd, onUpdate, onDelete, onShowToast, highlightId 
 }) => {
+  // Helper: Defined getExchangeRate helper inside the component
+  const getExchangeRate = (code: string): number => currencies.find(c => c.code === code)?.rate || 1;
+
   const [viewMode, setViewMode] = useState<'general' | 'fund'>('general');
   const [mobileTab, setMobileTab] = useState<'input' | 'list'>(highlightId ? 'list' : 'input');
   
@@ -51,10 +55,11 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   // Edit State
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
-  const [editForm, setEditForm] = useState<any>(null); // Reusing structure for edit form
+  const [editForm, setEditForm] = useState<any>(null);
 
   const [settleConfirm, setSettleConfirm] = useState<{ exp: Expense, memberName: string, amount: number } | null>(null);
   const [showFundInputModal, setShowFundInputModal] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<number | null>(null);
 
   const listContainerRef = useRef<HTMLDivElement>(null);
 
@@ -69,7 +74,6 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
   useEffect(() => {
     if (highlightId) {
-      // Find the expense to determine mode
       const targetExp = expenses.find(e => e.id.toString() === highlightId);
       if (targetExp) {
           if (targetExp.category === 'public_fund') setViewMode('fund');
@@ -89,16 +93,17 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   }, [highlightId, expenses]);
 
   // Helpers
-  const calculateTotalWithFee = (amount: number, hasFee: boolean, feePct: number) => {
+  /* Explicitly cast result to number to avoid TS errors in arithmetic operations */
+  const calculateTotalWithFee = (amount: number, hasFee: boolean, feePct: number): number => {
       if (!hasFee) return amount;
       return amount + (amount * (feePct / 100));
   };
 
-  const calculateTWD = (amount: number, currency: string, hasFee: boolean = false, feePct: number = 0) => {
+  /* Ensure return type is strictly number */
+  const calculateTWD = (amount: number, currency: string, hasFee: boolean = false, feePct: number = 0): number => {
       const totalAmount = calculateTotalWithFee(amount, hasFee, feePct);
       if (currency === 'TWD') return totalAmount;
-      const rateObj = currencies.find(c => c.code === currency);
-      const rate = rateObj ? rateObj.rate : 1;
+      const rate = getExchangeRate(currency);
       return Math.round(totalAmount * rate);
   };
 
@@ -112,12 +117,22 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     : generalExpenses.filter(e => e.payer === filter || e.involvedMembers?.includes(filter));
 
   const totalGeneralTWD = filteredGeneralExpenses.reduce((acc, curr) => 
-    acc + calculateTWD(curr.amount, curr.currency, curr.hasServiceFee, curr.serviceFeePercentage), 0);
+    acc + calculateTWD(curr.amount, curr.currency, curr.hasServiceFee || false, curr.serviceFeePercentage || 0), 0);
 
-  // Fund Calculations
+  // Fund Calculations (TWD Total Balance)
   const totalDepositTWD = fundExpenses.filter(e => e.fundType === 'deposit').reduce((acc, curr) => acc + calculateTWD(curr.amount, curr.currency), 0);
   const totalFundExpenseTWD = fundExpenses.filter(e => e.fundType === 'expense').reduce((acc, curr) => acc + calculateTWD(curr.amount, curr.currency), 0);
   const fundBalanceTWD = totalDepositTWD - totalFundExpenseTWD;
+
+  // Currency-wise Balance for Fund
+  const fundBalancesByCurrency = fundExpenses.reduce((acc, exp) => {
+      const curr = exp.currency || 'TWD';
+      if (!acc[curr]) acc[curr] = 0;
+      const amount = Number(exp.amount) || 0;
+      if (exp.fundType === 'deposit') acc[curr] += amount;
+      else acc[curr] -= amount;
+      return acc;
+  }, {} as Record<string, number>);
 
   // Handlers
   const handleAddGeneral = () => {
@@ -149,7 +164,6 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       }
 
       if (fundForm.type === 'deposit') {
-          // Batch Deposit Logic
           const payers = fundForm.payers.length > 0 ? fundForm.payers : [members[0].name];
           payers.forEach(payer => {
               onAdd({
@@ -159,7 +173,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                   title: fundForm.title,
                   currency: fundForm.currency,
                   payer: payer,
-                  involvedMembers: [], // Deposit implies contribution, usually implicitly involves everyone benefiting later
+                  involvedMembers: [], 
                   paymentMethod: '現金',
                   location: '',
                   image: null, images: [], date: fundForm.date, time: fundForm.time, comments: []
@@ -167,7 +181,6 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           });
           onShowToast(`已新增 ${payers.length} 筆入金紀錄`, "success");
       } else {
-          // Expense Logic
           onAdd({
               category: 'public_fund',
               fundType: 'expense',
@@ -197,7 +210,6 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           hasServiceFee: exp.hasServiceFee,
           serviceFeePercentage: exp.serviceFeePercentage,
           date: exp.date, time: exp.time,
-          // Fund specifics
           fundType: exp.fundType,
           category: exp.category
       });
@@ -226,10 +238,16 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   };
 
   const handleDeleteClick = (id: number) => {
-      if (window.confirm("確定要刪除此筆記錄嗎？")) {
-          onDelete(id);
-          setShowEditModal(false);
-      }
+      setItemToDelete(id);
+  };
+
+  const confirmDelete = () => {
+    if (itemToDelete !== null) {
+        onDelete(itemToDelete);
+        setItemToDelete(null);
+        setShowEditModal(false);
+        onShowToast("已刪除", "success");
+    }
   };
 
   const performToggle = (exp: Expense, memberName: string) => {
@@ -247,7 +265,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                   onUpdate({ ...exp, settledMembers: updatedSettled });
               }
           } else {
-              const totalAmount = calculateTWD(exp.amount, exp.currency, exp.hasServiceFee, exp.serviceFeePercentage);
+              const totalAmount = calculateTWD(exp.amount, exp.currency, exp.hasServiceFee || false, exp.serviceFeePercentage || 0);
               const perPerson = totalAmount / (exp.involvedMembers?.length || 1);
               setSettleConfirm({ exp, memberName, amount: Math.round(perPerson) });
           }
@@ -278,7 +296,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       });
   };
 
-  // Grouping Logic
+  // Grouping & Sorting Logic
   const groupedGeneralExpenses = filteredGeneralExpenses.reduce((acc, exp) => {
     const date = exp.date;
     if (!acc[date]) acc[date] = [];
@@ -295,7 +313,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   }, {} as Record<string, Expense[]>);
   const sortedFundDates = Object.keys(groupedFundExpenses).sort((a, b) => b.localeCompare(a));
 
-  // --- Sub-Components for Render Cleanliness ---
+  // --- Sub-Components ---
 
   const MemberStats = () => {
       if (filter === 'all') return null;
@@ -306,7 +324,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       let pendingToOthers = 0;
 
       generalExpenses.forEach(exp => {
-        const expTWD = calculateTWD(exp.amount, exp.currency, exp.hasServiceFee, exp.serviceFeePercentage);
+        const expTWD = calculateTWD(exp.amount, exp.currency, exp.hasServiceFee || false, exp.serviceFeePercentage || 0);
         const involved = exp.involvedMembers || [];
         const splitCount = involved.length || 1;
         const perPersonShare = expTWD / splitCount;
@@ -356,12 +374,12 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     <div className="w-full mx-auto lg:p-0 pb-48 lg:pb-0 animate-scale-in" ref={listContainerRef}>
        {/* Mode Switcher */}
        <div className="sticky top-0 z-40 bg-beige/95 backdrop-blur-md px-4 pt-3 pb-2 border-b border-beige-dark/50 mb-4">
-            <div className="bg-white p-1 rounded-full flex text-sm font-bold text-gray-400 border-2 border-beige-dark shadow-sm w-full mb-3">
+            <div className="bg-white p-1.5 rounded-full flex text-sm font-bold text-gray-400 border-2 border-beige-dark shadow-sm w-full mb-3">
                 <button onClick={() => setViewMode('general')} className={`flex-1 py-2.5 rounded-full transition-all flex items-center justify-center gap-1.5 ${viewMode === 'general' ? 'bg-cocoa text-white shadow-md' : 'text-gray-400'}`}><Receipt size={16} /> 分帳記帳</button>
                 <button onClick={() => setViewMode('fund')} className={`flex-1 py-2.5 rounded-full transition-all flex items-center justify-center gap-1.5 ${viewMode === 'fund' ? 'bg-teal-600 text-white shadow-md' : 'text-gray-400'}`}><PiggyBank size={16} /> 公費管理</button>
             </div>
             
-            {/* Mobile Tab Switcher (Only visible in General Mode) */}
+            {/* Mobile Tab Switcher */}
             {viewMode === 'general' && (
                 <div className="lg:hidden flex gap-2">
                     <button onClick={() => setMobileTab('input')} className={`flex-1 py-2 rounded-xl text-xs font-black transition-all border-2 ${mobileTab === 'input' ? 'bg-sage border-sage text-white' : 'bg-white border-beige-dark text-gray-400'}`}>新增支出</button>
@@ -387,14 +405,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                             <button onClick={() => setForm({...form, isCreditCard: true})} className={`flex-1 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 ${form.isCreditCard ? 'bg-white text-blue-500 shadow-sm border border-beige-dark' : 'text-gray-400'}`}><CreditCard size={14}/> 信用卡</button>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-2">
-                            <div className="col-span-2 bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
+                        <div className="grid grid-cols-4 gap-2">
+                            <div className="col-span-3 bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
                                 <label className="text-[10px] text-gray-400 block mb-1 font-bold">金額</label>
                                 <input type="number" value={form.amount} onChange={e => setForm({...form, amount: e.target.value})} className="w-full bg-transparent text-cocoa outline-none font-black text-xl" placeholder="0" />
                             </div>
-                            <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
+                            <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm overflow-hidden">
                                 <label className="text-[10px] text-gray-400 block mb-1 font-bold">幣別</label>
-                                <select value={form.currency} onChange={e => setForm({...form, currency: e.target.value})} className="w-full bg-transparent text-cocoa outline-none font-bold text-sm">
+                                <select value={form.currency} onChange={e => setForm({...form, currency: e.target.value})} className="w-full bg-transparent text-cocoa outline-none font-bold text-xs">
                                     <option value="TWD">TWD</option>
                                     {currencies.map(c => (<option key={c.code} value={c.code}>{c.code}</option>))}
                                 </select>
@@ -469,13 +487,13 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                 <div className="space-y-6">
                     {sortedGeneralDates.map(date => (
                         <div key={date}>
-                            <div className="sticky top-0 z-10 bg-beige/95 backdrop-blur-sm py-2 mb-3 border-b border-beige-dark border-dashed flex justify-between items-center">
+                            <div className="sticky top-0 z-10 bg-beige/95 backdrop-blur-md py-2 mb-3 border-b border-beige-dark border-dashed flex justify-between items-center">
                                 <span className="bg-white text-cocoa px-4 py-1 rounded-full text-xs font-black shadow-sm border border-beige-dark">{date}</span>
                             </div>
                             <div className="space-y-4">
                                 {groupedGeneralExpenses[date].map(exp => {
                                     const isPayer = filter !== 'all' && exp.payer === filter;
-                                    const finalAmountTWD = calculateTWD(exp.amount, exp.currency, exp.hasServiceFee, exp.serviceFeePercentage);
+                                    const finalAmountTWD = calculateTWD(exp.amount, exp.currency, exp.hasServiceFee || false, exp.serviceFeePercentage || 0);
                                     const splitAmountTWD = finalAmountTWD / (exp.involvedMembers?.length || 1);
 
                                     return (
@@ -546,31 +564,38 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                         <div className="absolute -right-10 -top-10 w-48 h-48 bg-teal-500 rounded-full opacity-30 blur-3xl"></div>
                         <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-teal-400 rounded-full opacity-20 blur-3xl"></div>
                         <div className="relative z-10 text-center">
-                            <p className="font-bold text-teal-200 uppercase tracking-widest text-sm mb-2 flex items-center justify-center gap-2"><PiggyBank size={18}/> 公費餘額 (TWD)</p>
+                            <p className="font-bold text-teal-200 uppercase tracking-widest text-sm mb-2 flex items-center justify-center gap-2"><PiggyBank size={18}/> 公費總額概算 (TWD)</p>
                             <h2 className="text-5xl font-black font-mono tracking-tight mb-6">NT$ {fundBalanceTWD.toLocaleString()}</h2>
-                            <div className="flex gap-4 justify-center">
-                                <div className="text-center">
-                                    <div className="text-[10px] font-bold text-teal-200 uppercase">總入金</div>
-                                    <div className="text-lg font-black font-mono">+ {totalDepositTWD.toLocaleString()}</div>
-                                </div>
-                                <div className="w-px bg-teal-500/50"></div>
-                                <div className="text-center">
-                                    <div className="text-[10px] font-bold text-teal-200 uppercase">總支出</div>
-                                    <div className="text-lg font-black font-mono text-teal-100">- {totalFundExpenseTWD.toLocaleString()}</div>
-                                </div>
+                            
+                            <div className="flex flex-wrap gap-4 justify-center bg-teal-700/30 p-4 rounded-3xl border border-teal-500/50">
+                                {Object.entries(fundBalancesByCurrency).map(([curr, balance]) => {
+                                    if (balance === 0 && curr === 'TWD') return null;
+                                    /* Explicitly cast balance to number to ensure arithmetic safety */
+                                    const twdVal = curr === 'TWD' ? 0 : Math.round(Number(balance) * getExchangeRate(curr));
+                                    return (
+                                        <div key={curr} className="text-center px-4 border-r last:border-none border-teal-500/50">
+                                            <div className="text-xs font-bold text-teal-200 uppercase mb-1">{curr} 剩餘</div>
+                                            <div className="text-3xl font-black font-mono">{balance.toLocaleString()}</div>
+                                            {curr !== 'TWD' && <div className="text-xs font-bold text-teal-300/80 mt-1">≈ NT$ {twdVal.toLocaleString()}</div>}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                    </div>
 
-                   {/* Action Buttons */}
-                   <div className="flex gap-4 mb-8">
-                       <button onClick={() => { setFundForm({...fundForm, type: 'deposit', payers: [], title: '', amount: ''}); setShowFundInputModal(true); }} className="flex-1 bg-white border-2 border-beige-dark p-4 rounded-2xl shadow-hard-sm active:translate-y-1 active:shadow-none transition-all flex flex-col items-center gap-2 group hover:border-sage">
-                           <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center border-2 border-green-200 group-hover:scale-110 transition-transform"><ArrowDownLeft size={24} strokeWidth={3}/></div>
-                           <span className="font-black text-cocoa">入金 (Top-up)</span>
+                   {/* Action Buttons - Spend is now larger */}
+                   <div className="flex gap-4 mb-8 items-stretch">
+                       <button onClick={() => { setFundForm({...fundForm, type: 'deposit', payers: [], title: '', amount: ''}); setShowFundInputModal(true); }} className="flex-1 bg-white border-2 border-beige-dark p-4 rounded-2xl shadow-hard-sm active:translate-y-1 active:shadow-none transition-all flex flex-col items-center justify-center gap-1 group hover:border-teal-300">
+                           <div className="w-10 h-10 bg-green-50 text-green-500 rounded-full flex items-center justify-center border-2 border-green-100 group-hover:scale-110 transition-transform"><Heart size={20} fill="currentColor" className="opacity-20"/><PlusCircle size={14} className="absolute -top-1 -right-1"/></div>
+                           <span className="font-bold text-cocoa text-xs">入金</span>
                        </button>
-                       <button onClick={() => { setFundForm({...fundForm, type: 'expense', involvedMembers: members.map(m=>m.name), title: '', amount: ''}); setShowFundInputModal(true); }} className="flex-1 bg-white border-2 border-beige-dark p-4 rounded-2xl shadow-hard-sm active:translate-y-1 active:shadow-none transition-all flex flex-col items-center gap-2 group hover:border-red-300">
-                           <div className="w-12 h-12 bg-red-100 text-red-500 rounded-full flex items-center justify-center border-2 border-red-200 group-hover:scale-110 transition-transform"><ArrowUpRight size={24} strokeWidth={3}/></div>
-                           <span className="font-black text-cocoa">支出 (Spend)</span>
+                       <button onClick={() => { setFundForm({...fundForm, type: 'expense', involvedMembers: members.map(m=>m.name), title: '', amount: ''}); setShowFundInputModal(true); }} className="flex-[2.5] bg-white border-2 border-beige-dark p-5 rounded-2xl shadow-hard-sm active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-4 group hover:border-red-300">
+                           <div className="w-14 h-14 bg-red-50 text-red-500 rounded-full flex items-center justify-center border-2 border-red-200 group-hover:scale-110 transition-transform shadow-inner"><ShoppingBag size={28} strokeWidth={2.5}/></div>
+                           <div className="text-left">
+                               <span className="font-black text-cocoa text-xl block">公費支出</span>
+                               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Record Spend</span>
+                           </div>
                        </button>
                    </div>
 
@@ -579,31 +604,34 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                        <h3 className="font-black text-cocoa text-lg ml-2 flex items-center gap-2"><List size={20}/> 公費明細</h3>
                        {sortedFundDates.map(date => (
                            <div key={date}>
-                               <div className="sticky top-20 z-10 bg-beige/95 backdrop-blur-sm py-2 mb-3 border-b border-beige-dark border-dashed flex justify-between items-center">
+                               <div className="sticky top-20 z-10 bg-beige/95 backdrop-blur-md py-2 mb-3 border-b border-beige-dark border-dashed flex justify-between items-center">
                                    <span className="bg-white text-cocoa px-4 py-1 rounded-full text-xs font-black shadow-sm border border-beige-dark">{date}</span>
                                </div>
                                <div className="space-y-3">
-                                   {groupedFundExpenses[date].map(exp => {
+                                   {/* Sort items within the date descending (newest on top) */}
+                                   {groupedFundExpenses[date].slice().reverse().map(exp => {
                                        const isDeposit = exp.fundType === 'deposit';
                                        return (
                                            <div key={exp.id} className="bg-white p-4 rounded-2xl border-2 border-beige-dark flex items-center justify-between shadow-sm relative group">
                                                <div className="flex items-center gap-4 flex-1 min-w-0">
                                                    <div className={`w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center border-2 ${isDeposit ? 'bg-green-50 border-green-100 text-green-500' : 'bg-red-50 border-red-100 text-red-500'}`}>
-                                                       {isDeposit ? <ArrowDownLeft size={24}/> : <ArrowUpRight size={24}/>}
+                                                       {isDeposit ? <Heart size={24} fill="currentColor" className="opacity-20"/> : <ShoppingBag size={24}/>}
                                                    </div>
                                                    <div className="min-w-0 flex-1">
-                                                       <div className="flex items-center gap-2">
-                                                           <h4 className="font-black text-cocoa text-lg truncate">{exp.title || (isDeposit ? '公費入金' : '公費支出')}</h4>
+                                                       <div className="flex items-center gap-2 flex-wrap">
+                                                           <h4 className="font-black text-cocoa text-lg leading-tight whitespace-pre-wrap">{exp.title || (isDeposit ? '公費入金' : '公費支出')}</h4>
                                                            {isDeposit && <span className="text-[10px] bg-beige px-2 py-0.5 rounded-full font-bold text-gray-500 whitespace-nowrap">From: {exp.payer}</span>}
                                                        </div>
-                                                       <span className="text-xs font-bold text-gray-400">{exp.time}</span>
-                                                       {!isDeposit && exp.involvedMembers && (
-                                                           <div className="flex -space-x-1.5 mt-1 overflow-hidden">
-                                                               {exp.involvedMembers.map((mName, i) => (
-                                                                   <div key={i} className="w-4 h-4 rounded-full bg-gray-100 border border-white flex items-center justify-center text-[8px] font-black text-gray-500">{mName[0]}</div>
-                                                               ))}
-                                                           </div>
-                                                       )}
+                                                       <div className="flex items-center gap-2 mt-1">
+                                                            <span className="text-xs font-bold text-gray-400">{exp.time}</span>
+                                                            {!isDeposit && exp.involvedMembers && (
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {exp.involvedMembers.map((mName, i) => (
+                                                                        <span key={i} className="text-[9px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200 font-bold">{mName}</span>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                       </div>
                                                    </div>
                                                </div>
                                                <div className="text-right flex-shrink-0 ml-2">
@@ -628,19 +656,28 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
            </div>
        )}
 
-       {/* Edit General Expense Modal - REUSED for Public Fund Edit */}
+       {/* Edit Public/Split Modal */}
        {showEditModal && editForm && (
            <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-center justify-center px-4 backdrop-blur-sm">
-               <div className="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border-4 border-beige-dark max-h-[90vh] overflow-y-auto">
+               <div className="bg-beige w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border-4 border-beige-dark max-h-[90vh] overflow-y-auto custom-scroll">
                    <h3 className="font-black text-lg mb-4 text-center text-cocoa">編輯{editForm.fundType ? '公費項目' : '項目'}</h3>
                    <div className="space-y-3">
                         <div className="bg-gray-50 p-3 rounded-xl border border-beige-dark space-y-2">
-                            <input value={editForm.title} onChange={e => setEditForm({...editForm, title: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa" placeholder="項目名稱"/>
-                            <div className="flex gap-2">
-                                <input type="number" value={editForm.amount} onChange={e => setEditForm({...editForm, amount: e.target.value})} className="flex-1 bg-white p-2 rounded-lg border border-beige-dark outline-none font-black text-cocoa" placeholder="金額"/>
-                                <select value={editForm.currency} onChange={e => setEditForm({...editForm, currency: e.target.value})} className="w-20 bg-white p-2 rounded-lg border border-beige-dark outline-none font-bold text-sm">
-                                    <option value="TWD">TWD</option>{currencies.map(c => (<option key={c.code} value={c.code}>{c.code}</option>))}
-                                </select>
+                            <textarea 
+                                value={editForm.title} 
+                                onChange={e => setEditForm({...editForm, title: e.target.value})} 
+                                className="w-full bg-white p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa resize-none h-20 leading-tight" 
+                                placeholder="項目名稱"
+                            />
+                            <div className="grid grid-cols-4 gap-2">
+                                <div className="col-span-3">
+                                    <input type="number" value={editForm.amount} onChange={e => setEditForm({...editForm, amount: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-beige-dark outline-none font-black text-cocoa" placeholder="金額"/>
+                                </div>
+                                <div className="col-span-1">
+                                    <select value={editForm.currency} onChange={e => setEditForm({...editForm, currency: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-beige-dark outline-none font-bold text-xs h-full">
+                                        <option value="TWD">TWD</option>{currencies.map(c => (<option key={c.code} value={c.code}>{c.code}</option>))}
+                                    </select>
+                                </div>
                             </div>
                         </div>
 
@@ -649,7 +686,6 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                             <input type="time" value={editForm.time} onChange={e => setEditForm({...editForm, time: e.target.value})} className="w-24 bg-transparent font-bold text-cocoa text-sm outline-none" style={{ colorScheme: 'light' }}/>
                         </div>
 
-                        {/* Conditionals for Fund vs General */}
                         {!editForm.fundType && (
                             <div className="bg-gray-50 p-3 rounded-xl border border-beige-dark">
                                 <label className="text-[10px] text-gray-400 block mb-2 font-bold">付款人</label>
@@ -661,19 +697,17 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                             </div>
                         )}
 
-                        {/* For Fund Deposit Edit: Show Payer */}
                         {editForm.fundType === 'deposit' && (
                              <div className="bg-gray-50 p-3 rounded-xl border border-beige-dark">
                                 <label className="text-[10px] text-gray-400 block mb-2 font-bold">繳款人 (修正)</label>
                                 <div className="flex gap-2 overflow-x-auto no-scrollbar">
                                     {members.map(m => (
-                                        <button key={m.id} onClick={() => setEditForm({...editForm, payer: m.name})} className={`px-3 py-1.5 rounded-lg text-xs border-2 whitespace-nowrap font-bold transition-all ${editForm.payer === m.name ? 'bg-teal-500 text-white border-teal-600' : 'bg-white text-gray-400 border-beige-dark'}`}>{m.name}</button>
+                                        <button key={m.id} onClick={() => setEditForm({...editForm, payer: m.name})} className={`px-3 py-1.5 rounded-lg text-xs border-2 whitespace-nowrap font-bold transition-all ${editForm.payer === m.name ? 'bg-teal-50 text-white border-teal-600' : 'bg-white text-gray-400 border-beige-dark'}`}>{m.name}</button>
                                     ))}
                                 </div>
                              </div>
                         )}
 
-                        {/* For Fund Expense Edit: Show Involved Members */}
                         {editForm.fundType === 'expense' && (
                             <div className="bg-gray-50 p-3 rounded-xl border border-beige-dark">
                                 <label className="text-[10px] text-gray-400 block mb-2 font-bold">參與分攤成員</label>
@@ -683,7 +717,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                                             const current = editForm.involvedMembers || [];
                                             const updated = current.includes(m.name) ? current.filter((n: string) => n !== m.name) : [...current, m.name];
                                             setEditForm({...editForm, involvedMembers: updated});
-                                        }} className={`px-3 py-1.5 rounded-lg text-xs border-2 whitespace-nowrap font-bold transition-all ${editForm.involvedMembers?.includes(m.name) ? 'bg-red-400 text-white border-red-500' : 'bg-white text-gray-400 border-beige-dark'}`}>{m.name}</button>
+                                        }} className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 whitespace-nowrap font-bold transition-all ${editForm.involvedMembers?.includes(m.name) ? 'bg-red-400 text-white border-red-500' : 'bg-white text-gray-400 border-beige-dark'}`}>{m.name}</button>
                                     ))}
                                 </div>
                             </div>
@@ -692,7 +726,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                    
                    <div className="flex gap-3 mt-6">
                        <button onClick={() => handleDeleteClick(editingExpense!.id)} className="px-4 py-3 rounded-xl bg-red-50 text-red-400 border border-red-100"><Trash2 size={20}/></button>
-                       <button onClick={() => setShowEditModal(false)} className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-400 font-black border border-gray-200">取消</button>
+                       <button onClick={() => setShowEditModal(false)} className="flex-1 py-3 rounded-xl bg-white text-gray-400 font-black border-2 border-beige-dark">取消</button>
                        <button onClick={handleSaveEdit} className="flex-1 py-3 rounded-xl bg-sage text-white font-black shadow-hard-sage border-2 border-sage-dark">保存修改</button>
                    </div>
                </div>
@@ -702,19 +736,23 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
        {/* Fund Input Modal */}
        {showFundInputModal && (
            <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-center justify-center px-4 backdrop-blur-sm">
-               <div className="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border-4 border-teal-600 animate-scale-in max-h-[90vh] overflow-y-auto">
+               <div className="bg-white w-full max-sm rounded-[2rem] p-6 shadow-2xl border-4 border-teal-600 animate-scale-in max-h-[90vh] overflow-y-auto custom-scroll">
                    <h3 className="font-black text-xl mb-6 text-center text-teal-700 flex items-center justify-center gap-2">
-                       {fundForm.type === 'deposit' ? <ArrowDownLeft /> : <ArrowUpRight />}
+                       {fundForm.type === 'deposit' ? <Heart fill="currentColor" className="opacity-20" /> : <ShoppingBag />}
                        {fundForm.type === 'deposit' ? '公費入金' : '公費支出'}
                    </h3>
                    <div className="space-y-4">
                        <div>
                            <label className="text-[10px] font-bold text-gray-400 ml-1">金額 {fundForm.type === 'deposit' ? '(每人)' : ''}</label>
-                           <div className="flex gap-2">
-                               <input type="number" autoFocus value={fundForm.amount} onChange={e => setFundForm({...fundForm, amount: e.target.value})} className="flex-1 bg-teal-50 p-3 rounded-xl border-2 border-teal-100 outline-none font-black text-xl text-teal-800 placeholder-teal-200" placeholder="0"/>
-                               <select value={fundForm.currency} onChange={e => setFundForm({...fundForm, currency: e.target.value})} className="w-24 bg-teal-50 p-3 rounded-xl border-2 border-teal-100 outline-none font-bold text-teal-800 text-sm">
-                                    <option value="TWD">TWD</option>{currencies.map(c => (<option key={c.code} value={c.code}>{c.code}</option>))}
-                               </select>
+                           <div className="grid grid-cols-4 gap-2">
+                               <div className="col-span-3">
+                                   <input type="number" autoFocus value={fundForm.amount} onChange={e => setFundForm({...fundForm, amount: e.target.value})} className="w-full bg-teal-50 p-3 rounded-xl border-2 border-teal-100 outline-none font-black text-xl text-teal-800 placeholder-teal-200" placeholder="0"/>
+                               </div>
+                               <div className="col-span-1">
+                                   <select value={fundForm.currency} onChange={e => setFundForm({...fundForm, currency: e.target.value})} className="w-full h-full bg-teal-50 p-2 rounded-xl border-2 border-teal-100 outline-none font-bold text-teal-800 text-xs">
+                                        <option value="TWD">TWD</option>{currencies.map(c => (<option key={c.code} value={c.code}>{c.code}</option>))}
+                                   </select>
+                               </div>
                            </div>
                        </div>
 
@@ -731,7 +769,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                            <textarea 
                                value={fundForm.title} 
                                onChange={e => setFundForm({...fundForm, title: e.target.value})} 
-                               className="w-full bg-gray-50 p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa resize-none h-24" 
+                               className="w-full bg-gray-50 p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa resize-none h-24 leading-tight" 
                                placeholder={fundForm.type === 'deposit' ? "例如: 公費" : "例如: 晚餐\n(詳細內容...)"}
                            />
                        </div>
@@ -770,6 +808,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                </div>
            </div>
        )}
+
+       {/* Delete Confirm Modal (Replacing window.confirm) */}
+       <DeleteItemConfirmModal 
+            isOpen={itemToDelete !== null} 
+            onClose={() => setItemToDelete(null)} 
+            onConfirm={confirmDelete}
+            title="此筆支出項目"
+       />
 
        {/* Settle Confirm Modal (Only for General) */}
        {settleConfirm && (
