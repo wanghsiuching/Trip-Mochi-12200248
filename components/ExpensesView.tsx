@@ -736,7 +736,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
        {/* Fund Input Modal - Bottom Sheet on Mobile */}
        {showFundInputModal && (
            <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-end sm:items-center justify-center sm:px-4 backdrop-blur-sm">
-               <div className="bg-white w-full max-w-sm rounded-t-[2.5rem] sm:rounded-[2rem] p-6 shadow-2xl border-t-4 sm:border-4 border-teal-600 animate-scale-in max-h-[85vh] overflow-y-auto custom-scroll pb-safe">
+               <div className="bg-white w-full max-w-sm rounded-t-[2.5rem] sm:rounded-[2rem] p-6 shadow-2xl border-t-4 sm:border-4 border-teal-600 animate-scale-in max-h-[80vh] overflow-y-auto custom-scroll pb-32">
                    <h3 className="font-black text-xl mb-6 text-center text-teal-700 flex items-center justify-center gap-2">
                        {fundForm.type === 'deposit' ? <PiggyBank /> : <HandCoins />}
                        {fundForm.type === 'deposit' ? '公費入金' : '公費支出'}
