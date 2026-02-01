@@ -5,7 +5,7 @@ import {
   Receipt, CreditCard, Clock, Check, ArrowLeft, Send, MessageCircle, X,
   ArrowUpRight, ArrowDownLeft, Scale, CheckCircle2, Circle, AlertCircle, HelpCircle,
   Percent, Landmark, PiggyBank, Edit3, Calendar as CalendarIcon, Tag, Users,
-  PlusCircle, MinusCircle, ReceiptText, Heart, ShoppingBag, Sparkles
+  PlusCircle, MinusCircle, ReceiptText, Heart, ShoppingBag, Sparkles, HandCoins
 } from 'lucide-react';
 import { Expense, Member, Currency, Comment } from '../types';
 import { ToggleSwitch, DeleteItemConfirmModal } from './Modals';
@@ -587,11 +587,11 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                    {/* Action Buttons - Spend is now larger */}
                    <div className="flex gap-4 mb-8 items-stretch">
                        <button onClick={() => { setFundForm({...fundForm, type: 'deposit', payers: [], title: '', amount: ''}); setShowFundInputModal(true); }} className="flex-1 bg-white border-2 border-beige-dark p-4 rounded-2xl shadow-hard-sm active:translate-y-1 active:shadow-none transition-all flex flex-col items-center justify-center gap-1 group hover:border-teal-300">
-                           <div className="w-10 h-10 bg-green-50 text-green-500 rounded-full flex items-center justify-center border-2 border-green-100 group-hover:scale-110 transition-transform"><Heart size={20} fill="currentColor" className="opacity-20"/><PlusCircle size={14} className="absolute -top-1 -right-1"/></div>
+                           <div className="w-10 h-10 bg-green-50 text-green-500 rounded-full flex items-center justify-center border-2 border-green-100 group-hover:scale-110 transition-transform"><PiggyBank size={20} className="opacity-80"/><PlusCircle size={14} className="absolute -top-1 -right-1"/></div>
                            <span className="font-bold text-cocoa text-xs">入金</span>
                        </button>
                        <button onClick={() => { setFundForm({...fundForm, type: 'expense', involvedMembers: members.map(m=>m.name), title: '', amount: ''}); setShowFundInputModal(true); }} className="flex-[2.5] bg-white border-2 border-beige-dark p-5 rounded-2xl shadow-hard-sm active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-4 group hover:border-red-300">
-                           <div className="w-14 h-14 bg-red-50 text-red-500 rounded-full flex items-center justify-center border-2 border-red-200 group-hover:scale-110 transition-transform shadow-inner"><ShoppingBag size={28} strokeWidth={2.5}/></div>
+                           <div className="w-14 h-14 bg-red-50 text-red-500 rounded-full flex items-center justify-center border-2 border-red-200 group-hover:scale-110 transition-transform shadow-inner"><HandCoins size={28} strokeWidth={2.5}/></div>
                            <div className="text-left">
                                <span className="font-black text-cocoa text-xl block">公費支出</span>
                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Record Spend</span>
@@ -615,7 +615,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                                            <div key={exp.id} className="bg-white p-4 rounded-2xl border-2 border-beige-dark flex items-center justify-between shadow-sm relative group">
                                                <div className="flex items-center gap-4 flex-1 min-w-0">
                                                    <div className={`w-12 h-12 rounded-xl flex-shrink-0 flex items-center justify-center border-2 ${isDeposit ? 'bg-green-50 border-green-100 text-green-500' : 'bg-red-50 border-red-100 text-red-500'}`}>
-                                                       {isDeposit ? <Heart size={24} fill="currentColor" className="opacity-20"/> : <ShoppingBag size={24}/>}
+                                                       {isDeposit ? <PiggyBank size={24} className="opacity-80"/> : <HandCoins size={24}/>}
                                                    </div>
                                                    <div className="min-w-0 flex-1">
                                                        <div className="flex items-center gap-2 flex-wrap">
@@ -733,12 +733,12 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
            </div>
        )}
 
-       {/* Fund Input Modal */}
+       {/* Fund Input Modal - Bottom Sheet on Mobile */}
        {showFundInputModal && (
-           <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-center justify-center px-4 backdrop-blur-sm">
-               <div className="bg-white w-full max-sm rounded-[2rem] p-6 shadow-2xl border-4 border-teal-600 animate-scale-in max-h-[90vh] overflow-y-auto custom-scroll">
+           <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-end sm:items-center justify-center sm:px-4 backdrop-blur-sm">
+               <div className="bg-white w-full max-w-sm rounded-t-[2.5rem] sm:rounded-[2rem] p-6 shadow-2xl border-t-4 sm:border-4 border-teal-600 animate-scale-in max-h-[85vh] overflow-y-auto custom-scroll pb-safe">
                    <h3 className="font-black text-xl mb-6 text-center text-teal-700 flex items-center justify-center gap-2">
-                       {fundForm.type === 'deposit' ? <Heart fill="currentColor" className="opacity-20" /> : <ShoppingBag />}
+                       {fundForm.type === 'deposit' ? <PiggyBank /> : <HandCoins />}
                        {fundForm.type === 'deposit' ? '公費入金' : '公費支出'}
                    </h3>
                    <div className="space-y-4">
