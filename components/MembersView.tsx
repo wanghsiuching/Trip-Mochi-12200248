@@ -73,19 +73,17 @@ export const MembersView: React.FC<MembersViewProps> = ({
       return { totalPotential: Math.round(totalPotential), breakdown };
   };
 
-  const handleEditInit = (member: Member) => {
+    const handleEditInit = (member: Member) => {
     setPendingAction({ type: 'edit', payload: member });
     setPasswordInput('');
     setShowPasswordModal(true);
+    setSelectedMemberId(null);
   };
 
   const handlePasswordConfirm = () => {
     if (passwordInput === '0000') {
       setShowPasswordModal(false);
-      if (pendingAction?.type === 'add') {
-        setForm({ id: '', name: '', avatar: null });
-        setShowMemberModal(true);
-      } else if (pendingAction?.type === 'edit') {
+      if (pendingAction?.type === 'edit') {
         setForm({ id: pendingAction.payload.id, name: pendingAction.payload.name, avatar: pendingAction.payload.avatar || null });
         setShowMemberModal(true);
       } else if (pendingAction?.type === 'delete') {
@@ -116,7 +114,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
     <div className="space-y-6 p-4 lg:p-0 pb-24 lg:pb-0 h-full overflow-y-auto custom-scroll animate-scale-in">
         <div className="flex justify-between items-center px-1">
             <h2 className="text-xl font-black text-cocoa">成員管理</h2>
-            <button onClick={() => { setPendingAction({type: 'add'}); setPasswordInput(''); setShowPasswordModal(true); }} className="text-sm bg-sage text-white px-4 py-2 rounded-full shadow-hard-sage active:shadow-none active:translate-y-[4px] transition-all hover:bg-sage-dark font-black border-2 border-white flex items-center gap-1">
+            <button onClick={() => { setPendingAction({type: 'add'}); setForm({ id: '', name: '', avatar: null }); setShowMemberModal(true); }} className="text-sm bg-sage text-white px-4 py-2 rounded-full shadow-hard-sage active:shadow-none active:translate-y-[4px] transition-all hover:bg-sage-dark font-black border-2 border-white flex items-center gap-1">
                 <Plus size={16} strokeWidth={3}/> 新增
             </button>
         </div>
@@ -214,7 +212,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
         )}
 
         {showPasswordModal && (
-            <div className="fixed inset-0 bg-cocoa/50 z-[200] flex items-center justify-center px-4 backdrop-blur-sm">
+            <div className="fixed inset-0 bg-cocoa/50 z-[400] flex items-center justify-center px-4 backdrop-blur-sm">
                 <div className={`bg-beige w-full max-w-xs rounded-[2rem] p-6 shadow-2xl text-center border-4 border-beige-dark ${passwordShake ? 'animate-shake' : ''}`}>
                     <div className="w-14 h-14 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center mx-auto mb-3 border-2 border-teal-100"><Lock size={24}/></div>
                     <h3 className="font-black text-lg text-cocoa mb-4">管理員權限確認</h3>
@@ -225,19 +223,19 @@ export const MembersView: React.FC<MembersViewProps> = ({
         )}
 
         {showMemberModal && (
-            <div className="fixed inset-0 bg-cocoa/50 z-[100] flex items-center justify-center px-4 backdrop-blur-sm">
+            <div className="fixed inset-0 bg-cocoa/50 z-[300] flex items-center justify-center px-4 backdrop-blur-sm">
                 <div className="bg-beige w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border-4 border-beige-dark">
                     <h3 className="font-black text-lg mb-6 text-center text-cocoa">{pendingAction?.type === 'edit' ? '重新命名成員' : '新增行程成員'}</h3>
                     <div className="space-y-4">
                         <div>
                            <label className="text-xs text-gray-400 font-bold ml-1">名稱</label>
                            <input 
-                              value={form.name} 
-                              onChange={e => setForm({...form, name: e.target.value})} 
-                              type="text" 
-                              className="w-full bg-white text-cocoa p-3 rounded-xl outline-none border-2 border-beige-dark font-black text-center text-lg placeholder-gray-300"
-                              placeholder="成員名稱"
-                              autoFocus
+                               value={form.name} 
+                               onChange={e => setForm({...form, name: e.target.value})} 
+                               type="text" 
+                               className="w-full bg-white text-cocoa p-3 rounded-xl outline-none border-2 border-beige-dark font-black text-center text-lg placeholder-gray-300"
+                               placeholder="成員名稱"
+                               autoFocus
                            />
                         </div>
                     </div>
