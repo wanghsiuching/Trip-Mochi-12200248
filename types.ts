@@ -3,6 +3,57 @@ export type Tab = 'schedule' | 'bookings' | 'expense' | 'journal' | 'planning' |
 export type ViewState = 'landing' | 'app';
 export type ItemType = 'spot' | 'food' | 'transport' | 'stay' | 'flight';
 
+// 通用交通工具型態（涵蓋全球鐵路、地鐵、纜車、渡輪、自駕等）
+export type UniversalTransportType = 
+  | 'train'         // 火車/新幹線/地鐵
+  | 'high_speed'    // 高鐵
+  | 'cable_car'     // 纜車/登山鐵道
+  | 'boat'          // 遊船/渡輪
+  | 'bus'           // 長途巴士/公車
+  | 'flight'        // 國內航班
+  | 'walk';         // 步行/轉乘
+
+// 通用通行證/交通卡類型
+export type TransitPassType = 
+  | 'pass_free'        // 類 STP / JR Pass（通票涵蓋，實付 0 或僅需訂位費）
+  | 'pass_discount'    // 半價卡 / 區域折扣卡（享有特定折扣比率）
+  | 'ic_card'          // Suica / 八達通 / 儲值卡扣款
+  | 'point_to_point'   // 單程票 / 一般購票
+  | 'none';
+
+// 單一航段/區間 (支援 A 點 -> Via 經停 -> B 點)
+export interface TransitLeg {
+  id: string;
+  fromStation: string;        // 出發站 (e.g., Tokyo / Interlaken)
+  toStation: string;          // 到達站 (e.g., Kyoto / Grindelwald)
+  departureTime: string;      // 發車時間 (e.g., 08:00)
+  arrivalTime: string;        // 抵達時間 (e.g., 10:30)
+  serviceNumber?: string;     // 車次/航班號 (e.g., Nozomi 21 / RE 452)
+  transportType: UniversalTransportType;
+  platform?: string;          // 月台/閘口 (e.g., Track 14)
+}
+
+// 票價與通行證折扣模型
+export interface TransitFareDetails {
+  passUsed: TransitPassType;
+  originalPrice: number;      // 原票價 (支援多幣別)
+  discountedPrice: number;    // 實際支付金額（套用通票或折扣後）
+  currency: string;           // 幣別 (TWD, JPY, CHF, EUR 等)
+  seatReservationFee?: number;// 額外強制訂位費（如部分觀景車廂或新幹線指定席加價）
+  notes?: string;             // 備註 (e.g., "需提前劃位，持有 JR Pass")
+}
+
+// 完整的通用交通行程卡片資料結構
+export interface UniversalTransitItem {
+  id: string;
+  tripId: string;
+  dayIndex: number;
+  title: string;              // 行程標題 (e.g., "東京移動至京都")
+  legs: TransitLeg[];         // 多段轉乘陣列 (支援 SBB / JR 般的複雜經停)
+  fare: TransitFareDetails;   // 票價與通票折算
+  assignedMembers: string[];  // 參與成員 ID
+}
+
 export interface Currency {
   code: string;
   rate: number; // Exchange rate relative to base currency (e.g. TWD)
@@ -51,6 +102,12 @@ export interface ScheduleItem {
   checkOut?: string;
   meals?: { breakfast: boolean; dinner: boolean };
   carRental?: any;
+  transitDetails?: {
+    legs: TransitLeg[];
+    fare: TransitFareDetails;
+    isPotential?: boolean;
+    participants?: string[];
+  };
   stayDetails?: any;
   flightDetails?: any;
   spotDetails?: {

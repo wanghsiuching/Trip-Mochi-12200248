@@ -62,8 +62,13 @@ export const MembersView: React.FC<MembersViewProps> = ({
           if (item.type === 'stay' && item.stayDetails) {
               processItemCost(item.id, item.date, item.title, '住宿', Number(item.stayDetails.cost), item.stayDetails.currency || 'TWD', item.stayDetails.hasServiceFee || false, Number(item.stayDetails.serviceFeePercentage), item.stayDetails.participants || [], item.stayDetails.isPotential || false);
           }
-          if (item.type === 'transport' && item.carRental && item.carRental.hasRental) {
-              processItemCost(item.id, item.date, `${item.title} (租車)`, '交通', Number(item.carRental.rentalCost), item.carRental.rentalCurrency || 'TWD', item.carRental.hasServiceFee || false, Number(item.carRental.serviceFeePercentage), item.carRental.participants || [], item.carRental.isPotential || false);
+          if (item.type === 'transport') {
+              if (item.transitDetails) {
+                  const transitCost = (Number(item.transitDetails.fare.discountedPrice) || 0) + (Number(item.transitDetails.fare.seatReservationFee) || 0);
+                  processItemCost(item.id, item.date, item.title, '交通', transitCost, item.transitDetails.fare.currency || 'TWD', false, 0, item.transitDetails.participants || [], item.transitDetails.isPotential || false);
+              } else if (item.carRental && item.carRental.hasRental) {
+                  processItemCost(item.id, item.date, `${item.title} (租車)`, '交通', Number(item.carRental.rentalCost), item.carRental.rentalCurrency || 'TWD', item.carRental.hasServiceFee || false, Number(item.carRental.serviceFeePercentage), item.carRental.participants || [], item.carRental.isPotential || false);
+              }
           }
           if ((item.type === 'spot' || item.type === 'food') && item.spotDetails?.hasTicket) {
                processItemCost(item.id, item.date, item.title, item.type === 'food' ? '餐飲' : '門票', Number(item.spotDetails.ticketCost), item.spotDetails.currency || 'TWD', item.spotDetails.hasServiceFee || false, Number(item.spotDetails.serviceFeePercentage), item.spotDetails.participants || [], item.spotDetails.isPotential || false);

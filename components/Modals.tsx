@@ -1,7 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { Camera, Utensils, Train, Bed, PenTool, Trash2, AlertCircle, Map, Coffee, Moon, AlignLeft, Ticket, Coins, Users, Plus, X, Settings, Car, Clock, DollarSign, Navigation, ExternalLink, Fuel, Calendar as CalendarIcon, Plane, Edit3, Luggage, Copy, Save, Shuffle, MapPin, ArrowRightLeft } from 'lucide-react';
-import { ItemType, ScheduleItem, Currency, Member, THEME, ExpenseItem } from '../types';
+import { Camera, Utensils, Train, Bed, PenTool, Trash2, AlertCircle, Map, Coffee, Moon, AlignLeft, Ticket, Coins, Users, Plus, X, Settings, Car, Clock, DollarSign, Navigation, ExternalLink, Fuel, Calendar as CalendarIcon, Plane, Edit3, Luggage, Copy, Save, Shuffle, MapPin, ArrowRightLeft, Layers } from 'lucide-react';
+import { ItemType, ScheduleItem, Currency, Member, THEME, ExpenseItem, TransitLeg, TransitFareDetails, UniversalTransportType, TransitPassType } from '../types';
+import { TransitLegEditor, TransitLegChainView, TransitPassBadge } from './TransitComponents';
 
 // Updated extensive fruit/food icon list (40+ items)
 const FRUIT_ICONS = [
@@ -320,37 +321,51 @@ export const PotentialExpensesModal = ({
                  item.spotDetails.participants || []
              );
         }
-        if (item.type === 'transport' && item.carRental) {
-            if (item.carRental.isPotential && item.carRental.hasRental) {
-                const rentalBase = Number(item.carRental.rentalCost) || 0;
-                processCost(
-                    `${item.title} (租車)`, '交通',
-                    rentalBase,
-                    item.carRental.rentalCurrency || 'TWD',
-                    item.carRental.hasServiceFee || false,
-                    Number(item.carRental.serviceFeePercentage) || 0,
-                    item.carRental.participants || []
-                );
-
-                item.carRental.expenses?.forEach(exp => {
+        if (item.type === 'transport') {
+            if (item.transitDetails?.isPotential) {
+                const transitTotal = (Number(item.transitDetails.fare.discountedPrice) || 0) + (Number(item.transitDetails.fare.seatReservationFee) || 0);
+                if (transitTotal > 0) {
                     processCost(
-                        `${item.title} (${exp.name})`, '交通',
-                        Number(exp.amount) || 0,
-                        exp.currency || 'TWD',
-                        exp.hasServiceFee || false,
-                        Number(exp.serviceFeePercentage) || 0,
-                        item.carRental?.participants || []
-                    );
-                });
-            } else if (item.carRental.hasRental) {
-                if (item.carRental.estimatedFuelCost) {
-                    processCost(
-                        `${item.title} (油資)`, '油資',
-                        Number(item.carRental.estimatedFuelCost) || 0,
-                        item.carRental.fuelCurrency || 'TWD',
+                        `${item.title} (大眾交通)`, '交通',
+                        transitTotal,
+                        item.transitDetails.fare.currency || 'TWD',
                         false, 0,
+                        item.transitDetails.participants || []
+                    );
+                }
+            }
+            if (item.carRental) {
+                if (item.carRental.isPotential && item.carRental.hasRental) {
+                    const rentalBase = Number(item.carRental.rentalCost) || 0;
+                    processCost(
+                        `${item.title} (租車)`, '交通',
+                        rentalBase,
+                        item.carRental.rentalCurrency || 'TWD',
+                        item.carRental.hasServiceFee || false,
+                        Number(item.carRental.serviceFeePercentage) || 0,
                         item.carRental.participants || []
                     );
+
+                    item.carRental.expenses?.forEach(exp => {
+                        processCost(
+                            `${item.title} (${exp.name})`, '交通',
+                            Number(exp.amount) || 0,
+                            exp.currency || 'TWD',
+                            exp.hasServiceFee || false,
+                            Number(exp.serviceFeePercentage) || 0,
+                            item.carRental?.participants || []
+                        );
+                    });
+                } else if (item.carRental.hasRental) {
+                    if (item.carRental.estimatedFuelCost) {
+                        processCost(
+                            `${item.title} (油資)`, '油資',
+                            Number(item.carRental.estimatedFuelCost) || 0,
+                            item.carRental.fuelCurrency || 'TWD',
+                            false, 0,
+                            item.carRental.participants || []
+                        );
+                    }
                 }
             }
         }
@@ -616,7 +631,12 @@ export const ScheduleDetailModal = ({
                     )}
 
                     {/* Transport Details */}
-                    {item.type === 'transport' && item.carRental?.hasRental && (
+                    {item.type === 'transport' && item.transitDetails && (
+                        <div className="space-y-3">
+                            <TransitLegChainView legs={item.transitDetails.legs} fare={item.transitDetails.fare} isDetailed={true} />
+                        </div>
+                    )}
+                    {item.type === 'transport' && !item.transitDetails && item.carRental?.hasRental && (
                         <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 space-y-3">
                             <div className="flex justify-between items-center border-b border-blue-200 pb-2">
                                 <div className="flex items-center gap-2"><Car size={14} className="text-blue-500"/><span className="text-sm font-black text-cocoa">{item.carRental.company}</span></div>
@@ -754,6 +774,21 @@ export const AddScheduleModal = ({
   const [isStayPotential, setIsStayPotential] = useState(false);
 
   // Car Rental Fields
+  const [transportMode, setTransportMode] = useState<'transit' | 'rental'>('transit');
+  const [transitLegs, setTransitLegs] = useState<TransitLeg[]>([
+    { id: '1', fromStation: '', toStation: '', departureTime: '09:00', arrivalTime: '', transportType: 'train', serviceNumber: '', platform: '' }
+  ]);
+  const [transitFare, setTransitFare] = useState<TransitFareDetails>({
+    passUsed: 'pass_free',
+    originalPrice: 0,
+    discountedPrice: 0,
+    currency: 'JPY',
+    seatReservationFee: 0,
+    notes: ''
+  });
+  const [transitParticipants, setTransitParticipants] = useState<string[]>([]);
+  const [isTransitPotential, setIsTransitPotential] = useState(false);
+
   const [hasRental, setHasRental] = useState(false);
   const [rentalCompany, setRentalCompany] = useState('');
   const [carModel, setCarModel] = useState('');
@@ -828,6 +863,42 @@ export const AddScheduleModal = ({
             setStayParticipants(members.map(m => m.id));
         }
 
+        // Transport: Universal Transit or Car Rental
+        if (initialData.transitDetails) {
+            setTransportMode('transit');
+            setTransitLegs(initialData.transitDetails.legs && initialData.transitDetails.legs.length > 0 ? initialData.transitDetails.legs : [
+              { id: '1', fromStation: initialData.location || '', toStation: '', departureTime: initialData.time || '09:00', arrivalTime: '', transportType: 'train', serviceNumber: '', platform: '' }
+            ]);
+            setTransitFare(initialData.transitDetails.fare || {
+              passUsed: 'pass_free',
+              originalPrice: 0,
+              discountedPrice: 0,
+              currency: 'JPY',
+              seatReservationFee: 0,
+              notes: ''
+            });
+            setTransitParticipants(initialData.transitDetails.participants || members.map(m => m.id));
+            setIsTransitPotential(initialData.transitDetails.isPotential || false);
+        } else if (initialData.carRental?.hasRental) {
+            setTransportMode('rental');
+            setTransitParticipants(members.map(m => m.id));
+        } else {
+            setTransportMode('transit');
+            setTransitLegs([
+              { id: '1', fromStation: initialData.location || '', toStation: '', departureTime: initialData.time || '09:00', arrivalTime: '', transportType: 'train', serviceNumber: '', platform: '' }
+            ]);
+            setTransitFare({
+              passUsed: 'pass_free',
+              originalPrice: 0,
+              discountedPrice: 0,
+              currency: 'JPY',
+              seatReservationFee: 0,
+              notes: ''
+            });
+            setTransitParticipants(members.map(m => m.id));
+            setIsTransitPotential(false);
+        }
+
         // Car Rental
         if (initialData.carRental) {
            setHasRental(initialData.carRental.hasRental);
@@ -866,6 +937,20 @@ export const AddScheduleModal = ({
         // Reset Category Specifics
         setFlightAirline(''); setFlightCode(''); setFlightDepTime(''); setFlightArrTime(''); setFlightArrDate(''); setFlightDepAirport(''); setFlightArrAirport(''); setFlightCheckedBag(''); setFlightCarryOnBag(''); setFlightCost(''); setFlightCurrency('TWD'); setFlightHasServiceFee(false); setFlightServiceFeePercentage(''); setFlightParticipants(members.map(m => m.id)); setIsFlightPotential(false);
         setCheckIn(''); setCheckOut(''); setHasBreakfast(false); setHasDinner(false); setStayCost(''); setStayCurrency('TWD'); setStayHasServiceFee(false); setStayServiceFeePercentage(''); setStayParticipants(members.map(m => m.id)); setIsStayPotential(false);
+        setTransportMode('transit');
+        setTransitLegs([
+          { id: '1', fromStation: '', toStation: '', departureTime: '09:00', arrivalTime: '', transportType: 'train', serviceNumber: '', platform: '' }
+        ]);
+        setTransitFare({
+          passUsed: 'pass_free',
+          originalPrice: 0,
+          discountedPrice: 0,
+          currency: 'JPY',
+          seatReservationFee: 0,
+          notes: ''
+        });
+        setTransitParticipants(members.map(m => m.id));
+        setIsTransitPotential(false);
         setHasRental(false); setRentalCompany(''); setCarModel(''); setPickupTime(''); setReturnTime(''); setRentalCost(''); setRentalCurrency('TWD'); setRentalHasServiceFee(false); setRentalServiceFeePercentage(''); setEstimatedFuelCost(''); setFuelCurrency('TWD'); setRentalExpenses([]); setRentalParticipants(members.map(m => m.id)); setIsRentalPotential(false); setExpenseToDelete(null);
         setHasTicket(false); setTicketCost(''); setSelectedCurrency('TWD'); setHasServiceFee(false); setServiceFeePercentage(''); setParticipantIds(members.map(m => m.id)); setIsPotential(false);
       }
@@ -889,8 +974,25 @@ export const AddScheduleModal = ({
   const confirmRemoveExpense = () => { if (expenseToDelete) { removeRentalExpense(expenseToDelete); setExpenseToDelete(null); } };
 
   const handleSubmit = () => {
-    if (!title) return;
-    const itemData: Omit<ScheduleItem, 'id'> = { date: initialData ? initialData.date : currentDate, time, title, type: selectedType, location: location || '未指定地點', notes };
+    let finalTitle = title;
+    let finalLocation = location || '未指定地點';
+
+    if (selectedType === 'transport' && transportMode === 'transit') {
+      if (!finalTitle) {
+        if (transitLegs.length > 0 && (transitLegs[0].fromStation || transitLegs[transitLegs.length - 1].toStation)) {
+          finalTitle = `${transitLegs[0].fromStation || '出發'} ➔ ${transitLegs[transitLegs.length - 1].toStation || '目的地'}`;
+        } else {
+          finalTitle = '交通轉乘路線';
+        }
+      }
+      if ((!location || location === '未指定地點') && transitLegs.length > 0 && transitLegs[0].fromStation) {
+        finalLocation = transitLegs[0].fromStation;
+      }
+    }
+
+    if (!finalTitle) return;
+
+    const itemData: Omit<ScheduleItem, 'id'> = { date: initialData ? initialData.date : currentDate, time, title: finalTitle, type: selectedType, location: finalLocation, notes };
     const gpsParts = gpsInput.split(/[,，\s]+/).filter(Boolean);
     if (gpsParts.length >= 2) itemData.gps = { lat: gpsParts[0], lng: gpsParts[1] };
 
@@ -905,11 +1007,20 @@ export const AddScheduleModal = ({
       if (stayCost !== '') itemData.stayDetails = { cost: Number(stayCost) || 0, currency: stayCurrency, hasServiceFee: stayHasServiceFee, serviceFeePercentage: stayHasServiceFee ? (Number(stayServiceFeePercentage) || 0) : undefined, participants: stayParticipants, isPotential: isStayPotential };
     }
     if (selectedType === 'transport') {
-      itemData.carRental = {
-        hasRental, company: hasRental ? rentalCompany : undefined, carModel: hasRental ? carModel : undefined, pickupTime: hasRental ? pickupTime : undefined, returnTime: hasRental ? returnTime : undefined,
-        rentalCost: hasRental ? (Number(rentalCost) || 0) : undefined, rentalCurrency: hasRental ? rentalCurrency : undefined, hasServiceFee: hasRental ? rentalHasServiceFee : false, serviceFeePercentage: hasRental ? (Number(rentalServiceFeePercentage) || 0) : undefined,
-        estimatedFuelCost: hasRental ? (Number(estimatedFuelCost) || 0) : undefined, fuelCurrency: hasRental ? fuelCurrency : undefined, expenses: hasRental ? rentalExpenses.map(e => ({...e, amount: Number(e.amount)||0, serviceFeePercentage: Number(e.serviceFeePercentage)||0})) : [], participants: hasRental ? rentalParticipants : [], isPotential: hasRental ? isRentalPotential : false
-      };
+      if (transportMode === 'transit') {
+        itemData.transitDetails = {
+          legs: transitLegs,
+          fare: transitFare,
+          participants: transitParticipants,
+          isPotential: isTransitPotential
+        };
+      } else {
+        itemData.carRental = {
+          hasRental, company: hasRental ? rentalCompany : undefined, carModel: hasRental ? carModel : undefined, pickupTime: hasRental ? pickupTime : undefined, returnTime: hasRental ? returnTime : undefined,
+          rentalCost: hasRental ? (Number(rentalCost) || 0) : undefined, rentalCurrency: hasRental ? rentalCurrency : undefined, hasServiceFee: hasRental ? rentalHasServiceFee : false, serviceFeePercentage: hasRental ? (Number(rentalServiceFeePercentage) || 0) : undefined,
+          estimatedFuelCost: hasRental ? (Number(estimatedFuelCost) || 0) : undefined, fuelCurrency: hasRental ? fuelCurrency : undefined, expenses: hasRental ? rentalExpenses.map(e => ({...e, amount: Number(e.amount)||0, serviceFeePercentage: Number(e.serviceFeePercentage)||0})) : [], participants: hasRental ? rentalParticipants : [], isPotential: hasRental ? isRentalPotential : false
+        };
+      }
     }
     if (selectedType === 'spot' || selectedType === 'food') {
       itemData.spotDetails = {
@@ -1137,13 +1248,71 @@ export const AddScheduleModal = ({
 
              {/* === TRANSPORT SECTION === */}
              {selectedType === 'transport' && (
-                 <div className="border-t-2 border-dashed border-beige-dark pt-4">
-                     {/* ... transport inputs ... */}
-                     <div className="flex items-center justify-between mb-4">
-                         <div className="flex items-center gap-2 text-blue-500 font-bold"><Car size={18} /> <span>是否租車</span></div>
-                         <button onClick={() => setHasRental(!hasRental)} className={`w-12 h-7 rounded-full p-1 transition-colors ${hasRental ? 'bg-blue-500' : 'bg-gray-200'}`}><div className={`w-5 h-5 bg-white rounded-full shadow-sm transition-transform ${hasRental ? 'translate-x-5' : 'translate-x-0'}`} /></button>
+                 <div className="border-t-2 border-dashed border-beige-dark pt-4 space-y-4">
+                     {/* Mode Selector Tabs */}
+                     <div className="flex bg-beige/60 p-1.5 rounded-2xl border-2 border-beige-dark gap-2 shadow-inner">
+                         <button
+                           type="button"
+                           onClick={() => setTransportMode('transit')}
+                           className={`flex-1 py-2.5 px-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition-all ${
+                             transportMode === 'transit'
+                               ? 'bg-blue-500 text-white shadow-md'
+                               : 'bg-transparent text-gray-500 hover:text-cocoa'
+                           }`}
+                         >
+                           <Train size={16} strokeWidth={2.5} />
+                           <span>大眾運輸 / 鐵道轉乘</span>
+                         </button>
+                         <button
+                           type="button"
+                           onClick={() => {
+                             setTransportMode('rental');
+                             setHasRental(true);
+                           }}
+                           className={`flex-1 py-2.5 px-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition-all ${
+                             transportMode === 'rental'
+                               ? 'bg-blue-500 text-white shadow-md'
+                               : 'bg-transparent text-gray-500 hover:text-cocoa'
+                           }`}
+                         >
+                           <Car size={16} strokeWidth={2.5} />
+                           <span>自駕租車</span>
+                         </button>
                      </div>
-                     {hasRental && (
+
+                     {/* Transit Mode Form */}
+                     {transportMode === 'transit' && (
+                         <div className="space-y-4 animate-scale-in">
+                             <TransitLegEditor
+                               legs={transitLegs}
+                               setLegs={setTransitLegs}
+                               fare={transitFare}
+                               setFare={setTransitFare}
+                               currencies={currencies}
+                             />
+
+                             <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm space-y-3">
+                                 <div>
+                                     <label className="text-[10px] font-black text-gray-400 block mb-1">參與分攤人員</label>
+                                     <ParticipantsSelector
+                                       selected={transitParticipants}
+                                       toggle={(id) => toggleParticipant(id, setTransitParticipants)}
+                                     />
+                                 </div>
+                                 <div className="pt-2 border-t border-dashed border-beige-dark">
+                                     <ToggleSwitch
+                                       checked={isTransitPotential}
+                                       onChange={setIsTransitPotential}
+                                       label="列入潛在花費 (預算參考)"
+                                       colorClass="bg-yellow-400"
+                                     />
+                                 </div>
+                             </div>
+                         </div>
+                     )}
+
+                     {/* Car Rental Mode Form */}
+                     {transportMode === 'rental' && (
                          <div className="space-y-3 bg-blue-50/50 p-3 rounded-2xl border-2 border-blue-100 animate-scale-in">
                              <div className="grid grid-cols-2 gap-2">
                                  <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">租車公司</label><input value={rentalCompany} onChange={e => setRentalCompany(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: Toyota"/></div>

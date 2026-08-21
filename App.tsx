@@ -15,6 +15,7 @@ import { BottomNav } from './components/CommonUI';
 import { 
   AddScheduleModal, CreateTripModal, DeleteConfirmModal, SearchErrorModal, DeleteItemConfirmModal, TripSettingsModal, PotentialExpensesModal, EditDayDetailsModal, DeleteDayConfirmModal, BackupConfirmModal, ScheduleDetailModal
 } from './components/Modals';
+import { TransitLegChainView } from './components/TransitComponents';
 import { BookingsView } from './components/BookingsView';
 import { ExpensesView } from './components/ExpensesView';
 import { JournalView } from './components/JournalView';
@@ -588,7 +589,12 @@ export default function App() {
                                             {Number(item.stayDetails.cost) > 0 && <div className="text-right text-[10px] font-black text-sage">費用: {item.stayDetails.currency} {Number(item.stayDetails.cost).toLocaleString()}</div>}
                                         </div>
                                     )}
-                                    {item.type === 'transport' && item.carRental?.hasRental && (() => {
+                                    {item.type === 'transport' && item.transitDetails && (
+                                        <div className="pt-1">
+                                            <TransitLegChainView legs={item.transitDetails.legs} fare={item.transitDetails.fare} />
+                                        </div>
+                                    )}
+                                    {item.type === 'transport' && !item.transitDetails && item.carRental?.hasRental && (() => {
                                         const baseRental = Number(item.carRental.rentalCost) || 0;
                                         const baseFeePct = Number(item.carRental.serviceFeePercentage) || 0;
                                         const baseWithFee = baseRental + (item.carRental.hasServiceFee ? (baseRental * baseFeePct / 100) : 0);
