@@ -681,9 +681,25 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                             </div>
                         </div>
 
-                        <div className="flex justify-between items-center gap-2 bg-gray-50 p-3 rounded-xl border border-beige-dark">
-                            <input type="date" value={editForm.date} onChange={e => setEditForm({...editForm, date: e.target.value})} className="flex-1 bg-transparent font-bold text-cocoa text-sm outline-none" style={{ colorScheme: 'light' }}/>
-                            <input type="time" value={editForm.time} onChange={e => setEditForm({...editForm, time: e.target.value})} className="w-24 bg-transparent font-bold text-cocoa text-sm outline-none" style={{ colorScheme: 'light' }}/>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
+                                <div className="p-2 bg-white rounded-xl text-sage shadow-sm flex-shrink-0">
+                                    <CalendarIcon size={18} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <label className="text-[10px] font-bold text-gray-400 block mb-0.5">日期</label>
+                                    <input type="date" value={editForm.date} onChange={e => setEditForm({...editForm, date: e.target.value})} className="w-full bg-transparent font-bold text-cocoa text-xs outline-none" style={{ colorScheme: 'light' }}/>
+                                </div>
+                            </div>
+                            <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
+                                <div className="p-2 bg-white rounded-xl text-sage shadow-sm flex-shrink-0">
+                                    <Clock size={18} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <label className="text-[10px] font-bold text-gray-400 block mb-0.5">時間</label>
+                                    <input type="time" value={editForm.time} onChange={e => setEditForm({...editForm, time: e.target.value})} className="w-full bg-transparent font-bold text-cocoa text-xs outline-none" style={{ colorScheme: 'light' }}/>
+                                </div>
+                            </div>
                         </div>
 
                         {!editForm.fundType && (
@@ -796,9 +812,25 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                            </div>
                        )}
 
-                       <div className="flex justify-between items-center gap-2 bg-gray-50 p-3 rounded-xl border border-beige-dark">
-                           <input type="date" value={fundForm.date} onChange={e => setFundForm({...fundForm, date: e.target.value})} className="flex-1 bg-transparent font-bold text-cocoa text-sm outline-none" style={{ colorScheme: 'light' }}/>
-                           <input type="time" value={fundForm.time} onChange={e => setFundForm({...fundForm, time: e.target.value})} className="w-24 bg-transparent font-bold text-cocoa text-sm outline-none" style={{ colorScheme: 'light' }}/>
+                       <div className="grid grid-cols-2 gap-2">
+                           <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
+                               <div className="p-2 bg-white rounded-xl text-sage shadow-sm flex-shrink-0">
+                                   <CalendarIcon size={18} />
+                               </div>
+                               <div className="flex-1 min-w-0">
+                                   <label className="text-[10px] font-bold text-gray-400 block mb-0.5">日期</label>
+                                   <input type="date" value={fundForm.date} onChange={e => setFundForm({...fundForm, date: e.target.value})} className="w-full bg-transparent font-bold text-cocoa text-xs outline-none" style={{ colorScheme: 'light' }}/>
+                               </div>
+                           </div>
+                           <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
+                               <div className="p-2 bg-white rounded-xl text-sage shadow-sm flex-shrink-0">
+                                   <Clock size={18} />
+                               </div>
+                               <div className="flex-1 min-w-0">
+                                   <label className="text-[10px] font-bold text-gray-400 block mb-0.5">時間</label>
+                                   <input type="time" value={fundForm.time} onChange={e => setFundForm({...fundForm, time: e.target.value})} className="w-full bg-transparent font-bold text-cocoa text-xs outline-none" style={{ colorScheme: 'light' }}/>
+                               </div>
+                           </div>
                        </div>
                    </div>
                    <div className="flex gap-3 mt-8">

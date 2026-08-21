@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { Clock } from 'lucide-react';
 import { ScheduleItem, TripDate } from '../types';
 
 interface ScheduleViewProps {
@@ -263,14 +264,19 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
                     </div>
                     
                     {/* Time & Type */}
-                    <div className="flex gap-2">
-                        <div className="flex-[2]">
-                            <label className="text-[10px] text-gray-400 block mb-1 font-bold ml-1"><span className="text-red-400 font-black mr-0.5">*</span>時間</label>
-                            <input value={modalEvent.time} onChange={e => setModalEvent({...modalEvent, time: e.target.value})} type="time" className="w-full bg-white text-cocoa p-3.5 rounded-2xl outline-none border-2 border-[#E0E5D5] font-bold" />
+                    <div className="flex gap-2 items-stretch">
+                        <div className="bg-white p-3 rounded-2xl border-2 border-[#E0E5D5] flex items-center gap-2.5 shadow-sm flex-[2]">
+                            <div className="p-2 bg-[#F0EAD6] rounded-xl text-sage shadow-sm flex-shrink-0">
+                                <Clock size={18} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <label className="text-[10px] text-gray-400 block mb-0.5 font-bold"><span className="text-red-400 font-black mr-0.5">*</span>時間</label>
+                                <input value={modalEvent.time} onChange={e => setModalEvent({...modalEvent, time: e.target.value})} type="time" className="w-full bg-transparent text-cocoa outline-none font-bold text-sm" style={{ colorScheme: 'light' }} />
+                            </div>
                         </div>
                         <div className="flex-[3]">
                             <label className="text-[10px] text-gray-400 block mb-1 font-bold ml-1">類別</label>
-                            <select value={modalEvent.type} onChange={e => setModalEvent({...modalEvent, type: e.target.value as any})} className="w-full bg-white text-cocoa p-3.5 rounded-2xl outline-none border-2 border-[#E0E5D5] font-bold"><option value="spot">景點</option><option value="food">美食</option><option value="transport">交通</option><option value="stay">住宿</option></select>
+                            <select value={modalEvent.type} onChange={e => setModalEvent({...modalEvent, type: e.target.value as any})} className="w-full bg-white text-cocoa p-3.5 rounded-2xl outline-none border-2 border-[#E0E5D5] font-bold h-[58px]"><option value="spot">景點</option><option value="food">美食</option><option value="transport">交通</option><option value="stay">住宿</option></select>
                         </div>
                     </div>
 

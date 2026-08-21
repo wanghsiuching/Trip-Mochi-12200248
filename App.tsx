@@ -3,7 +3,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   MapPin, ArrowRight, Plane, Plus, X, Copy, BookOpen, ChevronLeft, Trash2,
   ChevronUp, ChevronDown, Navigation, StickyNote, Settings, AlertCircle, 
-  CalendarCheck, Coins, Edit3, Users, Luggage, Briefcase, Bed, Car, Coffee, Utensils, Fuel, Ticket, Clock
+  CalendarCheck, Coins, Edit3, Users, Luggage, Briefcase, Bed, Car, Coffee, Utensils, Fuel, Ticket, Clock,
+  Train, Camera
 } from 'lucide-react';
 
 import { 
@@ -70,7 +71,8 @@ export default function App() {
   // --- Optimized Swap State ---
   const [swappingFromIndex, setSwappingFromIndex] = useState<number | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const ignoreClickRef = useRef(false); // Ref to ignore the immediate click after long press
+  const longPressTriggeredAtRef = useRef<number>(0);
+  const touchStartPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const dates = tripDays.map((day, i) => {
     const d = new Date(day.date);
@@ -331,15 +333,20 @@ export default function App() {
     if (window.navigator.vibrate) window.navigator.vibrate([30, 50, 30]);
   };
 
-  const handleDayTouchStart = (idx: number) => {
-    ignoreClickRef.current = false;
+  const handleDayTouchStart = (idx: number, e: React.TouchEvent | React.MouseEvent) => {
+    if ('touches' in e && e.touches.length > 0) {
+      touchStartPosRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    } else if ('clientX' in e) {
+      touchStartPosRef.current = { x: e.clientX, y: e.clientY };
+    }
+
     if (longPressTimer.current) clearTimeout(longPressTimer.current);
     
     longPressTimer.current = setTimeout(() => {
+        longPressTriggeredAtRef.current = Date.now();
         setSwappingFromIndex(idx);
-        ignoreClickRef.current = true; // Prevents immediate click trigger upon release
         if (window.navigator.vibrate) window.navigator.vibrate(80);
-    }, 600); // Wait 600ms for long press
+    }, 450); // 450ms long press threshold
   };
 
   const handleDayTouchEnd = () => {
@@ -349,24 +356,29 @@ export default function App() {
     }
   };
 
-  // Cancel long press on scroll
-  const handleDayTouchMove = () => {
-      if (longPressTimer.current) {
-          clearTimeout(longPressTimer.current);
-          longPressTimer.current = null;
+  const handleDayTouchMove = (e: React.TouchEvent) => {
+    if (!longPressTimer.current) return;
+    if (e.touches.length > 0) {
+      const dx = Math.abs(e.touches[0].clientX - touchStartPosRef.current.x);
+      const dy = Math.abs(e.touches[0].clientY - touchStartPosRef.current.y);
+      // Cancel long press only if user genuinely scrolled more than 10px
+      if (dx > 10 || dy > 10) {
+        clearTimeout(longPressTimer.current);
+        longPressTimer.current = null;
       }
+    }
   };
 
   const handleDayItemClick = (idx: number, dateStr: string) => {
-    // If just finished a long press, ignore the immediate click
-    if (ignoreClickRef.current) {
-        ignoreClickRef.current = false;
+    // If this click is fired within 600ms of long press triggering (e.g. touch release synthetic click), ignore it!
+    const elapsedSinceLongPress = Date.now() - longPressTriggeredAtRef.current;
+    if (elapsedSinceLongPress < 600) {
         return;
     }
 
     if (swappingFromIndex !== null) {
         if (swappingFromIndex === idx) {
-            // Cancel mode if clicking the same day again
+            // Cancel mode only if the user deliberately clicks the selected day again AFTER long press
             setSwappingFromIndex(null);
         } else {
             // Execute swap with the target day
@@ -475,12 +487,15 @@ export default function App() {
                         <div 
                             key={date.date} 
                             data-day-index={idx}
-                            onTouchStart={() => handleDayTouchStart(idx)}
+                            onTouchStart={(e) => handleDayTouchStart(idx, e)}
                             onTouchMove={handleDayTouchMove}
                             onTouchEnd={handleDayTouchEnd}
-                            onMouseDown={() => handleDayTouchStart(idx)} // Support mouse long press
+                            onTouchCancel={handleDayTouchEnd}
+                            onMouseDown={(e) => handleDayTouchStart(idx, e)}
                             onMouseUp={handleDayTouchEnd}
+                            onContextMenu={(e) => e.preventDefault()}
                             onClick={() => handleDayItemClick(idx, date.date)}
+                            style={{ WebkitTouchCallout: 'none', userSelect: 'none' }}
                             className={`flex-shrink-0 flex flex-col items-center justify-center w-[3.5rem] h-16 rounded-2xl transition-all snap-center cursor-pointer relative overflow-hidden select-none
                                 ${isSwapping ? 'animate-pulse bg-orange-100 border-orange-400 scale-110 shadow-lg border-2 z-20' : 
                                   isPotentialTarget ? 'bg-white border-dashed border-orange-200 opacity-90 scale-95' :
@@ -514,9 +529,9 @@ export default function App() {
                     {scheduleItems.filter(item => item.date === selectedDate).map((item, index) => {
                       let icon = MapPin; let colorClass = 'bg-gray-100 text-gray-500';
                       if (item.type === 'food') { icon = Utensils; colorClass = 'bg-orange-100 text-orange-500'; }
-                      if (item.type === 'transport') { icon = Navigation; colorClass = 'bg-blue-100 text-blue-500'; }
+                      if (item.type === 'transport') { icon = Train; colorClass = 'bg-blue-100 text-blue-500'; }
                       if (item.type === 'stay') { icon = Bed; colorClass = 'bg-purple-100 text-purple-500'; }
-                      if (item.type === 'spot') { icon = MapPin; colorClass = 'bg-green-100 text-green-600'; }
+                      if (item.type === 'spot') { icon = Camera; colorClass = 'bg-green-100 text-green-600'; }
                       if (item.type === 'flight') { icon = Plane; colorClass = 'bg-cyan-100 text-cyan-600'; }
                       const IconComp = icon;
                       const partIds = item.type === 'flight' ? item.flightDetails?.participants : item.type === 'stay' ? item.stayDetails?.participants : item.type === 'transport' ? item.carRental?.participants : (item.type === 'spot' || item.type === 'food') ? item.spotDetails?.participants : [];

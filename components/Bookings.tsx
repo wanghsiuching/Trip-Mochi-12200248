@@ -903,18 +903,50 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
                         <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark space-y-4">
                             <div className="flex flex-col">
-                                <label className="text-[10px] font-bold text-blue-500 flex items-center gap-1 mb-1"><Compass size={12}/> 取車時間</label>
-                                <div className="flex gap-2">
-                                  <input type="date" value={editingCar.pickupDate} onChange={e => setEditingCar({...editingCar, pickupDate: e.target.value})} className="flex-1 bg-beige/50 p-3 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{ colorScheme: 'light' }}/>
-                                  <input type="time" value={editingCar.pickupTime} onChange={e => setEditingCar({...editingCar, pickupTime: e.target.value})} className="w-24 bg-beige/50 p-3 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{ colorScheme: 'light' }}/>
+                                <label className="text-[10px] font-bold text-blue-500 flex items-center gap-1 mb-2"><Compass size={12}/> 取車時間</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="bg-beige/50 p-2.5 rounded-xl border border-beige-dark flex items-center gap-2 shadow-sm">
+                                      <div className="p-1.5 bg-white rounded-lg text-blue-500 shadow-sm flex-shrink-0">
+                                          <CalendarIcon size={16} />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                          <label className="text-[9px] font-bold text-gray-400 block mb-0.5">日期</label>
+                                          <input type="date" value={editingCar.pickupDate} onChange={e => setEditingCar({...editingCar, pickupDate: e.target.value})} className="w-full bg-transparent font-bold text-cocoa text-xs outline-none" style={{ colorScheme: 'light' }}/>
+                                      </div>
+                                  </div>
+                                  <div className="bg-beige/50 p-2.5 rounded-xl border border-beige-dark flex items-center gap-2 shadow-sm">
+                                      <div className="p-1.5 bg-white rounded-lg text-blue-500 shadow-sm flex-shrink-0">
+                                          <Clock size={16} />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                          <label className="text-[9px] font-bold text-gray-400 block mb-0.5">時間</label>
+                                          <input type="time" value={editingCar.pickupTime} onChange={e => setEditingCar({...editingCar, pickupTime: e.target.value})} className="w-full bg-transparent font-bold text-cocoa text-xs outline-none" style={{ colorScheme: 'light' }}/>
+                                      </div>
+                                  </div>
                                 </div>
                                 <input value={editingCar.pickupLocation} onChange={e => setEditingCar({...editingCar, pickupLocation: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-bold text-cocoa text-xs mt-2" placeholder="取車地點"/>
                             </div>
                             <div className="flex flex-col">
-                                <label className="text-[10px] font-bold text-orange-500 flex items-center gap-1 mb-1"><Compass size={12}/> 還車時間</label>
-                                <div className="flex gap-2">
-                                  <input type="date" value={editingCar.returnDate} onChange={e => setEditingCar({...editingCar, returnDate: e.target.value})} className="flex-1 bg-beige/50 p-3 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{ colorScheme: 'light' }}/>
-                                  <input type="time" value={editingCar.returnTime} onChange={e => setEditingCar({...editingCar, returnTime: e.target.value})} className="w-24 bg-beige/50 p-3 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{ colorScheme: 'light' }}/>
+                                <label className="text-[10px] font-bold text-orange-500 flex items-center gap-1 mb-2"><Compass size={12}/> 還車時間</label>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="bg-beige/50 p-2.5 rounded-xl border border-beige-dark flex items-center gap-2 shadow-sm">
+                                      <div className="p-1.5 bg-white rounded-lg text-orange-500 shadow-sm flex-shrink-0">
+                                          <CalendarIcon size={16} />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                          <label className="text-[9px] font-bold text-gray-400 block mb-0.5">日期</label>
+                                          <input type="date" value={editingCar.returnDate} onChange={e => setEditingCar({...editingCar, returnDate: e.target.value})} className="w-full bg-transparent font-bold text-cocoa text-xs outline-none" style={{ colorScheme: 'light' }}/>
+                                      </div>
+                                  </div>
+                                  <div className="bg-beige/50 p-2.5 rounded-xl border border-beige-dark flex items-center gap-2 shadow-sm">
+                                      <div className="p-1.5 bg-white rounded-lg text-orange-500 shadow-sm flex-shrink-0">
+                                          <Clock size={16} />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                          <label className="text-[9px] font-bold text-gray-400 block mb-0.5">時間</label>
+                                          <input type="time" value={editingCar.returnTime} onChange={e => setEditingCar({...editingCar, returnTime: e.target.value})} className="w-full bg-transparent font-bold text-cocoa text-xs outline-none" style={{ colorScheme: 'light' }}/>
+                                      </div>
+                                  </div>
                                 </div>
                                 <input value={editingCar.returnLocation} onChange={e => setEditingCar({...editingCar, returnLocation: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-bold text-cocoa text-xs mt-2" placeholder="還車地點"/>
                             </div>

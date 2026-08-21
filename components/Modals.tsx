@@ -992,9 +992,14 @@ export const AddScheduleModal = ({
              </div>
              {/* ... rest of the form ... */}
              <div className="flex gap-4">
-                <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm flex-1">
-                   <label className="text-xs font-bold text-gray-400 block mb-1">時間</label>
-                   <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="w-full text-lg font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }} />
+                <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-3 shadow-sm flex-1">
+                   <div className="p-2 bg-white rounded-xl text-sage shadow-sm flex-shrink-0">
+                       <Clock size={20} />
+                   </div>
+                   <div className="flex-1 min-w-0">
+                       <label className="text-[10px] font-bold text-gray-400 block mb-0.5">時間</label>
+                       <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="w-full text-base font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }} />
+                   </div>
                 </div>
              </div>
              <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm">
@@ -1020,10 +1025,34 @@ export const AddScheduleModal = ({
                          {/* ... more flight inputs ... */}
                          {/* Route/Times */}
                          <div className="grid grid-cols-2 gap-2">
-                             <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">去程起飛</label><input type="time" value={flightDepTime} onChange={e => setFlightDepTime(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
-                             <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">去程抵達</label><input type="time" value={flightArrTime} onChange={e => setFlightArrTime(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
+                             <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
+                                 <div className="p-2 bg-white rounded-xl text-cyan-600 shadow-sm flex-shrink-0">
+                                     <Clock size={18} />
+                                 </div>
+                                 <div className="flex-1 min-w-0">
+                                     <label className="text-[10px] font-bold text-gray-400 block mb-0.5">去程起飛</label>
+                                     <input type="time" value={flightDepTime} onChange={e => setFlightDepTime(e.target.value)} className="w-full text-xs font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/>
+                                 </div>
+                             </div>
+                             <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
+                                 <div className="p-2 bg-white rounded-xl text-cyan-600 shadow-sm flex-shrink-0">
+                                     <Clock size={18} />
+                                 </div>
+                                 <div className="flex-1 min-w-0">
+                                     <label className="text-[10px] font-bold text-gray-400 block mb-0.5">去程抵達</label>
+                                     <input type="time" value={flightArrTime} onChange={e => setFlightArrTime(e.target.value)} className="w-full text-xs font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/>
+                                 </div>
+                             </div>
                          </div>
-                         <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">抵達日期 (若隔日)</label><input type="date" value={flightArrDate} onChange={e => setFlightArrDate(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
+                         <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-3 shadow-sm">
+                             <div className="p-2 bg-white rounded-xl text-cyan-600 shadow-sm flex-shrink-0">
+                                 <CalendarIcon size={18} />
+                             </div>
+                             <div className="flex-1 min-w-0">
+                                 <label className="text-[10px] font-bold text-gray-400 block mb-0.5">抵達日期 (若隔日)</label>
+                                 <input type="date" value={flightArrDate} onChange={e => setFlightArrDate(e.target.value)} className="w-full text-xs font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/>
+                             </div>
+                         </div>
                          <div className="grid grid-cols-2 gap-2">
                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">起飛機場</label><input value={flightDepAirport} onChange={e => setFlightDepAirport(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="TPE T2"/></div>
                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">抵達機場</label><input value={flightArrAirport} onChange={e => setFlightArrAirport(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="KIX T1"/></div>
@@ -1061,8 +1090,24 @@ export const AddScheduleModal = ({
                  <div className="space-y-3 bg-purple-50/50 p-3 rounded-2xl border-2 border-purple-100 mt-2">
                       {/* ... stay inputs ... */}
                       <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">入住時間</label><input type="time" value={checkIn} onChange={e => setCheckIn(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
-                          <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">退房時間</label><input type="time" value={checkOut} onChange={e => setCheckOut(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
+                          <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
+                              <div className="p-2 bg-white rounded-xl text-purple-600 shadow-sm flex-shrink-0">
+                                  <Clock size={18} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                  <label className="text-[10px] font-bold text-gray-400 block mb-0.5">入住時間</label>
+                                  <input type="time" value={checkIn} onChange={e => setCheckIn(e.target.value)} className="w-full text-xs font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/>
+                              </div>
+                          </div>
+                          <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
+                              <div className="p-2 bg-white rounded-xl text-purple-600 shadow-sm flex-shrink-0">
+                                  <Clock size={18} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                  <label className="text-[10px] font-bold text-gray-400 block mb-0.5">退房時間</label>
+                                  <input type="time" value={checkOut} onChange={e => setCheckOut(e.target.value)} className="w-full text-xs font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/>
+                              </div>
+                          </div>
                       </div>
                       <div className="flex gap-2 px-1">
                           <CuteButton checked={hasBreakfast} onChange={setHasBreakfast} icon={Coffee} label="供應早餐" activeColor="bg-purple-100 text-purple-600 border-purple-200" />
@@ -1105,8 +1150,24 @@ export const AddScheduleModal = ({
                                  <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">車型</label><input value={carModel} onChange={e => setCarModel(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: Yaris"/></div>
                              </div>
                              <div className="grid grid-cols-2 gap-2">
-                                 <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">取車時間</label><input type="time" value={pickupTime} onChange={e => setPickupTime(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
-                                 <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">還車時間</label><input type="time" value={returnTime} onChange={e => setReturnTime(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/></div>
+                                 <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
+                                     <div className="p-2 bg-white rounded-xl text-blue-500 shadow-sm flex-shrink-0">
+                                         <Clock size={18} />
+                                     </div>
+                                     <div className="flex-1 min-w-0">
+                                         <label className="text-[10px] font-bold text-gray-400 block mb-0.5">取車時間</label>
+                                         <input type="time" value={pickupTime} onChange={e => setPickupTime(e.target.value)} className="w-full text-xs font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/>
+                                     </div>
+                                 </div>
+                                 <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
+                                     <div className="p-2 bg-white rounded-xl text-blue-500 shadow-sm flex-shrink-0">
+                                         <Clock size={18} />
+                                     </div>
+                                     <div className="flex-1 min-w-0">
+                                         <label className="text-[10px] font-bold text-gray-400 block mb-0.5">還車時間</label>
+                                         <input type="time" value={returnTime} onChange={e => setReturnTime(e.target.value)} className="w-full text-xs font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/>
+                                     </div>
+                                 </div>
                              </div>
                              
                              {/* Rental Cost */}
