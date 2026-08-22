@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { PenTool, Trash2, X, Feather, Send, Check, AlertCircle } from 'lucide-react';
 import { Journal, Member, Comment } from '../types';
+import { DateTimePickerField } from './TimePickerComponents';
 
 interface JournalViewProps {
   journals: Journal[];
@@ -315,10 +316,12 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
             <div className="bg-beige w-full max-w-md rounded-[2rem] p-6 shadow-2xl animate-scale-in max-h-[90vh] overflow-y-auto custom-scroll border-4 border-beige-dark">
                 <h3 className="font-black text-lg mb-4 text-cocoa text-center bg-white px-4 py-1 rounded-full w-max mx-auto border border-beige-dark">{editingJournal ? '編輯日誌' : '寫新日誌'}</h3>
                 <div className="space-y-4">
-                    <div>
-                        <label className="text-[10px] text-gray-400 block mb-1 font-bold">日期與時間</label>
-                        <input value={form.date} onChange={e => setForm({...form, date: e.target.value})} type="datetime-local" className="w-full bg-white text-cocoa rounded-xl px-3 py-2 text-sm outline-none border-2 border-beige-dark font-bold" style={{ colorScheme: 'light' }}/>
-                    </div>
+                    <DateTimePickerField
+                        label="記錄日期與時間"
+                        value={form.date}
+                        onChange={val => setForm({...form, date: val})}
+                        themeColor="sage"
+                    />
                     <div>
                         <label className="text-[10px] text-gray-400 block mb-1 font-bold">記錄人</label>
                         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">

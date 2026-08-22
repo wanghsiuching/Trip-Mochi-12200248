@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Plane, Bed, Car, Plus, MapPin, Compass, House, PenTool, Briefcase, Info, Luggage, Navigation, Leaf, Link as LinkIcon, X, Calendar as CalendarIcon, ArrowRightLeft, Users, Clock, DollarSign, Trash2 } from 'lucide-react';
 import { BookingFlight, BookingAccommodation, BookingCarRental, BookingTicket, Currency, Member } from '../types';
 import { ToggleSwitch } from './Modals';
+import { DateTimePickerField, TimePickerField, DatePickerField } from './TimePickerComponents';
 
 interface BookingsViewProps {
   flights: BookingFlight[];
@@ -697,28 +698,42 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             <input value={editingFlight.code} onChange={e => setEditingFlight({...editingFlight, code: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-black text-cocoa uppercase text-sm" placeholder="航班號 (BR123)"/>
                         </div>
 
-                        <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
-                            <label className="text-[10px] font-bold text-gray-400 block mb-1 flex items-center gap-1"><CalendarIcon size={10}/> 去程出發</label>
-                            <input type="datetime-local" value={editingFlight.date} onChange={e => setEditingFlight({...editingFlight, date: e.target.value})} className="w-full bg-transparent font-bold text-cocoa outline-none text-sm" style={{colorScheme: 'light'}}/>
-                        </div>
+                        <div className="space-y-3">
+                            <DateTimePickerField
+                                label="去程出發 (Departure)"
+                                value={editingFlight.date}
+                                onChange={val => setEditingFlight({...editingFlight, date: val})}
+                                themeColor="cyan"
+                                icon={Plane}
+                            />
 
-                        <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
-                            <label className="text-[10px] font-bold text-gray-400 block mb-1 flex items-center gap-1"><Clock size={10}/> 去程抵達</label>
-                            <input type="datetime-local" value={editingFlight.arrivalDate || ''} onChange={e => setEditingFlight({...editingFlight, arrivalDate: e.target.value})} className="w-full bg-transparent font-bold text-cocoa outline-none text-sm" style={{colorScheme: 'light'}}/>
-                        </div>
+                            <DateTimePickerField
+                                label="去程抵達 (Arrival)"
+                                value={editingFlight.arrivalDate || editingFlight.date}
+                                onChange={val => setEditingFlight({...editingFlight, arrivalDate: val})}
+                                themeColor="cyan"
+                                icon={Clock}
+                            />
 
-                        {editingFlight.tripType === 'roundtrip' && (
-                            <>
-                                <div className="bg-white p-3 rounded-xl border-2 border-orange-200 shadow-sm">
-                                    <label className="text-[10px] font-bold text-orange-400 block mb-1 flex items-center gap-1"><ArrowRightLeft size={10}/> 回程出發</label>
-                                    <input type="datetime-local" value={editingFlight.returnDate || ''} onChange={e => setEditingFlight({...editingFlight, returnDate: e.target.value})} className="w-full bg-transparent font-bold text-cocoa outline-none text-sm" style={{colorScheme: 'light'}}/>
+                            {editingFlight.tripType === 'roundtrip' && (
+                                <div className="space-y-3 pt-2 border-t-2 border-dashed border-orange-200">
+                                    <DateTimePickerField
+                                        label="回程出發 (Return Departure)"
+                                        value={editingFlight.returnDate || ''}
+                                        onChange={val => setEditingFlight({...editingFlight, returnDate: val})}
+                                        themeColor="orange"
+                                        icon={ArrowRightLeft}
+                                    />
+                                    <DateTimePickerField
+                                        label="回程抵達 (Return Arrival)"
+                                        value={editingFlight.returnArrivalDate || ''}
+                                        onChange={val => setEditingFlight({...editingFlight, returnArrivalDate: val})}
+                                        themeColor="orange"
+                                        icon={Clock}
+                                    />
                                 </div>
-                                <div className="bg-white p-3 rounded-xl border-2 border-orange-200 shadow-sm">
-                                    <label className="text-[10px] font-bold text-orange-400 block mb-1 flex items-center gap-1"><Clock size={10}/> 回程抵達</label>
-                                    <input type="datetime-local" value={editingFlight.returnArrivalDate || ''} onChange={e => setEditingFlight({...editingFlight, returnArrivalDate: e.target.value})} className="w-full bg-transparent font-bold text-cocoa outline-none text-sm" style={{colorScheme: 'light'}}/>
-                                </div>
-                            </>
-                        )}
+                            )}
+                        </div>
 
                         <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark space-y-2">
                             <div className="flex items-center gap-2">
@@ -844,15 +859,21 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
                         <div><label className="text-[10px] font-bold text-gray-400 ml-1">住宿名稱</label><input value={editingAcc.name} onChange={e => setEditingAcc({...editingAcc, name: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa" placeholder="飯店名稱"/></div>
 
-                        <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark space-y-4">
-                            <div className="flex flex-col">
-                                <label className="text-[10px] font-bold text-gray-400 ml-1 flex items-center gap-1 mb-1"><House size={12}/> 入住時間</label>
-                                <input type="datetime-local" value={editingAcc.checkInDate} onChange={e => setEditingAcc({...editingAcc, checkInDate: e.target.value})} className="w-full bg-beige/50 p-3 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{colorScheme: 'light'}}/>
-                            </div>
-                            <div className="flex flex-col">
-                                <label className="text-[10px] font-bold text-gray-400 ml-1 flex items-center gap-1 mb-1"><House size={12} className="text-orange-400"/> 退房時間</label>
-                                <input type="datetime-local" value={editingAcc.checkOutDate} onChange={e => setEditingAcc({...editingAcc, checkOutDate: e.target.value})} className="w-full bg-beige/50 p-3 rounded-xl border border-beige-dark font-bold text-cocoa text-sm" style={{colorScheme: 'light'}}/>
-                            </div>
+                        <div className="bg-purple-50/50 p-3.5 rounded-2xl border-2 border-purple-100 space-y-3">
+                            <DateTimePickerField
+                                label="入住時間 (Check-in)"
+                                value={editingAcc.checkInDate}
+                                onChange={val => setEditingAcc({...editingAcc, checkInDate: val})}
+                                themeColor="purple"
+                                icon={House}
+                            />
+                            <DateTimePickerField
+                                label="退房時間 (Check-out)"
+                                value={editingAcc.checkOutDate}
+                                onChange={val => setEditingAcc({...editingAcc, checkOutDate: val})}
+                                themeColor="purple"
+                                icon={House}
+                            />
                         </div>
 
                         <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark space-y-3">
@@ -911,54 +932,47 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             <div><label className="text-[10px] font-bold text-gray-400 ml-1">租車公司</label><input value={editingCar.company} onChange={e => setEditingCar({...editingCar, company: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="Lotte"/></div>
                         </div>
 
-                        <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark space-y-4">
-                            <div className="flex flex-col">
-                                <label className="text-[10px] font-bold text-blue-500 flex items-center gap-1 mb-2"><Compass size={12}/> 取車時間</label>
+                        <div className="bg-blue-50/50 p-3.5 rounded-2xl border-2 border-blue-100 space-y-3.5">
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-black text-blue-700 flex items-center gap-1.5 px-1">
+                                    <Compass size={13} className="text-blue-600"/> 取車時間 (Pick-up)
+                                </label>
                                 <div className="grid grid-cols-2 gap-2">
-                                  <div className="bg-beige/50 p-2.5 rounded-xl border border-beige-dark flex items-center gap-2 shadow-sm">
-                                      <div className="p-1.5 bg-white rounded-lg text-blue-500 shadow-sm flex-shrink-0">
-                                          <CalendarIcon size={16} />
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                          <label className="text-[9px] font-bold text-gray-400 block mb-0.5">日期</label>
-                                          <input type="date" value={editingCar.pickupDate} onChange={e => setEditingCar({...editingCar, pickupDate: e.target.value})} className="w-full bg-transparent font-bold text-cocoa text-xs outline-none" style={{ colorScheme: 'light' }}/>
-                                      </div>
-                                  </div>
-                                  <div className="bg-beige/50 p-2.5 rounded-xl border border-beige-dark flex items-center gap-2 shadow-sm">
-                                      <div className="p-1.5 bg-white rounded-lg text-blue-500 shadow-sm flex-shrink-0">
-                                          <Clock size={16} />
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                          <label className="text-[9px] font-bold text-gray-400 block mb-0.5">時間</label>
-                                          <input type="time" value={editingCar.pickupTime} onChange={e => setEditingCar({...editingCar, pickupTime: e.target.value})} className="w-full bg-transparent font-bold text-cocoa text-xs outline-none" style={{ colorScheme: 'light' }}/>
-                                      </div>
-                                  </div>
+                                    <DatePickerField
+                                        label="日期"
+                                        value={editingCar.pickupDate}
+                                        onChange={val => setEditingCar({...editingCar, pickupDate: val})}
+                                        themeColor="blue"
+                                    />
+                                    <TimePickerField
+                                        label="時間"
+                                        value={editingCar.pickupTime}
+                                        onChange={val => setEditingCar({...editingCar, pickupTime: val})}
+                                        themeColor="blue"
+                                    />
                                 </div>
-                                <input value={editingCar.pickupLocation} onChange={e => setEditingCar({...editingCar, pickupLocation: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-bold text-cocoa text-xs mt-2" placeholder="取車地點"/>
+                                <input value={editingCar.pickupLocation} onChange={e => setEditingCar({...editingCar, pickupLocation: e.target.value})} className="w-full bg-white p-2.5 rounded-xl border border-blue-200 font-bold text-cocoa text-xs mt-1 outline-none focus:border-blue-400" placeholder="取車地點 (例: 千歲機場營業所)"/>
                             </div>
-                            <div className="flex flex-col">
-                                <label className="text-[10px] font-bold text-orange-500 flex items-center gap-1 mb-2"><Compass size={12}/> 還車時間</label>
+
+                            <div className="space-y-1.5 pt-2 border-t border-dashed border-blue-200">
+                                <label className="text-xs font-black text-orange-600 flex items-center gap-1.5 px-1">
+                                    <Compass size={13} className="text-orange-500"/> 還車時間 (Return)
+                                </label>
                                 <div className="grid grid-cols-2 gap-2">
-                                  <div className="bg-beige/50 p-2.5 rounded-xl border border-beige-dark flex items-center gap-2 shadow-sm">
-                                      <div className="p-1.5 bg-white rounded-lg text-orange-500 shadow-sm flex-shrink-0">
-                                          <CalendarIcon size={16} />
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                          <label className="text-[9px] font-bold text-gray-400 block mb-0.5">日期</label>
-                                          <input type="date" value={editingCar.returnDate} onChange={e => setEditingCar({...editingCar, returnDate: e.target.value})} className="w-full bg-transparent font-bold text-cocoa text-xs outline-none" style={{ colorScheme: 'light' }}/>
-                                      </div>
-                                  </div>
-                                  <div className="bg-beige/50 p-2.5 rounded-xl border border-beige-dark flex items-center gap-2 shadow-sm">
-                                      <div className="p-1.5 bg-white rounded-lg text-orange-500 shadow-sm flex-shrink-0">
-                                          <Clock size={16} />
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                          <label className="text-[9px] font-bold text-gray-400 block mb-0.5">時間</label>
-                                          <input type="time" value={editingCar.returnTime} onChange={e => setEditingCar({...editingCar, returnTime: e.target.value})} className="w-full bg-transparent font-bold text-cocoa text-xs outline-none" style={{ colorScheme: 'light' }}/>
-                                      </div>
-                                  </div>
+                                    <DatePickerField
+                                        label="日期"
+                                        value={editingCar.returnDate}
+                                        onChange={val => setEditingCar({...editingCar, returnDate: val})}
+                                        themeColor="orange"
+                                    />
+                                    <TimePickerField
+                                        label="時間"
+                                        value={editingCar.returnTime}
+                                        onChange={val => setEditingCar({...editingCar, returnTime: val})}
+                                        themeColor="orange"
+                                    />
                                 </div>
-                                <input value={editingCar.returnLocation} onChange={e => setEditingCar({...editingCar, returnLocation: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-bold text-cocoa text-xs mt-2" placeholder="還車地點"/>
+                                <input value={editingCar.returnLocation} onChange={e => setEditingCar({...editingCar, returnLocation: e.target.value})} className="w-full bg-white p-2.5 rounded-xl border border-orange-200 font-bold text-cocoa text-xs mt-1 outline-none focus:border-orange-400" placeholder="還車地點"/>
                             </div>
                         </div>
 

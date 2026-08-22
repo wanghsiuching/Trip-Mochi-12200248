@@ -12,6 +12,7 @@ import {
   TransitFareDetails, 
   Currency 
 } from '../types';
+import { TimePickerField } from './TimePickerComponents';
 
 export const TRANSPORT_TYPE_CONFIG: Record<UniversalTransportType, {
   label: string;
@@ -138,41 +139,40 @@ export const TransitPassBadge: React.FC<{
   fare: TransitFareDetails;
   compact?: boolean;
 }> = ({ fare, compact = false }) => {
-  const { passUsed, originalPrice, discountedPrice, currency, seatReservationFee, notes } = fare;
-  const config = PASS_TYPE_CONFIG[passUsed] || PASS_TYPE_CONFIG.none;
-  const savings = Math.max(0, originalPrice - discountedPrice);
+  const { originalPrice, discountedPrice, currency = 'TWD', extraFeeName, seatReservationFee, seatReservationFeeCurrency, notes } = fare;
+  const numOrig = originalPrice !== '' && originalPrice !== undefined ? Number(originalPrice) : 0;
+  const numDisc = discountedPrice !== '' && discountedPrice !== undefined ? Number(discountedPrice) : 0;
+  const numExtra = seatReservationFee !== '' && seatReservationFee !== undefined ? Number(seatReservationFee) : 0;
+  const extraCurr = seatReservationFeeCurrency || currency;
+  const extraLabel = extraFeeName?.trim() || '額外加價 / 指定席';
+  const hasSavings = numOrig > 0 && numDisc < numOrig;
+  const savings = hasSavings ? numOrig - numDisc : 0;
 
   if (compact) {
-    if (passUsed === 'pass_free') {
+    if (numDisc === 0 && numOrig > 0) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-sm">
           <Ticket size={10} className="text-emerald-700" />
-          <span>Pass 涵蓋 0元</span>
-          {Number(seatReservationFee) > 0 && <span className="text-[9px] opacity-80">(指定席 +{currency} {Number(seatReservationFee).toLocaleString()})</span>}
+          <span>實付 0 元 (Pass)</span>
+          {numExtra > 0 && <span className="text-[9px] opacity-80">({extraLabel} +{extraCurr} {numExtra.toLocaleString()})</span>}
         </span>
       );
     }
-    if (passUsed === 'pass_discount') {
+    if (numDisc > 0) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 shadow-sm">
-          <Percent size={10} className="text-amber-700" />
-          <span>{currency} {Number(discountedPrice).toLocaleString()}</span>
-          {savings > 0 && <span className="text-[9px] text-amber-700 font-bold">(省 {currency} {Number(savings).toLocaleString()})</span>}
+          <Ticket size={10} className="text-amber-700" />
+          <span>{currency} {numDisc.toLocaleString()}</span>
+          {savings > 0 && <span className="text-[9px] text-amber-700 font-bold">(省 {currency} {savings.toLocaleString()})</span>}
+          {numExtra > 0 && <span className="text-[9px] text-blue-700 font-bold">+{extraCurr} {numExtra.toLocaleString()}</span>}
         </span>
       );
     }
-    if (passUsed === 'ic_card') {
+    if (numExtra > 0) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-blue-100 text-blue-800 border border-blue-300 shadow-sm">
-          <CreditCard size={10} className="text-blue-700" />
-          <span>IC 刷卡 {currency} {Number(discountedPrice).toLocaleString()}</span>
-        </span>
-      );
-    }
-    if (Number(discountedPrice) > 0) {
-      return (
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-stone-100 text-stone-700 border border-stone-300 shadow-sm">
-          <span>{currency} {Number(discountedPrice).toLocaleString()}</span>
+          <Tag size={10} className="text-blue-700" />
+          <span>{extraLabel} {extraCurr} {numExtra.toLocaleString()}</span>
         </span>
       );
     }
@@ -184,42 +184,40 @@ export const TransitPassBadge: React.FC<{
     <div className="rounded-2xl p-3.5 border-2 space-y-2 bg-white shadow-sm border-beige-dark">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
-          <div className={`px-2.5 py-1 rounded-xl text-xs font-black border flex items-center gap-1.5 shadow-sm ${config.badgeClass}`}>
-            <Ticket size={14} />
-            <span>{config.badgeTitle}</span>
+          <div className="px-2.5 py-1 rounded-xl text-xs font-black border flex items-center gap-1.5 shadow-sm bg-amber-50 text-amber-900 border-amber-200">
+            <Ticket size={14} className="text-amber-600" />
+            <span>大眾運輸票價</span>
           </div>
-          {passUsed === 'pass_free' && (
+          {numDisc === 0 && numOrig > 0 && (
             <span className="text-xs font-black text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
-              實付 0 元
+              實付 0 元 (Pass全包)
             </span>
           )}
         </div>
 
         {/* Price Breakdown */}
         <div className="text-right">
-          {passUsed === 'pass_discount' && savings > 0 ? (
+          {hasSavings ? (
             <div className="flex items-baseline gap-2 justify-end">
               <span className="text-[11px] text-gray-400 line-through font-mono">
-                {currency} {Number(originalPrice).toLocaleString()}
+                {currency} {numOrig.toLocaleString()}
               </span>
               <span className="text-base font-black text-amber-800 font-mono">
-                {currency} {Number(discountedPrice).toLocaleString()}
+                {currency} {numDisc.toLocaleString()}
               </span>
             </div>
-          ) : passUsed === 'pass_free' ? (
+          ) : numDisc === 0 && numOrig > 0 ? (
             <div className="text-right">
-              {Number(originalPrice) > 0 && (
-                <span className="text-[10px] text-gray-400 line-through font-mono block">
-                  原價 {currency} {Number(originalPrice).toLocaleString()}
-                </span>
-              )}
+              <span className="text-[10px] text-gray-400 line-through font-mono block">
+                原價 {currency} {numOrig.toLocaleString()}
+              </span>
               <span className="text-sm font-black text-emerald-700 font-mono">
                 實付 {currency} 0
               </span>
             </div>
           ) : (
             <span className="text-base font-black text-cocoa font-mono">
-              {currency} {Number(discountedPrice).toLocaleString()}
+              {currency} {numDisc.toLocaleString()}
             </span>
           )}
         </div>
@@ -227,16 +225,16 @@ export const TransitPassBadge: React.FC<{
 
       {/* Savings Notification or Extra fees */}
       <div className="pt-2 border-t border-dashed border-beige-dark flex items-center justify-between flex-wrap text-xs font-bold gap-2">
-        {savings > 0 && passUsed === 'pass_discount' && (
+        {savings > 0 && (
           <span className="text-amber-800 bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-200 text-[11px] font-black inline-flex items-center gap-1">
             <Sparkles size={12} className="text-amber-600" />
-            省下 {currency} {Number(savings).toLocaleString()}
+            省下 {currency} {savings.toLocaleString()}
           </span>
         )}
-        {Number(seatReservationFee) > 0 && (
+        {numExtra > 0 && (
           <span className="text-blue-700 bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200 text-[11px] font-black inline-flex items-center gap-1 ml-auto">
-            <span>強制訂位/指定席:</span>
-            <span className="font-mono">{currency} {Number(seatReservationFee).toLocaleString()}</span>
+            <span>{extraLabel}:</span>
+            <span className="font-mono">{extraCurr} {numExtra.toLocaleString()}</span>
           </span>
         )}
       </div>
@@ -547,32 +545,18 @@ export const TransitLegEditor: React.FC<{
 
               {/* Time Inputs */}
               <div className="grid grid-cols-2 gap-2">
-                <div className="bg-beige/40 p-2 rounded-xl border border-beige-dark flex items-center gap-2">
-                  <Clock size={14} className="text-blue-500 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <label className="text-[9px] font-bold text-gray-400 block mb-0.5">發車時間</label>
-                    <input
-                      type="time"
-                      value={leg.departureTime}
-                      onChange={e => updateLeg(leg.id, 'departureTime', e.target.value)}
-                      className="w-full bg-transparent font-bold text-cocoa text-xs outline-none"
-                      style={{ colorScheme: 'light' }}
-                    />
-                  </div>
-                </div>
-                <div className="bg-beige/40 p-2 rounded-xl border border-beige-dark flex items-center gap-2">
-                  <Clock size={14} className="text-blue-500 flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <label className="text-[9px] font-bold text-gray-400 block mb-0.5">抵達時間</label>
-                    <input
-                      type="time"
-                      value={leg.arrivalTime}
-                      onChange={e => updateLeg(leg.id, 'arrivalTime', e.target.value)}
-                      className="w-full bg-transparent font-bold text-cocoa text-xs outline-none"
-                      style={{ colorScheme: 'light' }}
-                    />
-                  </div>
-                </div>
+                <TimePickerField
+                  label="發車時間"
+                  value={leg.departureTime}
+                  onChange={val => updateLeg(leg.id, 'departureTime', val)}
+                  themeColor="blue"
+                />
+                <TimePickerField
+                  label="抵達時間"
+                  value={leg.arrivalTime}
+                  onChange={val => updateLeg(leg.id, 'arrivalTime', val)}
+                  themeColor="blue"
+                />
               </div>
 
               {/* Service Number & Platform */}
@@ -601,109 +585,32 @@ export const TransitLegEditor: React.FC<{
         })}
       </div>
 
-      {/* Fare & Pass Details Section */}
+      {/* Fare & Expenses Section */}
       <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm space-y-3.5">
         <div className="flex items-center justify-between border-b border-beige-dark pb-2">
           <label className="text-xs font-black text-cocoa flex items-center gap-1.5">
             <Ticket size={15} className="text-amber-600" />
-            <span>票價與通行證折扣 (Pass & Fare)</span>
+            <span>票價與花費設定 (Fare & Expenses)</span>
           </label>
-          <span className="text-[10px] text-gray-400 font-bold">支援 JR Pass / 半價卡 / IC卡</span>
-        </div>
-
-        {/* Pass Type Selection */}
-        <div>
-          <label className="text-[10px] font-bold text-gray-400 block mb-1.5">通行證 / 票種類型</label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-            {(['pass_free', 'pass_discount', 'ic_card', 'point_to_point', 'none'] as TransitPassType[]).map(pType => {
-              const cfg = PASS_TYPE_CONFIG[pType];
-              const isSelected = fare.passUsed === pType;
-              return (
-                <button
-                  key={pType}
-                  type="button"
-                  onClick={() => setFare(prev => ({ ...prev, passUsed: pType }))}
-                  className={`p-2 rounded-xl text-left border text-xs transition-all ${
-                    isSelected
-                      ? `${cfg.badgeClass} ring-2 ring-blue-300 font-black shadow-xs`
-                      : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
-                  }`}
-                >
-                  <span className="block font-black text-[11px] leading-tight">{cfg.badgeTitle}</span>
-                  <span className="text-[9px] opacity-75 block truncate mt-0.5">{cfg.desc}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Quick Calculation Buttons */}
-        <div>
-          <label className="text-[10px] font-bold text-gray-400 block mb-1">快捷折扣試算</label>
-          <div className="flex gap-1.5 flex-wrap">
-            <button
-              type="button"
-              onClick={() => applyDiscount('pass_free')}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 hover:bg-emerald-200 transition-colors shadow-xs"
-            >
-              🎉 通票 0 元 (Pass)
-            </button>
-            <button
-              type="button"
-              onClick={() => applyDiscount('half')}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 transition-colors shadow-xs"
-            >
-              🏷️ 半價 (50%)
-            </button>
-            <button
-              type="button"
-              onClick={() => applyDiscount('eighty')}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 transition-colors shadow-xs"
-            >
-              🏷️ 八折 (80%)
-            </button>
-            <button
-              type="button"
-              onClick={() => applyDiscount('ic')}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-blue-100 text-blue-800 border border-blue-300 hover:bg-blue-200 transition-colors shadow-xs"
-            >
-              💳 IC 扣款
-            </button>
-            <button
-              type="button"
-              onClick={() => applyDiscount('full')}
-              className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200 transition-colors shadow-xs"
-            >
-              全額原價
-            </button>
-          </div>
+          <span className="text-[10px] text-gray-400 font-bold">可自由設定幣別與實付金額</span>
         </div>
 
         {/* Prices Input */}
-        <div className="grid grid-cols-2 gap-2 pt-1">
+        <div className="grid grid-cols-2 gap-2">
           <div className="bg-beige/40 p-2.5 rounded-xl border border-beige-dark">
-            <label className="text-[9px] font-bold text-gray-400 block mb-0.5">原票價 (牌告價)</label>
+            <label className="text-[9px] font-bold text-gray-400 block mb-0.5">原票價 (牌告價/參考)</label>
             <div className="flex gap-1.5 items-center">
               <input
                 type="number"
-                value={fare.originalPrice || ''}
-                onChange={e => {
-                  const val = Number(e.target.value) || 0;
-                  setFare(prev => {
-                    const next = { ...prev, originalPrice: val };
-                    if (prev.passUsed === 'pass_free') next.discountedPrice = 0;
-                    else if (prev.passUsed === 'pass_discount') next.discountedPrice = Math.round(val * 0.5);
-                    else if (prev.passUsed === 'none' || prev.passUsed === 'point_to_point' || prev.passUsed === 'ic_card') next.discountedPrice = val;
-                    return next;
-                  });
-                }}
+                value={fare.originalPrice !== undefined && fare.originalPrice !== null ? fare.originalPrice : ''}
+                onChange={e => setFare(prev => ({ ...prev, originalPrice: e.target.value }))}
                 placeholder="0"
-                className="flex-1 bg-transparent font-mono font-bold text-cocoa text-sm outline-none"
+                className="flex-1 bg-transparent font-mono font-bold text-cocoa text-sm outline-none w-0 min-w-0"
               />
               <select
-                value={fare.currency}
+                value={fare.currency || 'TWD'}
                 onChange={e => setFare(prev => ({ ...prev, currency: e.target.value }))}
-                className="bg-white p-1 rounded-lg border border-beige-dark text-xs font-bold text-cocoa outline-none"
+                className="bg-white p-1 rounded-lg border border-beige-dark text-xs font-bold text-cocoa outline-none cursor-pointer"
               >
                 <option value="TWD">TWD</option>
                 {currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
@@ -712,38 +619,51 @@ export const TransitLegEditor: React.FC<{
           </div>
 
           <div className="bg-beige/40 p-2.5 rounded-xl border border-beige-dark">
-            <label className="text-[9px] font-bold text-gray-400 block mb-0.5">實際支付 (折後或Pass)</label>
+            <label className="text-[9px] font-bold text-gray-400 block mb-0.5">實際支付費用 (實付金額)</label>
             <div className="flex gap-1.5 items-center">
               <input
                 type="number"
-                value={fare.discountedPrice !== undefined ? fare.discountedPrice : ''}
-                onChange={e => setFare(prev => ({ ...prev, discountedPrice: Number(e.target.value) || 0 }))}
+                value={fare.discountedPrice !== undefined && fare.discountedPrice !== null ? fare.discountedPrice : ''}
+                onChange={e => setFare(prev => ({ ...prev, discountedPrice: e.target.value }))}
                 placeholder="0"
-                className="flex-1 bg-transparent font-mono font-black text-amber-800 text-sm outline-none"
+                className="flex-1 bg-transparent font-mono font-black text-amber-800 text-sm outline-none w-0 min-w-0"
               />
-              <span className="text-xs font-bold text-gray-500">{fare.currency}</span>
+              <span className="text-xs font-bold text-gray-500">{fare.currency || 'TWD'}</span>
             </div>
           </div>
         </div>
 
-        {/* Seat Reservation Fee */}
-        <div className="bg-blue-50/40 p-2.5 rounded-xl border border-blue-100 space-y-1">
-          <div className="flex justify-between items-center">
-            <label className="text-[10px] font-bold text-blue-700 flex items-center gap-1">
-              <Tag size={12} />
-              <span>額外強制訂位費 / 指定席加價 (選填)</span>
-            </label>
-            <span className="text-[9px] text-blue-400">如觀景列車、新幹線指定席</span>
+        {/* Customizable Extra Fee Section (自定義加價項目) */}
+        <div className="bg-blue-50/50 p-3 rounded-2xl border-2 border-blue-100 space-y-2">
+          <div className="flex items-center gap-1.5">
+            <Tag size={13} className="text-blue-600" />
+            <input
+              type="text"
+              value={fare.extraFeeName || ''}
+              onChange={e => setFare(prev => ({ ...prev, extraFeeName: e.target.value }))}
+              placeholder="自訂加價項目 (如：指定席加價 / 額外訂位費 / 行李加價)"
+              className="flex-1 bg-white/80 px-2.5 py-1.5 rounded-lg border border-blue-200 text-xs font-black text-blue-900 placeholder:text-blue-300 outline-none focus:bg-white focus:border-blue-400"
+            />
           </div>
           <div className="flex gap-2 items-center">
-            <input
-              type="number"
-              value={fare.seatReservationFee || ''}
-              onChange={e => setFare(prev => ({ ...prev, seatReservationFee: Number(e.target.value) || 0 }))}
-              placeholder="0"
-              className="flex-1 bg-white p-1.5 rounded-lg border border-blue-200 font-mono font-bold text-cocoa text-xs outline-none"
-            />
-            <span className="text-xs font-bold text-blue-600">{fare.currency}</span>
+            <div className="flex-1 bg-white px-2.5 py-1.5 rounded-xl border border-blue-200 flex items-center gap-1.5 shadow-xs">
+              <label className="text-[9px] font-bold text-gray-400">金額</label>
+              <input
+                type="number"
+                value={fare.seatReservationFee !== undefined && fare.seatReservationFee !== null ? fare.seatReservationFee : ''}
+                onChange={e => setFare(prev => ({ ...prev, seatReservationFee: e.target.value }))}
+                placeholder="0"
+                className="flex-1 bg-transparent font-mono font-black text-blue-900 text-sm outline-none w-0 min-w-0"
+              />
+            </div>
+            <select
+              value={fare.seatReservationFeeCurrency || fare.currency || 'TWD'}
+              onChange={e => setFare(prev => ({ ...prev, seatReservationFeeCurrency: e.target.value }))}
+              className="bg-white px-2.5 py-2 rounded-xl border border-blue-200 text-xs font-black text-blue-700 outline-none cursor-pointer shadow-xs"
+            >
+              <option value="TWD">TWD</option>
+              {currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
+            </select>
           </div>
         </div>
 
@@ -753,7 +673,7 @@ export const TransitLegEditor: React.FC<{
           <input
             value={fare.notes || ''}
             onChange={e => setFare(prev => ({ ...prev, notes: e.target.value }))}
-            placeholder="e.g., 需提前一個月劃位，憑 JR Pass 進站"
+            placeholder="e.g., 需提前劃位，憑 Pass 進站"
             className="w-full bg-transparent font-bold text-cocoa text-xs outline-none"
           />
         </div>

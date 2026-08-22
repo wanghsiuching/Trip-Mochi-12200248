@@ -4,17 +4,19 @@ import {
   MapPin, ArrowRight, Plane, Plus, X, Copy, BookOpen, ChevronLeft, Trash2,
   ChevronUp, ChevronDown, Navigation, StickyNote, Settings, AlertCircle, 
   CalendarCheck, Coins, Edit3, Users, Luggage, Briefcase, Bed, Car, Coffee, Utensils, Fuel, Ticket, Clock,
-  Train, Camera
+  Train, Camera, Compass
 } from 'lucide-react';
 
 import { 
   Tab, ViewState, ScheduleItem, SavedTrip, Currency, Member, THEME, TripDay,
-  BookingFlight, BookingAccommodation, BookingCarRental, BookingTicket, Expense, Journal, TodoItem
+  BookingFlight, BookingAccommodation, BookingCarRental, BookingTicket, Expense, Journal, TodoItem,
+  PocketItem
 } from './types';
 import { BottomNav } from './components/CommonUI';
 import { 
   AddScheduleModal, CreateTripModal, DeleteConfirmModal, SearchErrorModal, DeleteItemConfirmModal, TripSettingsModal, PotentialExpensesModal, EditDayDetailsModal, DeleteDayConfirmModal, BackupConfirmModal, ScheduleDetailModal
 } from './components/Modals';
+import { PocketPlacesModal } from './components/PocketPlacesModal';
 import { TransitLegChainView } from './components/TransitComponents';
 import { BookingsView } from './components/BookingsView';
 import { ExpensesView } from './components/ExpensesView';
@@ -52,6 +54,7 @@ export default function App() {
   }>({ todo: [], packing: [], wish: [], shopping: [] });
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
+  const [pocketItems, setPocketItems] = useState<PocketItem[]>([]);
   
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
@@ -61,6 +64,8 @@ export default function App() {
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isPotentialModalOpen, setIsPotentialModalOpen] = useState(false);
+  const [isPocketModalOpen, setIsPocketModalOpen] = useState(false);
+  const [pocketInitialTab, setPocketInitialTab] = useState<'food' | 'spot'>('food');
   const [isEditDayModalOpen, setIsEditDayModalOpen] = useState(false);
   const [isDeleteDayModalOpen, setIsDeleteDayModalOpen] = useState(false);
   const [isBackupConfirmOpen, setIsBackupConfirmOpen] = useState(false);
@@ -146,6 +151,7 @@ export default function App() {
           setPlanningLists(data.planning || { todo: [], packing: [], wish: [], shopping: [] });
           setCurrencies(data.currencies || []);
           setMembers(data.members || []);
+          setPocketItems(data.pocketItems || []);
           setCurrentTripName(data.name || '未命名行程');
           setLoading(false);
       });
@@ -264,6 +270,43 @@ export default function App() {
   const handleAddCar = (car: BookingCarRental) => addTripItem(currentTripId, 'carRentals', car);
   const handleUpdateCar = (updated: BookingCarRental) => updateTripField(currentTripId, 'carRentals', bookingCarRentals.map(c => String(c.id) === String(updated.id) ? updated : c));
   const handleDeleteCar = (id: number) => updateTripField(currentTripId, 'carRentals', bookingCarRentals.filter(c => String(c.id) !== String(id)));
+
+  const handleAddPocketItem = (item: Omit<PocketItem, 'id' | 'createdAt'>) => {
+    const newItem: PocketItem = {
+      ...item,
+      id: Date.now().toString(),
+      createdAt: Date.now(),
+    };
+    addTripItem(currentTripId, 'pocketItems', newItem);
+  };
+
+  const handleUpdatePocketItem = (updated: PocketItem) => {
+    updateTripField(currentTripId, 'pocketItems', pocketItems.map(p => p.id === updated.id ? updated : p));
+  };
+
+  const handleDeletePocketItem = (id: string) => {
+    updateTripField(currentTripId, 'pocketItems', pocketItems.filter(p => p.id !== id));
+  };
+
+  const handleAddToScheduleFromPocket = (item: PocketItem, targetDate: string, time: string) => {
+    const newScheduleItem: Omit<ScheduleItem, 'id'> = {
+      date: targetDate || selectedDate,
+      time: time || '12:00',
+      title: item.title,
+      type: item.category === 'food' ? 'food' : 'spot',
+      location: item.location || item.title,
+      notes: item.notes || '',
+      address: item.location,
+      googleMapUrl: item.url || (item.location ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}` : undefined),
+      spotDetails: {
+        hasTicket: false,
+        participants: members.map(m => m.id),
+        isPotential: false,
+      },
+    };
+    addTripItem(currentTripId, 'scheduleItems', { ...newScheduleItem, id: Date.now().toString() });
+    updateTripField(currentTripId, 'pocketItems', pocketItems.map(p => p.id === item.id ? { ...p, assignedDate: targetDate } : p));
+  };
 
   const handleSaveItem = (itemData: Omit<ScheduleItem, 'id'>) => { if (editingItem) { updateTripField(currentTripId, 'scheduleItems', scheduleItems.map(item => item.id === editingItem.id ? { ...itemData, id: item.id } : item)); setEditingItem(null); } else { addTripItem(currentTripId, 'scheduleItems', { ...itemData, id: Date.now().toString() }); } };
   const handleEditClick = (item: ScheduleItem) => { setEditingItem(item); setIsAddModalOpen(true); };
@@ -516,11 +559,37 @@ export default function App() {
                    })}
                    <button onClick={handleAddDay} className="flex-shrink-0 flex flex-col items-center justify-center w-[3.5rem] h-16 rounded-2xl border-2 border-dashed border-[#E0E5D5] text-gray-300 hover:text-sage bg-white/50 snap-center"><Plus size={24} strokeWidth={3} /></button>
                  </div>
-                 <div className="mt-2 text-right flex justify-between items-center px-1">
+                 <div className="mt-2 flex justify-between items-center px-1 flex-wrap gap-2">
                     <span className="text-[10px] font-black text-gray-400 italic">
                         {swappingFromIndex !== null ? '💡 點擊其他日期來完成對調' : '💡 長按日期方塊後釋放，再點擊目標可對調'}
                     </span>
-                    <button onClick={() => setIsPotentialModalOpen(true)} className="bg-yellow-100 text-yellow-600 p-2 rounded-xl border border-yellow-200 shadow-sm text-xs font-bold inline-flex items-center gap-1"><Coins size={12}/> 潛在花費</button>
+                    <div className="flex items-center gap-1.5">
+                        <button 
+                            onClick={() => { setPocketInitialTab('food'); setIsPocketModalOpen(true); }} 
+                            className="bg-orange-100 hover:bg-orange-200 text-orange-700 p-2 rounded-xl border border-orange-200 shadow-sm text-xs font-bold inline-flex items-center gap-1.5 transition-all active:scale-95"
+                            title="美食口袋名單"
+                        >
+                            <Utensils size={13} className="text-orange-500" /> 美食
+                            {pocketItems.filter(p => p.category === 'food').length > 0 && (
+                                <span className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-mono leading-none">
+                                    {pocketItems.filter(p => p.category === 'food').length}
+                                </span>
+                            )}
+                        </button>
+                        <button 
+                            onClick={() => { setPocketInitialTab('spot'); setIsPocketModalOpen(true); }} 
+                            className="bg-teal-100 hover:bg-teal-200 text-teal-800 p-2 rounded-xl border border-teal-200 shadow-sm text-xs font-bold inline-flex items-center gap-1.5 transition-all active:scale-95"
+                            title="探索景點名單"
+                        >
+                            <Compass size={13} className="text-teal-600" /> 探索
+                            {pocketItems.filter(p => p.category === 'spot').length > 0 && (
+                                <span className="bg-teal-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-mono leading-none">
+                                    {pocketItems.filter(p => p.category === 'spot').length}
+                                </span>
+                            )}
+                        </button>
+                        <button onClick={() => setIsPotentialModalOpen(true)} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 p-2 rounded-xl border border-yellow-200 shadow-sm text-xs font-bold inline-flex items-center gap-1 transition-all active:scale-95"><Coins size={12}/> 潛在花費</button>
+                    </div>
                  </div>
                </div>
 
@@ -668,6 +737,17 @@ export default function App() {
               <DeleteDayConfirmModal isOpen={isDeleteDayModalOpen} onClose={() => setIsDeleteDayModalOpen(false)} onConfirm={confirmDeleteDay} date={selectedDate} />
               <TripSettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} currencies={currencies} onAddCurrency={addCurrency} onRemoveCurrency={removeCurrency} onDuplicate={handleOpenBackupModal} />
               <BackupConfirmModal isOpen={isBackupConfirmOpen} onClose={() => setIsBackupConfirmOpen(false)} onConfirm={executeBackupTrip} tripName={currentTripName} />
+              <PocketPlacesModal 
+                isOpen={isPocketModalOpen} 
+                onClose={() => setIsPocketModalOpen(false)} 
+                initialTab={pocketInitialTab}
+                pocketItems={pocketItems}
+                tripDays={tripDays}
+                onAddItem={handleAddPocketItem}
+                onUpdateItem={handleUpdatePocketItem}
+                onDeleteItem={handleDeletePocketItem}
+                onAddToSchedule={handleAddToScheduleFromPocket}
+              />
             </div>
           )}
           {activeTab === 'bookings' && (<BookingsView flights={bookingFlights} accommodations={bookingAccommodations} carRentals={bookingCarRentals} tickets={bookingTickets} currencies={currencies} members={members} onAddFlight={handleAddFlight} onUpdateFlight={handleUpdateFlight} onDeleteFlight={handleDeleteFlight} onAddAccommodation={(a) => addTripItem(currentTripId, 'accommodations', a)} onUpdateAccommodation={(a) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.map(x => x.id === a.id ? a : x))} onDeleteAccommodation={(id) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.filter(x => x.id !== id))} onAddCar={handleAddCar} onUpdateCar={handleUpdateCar} onDeleteCar={handleDeleteCar} onAddTicket={(t) => addTripItem(currentTripId, 'tickets', t)} onUpdateTicket={(t) => updateTripField(currentTripId, 'tickets', bookingTickets.map(x => x.id === t.id ? t : x))} onDeleteTicket={(id) => updateTripField(currentTripId, 'tickets', bookingTickets.filter(x => x.id !== id))} />)}

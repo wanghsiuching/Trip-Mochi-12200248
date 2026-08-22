@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Expense, Member, Currency, Comment } from '../types';
 import { ToggleSwitch, DeleteItemConfirmModal } from './Modals';
+import { DatePickerField, TimePickerField, DateTimePickerField } from './TimePickerComponents';
 
 interface ExpensesViewProps {
   expenses: Expense[];
@@ -395,9 +396,19 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                 <div className="bg-white p-5 rounded-[2rem] shadow-hard-sm border-2 border-beige-dark mb-10 lg:mb-0">
                     <h3 className="font-black text-cocoa mb-4 flex items-center gap-2 text-lg"><Wallet className="text-sage" size={24}/> 新增分帳支出</h3>
                     <div className="space-y-3">
-                        <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
-                            <label className="text-[10px] text-gray-400 block mb-1 font-bold">日期與時間</label>
-                            <input type="datetime-local" value={`${form.date}T${form.time}`} onChange={e => { const [d, t] = e.target.value.split('T'); setForm({...form, date: d, time: t}); }} className="w-full bg-transparent text-cocoa outline-none font-bold text-sm" style={{ colorScheme: 'light' }} />
+                        <div className="grid grid-cols-2 gap-2">
+                            <DatePickerField
+                                label="日期"
+                                value={form.date}
+                                onChange={val => setForm({...form, date: val})}
+                                themeColor="sage"
+                            />
+                            <TimePickerField
+                                label="時間"
+                                value={form.time}
+                                onChange={val => setForm({...form, time: val})}
+                                themeColor="sage"
+                            />
                         </div>
                         
                         <div className="flex bg-beige/30 p-1 rounded-2xl border-2 border-beige-dark mb-1">
@@ -682,24 +693,18 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                         </div>
 
                         <div className="grid grid-cols-2 gap-2">
-                            <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
-                                <div className="p-2 bg-white rounded-xl text-sage shadow-sm flex-shrink-0">
-                                    <CalendarIcon size={18} />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <label className="text-[10px] font-bold text-gray-400 block mb-0.5">日期</label>
-                                    <input type="date" value={editForm.date} onChange={e => setEditForm({...editForm, date: e.target.value})} className="w-full bg-transparent font-bold text-cocoa text-xs outline-none" style={{ colorScheme: 'light' }}/>
-                                </div>
-                            </div>
-                            <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
-                                <div className="p-2 bg-white rounded-xl text-sage shadow-sm flex-shrink-0">
-                                    <Clock size={18} />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <label className="text-[10px] font-bold text-gray-400 block mb-0.5">時間</label>
-                                    <input type="time" value={editForm.time} onChange={e => setEditForm({...editForm, time: e.target.value})} className="w-full bg-transparent font-bold text-cocoa text-xs outline-none" style={{ colorScheme: 'light' }}/>
-                                </div>
-                            </div>
+                            <DatePickerField
+                                label="日期"
+                                value={editForm.date}
+                                onChange={val => setEditForm({...editForm, date: val})}
+                                themeColor="sage"
+                            />
+                            <TimePickerField
+                                label="時間"
+                                value={editForm.time}
+                                onChange={val => setEditForm({...editForm, time: val})}
+                                themeColor="sage"
+                            />
                         </div>
 
                         {!editForm.fundType && (
@@ -813,24 +818,18 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                        )}
 
                        <div className="grid grid-cols-2 gap-2">
-                           <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
-                               <div className="p-2 bg-white rounded-xl text-sage shadow-sm flex-shrink-0">
-                                   <CalendarIcon size={18} />
-                               </div>
-                               <div className="flex-1 min-w-0">
-                                   <label className="text-[10px] font-bold text-gray-400 block mb-0.5">日期</label>
-                                   <input type="date" value={fundForm.date} onChange={e => setFundForm({...fundForm, date: e.target.value})} className="w-full bg-transparent font-bold text-cocoa text-xs outline-none" style={{ colorScheme: 'light' }}/>
-                               </div>
-                           </div>
-                           <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
-                               <div className="p-2 bg-white rounded-xl text-sage shadow-sm flex-shrink-0">
-                                   <Clock size={18} />
-                               </div>
-                               <div className="flex-1 min-w-0">
-                                   <label className="text-[10px] font-bold text-gray-400 block mb-0.5">時間</label>
-                                   <input type="time" value={fundForm.time} onChange={e => setFundForm({...fundForm, time: e.target.value})} className="w-full bg-transparent font-bold text-cocoa text-xs outline-none" style={{ colorScheme: 'light' }}/>
-                               </div>
-                           </div>
+                           <DatePickerField
+                               label="日期"
+                               value={fundForm.date}
+                               onChange={val => setFundForm({...fundForm, date: val})}
+                               themeColor={fundForm.type === 'deposit' ? 'sage' : 'orange'}
+                           />
+                           <TimePickerField
+                               label="時間"
+                               value={fundForm.time}
+                               onChange={val => setFundForm({...fundForm, time: val})}
+                               themeColor={fundForm.type === 'deposit' ? 'sage' : 'orange'}
+                           />
                        </div>
                    </div>
                    <div className="flex gap-3 mt-8">

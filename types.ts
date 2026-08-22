@@ -35,11 +35,13 @@ export interface TransitLeg {
 
 // 票價與通行證折扣模型
 export interface TransitFareDetails {
-  passUsed: TransitPassType;
-  originalPrice: number;      // 原票價 (支援多幣別)
-  discountedPrice: number;    // 實際支付金額（套用通票或折扣後）
+  passUsed?: TransitPassType;
+  originalPrice?: number | string;      // 原票價 (支援多幣別)
+  discountedPrice?: number | string;    // 實際支付金額（套用通票或折扣後）
   currency: string;           // 幣別 (TWD, JPY, CHF, EUR 等)
-  seatReservationFee?: number;// 額外強制訂位費（如部分觀景車廂或新幹線指定席加價）
+  extraFeeName?: string;      // 自定義額外費用名稱 (如：指定席加價 / 額外訂位費 / 行李加價)
+  seatReservationFee?: number | string;// 額外費用金額
+  seatReservationFeeCurrency?: string; // 額外費用幣別
   notes?: string;             // 備註 (e.g., "需提前劃位，持有 JR Pass")
 }
 
@@ -125,6 +127,21 @@ export interface ScheduleItem {
   naverMapUrl?: string;
   note?: string;
   images?: string[];
+}
+
+export interface PocketItem {
+  id: string;
+  category: 'food' | 'spot'; // 美食 or 探索景點
+  title: string;             // 名稱 (例如：一蘭拉麵、小樽運河)
+  location?: string;         // 地址或地點
+  url?: string;              // 相關網址 / 超連結 / IG / 官網 / 預約
+  notes?: string;            // 備註說明 (推薦必吃、拍照點、注意事項等)
+  tag?: string;              // 標籤 (如：拉麵、燒肉、甜點、夜景、古蹟、神社)
+  rating?: number;           // 推薦星等 (1-5)
+  priceRange?: string;       // 預算 / 價格 (如：¥1,000~2,000)
+  assignedDate?: string;     // 預計前往日期 (可選)
+  isVisited?: boolean;       // 是否已造訪
+  createdAt?: number;
 }
 
 export interface SavedTrip {

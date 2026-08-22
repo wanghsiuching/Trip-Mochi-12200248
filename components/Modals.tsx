@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Camera, Utensils, Train, Bed, PenTool, Trash2, AlertCircle, Map, Coffee, Moon, AlignLeft, Ticket, Coins, Users, Plus, X, Settings, Car, Clock, DollarSign, Navigation, ExternalLink, Fuel, Calendar as CalendarIcon, Plane, Edit3, Luggage, Copy, Save, Shuffle, MapPin, ArrowRightLeft, Layers } from 'lucide-react';
 import { ItemType, ScheduleItem, Currency, Member, THEME, ExpenseItem, TransitLeg, TransitFareDetails, UniversalTransportType, TransitPassType } from '../types';
 import { TransitLegEditor, TransitLegChainView, TransitPassBadge } from './TransitComponents';
+import { TimePickerField, DatePickerField, DateTimePickerField } from './TimePickerComponents';
 
 // Updated extensive fruit/food icon list (40+ items)
 const FRUIT_ICONS = [
@@ -323,12 +324,26 @@ export const PotentialExpensesModal = ({
         }
         if (item.type === 'transport') {
             if (item.transitDetails?.isPotential) {
-                const transitTotal = (Number(item.transitDetails.fare.discountedPrice) || 0) + (Number(item.transitDetails.fare.seatReservationFee) || 0);
-                if (transitTotal > 0) {
+                const disc = Number(item.transitDetails.fare.discountedPrice) || 0;
+                const extra = Number(item.transitDetails.fare.seatReservationFee) || 0;
+                const mainCurr = item.transitDetails.fare.currency || 'TWD';
+                const extraCurr = item.transitDetails.fare.seatReservationFeeCurrency || mainCurr;
+                const extraName = item.transitDetails.fare.extraFeeName?.trim() || '大眾交通加價';
+
+                if (disc > 0) {
                     processCost(
-                        `${item.title} (大眾交通)`, '交通',
-                        transitTotal,
-                        item.transitDetails.fare.currency || 'TWD',
+                        `${item.title} (大眾交通票價)`, '交通',
+                        disc,
+                        mainCurr,
+                        false, 0,
+                        item.transitDetails.participants || []
+                    );
+                }
+                if (extra > 0) {
+                    processCost(
+                        `${item.title} (${extraName})`, '交通',
+                        extra,
+                        extraCurr,
                         false, 0,
                         item.transitDetails.participants || []
                     );
@@ -489,20 +504,12 @@ export const EditDayDetailsModal = ({ isOpen, onClose, onConfirm, initialDate, i
                 <p className="text-gray-400 font-bold text-center text-xs mb-6">修改日期與當日地點</p>
                 
                 <div className="space-y-4 mb-6">
-                    <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-3">
-                        <div className="p-2 bg-white rounded-xl text-sage shadow-sm">
-                            <CalendarIcon size={20}/>
-                        </div>
-                        <div className="flex-1">
-                            <label className="text-[10px] font-bold text-gray-400 block mb-1">日期</label>
-                            <input 
-                                type="date"
-                                value={date}
-                                onChange={(e) => setDate(e.target.value)}
-                                className="w-full bg-transparent font-bold text-cocoa outline-none text-sm"
-                            />
-                        </div>
-                    </div>
+                    <DatePickerField
+                        label="日期"
+                        value={date}
+                        onChange={setDate}
+                        themeColor="sage"
+                    />
 
                     <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-3">
                         <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-xl shadow-sm border border-beige-dark flex-shrink-0 cursor-default select-none relative group">
@@ -739,6 +746,7 @@ export const AddScheduleModal = ({
   
   // Basic Fields
   const [title, setTitle] = useState('');
+  const [itemDate, setItemDate] = useState(currentDate || '');
   const [time, setTime] = useState('09:00');
   const [location, setLocation] = useState('');
   const [gpsInput, setGpsInput] = useState('');
@@ -747,9 +755,10 @@ export const AddScheduleModal = ({
   // Flight Fields
   const [flightAirline, setFlightAirline] = useState('');
   const [flightCode, setFlightCode] = useState('');
+  const [flightDepDate, setFlightDepDate] = useState('');
   const [flightDepTime, setFlightDepTime] = useState('');
-  const [flightArrTime, setFlightArrTime] = useState('');
   const [flightArrDate, setFlightArrDate] = useState('');
+  const [flightArrTime, setFlightArrTime] = useState('');
   const [flightDepAirport, setFlightDepAirport] = useState('');
   const [flightArrAirport, setFlightArrAirport] = useState('');
   const [flightCheckedBag, setFlightCheckedBag] = useState('');
@@ -762,6 +771,10 @@ export const AddScheduleModal = ({
   const [isFlightPotential, setIsFlightPotential] = useState(false);
 
   // Stay Fields
+  const [checkInDate, setCheckInDate] = useState('');
+  const [checkInTime, setCheckInTime] = useState('15:00');
+  const [checkOutDate, setCheckOutDate] = useState('');
+  const [checkOutTime, setCheckOutTime] = useState('11:00');
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
   const [hasBreakfast, setHasBreakfast] = useState(false);
@@ -792,7 +805,9 @@ export const AddScheduleModal = ({
   const [hasRental, setHasRental] = useState(false);
   const [rentalCompany, setRentalCompany] = useState('');
   const [carModel, setCarModel] = useState('');
+  const [pickupDate, setPickupDate] = useState('');
   const [pickupTime, setPickupTime] = useState('');
+  const [returnDate, setReturnDate] = useState('');
   const [returnTime, setReturnTime] = useState('');
   const [rentalCost, setRentalCost] = useState('');
   const [rentalCurrency, setRentalCurrency] = useState('TWD');
@@ -820,7 +835,8 @@ export const AddScheduleModal = ({
         setStep('details');
         setSelectedType(initialData.type);
         setTitle(initialData.title);
-        setTime(initialData.time);
+        setItemDate(initialData.date || currentDate || '');
+        setTime(initialData.time || '09:00');
         setLocation(initialData.location);
         setNotes(initialData.notes || '');
         if (initialData.gps) setGpsInput(`${initialData.gps.lat}, ${initialData.gps.lng}`);
@@ -830,9 +846,10 @@ export const AddScheduleModal = ({
         if (initialData.flightDetails) {
             setFlightAirline(initialData.flightDetails.airline || '');
             setFlightCode(initialData.flightDetails.flightCode || '');
-            setFlightDepTime(initialData.flightDetails.departureTime || '');
-            setFlightArrTime(initialData.flightDetails.arrivalTime || '');
-            setFlightArrDate(initialData.flightDetails.arrivalDate || '');
+            setFlightDepDate(initialData.flightDetails.departureDate || initialData.date || currentDate || '');
+            setFlightDepTime(initialData.flightDetails.departureTime || initialData.time || '09:00');
+            setFlightArrDate(initialData.flightDetails.arrivalDate || initialData.date || currentDate || '');
+            setFlightArrTime(initialData.flightDetails.arrivalTime || '12:00');
             setFlightDepAirport(initialData.flightDetails.departureAirport || '');
             setFlightArrAirport(initialData.flightDetails.arrivalAirport || '');
             setFlightCheckedBag(initialData.flightDetails.checkedBag || '');
@@ -844,12 +861,22 @@ export const AddScheduleModal = ({
             setFlightParticipants(initialData.flightDetails.participants || members.map(m => m.id));
             setIsFlightPotential(initialData.flightDetails.isPotential || false);
         } else {
+            setFlightDepDate(initialData.date || currentDate || '');
+            setFlightDepTime(initialData.time || '09:00');
+            setFlightArrDate(initialData.date || currentDate || '');
+            setFlightArrTime('12:00');
             setFlightParticipants(members.map(m => m.id));
         }
 
         // Stay
-        setCheckIn(initialData.checkIn || '');
-        setCheckOut(initialData.checkOut || '');
+        const initCheckInTime = initialData.checkIn || '15:00';
+        const initCheckOutTime = initialData.checkOut || '11:00';
+        setCheckIn(initCheckInTime);
+        setCheckOut(initCheckOutTime);
+        setCheckInDate(initialData.stayDetails?.checkInDate || initialData.date || currentDate || '');
+        setCheckInTime(initCheckInTime);
+        setCheckOutDate(initialData.stayDetails?.checkOutDate || initialData.date || currentDate || '');
+        setCheckOutTime(initCheckOutTime);
         setHasBreakfast(initialData.meals?.breakfast || false);
         setHasDinner(initialData.meals?.dinner || false);
         if (initialData.stayDetails) {
@@ -869,12 +896,22 @@ export const AddScheduleModal = ({
             setTransitLegs(initialData.transitDetails.legs && initialData.transitDetails.legs.length > 0 ? initialData.transitDetails.legs : [
               { id: '1', fromStation: initialData.location || '', toStation: '', departureTime: initialData.time || '09:00', arrivalTime: '', transportType: 'train', serviceNumber: '', platform: '' }
             ]);
-            setTransitFare(initialData.transitDetails.fare || {
-              passUsed: 'pass_free',
-              originalPrice: 0,
-              discountedPrice: 0,
+            setTransitFare(initialData.transitDetails.fare ? {
+              ...initialData.transitDetails.fare,
+              originalPrice: initialData.transitDetails.fare.originalPrice !== undefined ? initialData.transitDetails.fare.originalPrice : '',
+              discountedPrice: initialData.transitDetails.fare.discountedPrice !== undefined ? initialData.transitDetails.fare.discountedPrice : '',
+              currency: initialData.transitDetails.fare.currency || 'JPY',
+              extraFeeName: initialData.transitDetails.fare.extraFeeName || '',
+              seatReservationFee: initialData.transitDetails.fare.seatReservationFee !== undefined ? initialData.transitDetails.fare.seatReservationFee : '',
+              seatReservationFeeCurrency: initialData.transitDetails.fare.seatReservationFeeCurrency || initialData.transitDetails.fare.currency || 'JPY',
+              notes: initialData.transitDetails.fare.notes || ''
+            } : {
+              originalPrice: '',
+              discountedPrice: '',
               currency: 'JPY',
-              seatReservationFee: 0,
+              extraFeeName: '',
+              seatReservationFee: '',
+              seatReservationFeeCurrency: 'JPY',
               notes: ''
             });
             setTransitParticipants(initialData.transitDetails.participants || members.map(m => m.id));
@@ -888,11 +925,12 @@ export const AddScheduleModal = ({
               { id: '1', fromStation: initialData.location || '', toStation: '', departureTime: initialData.time || '09:00', arrivalTime: '', transportType: 'train', serviceNumber: '', platform: '' }
             ]);
             setTransitFare({
-              passUsed: 'pass_free',
-              originalPrice: 0,
-              discountedPrice: 0,
+              originalPrice: '',
+              discountedPrice: '',
               currency: 'JPY',
-              seatReservationFee: 0,
+              extraFeeName: '',
+              seatReservationFee: '',
+              seatReservationFeeCurrency: 'JPY',
               notes: ''
             });
             setTransitParticipants(members.map(m => m.id));
@@ -904,8 +942,10 @@ export const AddScheduleModal = ({
            setHasRental(initialData.carRental.hasRental);
            setRentalCompany(initialData.carRental.company || '');
            setCarModel(initialData.carRental.carModel || '');
-           setPickupTime(initialData.carRental.pickupTime || '');
-           setReturnTime(initialData.carRental.returnTime || '');
+           setPickupDate(initialData.carRental.pickupDate || initialData.date || currentDate || '');
+           setPickupTime(initialData.carRental.pickupTime || '09:00');
+           setReturnDate(initialData.carRental.returnDate || initialData.date || currentDate || '');
+           setReturnTime(initialData.carRental.returnTime || '18:00');
            setRentalCost(initialData.carRental.rentalCost?.toString() || '');
            setRentalCurrency(initialData.carRental.rentalCurrency || 'TWD');
            setRentalHasServiceFee(initialData.carRental.hasServiceFee || false);
@@ -916,6 +956,10 @@ export const AddScheduleModal = ({
            setRentalParticipants(initialData.carRental.participants || members.map(m => m.id));
            setIsRentalPotential(initialData.carRental.isPotential || false);
         } else {
+           setPickupDate(initialData.date || currentDate || '');
+           setPickupTime('09:00');
+           setReturnDate(initialData.date || currentDate || '');
+           setReturnTime('18:00');
            setRentalParticipants(members.map(m => m.id));
         }
 
@@ -933,29 +977,30 @@ export const AddScheduleModal = ({
         }
       } else {
         // Reset Logic
-        setStep('category'); setTitle(''); setTime('09:00'); setLocation(''); setNotes(''); setGpsInput('');
+        setStep('category'); setTitle(''); setItemDate(currentDate || ''); setTime('09:00'); setLocation(''); setNotes(''); setGpsInput('');
         // Reset Category Specifics
-        setFlightAirline(''); setFlightCode(''); setFlightDepTime(''); setFlightArrTime(''); setFlightArrDate(''); setFlightDepAirport(''); setFlightArrAirport(''); setFlightCheckedBag(''); setFlightCarryOnBag(''); setFlightCost(''); setFlightCurrency('TWD'); setFlightHasServiceFee(false); setFlightServiceFeePercentage(''); setFlightParticipants(members.map(m => m.id)); setIsFlightPotential(false);
-        setCheckIn(''); setCheckOut(''); setHasBreakfast(false); setHasDinner(false); setStayCost(''); setStayCurrency('TWD'); setStayHasServiceFee(false); setStayServiceFeePercentage(''); setStayParticipants(members.map(m => m.id)); setIsStayPotential(false);
+        setFlightAirline(''); setFlightCode(''); setFlightDepDate(currentDate || ''); setFlightDepTime('09:00'); setFlightArrDate(currentDate || ''); setFlightArrTime('12:00'); setFlightDepAirport(''); setFlightArrAirport(''); setFlightCheckedBag(''); setFlightCarryOnBag(''); setFlightCost(''); setFlightCurrency('TWD'); setFlightHasServiceFee(false); setFlightServiceFeePercentage(''); setFlightParticipants(members.map(m => m.id)); setIsFlightPotential(false);
+        setCheckIn('15:00'); setCheckOut('11:00'); setCheckInDate(currentDate || ''); setCheckInTime('15:00'); setCheckOutDate(currentDate || ''); setCheckOutTime('11:00'); setHasBreakfast(false); setHasDinner(false); setStayCost(''); setStayCurrency('TWD'); setStayHasServiceFee(false); setStayServiceFeePercentage(''); setStayParticipants(members.map(m => m.id)); setIsStayPotential(false);
         setTransportMode('transit');
         setTransitLegs([
           { id: '1', fromStation: '', toStation: '', departureTime: '09:00', arrivalTime: '', transportType: 'train', serviceNumber: '', platform: '' }
         ]);
         setTransitFare({
-          passUsed: 'pass_free',
-          originalPrice: 0,
-          discountedPrice: 0,
+          originalPrice: '',
+          discountedPrice: '',
           currency: 'JPY',
-          seatReservationFee: 0,
+          extraFeeName: '',
+          seatReservationFee: '',
+          seatReservationFeeCurrency: 'JPY',
           notes: ''
         });
         setTransitParticipants(members.map(m => m.id));
         setIsTransitPotential(false);
-        setHasRental(false); setRentalCompany(''); setCarModel(''); setPickupTime(''); setReturnTime(''); setRentalCost(''); setRentalCurrency('TWD'); setRentalHasServiceFee(false); setRentalServiceFeePercentage(''); setEstimatedFuelCost(''); setFuelCurrency('TWD'); setRentalExpenses([]); setRentalParticipants(members.map(m => m.id)); setIsRentalPotential(false); setExpenseToDelete(null);
+        setHasRental(false); setRentalCompany(''); setCarModel(''); setPickupDate(currentDate || ''); setPickupTime('09:00'); setReturnDate(currentDate || ''); setReturnTime('18:00'); setRentalCost(''); setRentalCurrency('TWD'); setRentalHasServiceFee(false); setRentalServiceFeePercentage(''); setEstimatedFuelCost(''); setFuelCurrency('TWD'); setRentalExpenses([]); setRentalParticipants(members.map(m => m.id)); setIsRentalPotential(false); setExpenseToDelete(null);
         setHasTicket(false); setTicketCost(''); setSelectedCurrency('TWD'); setHasServiceFee(false); setServiceFeePercentage(''); setParticipantIds(members.map(m => m.id)); setIsPotential(false);
       }
     }
-  }, [isOpen, initialData, members]);
+  }, [isOpen, initialData, members, currentDate]);
 
   // Toggle Helpers
   const toggleParticipant = (id: string, setFunc: React.Dispatch<React.SetStateAction<string[]>>) => {
@@ -992,19 +1037,38 @@ export const AddScheduleModal = ({
 
     if (!finalTitle) return;
 
-    const itemData: Omit<ScheduleItem, 'id'> = { date: initialData ? initialData.date : currentDate, time, title: finalTitle, type: selectedType, location: finalLocation, notes };
+    const finalDate = itemDate || (initialData ? initialData.date : currentDate);
+    const finalTime = time || '09:00';
+    const itemData: Omit<ScheduleItem, 'id'> = { date: finalDate, time: finalTime, title: finalTitle, type: selectedType, location: finalLocation, notes };
     const gpsParts = gpsInput.split(/[,，\s]+/).filter(Boolean);
     if (gpsParts.length >= 2) itemData.gps = { lat: gpsParts[0], lng: gpsParts[1] };
 
     if (selectedType === 'flight') {
         itemData.flightDetails = {
-            airline: flightAirline, flightCode, departureTime: flightDepTime, arrivalTime: flightArrTime, arrivalDate: flightArrDate, departureAirport: flightDepAirport, arrivalAirport: flightArrAirport, checkedBag: flightCheckedBag, carryOnBag: flightCarryOnBag,
+            airline: flightAirline, flightCode, departureDate: flightDepDate, departureTime: flightDepTime, arrivalDate: flightArrDate, arrivalTime: flightArrTime, departureAirport: flightDepAirport, arrivalAirport: flightArrAirport, checkedBag: flightCheckedBag, carryOnBag: flightCarryOnBag,
             cost: Number(flightCost) || 0, currency: flightCurrency, hasServiceFee: flightHasServiceFee, serviceFeePercentage: flightHasServiceFee ? (Number(flightServiceFeePercentage) || 0) : undefined, participants: flightParticipants, isPotential: isFlightPotential
         };
+        if (flightDepDate) itemData.date = flightDepDate;
+        if (flightDepTime) itemData.time = flightDepTime;
     }
     if (selectedType === 'stay') {
-      itemData.checkIn = checkIn; itemData.checkOut = checkOut; itemData.meals = { breakfast: hasBreakfast, dinner: hasDinner };
-      if (stayCost !== '') itemData.stayDetails = { cost: Number(stayCost) || 0, currency: stayCurrency, hasServiceFee: stayHasServiceFee, serviceFeePercentage: stayHasServiceFee ? (Number(stayServiceFeePercentage) || 0) : undefined, participants: stayParticipants, isPotential: isStayPotential };
+      itemData.checkIn = checkInTime || checkIn;
+      itemData.checkOut = checkOutTime || checkOut;
+      itemData.meals = { breakfast: hasBreakfast, dinner: hasDinner };
+      itemData.stayDetails = {
+        checkInDate,
+        checkInTime: checkInTime || checkIn,
+        checkOutDate,
+        checkOutTime: checkOutTime || checkOut,
+        cost: Number(stayCost) || 0,
+        currency: stayCurrency,
+        hasServiceFee: stayHasServiceFee,
+        serviceFeePercentage: stayHasServiceFee ? (Number(stayServiceFeePercentage) || 0) : undefined,
+        participants: stayParticipants,
+        isPotential: isStayPotential
+      };
+      if (checkInDate) itemData.date = checkInDate;
+      if (checkInTime) itemData.time = checkInTime;
     }
     if (selectedType === 'transport') {
       if (transportMode === 'transit') {
@@ -1014,12 +1078,21 @@ export const AddScheduleModal = ({
           participants: transitParticipants,
           isPotential: isTransitPotential
         };
+        if (transitLegs.length > 0 && transitLegs[0].departureTime) {
+          itemData.time = transitLegs[0].departureTime;
+        }
       } else {
         itemData.carRental = {
-          hasRental, company: hasRental ? rentalCompany : undefined, carModel: hasRental ? carModel : undefined, pickupTime: hasRental ? pickupTime : undefined, returnTime: hasRental ? returnTime : undefined,
+          hasRental, company: hasRental ? rentalCompany : undefined, carModel: hasRental ? carModel : undefined,
+          pickupDate: hasRental ? pickupDate : undefined,
+          pickupTime: hasRental ? pickupTime : undefined,
+          returnDate: hasRental ? returnDate : undefined,
+          returnTime: hasRental ? returnTime : undefined,
           rentalCost: hasRental ? (Number(rentalCost) || 0) : undefined, rentalCurrency: hasRental ? rentalCurrency : undefined, hasServiceFee: hasRental ? rentalHasServiceFee : false, serviceFeePercentage: hasRental ? (Number(rentalServiceFeePercentage) || 0) : undefined,
           estimatedFuelCost: hasRental ? (Number(estimatedFuelCost) || 0) : undefined, fuelCurrency: hasRental ? fuelCurrency : undefined, expenses: hasRental ? rentalExpenses.map(e => ({...e, amount: Number(e.amount)||0, serviceFeePercentage: Number(e.serviceFeePercentage)||0})) : [], participants: hasRental ? rentalParticipants : [], isPotential: hasRental ? isRentalPotential : false
         };
+        if (pickupDate) itemData.date = pickupDate;
+        if (pickupTime) itemData.time = pickupTime;
       }
     }
     if (selectedType === 'spot' || selectedType === 'food') {
@@ -1099,20 +1172,22 @@ export const AddScheduleModal = ({
              {/* Basic Info */}
              <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm">
                 <label className="text-xs font-bold text-gray-400 block mb-1">標題</label>
-                <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} className="w-full text-lg font-bold text-cocoa outline-none placeholder:text-gray-300 bg-transparent" placeholder={selectedType === 'flight' ? "例如: 台北 -> 東京" : "例如：清水寺..."} />
+                <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} className="w-full text-lg font-bold text-cocoa outline-none placeholder:text-gray-300 bg-transparent" placeholder={selectedType === 'flight' ? "例如: 台北 -> 東京" : selectedType === 'food' ? "例如：一蘭拉麵..." : selectedType === 'stay' ? "例如：希爾頓酒店..." : selectedType === 'transport' ? "例如：自駕或搭車..." : "例如：清水寺..."} />
              </div>
-             {/* ... rest of the form ... */}
-             <div className="flex gap-4">
-                <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-3 shadow-sm flex-1">
-                   <div className="p-2 bg-white rounded-xl text-sage shadow-sm flex-shrink-0">
-                       <Clock size={20} />
-                   </div>
-                   <div className="flex-1 min-w-0">
-                       <label className="text-[10px] font-bold text-gray-400 block mb-0.5">時間</label>
-                       <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className="w-full text-base font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }} />
-                   </div>
-                </div>
-             </div>
+             {/* Date & Time Picker */}
+             {selectedType !== 'flight' && selectedType !== 'stay' && (selectedType !== 'transport' || transportMode === 'transit') && (
+                <DateTimePickerField
+                   label={selectedType === 'food' ? '用餐時間與日期' : selectedType === 'spot' ? '參訪時間與日期' : '行程時間與日期'}
+                   value={itemDate && time ? `${itemDate}T${time}` : itemDate ? `${itemDate}T09:00` : ''}
+                   onChange={val => {
+                      const [d, t] = val.split('T');
+                      if (d) setItemDate(d);
+                      if (t) setTime(t);
+                   }}
+                   themeColor={selectedType === 'spot' ? 'green' : selectedType === 'food' ? 'orange' : 'sage'}
+                   icon={selectedType === 'food' ? Utensils : selectedType === 'spot' ? Camera : Clock}
+                />
+             )}
              <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm">
                 <label className="text-xs font-bold text-gray-400 block mb-1">地點 / 地址</label>
                 <div className="flex gap-2"><input value={location} onChange={(e) => setLocation(e.target.value)} className="flex-1 text-lg font-bold text-cocoa outline-none placeholder:text-gray-300 bg-transparent" placeholder="輸入地址..." />{location && <button onClick={() => openExternalMap(location)} className="text-gray-400 hover:text-blue-500"><Navigation size={20} /></button>}</div>
@@ -1133,36 +1208,36 @@ export const AddScheduleModal = ({
                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">航空公司</label><input value={flightAirline} onChange={e => setFlightAirline(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: EVA"/></div>
                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">航班代碼</label><input value={flightCode} onChange={e => setFlightCode(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: BR123"/></div>
                          </div>
-                         {/* ... more flight inputs ... */}
                          {/* Route/Times */}
-                         <div className="grid grid-cols-2 gap-2">
-                             <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
-                                 <div className="p-2 bg-white rounded-xl text-cyan-600 shadow-sm flex-shrink-0">
-                                     <Clock size={18} />
-                                 </div>
-                                 <div className="flex-1 min-w-0">
-                                     <label className="text-[10px] font-bold text-gray-400 block mb-0.5">去程起飛</label>
-                                     <input type="time" value={flightDepTime} onChange={e => setFlightDepTime(e.target.value)} className="w-full text-xs font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/>
-                                 </div>
-                             </div>
-                             <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
-                                 <div className="p-2 bg-white rounded-xl text-cyan-600 shadow-sm flex-shrink-0">
-                                     <Clock size={18} />
-                                 </div>
-                                 <div className="flex-1 min-w-0">
-                                     <label className="text-[10px] font-bold text-gray-400 block mb-0.5">去程抵達</label>
-                                     <input type="time" value={flightArrTime} onChange={e => setFlightArrTime(e.target.value)} className="w-full text-xs font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/>
-                                 </div>
-                             </div>
-                         </div>
-                         <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-3 shadow-sm">
-                             <div className="p-2 bg-white rounded-xl text-cyan-600 shadow-sm flex-shrink-0">
-                                 <CalendarIcon size={18} />
-                             </div>
-                             <div className="flex-1 min-w-0">
-                                 <label className="text-[10px] font-bold text-gray-400 block mb-0.5">抵達日期 (若隔日)</label>
-                                 <input type="date" value={flightArrDate} onChange={e => setFlightArrDate(e.target.value)} className="w-full text-xs font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/>
-                             </div>
+                         <div className="space-y-3">
+                             <DateTimePickerField
+                                 label="去程出發 (Departure)"
+                                 value={flightDepDate && flightDepTime ? `${flightDepDate}T${flightDepTime}` : flightDepDate ? `${flightDepDate}T09:00` : ''}
+                                 onChange={val => {
+                                     const [d, t] = val.split('T');
+                                     if (d) {
+                                         setFlightDepDate(d);
+                                         setItemDate(d);
+                                     }
+                                     if (t) {
+                                         setFlightDepTime(t);
+                                         setTime(t);
+                                     }
+                                 }}
+                                 themeColor="cyan"
+                                 icon={Plane}
+                             />
+                             <DateTimePickerField
+                                 label="去程抵達 (Arrival)"
+                                 value={flightArrDate && flightArrTime ? `${flightArrDate}T${flightArrTime}` : flightArrDate ? `${flightArrDate}T12:00` : ''}
+                                 onChange={val => {
+                                     const [d, t] = val.split('T');
+                                     if (d) setFlightArrDate(d);
+                                     if (t) setFlightArrTime(t);
+                                 }}
+                                 themeColor="cyan"
+                                 icon={Clock}
+                             />
                          </div>
                          <div className="grid grid-cols-2 gap-2">
                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">起飛機場</label><input value={flightDepAirport} onChange={e => setFlightDepAirport(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="TPE T2"/></div>
@@ -1199,26 +1274,40 @@ export const AddScheduleModal = ({
              {selectedType === 'stay' && (
                <div className="space-y-4 pt-2 border-t-2 border-dashed border-beige-dark animate-scale-in">
                  <div className="space-y-3 bg-purple-50/50 p-3 rounded-2xl border-2 border-purple-100 mt-2">
-                      {/* ... stay inputs ... */}
-                      <div className="grid grid-cols-2 gap-2">
-                          <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
-                              <div className="p-2 bg-white rounded-xl text-purple-600 shadow-sm flex-shrink-0">
-                                  <Clock size={18} />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                  <label className="text-[10px] font-bold text-gray-400 block mb-0.5">入住時間</label>
-                                  <input type="time" value={checkIn} onChange={e => setCheckIn(e.target.value)} className="w-full text-xs font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/>
-                              </div>
-                          </div>
-                          <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
-                              <div className="p-2 bg-white rounded-xl text-purple-600 shadow-sm flex-shrink-0">
-                                  <Clock size={18} />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                  <label className="text-[10px] font-bold text-gray-400 block mb-0.5">退房時間</label>
-                                  <input type="time" value={checkOut} onChange={e => setCheckOut(e.target.value)} className="w-full text-xs font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/>
-                              </div>
-                          </div>
+                      {/* Stay Check-in / Check-out */}
+                      <div className="space-y-3">
+                          <DateTimePickerField
+                              label="入住時間 (Check-in)"
+                              value={checkInDate && checkInTime ? `${checkInDate}T${checkInTime}` : checkInDate ? `${checkInDate}T15:00` : ''}
+                              onChange={val => {
+                                  const [d, t] = val.split('T');
+                                  if (d) {
+                                      setCheckInDate(d);
+                                      setItemDate(d);
+                                  }
+                                  if (t) {
+                                      setCheckInTime(t);
+                                      setCheckIn(t);
+                                      setTime(t);
+                                  }
+                              }}
+                              themeColor="purple"
+                              icon={Bed}
+                          />
+                          <DateTimePickerField
+                              label="退房時間 (Check-out)"
+                              value={checkOutDate && checkOutTime ? `${checkOutDate}T${checkOutTime}` : checkOutDate ? `${checkOutDate}T11:00` : ''}
+                              onChange={val => {
+                                  const [d, t] = val.split('T');
+                                  if (d) setCheckOutDate(d);
+                                  if (t) {
+                                      setCheckOutTime(t);
+                                      setCheckOut(t);
+                                  }
+                              }}
+                              themeColor="purple"
+                              icon={Clock}
+                          />
                       </div>
                       <div className="flex gap-2 px-1">
                           <CuteButton checked={hasBreakfast} onChange={setHasBreakfast} icon={Coffee} label="供應早餐" activeColor="bg-purple-100 text-purple-600 border-purple-200" />
@@ -1318,25 +1407,35 @@ export const AddScheduleModal = ({
                                  <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">租車公司</label><input value={rentalCompany} onChange={e => setRentalCompany(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: Toyota"/></div>
                                  <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">車型</label><input value={carModel} onChange={e => setCarModel(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: Yaris"/></div>
                              </div>
-                             <div className="grid grid-cols-2 gap-2">
-                                 <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
-                                     <div className="p-2 bg-white rounded-xl text-blue-500 shadow-sm flex-shrink-0">
-                                         <Clock size={18} />
-                                     </div>
-                                     <div className="flex-1 min-w-0">
-                                         <label className="text-[10px] font-bold text-gray-400 block mb-0.5">取車時間</label>
-                                         <input type="time" value={pickupTime} onChange={e => setPickupTime(e.target.value)} className="w-full text-xs font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/>
-                                     </div>
-                                 </div>
-                                 <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-2.5 shadow-sm">
-                                     <div className="p-2 bg-white rounded-xl text-blue-500 shadow-sm flex-shrink-0">
-                                         <Clock size={18} />
-                                     </div>
-                                     <div className="flex-1 min-w-0">
-                                         <label className="text-[10px] font-bold text-gray-400 block mb-0.5">還車時間</label>
-                                         <input type="time" value={returnTime} onChange={e => setReturnTime(e.target.value)} className="w-full text-xs font-bold text-cocoa outline-none bg-transparent" style={{ colorScheme: 'light' }}/>
-                                     </div>
-                                 </div>
+                             <div className="space-y-3">
+                                 <DateTimePickerField
+                                     label="取車時間 (Pickup)"
+                                     value={pickupDate && pickupTime ? `${pickupDate}T${pickupTime}` : pickupDate ? `${pickupDate}T09:00` : ''}
+                                     onChange={val => {
+                                         const [d, t] = val.split('T');
+                                         if (d) {
+                                             setPickupDate(d);
+                                             setItemDate(d);
+                                         }
+                                         if (t) {
+                                             setPickupTime(t);
+                                             setTime(t);
+                                         }
+                                     }}
+                                     themeColor="blue"
+                                     icon={Car}
+                                 />
+                                 <DateTimePickerField
+                                     label="還車時間 (Return)"
+                                     value={returnDate && returnTime ? `${returnDate}T${returnTime}` : returnDate ? `${returnDate}T18:00` : ''}
+                                     onChange={val => {
+                                         const [d, t] = val.split('T');
+                                         if (d) setReturnDate(d);
+                                         if (t) setReturnTime(t);
+                                     }}
+                                     themeColor="blue"
+                                     icon={Clock}
+                                 />
                              </div>
                              
                              {/* Rental Cost */}
