@@ -23,6 +23,7 @@ import { ExpensesView } from './components/ExpensesView';
 import { JournalView } from './components/JournalView';
 import { PlanningView } from './components/PlanningView';
 import { MembersView } from './components/MembersView';
+import { getDefaultMemberAvatar } from './constants/avatars';
 import { createTrip, joinTripByCode, subscribeToTrip, addTripItem, updateTripField, duplicateTrip } from './services/tripService';
 
 export default function App() {
@@ -81,11 +82,28 @@ export default function App() {
   const touchStartPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const dates = tripDays.map((day, i) => {
-    const d = new Date(day.date);
-    const month = d.getMonth() + 1;
-    const dateNum = d.getDate();
-    const weekday = d.toLocaleDateString('en-US', { weekday: 'short' });
-    return { ...day, dayNum: i + 1, month, day: dateNum, weekday };
+    let month = 1;
+    let dateNum = 1;
+    let weekday = '週一';
+    if (day.date) {
+      const parts = day.date.split('-');
+      if (parts.length === 3) {
+        const year = parseInt(parts[0], 10);
+        month = parseInt(parts[1], 10);
+        dateNum = parseInt(parts[2], 10);
+        const d = new Date(year, month - 1, dateNum);
+        const chineseWeekdays = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+        weekday = chineseWeekdays[d.getDay()] || '週一';
+      } else {
+        const d = new Date(day.date);
+        month = d.getMonth() + 1;
+        dateNum = d.getDate();
+        const chineseWeekdays = ['週日', '週一', '週二', '週三', '週四', '週五', '週六'];
+        weekday = chineseWeekdays[d.getDay()] || '週一';
+      }
+    }
+    const monthDay = `${month}/${dateNum}`;
+    return { ...day, dayNum: i + 1, month, day: dateNum, monthDay, weekday };
   });
 
   const currentDayObj = tripDays.find(d => d.date === selectedDate);
@@ -254,10 +272,11 @@ export default function App() {
       const fruits = [
           '🍎', '🍏', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', 
           '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆',
-          '🥕', '🌽', '🌶️', '🫑', '🥒', '🥬', '🥦', '🍄', '遷', '🌰'
+          '🥕', '🌽', '🌶️', '🫑', '🥒', '🥬', '🥦', '🍄', '栗', '🌰'
       ];
       const randomFruit = fruits[Math.floor(Math.random() * fruits.length)];
-      addTripItem(currentTripId, 'members', { id: Date.now().toString(), name, avatar, fruit: randomFruit });
+      const finalAvatar = avatar || getDefaultMemberAvatar(name || `member-${Date.now()}`);
+      addTripItem(currentTripId, 'members', { id: Date.now().toString(), name, avatar: finalAvatar, fruit: randomFruit });
   };
   
   const handleUpdateMember = (updated: Member) => updateTripField(currentTripId, 'members', members.map(m => m.id === updated.id ? updated : m));
@@ -540,7 +559,7 @@ export default function App() {
                             onContextMenu={(e) => e.preventDefault()}
                             onClick={() => handleDayItemClick(idx, date.date)}
                             style={{ WebkitTouchCallout: 'none', userSelect: 'none' }}
-                            className={`flex-shrink-0 flex flex-col items-center justify-center w-[3.5rem] h-16 rounded-2xl transition-all snap-center cursor-pointer relative overflow-hidden select-none
+                            className={`flex-shrink-0 flex flex-col items-center justify-center w-[3.75rem] min-w-[3.75rem] h-16 rounded-2xl transition-all snap-center cursor-pointer relative overflow-hidden select-none px-1
                                 ${isSwapping ? 'animate-pulse bg-orange-100 border-orange-400 scale-110 shadow-lg border-2 z-20' : 
                                   isPotentialTarget ? 'bg-white border-dashed border-orange-200 opacity-90 scale-95' :
                                   isSelected ? `bg-sage shadow-hard-sm-sage border-sage text-white scale-105 border-2` : 
@@ -551,18 +570,19 @@ export default function App() {
                                     對調中
                                 </div>
                             )}
-                            <span className={`text-[9px] font-black uppercase mb-0.5 ${isSelected ? 'opacity-90' : 'text-[#B0A590]'}`}>Day {date.dayNum}</span>
-                            <span className="text-lg font-black leading-none">{date.day}</span>
-                            <span className={`text-[10px] font-bold mt-0.5 ${isSelected ? 'opacity-80' : 'opacity-60'}`}>{date.weekday}</span>
+                            <span className={`text-[9px] font-black uppercase tracking-tight ${isSelected ? 'opacity-90' : 'text-[#B0A590]'}`}>Day {date.dayNum}</span>
+                            <span className="text-[15px] font-black leading-tight my-0.5 tracking-tight">{date.monthDay}</span>
+                            <span className={`text-[10px] font-bold ${isSelected ? 'opacity-90' : 'opacity-70'}`}>{date.weekday}</span>
                         </div>
                      );
                    })}
-                   <button onClick={handleAddDay} className="flex-shrink-0 flex flex-col items-center justify-center w-[3.5rem] h-16 rounded-2xl border-2 border-dashed border-[#E0E5D5] text-gray-300 hover:text-sage bg-white/50 snap-center"><Plus size={24} strokeWidth={3} /></button>
+                   <button onClick={handleAddDay} className="flex-shrink-0 flex flex-col items-center justify-center w-[3.75rem] min-w-[3.75rem] h-16 rounded-2xl border-2 border-dashed border-[#E0E5D5] text-gray-300 hover:text-sage bg-white/50 snap-center"><Plus size={24} strokeWidth={3} /></button>
                  </div>
                  <div className="mt-2 flex justify-between items-center px-1 flex-wrap gap-2">
-                    <span className="text-[10px] font-black text-gray-400 italic">
-                        {swappingFromIndex !== null ? '💡 點擊其他日期來完成對調' : '💡 長按日期方塊後釋放，再點擊目標可對調'}
-                    </span>
+                    <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-sage/80 flex-shrink-0"></span>
+                        <span>{swappingFromIndex !== null ? '點擊其他日期來完成對調' : '長按日期方塊後釋放，再點擊目標可對調'}</span>
+                    </div>
                     <div className="flex items-center gap-1.5">
                         <button 
                             onClick={() => { setPocketInitialTab('food'); setIsPocketModalOpen(true); }} 
@@ -610,8 +630,8 @@ export default function App() {
                       return (
                         <div key={item.id} className="relative pl-8 group mb-8">
                           <button onClick={(e) => { e.stopPropagation(); handleDeleteItemClick(item.id); }} className="absolute right-0 -top-3 bg-red-100 text-red-400 p-1.5 rounded-full opacity-0 group-hover:opacity-100 z-30 border border-red-200 shadow-sm"><X size={12} strokeWidth={3} /></button>
-                          <div className="absolute -left-[15px] top-6 z-10 flex items-center justify-center w-8 h-8 bg-beige rounded-full">
-                              <span className="text-xl animate-fruit-dance drop-shadow-sm filter cursor-default select-none hover:scale-125 transition-transform">{fruitIcon}</span>
+                          <div className="absolute -left-[9px] top-6 z-10 w-4 h-4 rounded-full bg-white border-2 border-sage shadow-sm flex items-center justify-center">
+                              <div className="w-1.5 h-1.5 rounded-full bg-sage"></div>
                           </div>
                           <div onClick={() => setViewingItem(item)} className="bg-white rounded-[2rem] shadow-hard-sm border-2 border-beige-dark overflow-hidden relative transition-all cursor-pointer hover:border-sage group-hover:-translate-y-1">
                             <div className="p-5">

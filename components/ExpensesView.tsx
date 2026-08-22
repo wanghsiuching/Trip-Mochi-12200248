@@ -10,6 +10,7 @@ import {
 import { Expense, Member, Currency, Comment } from '../types';
 import { ToggleSwitch, DeleteItemConfirmModal } from './Modals';
 import { DatePickerField, TimePickerField, DateTimePickerField } from './TimePickerComponents';
+import { MemberAvatar } from './MemberAvatar';
 
 interface ExpensesViewProps {
   expenses: Expense[];
@@ -481,7 +482,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                     <button onClick={() => setFilter('all')} className={`flex-shrink-0 px-5 py-2.5 rounded-full border-2 font-black text-sm transition-all ${filter === 'all' ? 'bg-cocoa text-white border-cocoa shadow-md' : 'bg-white text-gray-400 border-beige-dark'}`}>全部</button>
                     {members.map(m => (
                         <button key={m.id} onClick={() => setFilter(m.name)} className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border-2 transition-all ${filter === m.name ? 'bg-sage text-white border-sage shadow-md scale-105' : 'bg-white text-gray-400 border-beige-dark'}`}>
-                            <div className="w-6 h-6 rounded-full overflow-hidden border border-white/50 flex items-center justify-center bg-beige text-[10px] font-black text-cocoa">{m.avatar ? <img src={m.avatar} className="w-full h-full object-cover" /> : m.name[0]}</div>
+                            <MemberAvatar avatar={m.avatar} name={m.name} id={m.id} size="xs" showBorder={false} className="w-5 h-5 border border-white/50" />
                             <span className="text-sm font-bold">{m.name}</span>
                         </button>
                     ))}
@@ -506,6 +507,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                                     const isPayer = filter !== 'all' && exp.payer === filter;
                                     const finalAmountTWD = calculateTWD(exp.amount, exp.currency, exp.hasServiceFee || false, exp.serviceFeePercentage || 0);
                                     const splitAmountTWD = finalAmountTWD / (exp.involvedMembers?.length || 1);
+                                    const payerMember = members.find(m => m.name === exp.payer);
 
                                     return (
                                         <div key={exp.id} id={`expense-${exp.id}`} className={`bg-white p-5 rounded-[2rem] shadow-hard-sm border-2 transition-all border-beige-dark relative group`}>
@@ -517,8 +519,15 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                                             </button>
 
                                             <div className="flex items-center gap-4 mb-4">
-                                                <div className="w-14 h-14 rounded-full bg-beige border-2 border-beige-dark flex-shrink-0 flex items-center justify-center text-2xl relative overflow-hidden shadow-inner">
-                                                    {members.find(m => m.name === exp.payer)?.avatar ? <img src={members.find(m => m.name === exp.payer)?.avatar || ''} className="w-full h-full object-cover" /> : <span>{exp.payer[0]}</span>}
+                                                <div className="w-14 h-14 rounded-full bg-beige border-2 border-beige-dark flex-shrink-0 flex items-center justify-center relative overflow-hidden shadow-inner p-0.5">
+                                                    <MemberAvatar 
+                                                      avatar={payerMember?.avatar} 
+                                                      name={exp.payer} 
+                                                      id={payerMember?.id} 
+                                                      size="lg" 
+                                                      showBorder={false}
+                                                      className="w-full h-full"
+                                                    />
                                                     {isPayer && <div className="absolute bottom-0 w-full bg-sage/90 text-white text-[8px] font-black py-0.5 text-center">付款人</div>}
                                                 </div>
                                                 <div className="flex-1 min-w-0">

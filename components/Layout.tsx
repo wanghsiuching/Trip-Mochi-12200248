@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { Member, Tab } from '../types';
+import { MemberAvatar } from './MemberAvatar';
 
 interface LayoutProps {
   currentTab: Tab;
@@ -26,12 +27,14 @@ export const Layout: React.FC<LayoutProps> = ({ currentTab, setCurrentTab, membe
         <div className="mb-8 flex items-center gap-3 flex-shrink-0">
           <div className="flex -space-x-3 overflow-hidden py-1 pl-1">
             {members.slice(0, 4).map((member, idx) => (
-              <div key={idx} className="w-10 h-10 rounded-full bg-ac-bg border-2 border-white flex items-center justify-center text-ac-brown shadow-sm overflow-hidden relative z-0" style={{ zIndex: members.length - idx }}>
-                {member.avatar ? (
-                  <img src={member.avatar} className="w-full h-full object-cover" alt={member.name} loading="lazy" />
-                ) : (
-                  <span className="text-xs font-bold">{member.name.charAt(0)}</span>
-                )}
+              <div key={idx} className="relative z-0" style={{ zIndex: members.length - idx }}>
+                <MemberAvatar 
+                  avatar={member.avatar} 
+                  name={member.name} 
+                  id={member.id} 
+                  size="md"
+                  className="w-10 h-10 border-2 border-white shadow-sm"
+                />
               </div>
             ))}
           </div>
@@ -68,12 +71,14 @@ export const Layout: React.FC<LayoutProps> = ({ currentTab, setCurrentTab, membe
             </div>
             <div className="flex -space-x-2 overflow-hidden pl-1 flex-shrink-0">
                 {members.slice(0, 4).map((member, idx) => (
-                    <div key={idx} className="w-9 h-9 rounded-full bg-white border-2 border-[#F7F4EB] flex items-center justify-center text-[#D6CDB6] shadow-sm overflow-hidden relative z-0" style={{ zIndex: members.length - idx }}>
-                        {member.avatar ? (
-                            <img src={member.avatar} className="w-full h-full object-cover" alt={member.name} loading="lazy" />
-                        ) : (
-                            <span className="text-xs font-black text-ac-brown">{member.name.charAt(0)}</span>
-                        )}
+                    <div key={idx} className="relative z-0" style={{ zIndex: members.length - idx }}>
+                        <MemberAvatar 
+                          avatar={member.avatar} 
+                          name={member.name} 
+                          id={member.id} 
+                          size="sm"
+                          className="w-9 h-9 border-2 border-white shadow-sm"
+                        />
                     </div>
                 ))}
             </div>

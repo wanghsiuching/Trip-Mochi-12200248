@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ClipboardList, Luggage, Heart, ShoppingCart, PenTool, Trash2, Link, X, Check, Plus, Edit3, MessageCircle, Send } from 'lucide-react';
 import { TodoItem, Member, Comment } from '../types';
+import { MemberAvatar } from './MemberAvatar';
 
 interface PlanningViewProps {
   lists: { todo: TodoItem[]; packing: TodoItem[]; wish: TodoItem[]; shopping: TodoItem[] };
@@ -249,9 +250,14 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                                 onClick={() => toggleMemberFilter(m.name)}
                                 className={`flex items-center gap-2 px-3 py-2 rounded-full border-2 transition-all active:scale-95 whitespace-nowrap ${isSelected ? 'bg-sage text-white border-sage shadow-md scale-105' : 'bg-white text-gray-400 border-beige-dark'}`}
                             >
-                                <div className="w-5 h-5 rounded-full overflow-hidden border border-white/50 flex items-center justify-center bg-beige text-[10px] font-black text-cocoa">
-                                    {m.avatar ? <img src={m.avatar} className="w-full h-full object-cover" loading="lazy"/> : m.name[0]}
-                                </div>
+                                <MemberAvatar 
+                                  avatar={m.avatar} 
+                                  name={m.name} 
+                                  id={m.id} 
+                                  size="xs" 
+                                  showBorder={false}
+                                  className="w-5 h-5 border border-white/50"
+                                />
                                 <span className="text-sm font-bold">{m.name}</span>
                             </button>
                         );
@@ -453,8 +459,15 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
 
                                             return (
                                                 <div key={c.id} className="flex gap-2 items-start group/comment">
-                                                    <div className="w-5 h-5 rounded-full bg-beige border border-beige-dark flex-shrink-0 overflow-hidden flex items-center justify-center">
-                                                        {author?.avatar ? <img src={author.avatar} className="w-full h-full object-cover"/> : <span className="text-[9px] font-black text-gray-400">{author?.name?.[0]}</span>}
+                                                    <div className="w-5 h-5 flex-shrink-0 overflow-hidden">
+                                                        <MemberAvatar 
+                                                          avatar={author?.avatar} 
+                                                          name={author?.name || '成員'} 
+                                                          id={author?.id} 
+                                                          size="xs" 
+                                                          showBorder={false}
+                                                          className="w-full h-full"
+                                                        />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         {isEditing ? (
@@ -513,9 +526,14 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                                                 onClick={(e) => { e.stopPropagation(); selectCommentAuthor(item.id, m.id); }}
                                                 className={`flex-shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-full border-2 transition-all ${isSelected ? 'bg-sage text-white border-sage shadow-sm' : 'bg-white text-gray-400 border-beige-dark hover:bg-gray-50'}`}
                                             >
-                                                <div className="w-4 h-4 rounded-full overflow-hidden border border-white/50 flex items-center justify-center bg-beige text-[8px] font-black text-cocoa">
-                                                    {m.avatar ? <img src={m.avatar} className="w-full h-full object-cover" loading="lazy"/> : m.name[0]}
-                                                </div>
+                                                <MemberAvatar 
+                                                  avatar={m.avatar} 
+                                                  name={m.name} 
+                                                  id={m.id} 
+                                                  size="xs" 
+                                                  showBorder={false}
+                                                  className="w-4 h-4"
+                                                />
                                                 <span className="text-xs font-bold">{m.name}</span>
                                             </button>
                                         );

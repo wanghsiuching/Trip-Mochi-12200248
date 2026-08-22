@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { PenTool, Trash2, X, Feather, Send, Check, AlertCircle } from 'lucide-react';
 import { Journal, Member, Comment } from '../types';
 import { DateTimePickerField } from './TimePickerComponents';
+import { MemberAvatar } from './MemberAvatar';
 
 interface JournalViewProps {
   journals: Journal[];
@@ -178,16 +179,20 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                         const currentDraft = commentDrafts[journal.id] || '';
                         const currentAuthorId = commentAuthors[journal.id] || members[0]?.id;
                         const currentAuthor = members.find(m => m.id === currentAuthorId);
+                        const journalAuthorMember = members.find(mem => mem.name === journal.author);
                         
                         return (
                         <div key={journal.id} className="bg-white rounded-[2rem] p-5 shadow-hard-sm border-2 border-beige-dark flex flex-col relative group hover:-translate-y-1 transition-transform duration-300">
                             <div className="flex justify-between items-center mb-3">
                                 <div className="flex items-center gap-2">
-                                     <div className="w-8 h-8 rounded-full bg-beige overflow-hidden border-2 border-white flex items-center justify-center text-cocoa shadow-sm">
-                                         {(() => {
-                                            const m = members.find(mem => mem.name === journal.author);
-                                            return m?.avatar ? <img src={m.avatar} className="w-full h-full object-cover" loading="lazy"/> : <span className="text-xs font-black">{journal.author.charAt(0)}</span>;
-                                         })()}
+                                     <div className="w-8 h-8 rounded-full overflow-hidden shadow-sm">
+                                         <MemberAvatar 
+                                           avatar={journalAuthorMember?.avatar} 
+                                           name={journal.author} 
+                                           id={journalAuthorMember?.id} 
+                                           size="sm"
+                                           className="w-full h-full"
+                                         />
                                      </div>
                                      <div className="flex flex-col">
                                          <span className="text-sm font-black text-cocoa">{journal.author}</span>
@@ -214,8 +219,14 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
 
                                             return (
                                                 <div key={c.id} className="flex gap-2 items-start group/comment">
-                                                    <div className="w-6 h-6 rounded-full bg-beige border border-beige-dark flex-shrink-0 overflow-hidden flex items-center justify-center">
-                                                        {author?.avatar ? <img src={author.avatar} className="w-full h-full object-cover"/> : <span className="text-[9px] font-black text-gray-400">{author?.name?.[0]}</span>}
+                                                    <div className="w-6 h-6 rounded-full flex-shrink-0 overflow-hidden">
+                                                        <MemberAvatar 
+                                                          avatar={author?.avatar} 
+                                                          name={author?.name || '成員'} 
+                                                          id={author?.id} 
+                                                          size="xs"
+                                                          className="w-full h-full"
+                                                        />
                                                     </div>
                                                     <div className="flex-1 min-w-0">
                                                         {isEditing ? (
@@ -275,9 +286,14 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                                                 onClick={(e) => { e.stopPropagation(); selectCommentAuthor(journal.id, m.id); }}
                                                 className={`flex-shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-full border-2 transition-all ${isSelected ? 'bg-sage text-white border-sage shadow-sm' : 'bg-white text-gray-400 border-beige-dark hover:bg-gray-50'}`}
                                             >
-                                                <div className="w-4 h-4 rounded-full overflow-hidden border border-white/50 flex items-center justify-center bg-beige text-[8px] font-black text-cocoa">
-                                                    {m.avatar ? <img src={m.avatar} className="w-full h-full object-cover" loading="lazy"/> : m.name[0]}
-                                                </div>
+                                                <MemberAvatar 
+                                                  avatar={m.avatar} 
+                                                  name={m.name} 
+                                                  id={m.id} 
+                                                  size="xs" 
+                                                  showBorder={false}
+                                                  className="w-4 h-4"
+                                                />
                                                 <span className="text-xs font-bold">{m.name}</span>
                                             </button>
                                         );
@@ -331,7 +347,14 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                                     onClick={() => setForm({...form, author: m.name})}
                                     className={`px-3 py-1.5 rounded-full text-xs border-2 whitespace-nowrap transition-all flex items-center gap-1.5 ${form.author === m.name ? 'bg-sage text-white border-sage font-black shadow-md' : 'border-beige-dark text-gray-400 bg-white font-bold'}`}
                                 >
-                                    {m.avatar && <div className="w-4 h-4 rounded-full overflow-hidden border border-white/50"><img src={m.avatar} className="w-full h-full object-cover" loading="lazy"/></div>}
+                                    <MemberAvatar 
+                                      avatar={m.avatar} 
+                                      name={m.name} 
+                                      id={m.id} 
+                                      size="xs" 
+                                      showBorder={false}
+                                      className="w-4 h-4"
+                                    />
                                     {m.name}
                                 </button>
                             ))}

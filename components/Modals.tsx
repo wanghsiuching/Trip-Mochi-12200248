@@ -4,6 +4,7 @@ import { Camera, Utensils, Train, Bed, PenTool, Trash2, AlertCircle, Map, Coffee
 import { ItemType, ScheduleItem, Currency, Member, THEME, ExpenseItem, TransitLeg, TransitFareDetails, UniversalTransportType, TransitPassType } from '../types';
 import { TransitLegEditor, TransitLegChainView, TransitPassBadge } from './TransitComponents';
 import { TimePickerField, DatePickerField, DateTimePickerField } from './TimePickerComponents';
+import { MemberAvatar } from './MemberAvatar';
 
 // Updated extensive fruit/food icon list (40+ items)
 const FRUIT_ICONS = [
@@ -406,9 +407,14 @@ export const PotentialExpensesModal = ({
                             {members.map(m => (
                                 <div key={m.id} className="bg-gray-50 border border-gray-100 p-2 rounded-xl flex justify-between items-center">
                                     <div className="flex items-center gap-1.5">
-                                        <div className="w-5 h-5 rounded-full bg-white border border-gray-200 flex items-center justify-center text-[10px] font-black text-gray-400 overflow-hidden">
-                                            {m.avatar ? <img src={m.avatar} className="w-full h-full object-cover"/> : m.name[0]}
-                                        </div>
+                                        <MemberAvatar 
+                                          avatar={m.avatar} 
+                                          name={m.name} 
+                                          id={m.id} 
+                                          size="xs" 
+                                          showBorder={false}
+                                          className="w-5 h-5 border border-gray-200"
+                                        />
                                         <span className="text-xs font-bold text-cocoa">{m.name}</span>
                                     </div>
                                     <span className="text-xs font-black text-sage font-mono">${Math.round(memberTotals[m.id]).toLocaleString()}</span>
@@ -443,8 +449,15 @@ export const PotentialExpensesModal = ({
                                             const mem = members.find(m => m.id === pid);
                                             if (!mem) return null;
                                             return (
-                                                <div key={pid} className="w-4 h-4 rounded-full bg-white border border-gray-200 overflow-hidden flex items-center justify-center text-[8px] font-bold text-gray-400" title={mem.name}>
-                                                    {mem.avatar ? <img src={mem.avatar} className="w-full h-full object-cover"/> : mem.name[0]}
+                                                <div key={pid} className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center border border-white" title={mem.name}>
+                                                    <MemberAvatar 
+                                                      avatar={mem.avatar} 
+                                                      name={mem.name} 
+                                                      id={mem.id} 
+                                                      size="xs" 
+                                                      showBorder={false}
+                                                      className="w-full h-full"
+                                                    />
                                                 </div>
                                             )
                                         })}
@@ -701,9 +714,15 @@ export const ScheduleDetailModal = ({
 
                                 return (
                                     <div key={m.id} className="flex items-center gap-1.5 bg-white px-2 py-1 rounded-lg border border-beige-dark shadow-sm">
-                                        <div className="w-4 h-4 rounded-full overflow-hidden border border-gray-100 flex items-center justify-center bg-beige text-[8px] font-black text-cocoa">
-                                            {/* Updated to use fruit icon as fallback instead of name initial */}
-                                            {m.avatar ? <img src={m.avatar} className="w-full h-full object-cover"/> : <span className="text-[10px]">{m.fruit || '🍎'}</span>}
+                                        <div className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center">
+                                            <MemberAvatar 
+                                              avatar={m.avatar} 
+                                              name={m.name} 
+                                              id={m.id} 
+                                              size="xs" 
+                                              showBorder={false}
+                                              className="w-full h-full"
+                                            />
                                         </div>
                                         <span className="text-[10px] font-bold text-gray-500">{m.name}</span>
                                     </div>
