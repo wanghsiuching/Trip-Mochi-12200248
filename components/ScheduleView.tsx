@@ -252,15 +252,19 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
 
       {/* Edit/Add Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-cocoa/50 z-[2000] flex items-center justify-center px-4 backdrop-blur-sm">
-            <div className="bg-[#FDFDF5] w-full max-w-sm rounded-[2rem] p-6 shadow-2xl animate-fade-in-up border-4 border-[#E0E5D5] relative max-h-[85vh] overflow-y-auto custom-scroll">
-                <div className="absolute top-0 left-0 w-full h-3 bg-yellow-200"></div>
-                <h3 className="font-black text-xl mb-5 text-cocoa text-center bg-[#F0EAD6] mx-auto w-max px-6 py-1 rounded-full border border-[#E0E5D5] shadow-sm mt-2">{isEditing ? '編輯行程' : '新增行程'}</h3>
+        <div className="fixed inset-0 bg-cocoa/60 z-[2000] flex flex-col items-center justify-end sm:justify-center sm:p-4 backdrop-blur-sm animate-fade-in" onClick={() => setShowModal(false)}>
+            <div className="bg-[#FDFDF5] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-[#E0E5D5] relative flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center pb-3 border-b border-[#E0E5D5] flex-shrink-0">
+                    <h3 className="font-black text-lg text-cocoa">{isEditing ? '編輯行程' : '新增行程'}</h3>
+                    <button onClick={() => setShowModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-[#E0E5D5] shadow-sm transition-colors">
+                      <i className="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
                 
-                <div className="space-y-4">
+                <div className="space-y-4 overflow-y-auto custom-scroll flex-1 py-4 pr-1">
                     {/* Title */}
                     <div>
-                        <label className="text-[10px] text-gray-400 block mb-1 font-bold ml-1"><span className="text-red-400 font-black mr-0.5">*</span>活動名稱</label>
+                        <label className="text-xs text-gray-400 block mb-1 font-bold ml-1"><span className="text-red-400 font-black mr-0.5">*</span>活動名稱</label>
                         <input value={modalEvent.title} onChange={e => setModalEvent({...modalEvent, title: e.target.value})} type="text" placeholder="地點 / 活動名稱" className="w-full bg-white text-cocoa p-3.5 rounded-2xl outline-none focus:ring-2 focus:ring-sage border-2 border-[#E0E5D5] font-bold placeholder-[#D6CDB6]" />
                     </div>
                     
@@ -281,22 +285,22 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
                             icon={Clock}
                         />
                         <div>
-                            <label className="text-[10px] text-gray-400 block mb-1 font-bold ml-1">類別</label>
+                            <label className="text-xs text-gray-400 block mb-1 font-bold ml-1">類別</label>
                             <select value={modalEvent.type} onChange={e => setModalEvent({...modalEvent, type: e.target.value as any})} className="w-full bg-white text-cocoa p-3 rounded-2xl outline-none border-2 border-beige-dark font-bold"><option value="spot">景點</option><option value="food">美食</option><option value="transport">交通</option><option value="stay">住宿</option></select>
                         </div>
                     </div>
 
                     {/* Location & GPS */}
-                    <div className="bg-white p-3 rounded-2xl border-2 border-[#E0E5D5] space-y-3">
+                    <div className="bg-white p-3.5 rounded-2xl border-2 border-[#E0E5D5] space-y-3">
                         <div>
-                            <label className="text-[10px] text-gray-400 block mb-1 font-bold ml-1">地點名稱 (GPS/導航用)</label>
+                            <label className="text-xs text-gray-400 block mb-1 font-bold ml-1">地點名稱 (GPS/導航用)</label>
                             <div className="relative">
                                 <i className="fa-solid fa-location-dot absolute left-3.5 top-3.5 text-orange-400"></i>
                                 <input value={modalEvent.location} onChange={e => setModalEvent({...modalEvent, location: e.target.value})} type="text" placeholder="例如：樂天百貨" className="w-full bg-[#F9FAFB] text-cocoa p-3 rounded-xl pl-9 outline-none text-sm font-bold placeholder-[#D6CDB6]" />
                             </div>
                         </div>
                         <div>
-                            <label className="text-[10px] text-gray-400 block mb-1 font-bold ml-1">詳細地址</label>
+                            <label className="text-xs text-gray-400 block mb-1 font-bold ml-1">詳細地址</label>
                             <div className="relative">
                                 <i className="fa-solid fa-map-pin absolute left-3.5 top-3.5 text-[#B0A590]"></i>
                                 <input value={modalEvent.address} onChange={e => setModalEvent({...modalEvent, address: e.target.value})} type="text" placeholder="地址 / 交通方式" className="w-full bg-[#F9FAFB] text-cocoa p-3 rounded-xl pl-9 outline-none text-sm font-bold placeholder-[#D6CDB6]" />
@@ -305,13 +309,13 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
                     </div>
 
                     <div>
-                        <label className="text-[10px] text-gray-400 block mb-1 font-bold ml-1">備註</label>
-                        <textarea value={modalEvent.note || modalEvent.notes} onChange={e => setModalEvent({...modalEvent, note: e.target.value, notes: e.target.value})} placeholder="備註事項" className="w-full bg-white text-cocoa p-3.5 rounded-2xl outline-none text-sm border-2 border-[#E0E5D5] font-bold placeholder-[#D6CDB6] h-20 resize-none" />
+                        <label className="text-xs text-gray-400 block mb-1 font-bold ml-1">備註</label>
+                        <textarea value={modalEvent.note || modalEvent.notes} onChange={e => setModalEvent({...modalEvent, note: e.target.value, notes: e.target.value})} placeholder="備註事項" className="w-full bg-white text-cocoa p-3.5 rounded-2xl outline-none text-sm border-2 border-[#E0E5D5] font-bold placeholder-[#D6CDB6] h-24 resize-none" />
                     </div>
                 </div>
-                <div className="flex gap-3 mt-6">
-                    <button onClick={() => setShowModal(false)} className="flex-1 py-3.5 rounded-2xl bg-[#F0EAD6] text-gray-400 font-black hover:bg-[#E0DCCF] border-2 border-[#D6CDB6]">取消</button>
-                    <button onClick={handleSave} className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-black shadow-[0_4px_0_rgb(89,136,64)] active:shadow-none active:translate-y-[4px] transition-all hover:bg-[#68A04B] border-2 border-[#68A04B]">
+                <div className="flex gap-3 pt-3 border-t border-[#E0E5D5] mt-auto flex-shrink-0 bg-[#FDFDF5]">
+                    <button onClick={() => setShowModal(false)} className="flex-1 py-3.5 rounded-2xl bg-[#F0EAD6] text-gray-400 font-black hover:bg-[#E0DCCF] border-2 border-[#D6CDB6] text-sm">取消</button>
+                    <button onClick={handleSave} className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-black shadow-[0_4px_0_rgb(89,136,64)] active:shadow-none active:translate-y-[4px] transition-all hover:bg-[#68A04B] border-2 border-[#68A04B] text-sm">
                         保存
                     </button>
                 </div>
@@ -321,16 +325,16 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
 
       {/* Detail View Modal */}
       {viewingItem && (
-        <div className="fixed inset-0 bg-cocoa/70 z-[200] flex items-center justify-center px-4 backdrop-blur-sm" onClick={() => setViewingItem(null)}>
-            <div className="bg-[#FDFDF5] w-full max-w-lg rounded-[2rem] shadow-2xl animate-fade-in-up border-4 border-[#E0E5D5] relative overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-cocoa/70 z-[200] flex flex-col items-center justify-end sm:justify-center sm:p-4 backdrop-blur-sm animate-fade-in" onClick={() => setViewingItem(null)}>
+            <div className="bg-[#FDFDF5] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-xl sm:rounded-[2.5rem] rounded-none shadow-2xl border-0 sm:border-4 sm:border-[#E0E5D5] relative overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
                 
                 {/* Clean Header Section */}
-                <div className="p-6 pb-4 border-b border-[#E0E5D5] bg-white relative z-10">
+                <div className="p-5 pb-4 border-b border-[#E0E5D5] bg-white relative z-10 flex-shrink-0">
                     <button onClick={() => setViewingItem(null)} className="absolute top-4 right-4 w-9 h-9 bg-[#F9FAFB] rounded-full text-[#B0A590] border border-[#E0E5D5] flex items-center justify-center hover:bg-cocoa hover:text-white transition-colors">
                         <i className="fa-solid fa-xmark"></i>
                     </button>
 
-                    <div className="flex flex-col gap-3 pr-10">
+                    <div className="flex flex-col gap-2.5 pr-10">
                          <div className="flex items-center gap-2">
                              <span className={`px-3 py-1 rounded-full text-[10px] font-black text-white shadow-sm ${getCategoryColor(viewingItem.type)}`}>
                                  {getCategoryLabel(viewingItem.type)}
@@ -344,7 +348,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
                 </div>
 
                 {/* Scrollable Content */}
-                <div className="p-6 overflow-y-auto custom-scroll flex-1 space-y-6 bg-[#FDFDF5]">
+                <div className="p-5 overflow-y-auto custom-scroll flex-1 space-y-5 bg-[#FDFDF5]">
                     
                     {/* Location Info */}
                     {(viewingItem.location || viewingItem.address) && (
@@ -397,11 +401,11 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
                 </div>
 
                 {/* Footer Actions */}
-                <div className="p-4 bg-white border-t border-[#E0E5D5] flex gap-3">
-                     <button onClick={() => { if(window.confirm('確定刪除此行程？')) handleDeleteItem(viewingItem.id); }} className="px-5 py-3 rounded-2xl bg-[#FFF5F5] text-red-400 font-black border-2 border-red-50 hover:bg-red-50 hover:border-red-100 transition-colors">
+                <div className="p-4 bg-white border-t border-[#E0E5D5] flex gap-3 flex-shrink-0">
+                     <button onClick={() => { if(window.confirm('確定刪除此行程？')) handleDeleteItem(viewingItem.id); }} className="px-5 py-3.5 rounded-2xl bg-[#FFF5F5] text-red-400 font-black border-2 border-red-100 hover:bg-red-50 hover:border-red-200 transition-colors">
                          <i className="fa-solid fa-trash-can"></i>
                      </button>
-                     <button onClick={() => openEditModal(viewingItem)} className="flex-1 py-3 rounded-2xl bg-sage text-white font-black shadow-[0_4px_0_rgb(89,136,64)] active:shadow-none active:translate-y-[4px] transition-all border-2 border-[#68A04B] flex items-center justify-center gap-2">
+                     <button onClick={() => openEditModal(viewingItem)} className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-black shadow-[0_4px_0_rgb(89,136,64)] active:shadow-none active:translate-y-[4px] transition-all border-2 border-[#68A04B] flex items-center justify-center gap-2 text-sm">
                          <i className="fa-solid fa-pen"></i> 編輯行程
                      </button>
                 </div>

@@ -676,11 +676,16 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
         </div>
 
         {showFlightModal && editingFlight && (
-            <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-center justify-center px-4 backdrop-blur-sm">
-                <div className="bg-beige w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border-4 border-beige-dark max-h-[90vh] overflow-y-auto custom-scroll">
-                    <h3 className="font-black text-lg mb-4 text-center text-cocoa">{flights.find(f => f.id === editingFlight.id) ? '編輯航班' : '新增航班'}</h3>
+            <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[150] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={() => setShowFlightModal(false)}>
+                <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
+                        <h3 className="font-black text-xl text-cocoa">{flights.find(f => f.id === editingFlight.id) ? '編輯航班' : '新增航班'}</h3>
+                        <button onClick={() => setShowFlightModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                            <X size={18} />
+                        </button>
+                    </div>
                     
-                    <div className="space-y-3">
+                    <div className="space-y-3 overflow-y-auto custom-scroll flex-1 py-4 pr-1">
                         <div className="flex bg-white p-1 rounded-xl border-2 border-beige-dark mb-4">
                             {['oneway', 'roundtrip'].map((type) => (
                                 <button
@@ -834,24 +839,29 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                         </div>
                     </div>
 
-                    <div className="flex gap-3 mt-6">
+                    <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
                         {editingFlight.id && flights.find(f => f.id === editingFlight.id) && (
-                            <button onClick={deleteFlight} type="button" className="px-6 py-3 rounded-2xl bg-red-50 text-red-400 font-black border-2 border-red-100 flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
-                                <Trash2 size={20}/> 刪除
+                            <button onClick={deleteFlight} type="button" className="px-5 py-3.5 rounded-2xl bg-red-50 text-red-400 font-bold border-2 border-red-100 flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
+                                <Trash2 size={18}/> 刪除
                             </button>
                         )}
-                        <button onClick={() => setShowFlightModal(false)} className="flex-1 py-3 rounded-2xl bg-white text-gray-400 font-black border-2 border-beige-dark">取消</button>
-                        <button onClick={saveFlight} className="flex-1 py-3 rounded-2xl bg-sage text-white font-black shadow-hard-sage border-2 border-sage-dark">保存</button>
+                        <button onClick={() => setShowFlightModal(false)} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+                        <button onClick={saveFlight} className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all">保存</button>
                     </div>
                 </div>
             </div>
         )}
 
         {showAccModal && editingAcc && (
-            <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-center justify-center px-4 backdrop-blur-sm">
-                <div className="bg-beige w-full max-w-md rounded-[2rem] p-6 shadow-2xl border-4 border-beige-dark max-h-[90vh] overflow-y-auto custom-scroll">
-                    <h3 className="font-black text-lg mb-4 text-center text-cocoa">{editingAcc.id && accommodations.find(a => a.id === editingAcc.id) ? '編輯住宿' : '新增住宿'}</h3>
-                    <div className="space-y-4">
+            <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[150] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={() => setShowAccModal(false)}>
+                <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
+                        <h3 className="font-black text-xl text-cocoa">{editingAcc.id && accommodations.find(a => a.id === editingAcc.id) ? '編輯住宿' : '新增住宿'}</h3>
+                        <button onClick={() => setShowAccModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                            <X size={18} />
+                        </button>
+                    </div>
+                    <div className="space-y-4 overflow-y-auto custom-scroll flex-1 py-4 pr-1">
                         <div className="grid grid-cols-2 gap-2">
                             <div><label className="text-[10px] font-bold text-gray-400 ml-1">平台</label><input value={editingAcc.platform} onChange={e => setEditingAcc({...editingAcc, platform: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="Agoda"/></div>
                             <div><label className="text-[10px] font-bold text-gray-400 ml-1">城市</label><input value={editingAcc.city} onChange={e => setEditingAcc({...editingAcc, city: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="釜山"/></div>
@@ -914,19 +924,24 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
                         <div><label className="text-[10px] font-bold text-gray-400 ml-1">備註</label><textarea value={editingAcc.note} onChange={e => setEditingAcc({...editingAcc, note: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold h-20 text-cocoa"></textarea></div>
                     </div>
-                    <div className="flex gap-3 mt-6">
-                        <button onClick={() => setShowAccModal(false)} className="flex-1 py-3 rounded-2xl bg-white text-gray-400 font-black border-2 border-beige-dark">取消</button>
-                        <button onClick={saveAcc} className="flex-1 py-3 rounded-2xl bg-sage text-white font-black">保存</button>
+                    <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                        <button onClick={() => setShowAccModal(false)} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+                        <button onClick={saveAcc} className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all">保存</button>
                     </div>
                 </div>
             </div>
         )}
 
         {showCarModal && editingCar && (
-            <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-center justify-center px-4 backdrop-blur-sm">
-                <div className="bg-beige w-full max-w-md rounded-[2rem] p-6 shadow-2xl border-4 border-beige-dark max-h-[90vh] overflow-y-auto custom-scroll">
-                    <h3 className="font-black text-lg mb-4 text-center text-cocoa">{carRentals.find(c => c.id === editingCar.id) ? '編輯租車' : '新增租車'}</h3>
-                    <div className="space-y-4">
+            <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[150] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={() => setShowCarModal(false)}>
+                <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
+                        <h3 className="font-black text-xl text-cocoa">{carRentals.find(c => c.id === editingCar.id) ? '編輯租車' : '新增租車'}</h3>
+                        <button onClick={() => setShowCarModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                            <X size={18} />
+                        </button>
+                    </div>
+                    <div className="space-y-4 overflow-y-auto custom-scroll flex-1 py-4 pr-1">
                         <div className="grid grid-cols-2 gap-2">
                             <div><label className="text-[10px] font-bold text-gray-400 ml-1">平台</label><input value={editingCar.platform} onChange={e => setEditingCar({...editingCar, platform: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="Klook"/></div>
                             <div><label className="text-[10px] font-bold text-gray-400 ml-1">租車公司</label><input value={editingCar.company} onChange={e => setEditingCar({...editingCar, company: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="Lotte"/></div>
@@ -1000,14 +1015,14 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
                         <div><label className="text-[10px] font-bold text-gray-400 ml-1">備註</label><textarea value={editingCar.note} onChange={e => setEditingCar({...editingCar, note: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold h-20 text-cocoa"></textarea></div>
                     </div>
-                    <div className="flex gap-3 mt-6">
+                    <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
                         {carRentals.find(c => c.id === editingCar.id) && (
-                            <button onClick={deleteCar} type="button" className="px-6 py-3 rounded-2xl bg-red-50 text-red-400 font-black border-2 border-red-100 flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
-                                <Trash2 size={20}/> 刪除
+                            <button onClick={deleteCar} type="button" className="px-5 py-3.5 rounded-2xl bg-red-50 text-red-400 font-bold border-2 border-red-100 flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
+                                <Trash2 size={18}/> 刪除
                             </button>
                         )}
-                        <button onClick={() => setShowCarModal(false)} className="flex-1 py-3 rounded-2xl bg-white text-gray-400 font-black border-2 border-beige-dark">取消</button>
-                        <button onClick={saveCar} className="flex-1 py-3 rounded-2xl bg-sage text-white font-black">保存</button>
+                        <button onClick={() => setShowCarModal(false)} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+                        <button onClick={saveCar} className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all">保存</button>
                     </div>
                 </div>
             </div>

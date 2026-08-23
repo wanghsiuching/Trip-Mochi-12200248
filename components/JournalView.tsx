@@ -328,24 +328,30 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-center justify-center px-4 backdrop-blur-sm">
-            <div className="bg-beige w-full max-w-md rounded-[2rem] p-6 shadow-2xl animate-scale-in max-h-[90vh] overflow-y-auto custom-scroll border-4 border-beige-dark">
-                <h3 className="font-black text-lg mb-4 text-cocoa text-center bg-white px-4 py-1 rounded-full w-max mx-auto border border-beige-dark">{editingJournal ? '編輯日誌' : '寫新日誌'}</h3>
-                <div className="space-y-4">
+        <div className="fixed inset-0 bg-cocoa/60 z-[150] flex flex-col items-center justify-end sm:justify-center sm:p-4 backdrop-blur-sm animate-fade-in" onClick={() => setShowModal(false)}>
+            <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
+                    <h3 className="font-black text-xl text-cocoa">{editingJournal ? '編輯日誌' : '寫新日誌'}</h3>
+                    <button onClick={() => setShowModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                        <X size={18} />
+                    </button>
+                </div>
+                
+                <div className="overflow-y-auto custom-scroll flex-1 py-4 space-y-4">
                     <DateTimePickerField
                         label="記錄日期與時間"
                         value={form.date}
                         onChange={val => setForm({...form, date: val})}
                         themeColor="sage"
                     />
-                    <div>
-                        <label className="text-[10px] text-gray-400 block mb-1 font-bold">記錄人</label>
+                    <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
+                        <label className="text-[10px] text-gray-400 block mb-2 font-bold">記錄人</label>
                         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
                             {members.map(m => (
                                 <button
                                     key={m.id}
                                     onClick={() => setForm({...form, author: m.name})}
-                                    className={`px-3 py-1.5 rounded-full text-xs border-2 whitespace-nowrap transition-all flex items-center gap-1.5 ${form.author === m.name ? 'bg-sage text-white border-sage font-black shadow-md' : 'border-beige-dark text-gray-400 bg-white font-bold'}`}
+                                    className={`px-3 py-1.5 rounded-xl text-xs border-2 whitespace-nowrap transition-all flex items-center gap-1.5 font-bold ${form.author === m.name ? 'bg-sage text-white border-sage-dark shadow-sm' : 'border-beige-dark text-gray-400 bg-beige/40'}`}
                                 >
                                     <MemberAvatar 
                                       avatar={m.avatar} 
@@ -360,14 +366,15 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                             ))}
                         </div>
                     </div>
-                    <div>
+                    <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
                         <label className="text-[10px] text-gray-400 block mb-1 font-bold">內容</label>
-                        <textarea value={form.content} onChange={e => setForm({...form, content: e.target.value})} className="w-full bg-white text-cocoa rounded-xl p-4 text-sm outline-none h-40 resize-none border-2 border-beige-dark font-medium leading-relaxed placeholder-gray-300" placeholder="寫下今天發生的趣事..."></textarea>
+                        <textarea value={form.content} onChange={e => setForm({...form, content: e.target.value})} className="w-full bg-beige/30 text-cocoa rounded-xl p-3 text-sm outline-none h-44 resize-none border border-beige-dark font-medium leading-relaxed placeholder-gray-300" placeholder="寫下今天發生的趣事..."></textarea>
                     </div>
                 </div>
-                <div className="flex gap-3 mt-6">
-                    <button onClick={() => setShowModal(false)} className="flex-1 py-3 rounded-2xl bg-white text-gray-400 font-black hover:bg-gray-50 border-2 border-beige-dark">取消</button>
-                    <button onClick={handleSave} className="flex-1 py-3 rounded-2xl bg-sage text-white font-black shadow-hard-sage active:shadow-none active:translate-y-[4px] transition-all border-2 border-sage-dark disabled:opacity-50">
+
+                <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                    <button onClick={() => setShowModal(false)} className="flex-1 py-4 rounded-2xl bg-white text-gray-400 font-bold hover:bg-gray-50 border-2 border-beige-dark transition-colors">取消</button>
+                    <button onClick={handleSave} className="flex-1 py-4 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all disabled:opacity-50">
                         保存
                     </button>
                 </div>
@@ -376,16 +383,24 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
       )}
 
       {deletingId && (
-        <div className="fixed inset-0 bg-cocoa/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={() => setDeletingId(null)}>
-            <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl border-2 border-beige-dark animate-scale-in" onClick={e => e.stopPropagation()}>
-                 <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500 border-2 border-red-200">
-                    <Trash2 size={24} />
-                </div>
-                <h3 className="text-xl font-black text-cocoa mb-2 text-center">刪除日誌?</h3>
-                <p className="text-gray-400 font-bold text-center text-sm mb-6">確定要刪除這篇日誌嗎？此動作無法復原。</p>
-                <div className="flex gap-3">
-                    <button onClick={() => setDeletingId(null)} className="flex-1 py-3 rounded-xl font-bold text-gray-400 bg-gray-100 hover:bg-gray-200 transition-colors">取消</button>
-                    <button onClick={confirmDelete} className="flex-1 py-3 rounded-xl font-bold text-white bg-red-400 hover:bg-red-50 shadow-hard-sm border-2 border-red-500 active:translate-y-1 active:shadow-none transition-all">刪除</button>
+        <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[200] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={() => setDeletingId(null)}>
+            <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-sm sm:rounded-[2.5rem] rounded-none p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+                 <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0 sm:hidden">
+                     <h3 className="font-black text-lg text-cocoa">刪除確認</h3>
+                     <button onClick={() => setDeletingId(null)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                         <X size={18} />
+                     </button>
+                 </div>
+                 <div className="my-auto py-6 text-center">
+                     <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500 border-2 border-red-200 shadow-sm">
+                         <Trash2 size={28} />
+                     </div>
+                     <h3 className="text-xl font-black text-cocoa mb-2 text-center">刪除日誌?</h3>
+                     <p className="text-gray-400 font-bold text-center text-sm leading-relaxed">確定要刪除這篇日誌嗎？此動作無法復原。</p>
+                 </div>
+                 <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                    <button onClick={() => setDeletingId(null)} className="flex-1 py-4 rounded-2xl font-bold text-gray-400 bg-white border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+                    <button onClick={confirmDelete} className="flex-1 py-4 rounded-2xl font-bold text-white bg-red-400 hover:bg-red-500 shadow-hard-sm border-2 border-red-500 active:translate-y-1 active:shadow-none transition-all">刪除</button>
                 </div>
             </div>
         </div>

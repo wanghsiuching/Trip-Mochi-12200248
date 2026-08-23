@@ -45,37 +45,51 @@ export const MembersView: React.FC<MembersViewProps> = ({
       const breakdown: { id: string, date: string, title: string, amount: number, type: string, isPotential: boolean, category: 'schedule' | 'expense' }[] = [];
 
       const processItemCost = (id: string, date: string, title: string, type: string, cost: number, currency: string, hasFee: boolean, feePct: number, participants: string[], isPotential: boolean) => {
-          if (participants && participants.includes(memberId)) {
+          const effectiveParticipants = (participants && participants.length > 0) ? participants : members.map(m => m.id);
+          if (effectiveParticipants.includes(memberId)) {
               const base = Number(cost) || 0;
               const fee = hasFee ? base * (Number(feePct) || 0) / 100 : 0;
               const total = base + fee;
-              const perPerson = total / participants.length;
+              const perPerson = total / (effectiveParticipants.length || 1);
               const twdAmount = toTWD(perPerson, currency);
 
               totalPotential += twdAmount;
               if (twdAmount > 0) {
-                  breakdown.push({ id, date, title, amount: twdAmount, type, isPotential: true, category: 'schedule' });
+                  breakdown.push({ id, date, title, amount: Math.round(twdAmount), type, isPotential: true, category: 'schedule' });
               }
           }
       };
 
       scheduleItems.forEach(item => {
           if (item.type === 'flight' && item.flightDetails) {
-              processItemCost(item.id, item.date, item.title, '機票', Number(item.flightDetails.cost), item.flightDetails.currency || 'TWD', item.flightDetails.hasServiceFee || false, Number(item.flightDetails.serviceFeePercentage), item.flightDetails.participants || [], item.flightDetails.isPotential || false);
+              processItemCost(item.id, item.date, item.title, '機票', Number(item.flightDetails.cost) || 0, item.flightDetails.currency || 'TWD', item.flightDetails.hasServiceFee || false, Number(item.flightDetails.serviceFeePercentage) || 0, item.flightDetails.participants || [], item.flightDetails.isPotential || false);
           }
           if (item.type === 'stay' && item.stayDetails) {
-              processItemCost(item.id, item.date, item.title, '住宿', Number(item.stayDetails.cost), item.stayDetails.currency || 'TWD', item.stayDetails.hasServiceFee || false, Number(item.stayDetails.serviceFeePercentage), item.stayDetails.participants || [], item.stayDetails.isPotential || false);
+              processItemCost(item.id, item.date, item.title, '住宿', Number(item.stayDetails.cost) || 0, item.stayDetails.currency || 'TWD', item.stayDetails.hasServiceFee || false, Number(item.stayDetails.serviceFeePercentage) || 0, item.stayDetails.participants || [], item.stayDetails.isPotential || false);
           }
           if (item.type === 'transport') {
               if (item.transitDetails) {
-                  const transitCost = (Number(item.transitDetails.fare.discountedPrice) || 0) + (Number(item.transitDetails.fare.seatReservationFee) || 0);
-                  processItemCost(item.id, item.date, item.title, '交通', transitCost, item.transitDetails.fare.currency || 'TWD', false, 0, item.transitDetails.participants || [], item.transitDetails.isPotential || false);
+                  const farePrice = (item.transitDetails.fare.discountedPrice !== undefined && item.transitDetails.fare.discountedPrice !== '' && item.transitDetails.fare.discountedPrice !== null)
+                    ? (Number(item.transitDetails.fare.discountedPrice) || 0)
+                    : (Number(item.transitDetails.fare.originalPrice) || 0);
+                  const fareCurr = item.transitDetails.fare.currency || 'TWD';
+                  const extraFee = Number(item.transitDetails.fare.seatReservationFee) || 0;
+                  const extraCurr = item.transitDetails.fare.seatReservationFeeCurrency || fareCurr;
+                  const participants = item.transitDetails.participants || [];
+
+                  if (farePrice > 0) {
+                    processItemCost(item.id, item.date, `${item.title} (大眾交通)`, '交通', farePrice, fareCurr, false, 0, participants, item.transitDetails.isPotential || false);
+                  }
+                  if (extraFee > 0) {
+                    const extraName = item.transitDetails.fare.extraFeeName?.trim() || '交通加價';
+                    processItemCost(item.id, item.date, `${item.title} (${extraName})`, '交通', extraFee, extraCurr, false, 0, participants, item.transitDetails.isPotential || false);
+                  }
               } else if (item.carRental && item.carRental.hasRental) {
-                  processItemCost(item.id, item.date, `${item.title} (租車)`, '交通', Number(item.carRental.rentalCost), item.carRental.rentalCurrency || 'TWD', item.carRental.hasServiceFee || false, Number(item.carRental.serviceFeePercentage), item.carRental.participants || [], item.carRental.isPotential || false);
+                  processItemCost(item.id, item.date, `${item.title} (租車)`, '交通', Number(item.carRental.rentalCost) || 0, item.carRental.rentalCurrency || 'TWD', item.carRental.hasServiceFee || false, Number(item.carRental.serviceFeePercentage) || 0, item.carRental.participants || [], item.carRental.isPotential || false);
               }
           }
           if ((item.type === 'spot' || item.type === 'food') && item.spotDetails?.hasTicket) {
-               processItemCost(item.id, item.date, item.title, item.type === 'food' ? '餐飲' : '門票', Number(item.spotDetails.ticketCost), item.spotDetails.currency || 'TWD', item.spotDetails.hasServiceFee || false, Number(item.spotDetails.serviceFeePercentage), item.spotDetails.participants || [], item.spotDetails.isPotential || false);
+               processItemCost(item.id, item.date, item.title, item.type === 'food' ? '餐飲' : '門票', Number(item.spotDetails.ticketCost) || 0, item.spotDetails.currency || 'TWD', item.spotDetails.hasServiceFee || false, Number(item.spotDetails.serviceFeePercentage) || 0, item.spotDetails.participants || [], item.spotDetails.isPotential || false);
           }
       });
 
@@ -219,84 +233,97 @@ export const MembersView: React.FC<MembersViewProps> = ({
 
         {/* Member Details Modal */}
         {selectedMemberId && selectedMemberData && (
-            <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedMemberId(null)}>
-                <div className="bg-[#FAF8F2] w-full max-w-md rounded-[2.5rem] p-6 shadow-2xl border-4 border-beige-dark animate-scale-in max-h-[85vh] overflow-y-auto custom-scroll relative" onClick={e => e.stopPropagation()}>
-                    <button onClick={() => setSelectedMemberId(null)} className="absolute top-4 right-4 p-2 bg-white rounded-full text-gray-400 border border-beige-dark shadow-sm hover:text-red-400 transition-colors"><X size={16}/></button>
+            <div className="fixed inset-0 bg-cocoa/60 z-[150] flex flex-col items-center justify-end sm:justify-center sm:p-4 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedMemberId(null)}>
+                <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-lg sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col overflow-hidden relative" onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-black text-sage bg-sage-light/60 px-2.5 py-1 rounded-full">成員詳細資料</span>
+                        </div>
+                        <button onClick={() => setSelectedMemberId(null)} className="p-2.5 bg-white rounded-full text-gray-400 border border-beige-dark shadow-sm hover:text-red-400 transition-colors active:scale-95"><X size={18}/></button>
+                    </div>
                     
-                    <div className="flex flex-col items-center mb-6">
-                        <div className="relative group/avatar cursor-pointer" onClick={handleOpenAvatarPickerForSelected}>
-                            <div className="w-22 h-22 rounded-full bg-white border-4 border-beige-dark overflow-hidden shadow-sm p-1">
-                                <MemberAvatar 
-                                  avatar={selectedMemberData.avatar} 
-                                  name={selectedMemberData.name} 
-                                  id={selectedMemberData.id} 
-                                  size="xl" 
-                                  showBorder={false}
-                                  className="w-full h-full"
-                                />
+                    <div className="overflow-y-auto custom-scroll flex-1 py-4 pr-1 space-y-5">
+                        <div className="flex flex-col items-center">
+                            <div className="relative group/avatar cursor-pointer" onClick={handleOpenAvatarPickerForSelected}>
+                                <div className="w-24 h-24 rounded-full bg-white border-4 border-beige-dark overflow-hidden shadow-sm p-1">
+                                    <MemberAvatar 
+                                      avatar={selectedMemberData.avatar} 
+                                      name={selectedMemberData.name} 
+                                      id={selectedMemberData.id} 
+                                      size="xl" 
+                                      showBorder={false}
+                                      className="w-full h-full"
+                                    />
+                                </div>
+                                <button 
+                                  className="absolute -bottom-1 -right-1 bg-sage text-white p-2.5 rounded-full border-2 border-white shadow-md hover:bg-sage-dark transition-all text-xs flex items-center gap-1"
+                                  title="更換可愛頭像"
+                                >
+                                  <Smile size={16} strokeWidth={2.5} />
+                                </button>
                             </div>
+                            
+                            <div className="flex items-center gap-2 mt-3">
+                               <h3 className="text-2xl font-black text-cocoa flex items-center gap-2">{selectedMemberData.name}</h3>
+                               <button onClick={() => handleEditInit(selectedMemberData)} className="p-2 bg-white rounded-xl border border-beige-dark text-gray-400 hover:text-sage transition-colors shadow-sm" title="編輯名稱">
+                                 <Edit2 size={15} />
+                               </button>
+                            </div>
+
                             <button 
-                              className="absolute -bottom-1 -right-1 bg-sage text-white p-2 rounded-full border-2 border-white shadow-md hover:bg-sage-dark transition-all text-xs flex items-center gap-1"
-                              title="更換頭像"
+                              onClick={handleOpenAvatarPickerForSelected}
+                              className="mt-2.5 text-xs font-black text-sage bg-white hover:bg-sage-light/40 px-3.5 py-1.5 rounded-full border border-sage/40 shadow-xs flex items-center gap-1.5 transition-all active:scale-95"
                             >
-                              <Smile size={14} strokeWidth={2.5} />
+                              <Sparkles size={14} />
+                              <span>更換可愛人臉頭像</span>
                             </button>
                         </div>
-                        
-                        <div className="flex items-center gap-2 mt-3">
-                           <h3 className="text-2xl font-black text-cocoa flex items-center gap-2">{selectedMemberData.name}</h3>
-                           <button onClick={() => handleEditInit(selectedMemberData)} className="p-1.5 bg-white rounded-lg border border-beige-dark text-gray-300 hover:text-sage transition-colors shadow-sm" title="編輯名稱">
-                             <Edit2 size={14} />
-                           </button>
+
+                        <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark text-center shadow-xs">
+                            <span className="text-[11px] font-black text-gray-400 block mb-1 uppercase tracking-wider">預計支出總計 (TWD)</span>
+                            <span className="text-3xl font-black text-sage font-mono">NT$ {financial.totalPotential.toLocaleString()}</span>
                         </div>
 
-                        <button 
-                          onClick={handleOpenAvatarPickerForSelected}
-                          className="mt-2 text-xs font-black text-sage bg-white hover:bg-sage-light/40 px-3 py-1 rounded-full border border-sage/40 shadow-xs flex items-center gap-1.5 transition-all"
-                        >
-                          <Sparkles size={12} />
-                          <span>更換可愛人臉頭像</span>
-                        </button>
-                    </div>
-
-                    <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark text-center mb-6 shadow-xs">
-                        <span className="text-[10px] font-black text-gray-400 block mb-1 uppercase tracking-wider">預計支出總計 (TWD)</span>
-                        <span className="text-2xl font-black text-sage font-mono">NT$ {financial.totalPotential.toLocaleString()}</span>
-                    </div>
-
-                    <div className="space-y-3">
-                        <h4 className="text-sm font-black text-cocoa flex items-center gap-2 mb-3"><DollarSign size={16} className="text-sage"/> 行程分攤明細</h4>
-                        {financial.breakdown.length === 0 ? (
-                            <div className="text-center py-10 text-gray-400 text-xs font-bold bg-white rounded-2xl border border-dashed border-beige-dark">尚未加入任何分攤行程</div>
-                        ) : (
-                            financial.breakdown.map((item, idx) => (
-                                <div key={idx} onClick={() => { setSelectedMemberId(null); onJumpToSchedule(item.date, item.id); }} className="p-3 rounded-2xl border border-beige-dark bg-white flex justify-between items-center gap-3 cursor-pointer transition-all active:scale-[0.98]">
-                                    <div className="flex gap-3 items-center flex-1 min-w-0">
-                                        <div className="p-2 rounded-xl bg-gray-50 text-gray-400 border border-beige-dark"><Clock size={16}/></div>
-                                        <div className="flex flex-col min-w-0">
-                                            <span className="text-sm font-black text-cocoa truncate">{item.title}</span>
-                                            <span className="text-[9px] font-bold text-gray-400">{item.type} • {item.date}</span>
+                        <div className="space-y-3">
+                            <h4 className="text-sm font-black text-cocoa flex items-center gap-2 mb-2"><DollarSign size={16} className="text-sage"/> 行程分攤明細</h4>
+                            {financial.breakdown.length === 0 ? (
+                                <div className="text-center py-10 text-gray-400 text-xs font-bold bg-white rounded-2xl border border-dashed border-beige-dark">尚未加入任何分攤行程</div>
+                            ) : (
+                                financial.breakdown.map((item, idx) => (
+                                    <div key={idx} onClick={() => { setSelectedMemberId(null); onJumpToSchedule(item.date, item.id); }} className="p-3.5 rounded-2xl border border-beige-dark bg-white flex justify-between items-center gap-3 cursor-pointer transition-all active:scale-[0.98] hover:border-sage/40 shadow-xs">
+                                        <div className="flex gap-3 items-center flex-1 min-w-0">
+                                            <div className="p-2.5 rounded-xl bg-gray-50 text-gray-400 border border-beige-dark flex-shrink-0"><Clock size={16}/></div>
+                                            <div className="flex flex-col min-w-0">
+                                                <span className="text-sm font-black text-cocoa truncate">{item.title}</span>
+                                                <span className="text-[10px] font-bold text-gray-400">{item.type} • {item.date}</span>
+                                            </div>
+                                        </div>
+                                        <div className="text-right flex items-center gap-2 flex-shrink-0">
+                                            <span className="text-sm font-black text-cocoa font-mono">NT$ {Math.round(item.amount).toLocaleString()}</span>
+                                            <ArrowRight size={14} className="text-gray-300"/>
                                         </div>
                                     </div>
-                                    <div className="text-right flex items-center gap-2">
-                                        <span className="text-sm font-black text-cocoa font-mono">NT$ {Math.round(item.amount).toLocaleString()}</span>
-                                        <ArrowRight size={14} className="text-gray-300"/>
-                                    </div>
-                                </div>
-                            ))
-                        )}
+                                ))
+                            )}
+                        </div>
                     </div>
                     
-                    <div className="mt-8 flex justify-center">
+                    <div className="pt-3 border-t-2 border-beige-dark flex justify-between items-center mt-auto flex-shrink-0 bg-[#FAF8F2]">
                         <button 
                             onClick={() => {
                                 setPendingAction({ type: 'delete', payload: selectedMemberData.id });
                                 setPasswordInput('');
                                 setShowPasswordModal(true);
                             }}
-                            className="text-xs font-bold text-red-300 hover:text-red-500 transition-colors flex items-center gap-1"
+                            className="text-xs font-bold text-red-400 hover:text-red-600 transition-colors flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-50 border border-red-200"
                         >
-                            <Trash2 size={12} /> 刪除成員
+                            <Trash2 size={13} /> 刪除成員
+                        </button>
+                        <button
+                            onClick={() => setSelectedMemberId(null)}
+                            className="px-6 py-2.5 bg-sage text-white font-black rounded-xl text-xs shadow-sm hover:bg-sage-dark transition-all"
+                        >
+                            關閉
                         </button>
                     </div>
                 </div>
@@ -305,71 +332,88 @@ export const MembersView: React.FC<MembersViewProps> = ({
 
         {/* Password Modal */}
         {showPasswordModal && (
-            <div className="fixed inset-0 bg-cocoa/50 z-[400] flex items-center justify-center px-4 backdrop-blur-sm">
-                <div className={`bg-beige w-full max-w-xs rounded-[2rem] p-6 shadow-2xl text-center border-4 border-beige-dark ${passwordShake ? 'animate-shake' : ''}`}>
-                    <div className="w-14 h-14 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center mx-auto mb-3 border-2 border-teal-100"><Lock size={24}/></div>
-                    <h3 className="font-black text-lg text-cocoa mb-4">管理員權限確認</h3>
-                    <input type="password" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="0000" className="w-full text-center bg-white border-2 border-beige-dark p-3 rounded-xl outline-none text-lg font-bold mb-4" autoFocus />
-                    <div className="flex gap-2"><button onClick={() => setShowPasswordModal(false)} className="flex-1 py-2 text-gray-400 font-bold">取消</button><button onClick={handlePasswordConfirm} className="flex-1 py-2 bg-sage text-white rounded-xl font-black">確認</button></div>
+            <div className="fixed inset-0 bg-cocoa/60 z-[400] flex flex-col items-center justify-end sm:justify-center sm:p-4 backdrop-blur-sm animate-fade-in" onClick={() => setShowPasswordModal(false)}>
+                <div className={`bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-sm sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden ${passwordShake ? 'animate-shake' : ''}`} onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0 sm:hidden">
+                        <h3 className="font-black text-lg text-cocoa">權限確認</h3>
+                        <button onClick={() => setShowPasswordModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                            <X size={18}/>
+                        </button>
+                    </div>
+                    <div className="my-auto py-6 text-center">
+                        <div className="w-16 h-16 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-teal-100 shadow-sm"><Lock size={28}/></div>
+                        <h3 className="font-black text-xl text-cocoa mb-2">管理員權限確認</h3>
+                        <p className="text-gray-400 text-xs font-bold mb-4">請輸入通行密碼進行管理操作</p>
+                        <input type="password" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="0000" className="w-full max-w-xs mx-auto text-center bg-white border-2 border-beige-dark p-3.5 rounded-2xl outline-none text-xl font-bold shadow-sm" autoFocus />
+                    </div>
+                    <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                        <button onClick={() => setShowPasswordModal(false)} className="flex-1 py-4 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+                        <button onClick={handlePasswordConfirm} className="flex-1 py-4 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all">確認</button>
+                    </div>
                 </div>
             </div>
         )}
 
         {/* Add / Edit Member Modal */}
         {showMemberModal && (
-            <div className="fixed inset-0 bg-cocoa/50 z-[300] flex items-center justify-center px-4 backdrop-blur-sm" onClick={() => setShowMemberModal(false)}>
-                <div className="bg-[#FAF8F2] w-full max-w-sm rounded-[2.5rem] p-6 shadow-2xl border-4 border-beige-dark" onClick={e => e.stopPropagation()}>
-                    <h3 className="font-black text-lg mb-4 text-center text-cocoa">
-                      {pendingAction?.type === 'edit' ? '編輯成員資料' : '新增行程成員'}
-                    </h3>
-
-                    {/* Interactive Cute Avatar Selection preview */}
-                    <div className="flex flex-col items-center mb-5">
-                      <div 
-                        onClick={handleOpenAvatarPickerForForm}
-                        className="w-20 h-20 rounded-full bg-white border-3 border-sage p-1 shadow-md cursor-pointer hover:scale-105 transition-all relative group"
-                        title="點擊挑選可愛人臉頭像"
-                      >
-                        <MemberAvatar 
-                          avatar={form.avatar} 
-                          name={form.name || '新成員'} 
-                          size="xl" 
-                          showBorder={false}
-                          className="w-full h-full"
-                        />
-                        <div className="absolute inset-0 bg-black/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <Smile size={20} className="text-white" />
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleOpenAvatarPickerForForm}
-                        className="mt-2 text-xs font-black text-sage bg-sage-light/60 hover:bg-sage-light px-3 py-1 rounded-full border border-sage/40 flex items-center gap-1 transition-all"
-                      >
-                        <Sparkles size={12} />
-                        <span>挑選可愛頭像</span>
-                      </button>
+            <div className="fixed inset-0 bg-cocoa/60 z-[300] flex flex-col items-center justify-end sm:justify-center sm:p-4 backdrop-blur-sm animate-fade-in" onClick={() => setShowMemberModal(false)}>
+                <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
+                        <h3 className="font-black text-lg text-cocoa">
+                          {pendingAction?.type === 'edit' ? '編輯成員資料' : '新增行程成員'}
+                        </h3>
+                        <button onClick={() => setShowMemberModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                          <X size={16} />
+                        </button>
                     </div>
 
-                    <div className="space-y-4">
-                        <div>
-                           <label className="text-xs text-gray-400 font-bold ml-1 block mb-1">成員姓名</label>
+                    <div className="overflow-y-auto custom-scroll flex-1 py-6 flex flex-col items-center justify-center space-y-6">
+                        {/* Interactive Cute Avatar Selection preview */}
+                        <div className="flex flex-col items-center">
+                          <div 
+                            onClick={handleOpenAvatarPickerForForm}
+                            className="w-24 h-24 rounded-full bg-white border-3 border-sage p-1.5 shadow-md cursor-pointer hover:scale-105 transition-all relative group"
+                            title="點擊挑選可愛人臉頭像"
+                          >
+                            <MemberAvatar 
+                              avatar={form.avatar} 
+                              name={form.name || '新成員'} 
+                              size="xl" 
+                              showBorder={false}
+                              className="w-full h-full"
+                            />
+                            <div className="absolute inset-0 bg-black/20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <Smile size={24} className="text-white" />
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleOpenAvatarPickerForForm}
+                            className="mt-3 text-xs font-black text-sage bg-sage-light/70 hover:bg-sage-light px-4 py-1.5 rounded-full border border-sage/40 flex items-center gap-1.5 transition-all shadow-xs"
+                          >
+                            <Sparkles size={14} />
+                            <span>挑選可愛頭像</span>
+                          </button>
+                        </div>
+
+                        <div className="w-full space-y-2 max-w-xs">
+                           <label className="text-xs text-gray-400 font-bold ml-1 block">成員姓名</label>
                            <input 
                                value={form.name} 
                                onChange={e => setForm({...form, name: e.target.value})} 
                                type="text" 
-                               className="w-full bg-white text-cocoa p-3 rounded-xl outline-none border-2 border-beige-dark font-black text-center text-lg placeholder-gray-300 focus:border-sage"
+                               className="w-full bg-white text-cocoa p-3.5 rounded-2xl outline-none border-2 border-beige-dark font-black text-center text-lg placeholder-gray-300 focus:border-sage shadow-xs"
                                placeholder="請輸入成員名稱"
                                autoFocus
                            />
                         </div>
                     </div>
                     
-                    <div className="flex gap-3 mt-8">
-                      <button onClick={() => setShowMemberModal(false)} className="flex-1 py-3 rounded-2xl bg-white text-gray-400 font-black border-2 border-beige-dark hover:bg-gray-50 transition-all">
+                    <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0 bg-[#FAF8F2]">
+                      <button onClick={() => setShowMemberModal(false)} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-black border-2 border-beige-dark hover:bg-gray-50 transition-all text-sm">
                         取消
                       </button>
-                      <button onClick={handleSaveMember} className="flex-1 py-3 rounded-2xl bg-sage hover:bg-sage-dark text-white font-black shadow-hard-sage border-2 border-sage-dark transition-all">
+                      <button onClick={handleSaveMember} className="flex-1 py-3.5 rounded-2xl bg-sage hover:bg-sage-dark text-white font-black shadow-hard-sage border-2 border-sage-dark transition-all text-sm">
                         儲存
                       </button>
                     </div>

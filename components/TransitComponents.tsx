@@ -257,7 +257,7 @@ export const TransitLegChainView: React.FC<{
   fare?: TransitFareDetails;
   isDetailed?: boolean;
 }> = ({ legs, fare, isDetailed = false }) => {
-  const [expanded, setExpanded] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(true);
 
   if (!legs || legs.length === 0) return null;
 

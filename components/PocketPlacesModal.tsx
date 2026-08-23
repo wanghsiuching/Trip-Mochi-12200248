@@ -207,13 +207,13 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
       };
 
   return (
-    <div className="fixed inset-0 bg-cocoa/50 backdrop-blur-sm z-[70] flex items-center justify-center p-3 sm:p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={onClose}>
       <div 
-        className="bg-[#FAF9F6] w-full max-w-2xl rounded-[2.5rem] shadow-2xl border-2 border-beige-dark flex flex-col max-h-[90vh] overflow-hidden animate-scale-in"
+        className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-2xl sm:rounded-[2.5rem] rounded-none shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Header with Switchable Tabs */}
-        <div className="bg-white px-6 pt-5 pb-3 border-b border-beige-dark flex-shrink-0">
+        <div className="bg-white px-5 sm:px-6 pt-5 pb-3 border-b-2 border-beige-dark flex-shrink-0">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-2">
               <span className="text-xl font-black text-cocoa">口袋名單筆記</span>
@@ -223,7 +223,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
             </div>
             <button 
               onClick={onClose} 
-              className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500 transition-colors"
+              className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors"
             >
               <X size={18} />
             </button>
@@ -529,12 +529,12 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
 
       {/* Add / Edit Item Sub-Modal */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-black/40 z-[80] flex items-center justify-center p-4" onClick={() => setIsFormOpen(false)}>
+        <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[80] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={() => setIsFormOpen(false)}>
           <div 
-            className="bg-white w-full max-w-lg rounded-[2rem] p-6 shadow-2xl border-2 border-beige-dark max-h-[85vh] overflow-y-auto no-scrollbar"
+            className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center mb-5">
+            <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
               <div className="flex items-center gap-2">
                 <div className={`w-8 h-8 rounded-full ${formData.category === 'food' ? 'bg-orange-100 text-orange-600' : 'bg-teal-100 text-teal-700'} flex items-center justify-center`}>
                   {formData.category === 'food' ? <Utensils size={16} /> : <Compass size={16} />}
@@ -545,13 +545,14 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
               </div>
               <button 
                 onClick={() => setIsFormOpen(false)}
-                className="p-1.5 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-500"
+                className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSaveForm} className="space-y-4">
+            <form onSubmit={handleSaveForm} className="flex flex-col h-full overflow-hidden justify-between">
+              <div className="space-y-4 overflow-y-auto custom-scroll flex-1 py-4 pr-1">
               {/* Category selector */}
               <div>
                 <label className="text-xs font-black text-gray-400 block mb-1.5 uppercase">類型</label>
@@ -700,20 +701,22 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                 />
               </div>
 
+              </div>
+
               {/* Submit Buttons */}
-              <div className="flex gap-2 pt-2">
+              <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}
-                  className="flex-1 py-3 rounded-xl border-2 border-beige-dark font-black text-gray-400 hover:bg-gray-50 text-xs transition-colors"
+                  className="flex-1 py-3.5 rounded-2xl border-2 border-beige-dark font-black text-gray-400 hover:bg-gray-50 text-sm transition-colors"
                 >
                   取消
                 </button>
                 <button
                   type="submit"
-                  className={`flex-1 py-3 rounded-xl ${
+                  className={`flex-1 py-3.5 rounded-2xl ${
                     formData.category === 'food' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-teal-600 hover:bg-teal-700'
-                  } text-white font-black text-xs shadow-md transition-all active:scale-95`}
+                  } text-white font-black text-sm shadow-md transition-all active:scale-95`}
                 >
                   {editingId ? '儲存變更' : '新增項目'}
                 </button>
@@ -725,66 +728,68 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
 
       {/* Add To Schedule Modal */}
       {addToScheduleTarget && (
-        <div className="fixed inset-0 bg-black/40 z-[80] flex items-center justify-center p-4" onClick={() => setAddToScheduleTarget(null)}>
+        <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[80] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={() => setAddToScheduleTarget(null)}>
           <div 
-            className="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border-2 border-beige-dark"
+            className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-sm sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-black text-cocoa flex items-center gap-2">
-                <CalendarPlus size={18} className="text-sage" /> 加入行程安排
+            <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
+              <h3 className="text-lg font-black text-cocoa flex items-center gap-2">
+                <CalendarPlus size={20} className="text-sage" /> 加入行程安排
               </h3>
               <button 
                 onClick={() => setAddToScheduleTarget(null)}
-                className="p-1 bg-gray-100 rounded-full text-gray-400"
+                className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors"
               >
-                <X size={16} />
+                <X size={18} />
               </button>
             </div>
 
-            <p className="text-xs font-bold text-gray-500 mb-4">
-              將「<span className="text-cocoa font-black">{addToScheduleTarget.title}</span>」加到行程中：
-            </p>
+            <div className="overflow-y-auto custom-scroll flex-1 py-4">
+              <p className="text-xs font-bold text-gray-500 mb-4">
+                將「<span className="text-cocoa font-black">{addToScheduleTarget.title}</span>」加到行程中：
+              </p>
 
-            <div className="space-y-3 mb-5">
-              <div>
-                <label className="text-[11px] font-black text-gray-400 block mb-1">選擇日期</label>
-                <select
-                  value={targetScheduleDate}
-                  onChange={e => setTargetScheduleDate(e.target.value)}
-                  className="w-full bg-gray-50 p-2.5 rounded-xl border border-gray-200 font-bold text-xs text-cocoa"
-                >
-                  {tripDays.map((d, i) => (
-                    <option key={d.date} value={d.date}>
-                      Day {i + 1} ({d.date} {d.location || ''})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <div className="space-y-3">
+                <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
+                  <label className="text-[11px] font-black text-gray-400 block mb-1">選擇日期</label>
+                  <select
+                    value={targetScheduleDate}
+                    onChange={e => setTargetScheduleDate(e.target.value)}
+                    className="w-full bg-beige/30 p-2.5 rounded-xl border border-beige-dark font-bold text-xs text-cocoa outline-none"
+                  >
+                    {tripDays.map((d, i) => (
+                      <option key={d.date} value={d.date}>
+                        Day {i + 1} ({d.date} {d.location || ''})
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-              <div>
-                <label className="text-[11px] font-black text-gray-400 block mb-1">預計時間</label>
-                <input
-                  type="time"
-                  value={targetScheduleTime}
-                  onChange={e => setTargetScheduleTime(e.target.value)}
-                  className="w-full bg-gray-50 p-2.5 rounded-xl border border-gray-200 font-bold text-xs text-cocoa"
-                />
+                <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
+                  <label className="text-[11px] font-black text-gray-400 block mb-1">預計時間</label>
+                  <input
+                    type="time"
+                    value={targetScheduleTime}
+                    onChange={e => setTargetScheduleTime(e.target.value)}
+                    className="w-full bg-beige/30 p-2.5 rounded-xl border border-beige-dark font-bold text-xs text-cocoa outline-none"
+                  />
+                </div>
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
               <button
                 type="button"
                 onClick={() => setAddToScheduleTarget(null)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-gray-400 font-bold text-xs"
+                className="flex-1 py-3.5 rounded-2xl border-2 border-beige-dark text-gray-400 font-bold text-sm bg-white hover:bg-gray-50 transition-colors"
               >
                 取消
               </button>
               <button
                 type="button"
                 onClick={confirmAddToSchedule}
-                className="flex-1 py-2.5 rounded-xl bg-sage hover:bg-sage/90 text-white font-black text-xs shadow-md transition-all active:scale-95"
+                className="flex-1 py-3.5 rounded-2xl bg-sage hover:bg-sage/90 text-white font-black text-sm shadow-md transition-all active:scale-95"
               >
                 確認加入
               </button>

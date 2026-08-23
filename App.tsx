@@ -519,12 +519,12 @@ export default function App() {
     <div className={`min-h-screen ${THEME.colors.bg}`}>
       <div className="max-w-md mx-auto min-h-screen relative shadow-2xl bg-beige overflow-hidden">
         <header className="px-6 pt-12 pb-2 flex justify-between items-start bg-beige">
-          <div className="flex flex-col">
+          <div className="flex flex-col flex-1 min-w-0 pr-2">
             <button onClick={handleBackToHome} className="flex items-center gap-1 text-sm font-bold text-gray-400 mb-3"><ChevronLeft size={16} strokeWidth={3}/> 返回首頁</button>
-            <h1 className="text-3xl font-black text-cocoa tracking-tight">{currentTripName}</h1>
-            <div onClick={handleShare} className="flex items-center gap-2 mt-2 cursor-pointer group"><span className="text-xs font-bold text-sage bg-white px-3 py-1.5 rounded-lg border-2 border-beige-dark group-hover:border-sage flex items-center gap-2 shadow-hard-sm">Code: {currentTripId} <Copy size={12} /></span>{copyFeedback && <span className="text-xs text-sage font-bold animate-pulse bg-white px-2 py-1 rounded-lg">已複製代碼！</span>}</div>
+            <h1 className="text-2xl sm:text-3xl font-black text-cocoa tracking-tight break-words leading-snug">{currentTripName}</h1>
+            <div onClick={handleShare} className="flex items-center gap-2 mt-2 cursor-pointer group flex-wrap"><span className="text-xs font-bold text-sage bg-white px-3 py-1.5 rounded-lg border-2 border-beige-dark group-hover:border-sage flex items-center gap-2 shadow-hard-sm">Code: {currentTripId} <Copy size={12} /></span>{copyFeedback && <span className="text-xs text-sage font-bold animate-pulse bg-white px-2 py-1 rounded-lg">已複製代碼！</span>}</div>
           </div>
-          <div className="flex items-center gap-3 pt-6">
+          <div className="flex items-center gap-3 pt-6 flex-shrink-0">
             {activeTab === 'schedule' && (
               <button onClick={() => setIsSettingsModalOpen(true)} className="p-3 bg-white rounded-full shadow-hard-sm border-2 border-beige-dark text-gray-400 hover:text-sage"><Settings size={20} strokeWidth={2.5} /></button>
             )}
@@ -578,15 +578,15 @@ export default function App() {
                    })}
                    <button onClick={handleAddDay} className="flex-shrink-0 flex flex-col items-center justify-center w-[3.75rem] min-w-[3.75rem] h-16 rounded-2xl border-2 border-dashed border-[#E0E5D5] text-gray-300 hover:text-sage bg-white/50 snap-center"><Plus size={24} strokeWidth={3} /></button>
                  </div>
-                 <div className="mt-2 flex justify-between items-center px-1 flex-wrap gap-2">
+                 <div className="mt-2 flex flex-col sm:flex-row sm:justify-between sm:items-center px-1 gap-2">
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400">
                         <span className="w-1.5 h-1.5 rounded-full bg-sage/80 flex-shrink-0"></span>
                         <span>{swappingFromIndex !== null ? '點擊其他日期來完成對調' : '長按日期方塊後釋放，再點擊目標可對調'}</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
                         <button 
                             onClick={() => { setPocketInitialTab('food'); setIsPocketModalOpen(true); }} 
-                            className="bg-orange-100 hover:bg-orange-200 text-orange-700 p-2 rounded-xl border border-orange-200 shadow-sm text-xs font-bold inline-flex items-center gap-1.5 transition-all active:scale-95"
+                            className="bg-orange-100 hover:bg-orange-200 text-orange-700 px-2.5 py-1.5 rounded-xl border border-orange-200 shadow-sm text-xs font-bold inline-flex items-center gap-1.5 transition-all active:scale-95 whitespace-nowrap"
                             title="美食口袋名單"
                         >
                             <Utensils size={13} className="text-orange-500" /> 美食
@@ -598,7 +598,7 @@ export default function App() {
                         </button>
                         <button 
                             onClick={() => { setPocketInitialTab('spot'); setIsPocketModalOpen(true); }} 
-                            className="bg-teal-100 hover:bg-teal-200 text-teal-800 p-2 rounded-xl border border-teal-200 shadow-sm text-xs font-bold inline-flex items-center gap-1.5 transition-all active:scale-95"
+                            className="bg-teal-100 hover:bg-teal-200 text-teal-800 px-2.5 py-1.5 rounded-xl border border-teal-200 shadow-sm text-xs font-bold inline-flex items-center gap-1.5 transition-all active:scale-95 whitespace-nowrap"
                             title="探索景點名單"
                         >
                             <Compass size={13} className="text-teal-600" /> 探索
@@ -608,7 +608,7 @@ export default function App() {
                                 </span>
                             )}
                         </button>
-                        <button onClick={() => setIsPotentialModalOpen(true)} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 p-2 rounded-xl border border-yellow-200 shadow-sm text-xs font-bold inline-flex items-center gap-1 transition-all active:scale-95"><Coins size={12}/> 潛在花費</button>
+                        <button onClick={() => setIsPotentialModalOpen(true)} className="bg-yellow-100 hover:bg-yellow-200 text-yellow-700 px-2.5 py-1.5 rounded-xl border border-yellow-200 shadow-sm text-xs font-bold inline-flex items-center gap-1 transition-all active:scale-95 whitespace-nowrap"><Coins size={12}/> 潛在花費</button>
                     </div>
                  </div>
                </div>
@@ -624,7 +624,7 @@ export default function App() {
                       if (item.type === 'spot') { icon = Camera; colorClass = 'bg-green-100 text-green-600'; }
                       if (item.type === 'flight') { icon = Plane; colorClass = 'bg-cyan-100 text-cyan-600'; }
                       const IconComp = icon;
-                      const partIds = item.type === 'flight' ? item.flightDetails?.participants : item.type === 'stay' ? item.stayDetails?.participants : item.type === 'transport' ? item.carRental?.participants : (item.type === 'spot' || item.type === 'food') ? item.spotDetails?.participants : [];
+                      const partIds = item.type === 'flight' ? item.flightDetails?.participants : item.type === 'stay' ? item.stayDetails?.participants : item.type === 'transport' ? (item.transitDetails?.participants || item.carRental?.participants) : (item.type === 'spot' || item.type === 'food') ? item.spotDetails?.participants : [];
                       const participantNames = getMemberNames(partIds);
                       const fruitIcon = getScheduleIcon(item.id);
                       return (
@@ -635,14 +635,20 @@ export default function App() {
                           </div>
                           <div onClick={() => setViewingItem(item)} className="bg-white rounded-[2rem] shadow-hard-sm border-2 border-beige-dark overflow-hidden relative transition-all cursor-pointer hover:border-sage group-hover:-translate-y-1">
                             <div className="p-5">
-                                <div className="flex justify-between items-start mb-4">
-                                    <div className="flex items-center gap-3">
-                                         <div className={`p-3 rounded-2xl ${colorClass} border-2 border-white shadow-sm`}><IconComp size={22} strokeWidth={2.5} /></div>
-                                         <div><div className="flex items-center gap-2 mb-1"><span className="font-mono text-sm font-black text-white bg-sage px-2 py-0.5 rounded-lg shadow-sm">{item.time}</span><span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">{item.type}</span></div><h3 className="text-xl font-black text-cocoa tracking-tight leading-tight">{item.title}</h3></div>
+                                <div className="flex justify-between items-start mb-4 gap-2">
+                                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                                         <div className={`p-3 rounded-2xl ${colorClass} border-2 border-white shadow-sm flex-shrink-0`}><IconComp size={22} strokeWidth={2.5} /></div>
+                                         <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                <span className="font-mono text-sm font-black text-white bg-sage px-2.5 py-0.5 rounded-lg shadow-sm">{item.time}</span>
+                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">{item.type}</span>
+                                            </div>
+                                            <h3 className="text-lg sm:text-xl font-black text-cocoa leading-snug break-words">{item.title}</h3>
+                                         </div>
                                     </div>
-                                    <div className="flex flex-col gap-1"><button onClick={(e) => { e.stopPropagation(); handleMoveItem(index, 'up'); }} disabled={index === 0} className={`p-1 rounded-full border border-beige-dark ${index === 0 ? 'opacity-0' : 'text-gray-300 hover:bg-sage hover:text-white'}`}><ChevronUp size={12} /></button><button onClick={(e) => { e.stopPropagation(); handleMoveItem(index, 'down'); }} disabled={index === scheduleItems.filter(i => i.date === selectedDate).length - 1} className={`p-1 rounded-full border border-beige-dark ${index === scheduleItems.filter(i => i.date === selectedDate).length - 1 ? 'opacity-0' : 'text-gray-300 hover:bg-sage hover:text-white'}`}><ChevronDown size={12} /></button></div>
+                                    <div className="flex flex-col gap-1 flex-shrink-0"><button onClick={(e) => { e.stopPropagation(); handleMoveItem(index, 'up'); }} disabled={index === 0} className={`p-1 rounded-full border border-beige-dark ${index === 0 ? 'opacity-0' : 'text-gray-300 hover:bg-sage hover:text-white'}`}><ChevronUp size={12} /></button><button onClick={(e) => { e.stopPropagation(); handleMoveItem(index, 'down'); }} disabled={index === scheduleItems.filter(i => i.date === selectedDate).length - 1} className={`p-1 rounded-full border border-beige-dark ${index === scheduleItems.filter(i => i.date === selectedDate).length - 1 ? 'opacity-0' : 'text-gray-300 hover:bg-sage hover:text-white'}`}><ChevronDown size={12} /></button></div>
                                 </div>
-                                <div className="flex items-center text-gray-500 text-sm gap-2 font-bold bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 w-full"><MapPin size={16} className="text-sage" /><span className="truncate flex-1">{item.location}</span><button onClick={(e) => { e.stopPropagation(); openMap(item.location); }} className="p-1.5 bg-white rounded-lg text-cocoa hover:text-white hover:bg-sage shadow-sm border border-gray-200 transition-colors"><Navigation size={12} strokeWidth={2.5} /></button></div>
+                                <div className="flex items-center text-gray-500 text-sm gap-2 font-bold bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 w-full"><MapPin size={16} className="text-sage flex-shrink-0" /><span className="truncate flex-1">{item.location}</span><button onClick={(e) => { e.stopPropagation(); openMap(item.location); }} className="p-1.5 bg-white rounded-lg text-cocoa hover:text-white hover:bg-sage shadow-sm border border-gray-200 transition-colors flex-shrink-0"><Navigation size={12} strokeWidth={2.5} /></button></div>
                             </div>
                             <div className="relative w-full h-0 border-t-2 border-dashed border-beige-dark flex justify-between items-center"><div className="absolute -left-3 -top-3 w-6 h-6 bg-beige rounded-full border-r-2 border-beige-dark"></div><div className="absolute -right-3 -top-3 w-6 h-6 bg-beige rounded-full border-l-2 border-beige-dark"></div></div>
                             <div className="bg-[#FAF9F6] p-5">

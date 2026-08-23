@@ -678,23 +678,29 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
        {/* Edit Public/Split Modal */}
        {showEditModal && editForm && (
-           <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-center justify-center px-4 backdrop-blur-sm">
-               <div className="bg-beige w-full max-w-sm rounded-[2rem] p-6 shadow-2xl border-4 border-beige-dark max-h-[90vh] overflow-y-auto custom-scroll">
-                   <h3 className="font-black text-lg mb-4 text-center text-cocoa">編輯{editForm.fundType ? '公費項目' : '項目'}</h3>
-                   <div className="space-y-3">
-                        <div className="bg-gray-50 p-3 rounded-xl border border-beige-dark space-y-2">
+           <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[150] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={() => setShowEditModal(false)}>
+               <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+                   <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
+                       <h3 className="font-black text-xl text-cocoa">編輯{editForm.fundType ? '公費項目' : '項目'}</h3>
+                       <button onClick={() => setShowEditModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                           <X size={18} />
+                       </button>
+                   </div>
+                   
+                   <div className="overflow-y-auto custom-scroll flex-1 py-4 pr-1 space-y-4">
+                        <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark space-y-3 shadow-sm">
                             <textarea 
                                 value={editForm.title} 
                                 onChange={e => setEditForm({...editForm, title: e.target.value})} 
-                                className="w-full bg-white p-2 rounded-lg border border-beige-dark outline-none font-bold text-cocoa resize-none h-20 leading-tight" 
+                                className="w-full bg-beige/30 p-2.5 rounded-xl border border-beige-dark outline-none font-bold text-cocoa resize-none h-20 leading-tight" 
                                 placeholder="項目名稱"
                             />
                             <div className="grid grid-cols-4 gap-2">
                                 <div className="col-span-3">
-                                    <input type="number" value={editForm.amount} onChange={e => setEditForm({...editForm, amount: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-beige-dark outline-none font-black text-cocoa" placeholder="金額"/>
+                                    <input type="number" value={editForm.amount} onChange={e => setEditForm({...editForm, amount: e.target.value})} className="w-full bg-beige/30 p-2.5 rounded-xl border border-beige-dark outline-none font-black text-cocoa" placeholder="金額"/>
                                 </div>
                                 <div className="col-span-1">
-                                    <select value={editForm.currency} onChange={e => setEditForm({...editForm, currency: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-beige-dark outline-none font-bold text-xs h-full">
+                                    <select value={editForm.currency} onChange={e => setEditForm({...editForm, currency: e.target.value})} className="w-full bg-beige/30 p-2.5 rounded-xl border border-beige-dark outline-none font-bold text-xs h-full">
                                         <option value="TWD">TWD</option>{currencies.map(c => (<option key={c.code} value={c.code}>{c.code}</option>))}
                                     </select>
                                 </div>
@@ -717,29 +723,29 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                         </div>
 
                         {!editForm.fundType && (
-                            <div className="bg-gray-50 p-3 rounded-xl border border-beige-dark">
+                            <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
                                 <label className="text-[10px] text-gray-400 block mb-2 font-bold">付款人</label>
-                                <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                                     {members.map(m => (
-                                        <button key={m.id} onClick={() => setEditForm({...editForm, payer: m.name})} className={`px-3 py-1.5 rounded-lg text-xs border-2 whitespace-nowrap font-bold transition-all ${editForm.payer === m.name ? 'bg-sage text-white border-sage' : 'bg-white text-gray-400 border-beige-dark'}`}>{m.name}</button>
+                                        <button key={m.id} onClick={() => setEditForm({...editForm, payer: m.name})} className={`px-3 py-1.5 rounded-xl text-xs border-2 whitespace-nowrap font-bold transition-all ${editForm.payer === m.name ? 'bg-sage text-white border-sage-dark shadow-sm' : 'bg-beige/40 text-gray-400 border-beige-dark'}`}>{m.name}</button>
                                     ))}
                                 </div>
                             </div>
                         )}
 
                         {editForm.fundType === 'deposit' && (
-                             <div className="bg-gray-50 p-3 rounded-xl border border-beige-dark">
+                             <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
                                 <label className="text-[10px] text-gray-400 block mb-2 font-bold">繳款人 (修正)</label>
-                                <div className="flex gap-2 overflow-x-auto no-scrollbar">
+                                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
                                     {members.map(m => (
-                                        <button key={m.id} onClick={() => setEditForm({...editForm, payer: m.name})} className={`px-3 py-1.5 rounded-lg text-xs border-2 whitespace-nowrap font-bold transition-all ${editForm.payer === m.name ? 'bg-teal-50 text-white border-teal-600' : 'bg-white text-gray-400 border-beige-dark'}`}>{m.name}</button>
+                                        <button key={m.id} onClick={() => setEditForm({...editForm, payer: m.name})} className={`px-3 py-1.5 rounded-xl text-xs border-2 whitespace-nowrap font-bold transition-all ${editForm.payer === m.name ? 'bg-teal-500 text-white border-teal-600 shadow-sm' : 'bg-beige/40 text-gray-400 border-beige-dark'}`}>{m.name}</button>
                                     ))}
                                 </div>
                              </div>
                         )}
 
                         {editForm.fundType === 'expense' && (
-                            <div className="bg-gray-50 p-3 rounded-xl border border-beige-dark">
+                            <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
                                 <label className="text-[10px] text-gray-400 block mb-2 font-bold">參與分攤成員</label>
                                 <div className="flex flex-wrap gap-2">
                                     {members.map(m => (
@@ -747,103 +753,110 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                                             const current = editForm.involvedMembers || [];
                                             const updated = current.includes(m.name) ? current.filter((n: string) => n !== m.name) : [...current, m.name];
                                             setEditForm({...editForm, involvedMembers: updated});
-                                        }} className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 whitespace-nowrap font-bold transition-all ${editForm.involvedMembers?.includes(m.name) ? 'bg-red-400 text-white border-red-500' : 'bg-white text-gray-400 border-beige-dark'}`}>{m.name}</button>
+                                        }} className={`px-3 py-1.5 rounded-xl text-xs font-bold border-2 whitespace-nowrap transition-all ${editForm.involvedMembers?.includes(m.name) ? 'bg-red-400 text-white border-red-500 shadow-sm' : 'bg-beige/40 text-gray-400 border-beige-dark'}`}>{m.name}</button>
                                     ))}
                                 </div>
                             </div>
                         )}
                    </div>
                    
-                   <div className="flex gap-3 mt-6">
-                       <button onClick={() => handleDeleteClick(editingExpense!.id)} className="px-4 py-3 rounded-xl bg-red-50 text-red-400 border border-red-100"><Trash2 size={20}/></button>
-                       <button onClick={() => setShowEditModal(false)} className="flex-1 py-3 rounded-xl bg-white text-gray-400 font-black border-2 border-beige-dark">取消</button>
-                       <button onClick={handleSaveEdit} className="flex-1 py-3 rounded-xl bg-sage text-white font-black shadow-hard-sage border-2 border-sage-dark">保存修改</button>
+                   <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                       <button onClick={() => handleDeleteClick(editingExpense!.id)} className="px-4 py-3.5 rounded-2xl bg-red-50 text-red-500 border-2 border-red-200 hover:bg-red-100 transition-colors"><Trash2 size={20}/></button>
+                       <button onClick={() => setShowEditModal(false)} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+                       <button onClick={handleSaveEdit} className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all">保存修改</button>
                    </div>
                </div>
            </div>
        )}
 
-       {/* Fund Input Modal - Bottom Sheet on Mobile */}
+       {/* Fund Input Modal - Full-Screen Responsive */}
        {showFundInputModal && (
-           <div className="fixed inset-0 bg-cocoa/50 z-[150] flex items-end sm:items-center justify-center sm:px-4 backdrop-blur-sm">
-               <div className="bg-white w-full max-w-sm rounded-t-[2.5rem] sm:rounded-[2rem] p-6 shadow-2xl border-t-4 sm:border-4 border-teal-600 animate-scale-in max-h-[80vh] overflow-y-auto custom-scroll pb-32">
-                   <h3 className="font-black text-xl mb-6 text-center text-teal-700 flex items-center justify-center gap-2">
-                       {fundForm.type === 'deposit' ? <PiggyBank /> : <HandCoins />}
-                       {fundForm.type === 'deposit' ? '公費入金' : '公費支出'}
-                   </h3>
-                   <div className="space-y-4">
-                       <div>
-                           <label className="text-[10px] font-bold text-gray-400 ml-1">金額 {fundForm.type === 'deposit' ? '(每人)' : ''}</label>
-                           <div className="grid grid-cols-4 gap-2">
-                               <div className="col-span-3">
-                                   <input type="number" autoFocus value={fundForm.amount} onChange={e => setFundForm({...fundForm, amount: e.target.value})} className="w-full bg-teal-50 p-3 rounded-xl border-2 border-teal-100 outline-none font-black text-xl text-teal-800 placeholder-teal-200" placeholder="0"/>
-                               </div>
-                               <div className="col-span-1">
-                                   <select value={fundForm.currency} onChange={e => setFundForm({...fundForm, currency: e.target.value})} className="w-full h-full bg-teal-50 p-2 rounded-xl border-2 border-teal-100 outline-none font-bold text-teal-800 text-xs">
-                                        <option value="TWD">TWD</option>{currencies.map(c => (<option key={c.code} value={c.code}>{c.code}</option>))}
-                                   </select>
-                               </div>
-                           </div>
-                       </div>
-
-                       {fundForm.type === 'expense' && (
-                           <div className="flex flex-wrap gap-2 mb-1">
-                               {FUND_SHORTCUTS.map(s => (
-                                   <button key={s} onClick={() => setFundForm({...fundForm, title: s})} className="text-xs bg-gray-50 text-gray-500 border border-gray-200 px-2 py-1 rounded-lg font-bold hover:bg-teal-50 hover:text-teal-600 transition-colors">{s}</button>
-                               ))}
-                           </div>
-                       )}
-
-                       <div>
-                           <label className="text-[10px] font-bold text-gray-400 ml-1">項目說明</label>
-                           <textarea 
-                               value={fundForm.title} 
-                               onChange={e => setFundForm({...fundForm, title: e.target.value})} 
-                               className="w-full bg-gray-50 p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa resize-none h-24 leading-tight" 
-                               placeholder={fundForm.type === 'deposit' ? "例如: 公費" : "例如: 晚餐\n(詳細內容...)"}
-                           />
-                       </div>
-                       
-                       {fundForm.type === 'deposit' && (
-                           <div>
-                               <label className="text-[10px] font-bold text-gray-400 ml-1 mb-2 block">繳款人 (可多選，每人金額皆為上方輸入金額)</label>
-                               <div className="flex flex-wrap gap-2">
-                                   {members.map(m => (
-                                       <button key={m.id} onClick={() => toggleFundPayer(m.name)} className={`px-4 py-2 rounded-xl text-xs border-2 whitespace-nowrap font-bold transition-all ${fundForm.payers.includes(m.name) ? 'bg-teal-500 text-white border-teal-600 shadow-md' : 'bg-white text-gray-400 border-beige-dark'}`}>{m.name}</button>
-                                   ))}
-                               </div>
-                           </div>
-                       )}
-
-                       {fundForm.type === 'expense' && (
-                           <div>
-                               <label className="text-[10px] font-bold text-gray-400 ml-1 mb-2 block">參與分攤 (誰使用了公費?)</label>
-                               <div className="flex flex-wrap gap-2">
-                                   {members.map(m => (
-                                       <button key={m.id} onClick={() => toggleFundInvolved(m.name)} className={`px-4 py-2 rounded-xl text-xs border-2 whitespace-nowrap font-bold transition-all ${fundForm.involvedMembers.includes(m.name) ? 'bg-red-400 text-white border-red-500 shadow-md' : 'bg-white text-gray-400 border-beige-dark'}`}>{m.name}</button>
-                                   ))}
-                               </div>
-                           </div>
-                       )}
-
-                       <div className="grid grid-cols-2 gap-2">
-                           <DatePickerField
-                               label="日期"
-                               value={fundForm.date}
-                               onChange={val => setFundForm({...fundForm, date: val})}
-                               themeColor={fundForm.type === 'deposit' ? 'sage' : 'orange'}
-                           />
-                           <TimePickerField
-                               label="時間"
-                               value={fundForm.time}
-                               onChange={val => setFundForm({...fundForm, time: val})}
-                               themeColor={fundForm.type === 'deposit' ? 'sage' : 'orange'}
-                           />
-                       </div>
+           <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[150] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={() => setShowFundInputModal(false)}>
+               <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+                   <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
+                       <h3 className="font-black text-xl text-cocoa flex items-center gap-2">
+                           {fundForm.type === 'deposit' ? <PiggyBank className="text-teal-600" /> : <HandCoins className="text-orange-500" />}
+                           {fundForm.type === 'deposit' ? '公費入金' : '公費支出'}
+                       </h3>
+                       <button onClick={() => setShowFundInputModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                           <X size={18} />
+                       </button>
                    </div>
-                   <div className="flex gap-3 mt-8">
-                       <button onClick={() => setShowFundInputModal(false)} className="flex-1 py-3.5 rounded-2xl bg-gray-100 text-gray-400 font-black border-2 border-gray-200">取消</button>
-                       <button onClick={handleAddFund} className={`flex-1 py-3.5 rounded-2xl text-white font-black shadow-md border-2 ${fundForm.type === 'deposit' ? 'bg-teal-500 border-teal-600' : 'bg-red-400 border-red-500'}`}>確認</button>
+
+                   <div className="overflow-y-auto custom-scroll flex-1 py-4 pr-1 space-y-4">
+                        <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
+                            <label className="text-[10px] font-bold text-gray-400 ml-1 block mb-1">金額 {fundForm.type === 'deposit' ? '(每人)' : ''}</label>
+                            <div className="grid grid-cols-4 gap-2">
+                                <div className="col-span-3">
+                                    <input type="number" autoFocus value={fundForm.amount} onChange={e => setFundForm({...fundForm, amount: e.target.value})} className="w-full bg-teal-50/50 p-3 rounded-xl border-2 border-teal-100 outline-none font-black text-xl text-teal-800 placeholder-teal-200" placeholder="0"/>
+                                </div>
+                                <div className="col-span-1">
+                                    <select value={fundForm.currency} onChange={e => setFundForm({...fundForm, currency: e.target.value})} className="w-full h-full bg-teal-50/50 p-2 rounded-xl border-2 border-teal-100 outline-none font-bold text-teal-800 text-xs">
+                                         <option value="TWD">TWD</option>{currencies.map(c => (<option key={c.code} value={c.code}>{c.code}</option>))}
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {fundForm.type === 'expense' && (
+                            <div className="flex flex-wrap gap-2">
+                                {FUND_SHORTCUTS.map(s => (
+                                    <button key={s} onClick={() => setFundForm({...fundForm, title: s})} className="text-xs bg-white text-gray-600 border border-beige-dark px-3 py-1.5 rounded-xl font-bold hover:bg-teal-50 hover:text-teal-600 transition-colors shadow-sm">{s}</button>
+                                ))}
+                            </div>
+                        )}
+
+                        <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
+                            <label className="text-[10px] font-bold text-gray-400 ml-1 block mb-1">項目說明</label>
+                            <textarea 
+                                value={fundForm.title} 
+                                onChange={e => setFundForm({...fundForm, title: e.target.value})} 
+                                className="w-full bg-beige/30 p-3 rounded-xl border border-beige-dark outline-none font-bold text-cocoa resize-none h-20 leading-tight" 
+                                placeholder={fundForm.type === 'deposit' ? "例如: 公費" : "例如: 晚餐\n(詳細內容...)"}
+                            />
+                        </div>
+                        
+                        {fundForm.type === 'deposit' && (
+                            <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
+                                <label className="text-[10px] font-bold text-gray-400 ml-1 mb-2 block">繳款人 (可多選，每人金額皆為上方輸入金額)</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {members.map(m => (
+                                        <button key={m.id} onClick={() => toggleFundPayer(m.name)} className={`px-4 py-2 rounded-xl text-xs border-2 whitespace-nowrap font-bold transition-all ${fundForm.payers.includes(m.name) ? 'bg-teal-500 text-white border-teal-600 shadow-md' : 'bg-beige/40 text-gray-400 border-beige-dark'}`}>{m.name}</button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {fundForm.type === 'expense' && (
+                            <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
+                                <label className="text-[10px] font-bold text-gray-400 ml-1 mb-2 block">參與分攤 (誰使用了公費?)</label>
+                                <div className="flex flex-wrap gap-2">
+                                    {members.map(m => (
+                                        <button key={m.id} onClick={() => toggleFundInvolved(m.name)} className={`px-4 py-2 rounded-xl text-xs border-2 whitespace-nowrap font-bold transition-all ${fundForm.involvedMembers.includes(m.name) ? 'bg-red-400 text-white border-red-500 shadow-md' : 'bg-beige/40 text-gray-400 border-beige-dark'}`}>{m.name}</button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-2">
+                            <DatePickerField
+                                label="日期"
+                                value={fundForm.date}
+                                onChange={val => setFundForm({...fundForm, date: val})}
+                                themeColor={fundForm.type === 'deposit' ? 'sage' : 'orange'}
+                            />
+                            <TimePickerField
+                                label="時間"
+                                value={fundForm.time}
+                                onChange={val => setFundForm({...fundForm, time: val})}
+                                themeColor={fundForm.type === 'deposit' ? 'sage' : 'orange'}
+                            />
+                        </div>
+                   </div>
+
+                   <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                       <button onClick={() => setShowFundInputModal(false)} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+                       <button onClick={handleAddFund} className={`flex-1 py-3.5 rounded-2xl text-white font-bold shadow-md border-2 active:translate-y-1 transition-all ${fundForm.type === 'deposit' ? 'bg-teal-500 border-teal-600 shadow-hard-teal' : 'bg-red-400 border-red-500'}`}>確認</button>
                    </div>
                </div>
            </div>
@@ -859,18 +872,26 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
        {/* Settle Confirm Modal (Only for General) */}
        {settleConfirm && (
-           <div className="fixed inset-0 bg-cocoa/60 z-[1000] flex items-center justify-center px-6 backdrop-blur-md">
-               <div className="bg-white w-full max-w-xs rounded-[2.5rem] p-8 shadow-2xl border-4 border-sage-dark text-center animate-scale-in">
-                   <div className="w-20 h-20 bg-sage-light rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-md text-sage animate-bounce">
-                       <CheckCircle2 size={40} />
+           <div className="fixed inset-0 bg-cocoa/60 z-[1000] flex flex-col items-center justify-end sm:justify-center sm:p-4 backdrop-blur-md animate-fade-in" onClick={() => setSettleConfirm(null)}>
+               <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-xs sm:rounded-[2.5rem] rounded-none p-6 shadow-2xl border-0 sm:border-4 sm:border-sage-dark text-center flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+                   <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0 sm:hidden">
+                       <h3 className="font-black text-lg text-cocoa">結算確認</h3>
+                       <button onClick={() => setSettleConfirm(null)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                           <X size={18} />
+                       </button>
                    </div>
-                   <h3 className="text-xl font-black text-cocoa mb-2">確認收款？</h3>
-                   <p className="text-sm font-bold text-gray-400 mb-6 leading-relaxed">
-                       您確定 <span className="text-sage-dark font-black">[{settleConfirm.memberName}]</span><br/>已經將 <span className="text-cocoa font-black">NT$ {settleConfirm.amount.toLocaleString()}</span><br/>繳清給代墊人嗎？
-                   </p>
-                   <div className="flex gap-3">
-                       <button onClick={() => setSettleConfirm(null)} className="flex-1 py-3.5 rounded-2xl bg-gray-100 text-gray-400 font-black border-2 border-gray-200">取消</button>
-                       <button onClick={() => performToggle(settleConfirm.exp, settleConfirm.memberName)} className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-black shadow-hard-sage border-2 border-sage-dark">確定繳清</button>
+                   <div className="my-auto py-6">
+                       <div className="w-20 h-20 bg-sage-light rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-md text-sage animate-bounce">
+                           <CheckCircle2 size={40} />
+                       </div>
+                       <h3 className="text-xl font-black text-cocoa mb-2">確認收款？</h3>
+                       <p className="text-sm font-bold text-gray-400 mb-2 leading-relaxed">
+                           您確定 <span className="text-sage-dark font-black">[{settleConfirm.memberName}]</span><br/>已經將 <span className="text-cocoa font-black">NT$ {settleConfirm.amount.toLocaleString()}</span><br/>繳清給代墊人嗎？
+                       </p>
+                   </div>
+                   <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                       <button onClick={() => setSettleConfirm(null)} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+                       <button onClick={() => performToggle(settleConfirm.exp, settleConfirm.memberName)} className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all">確定繳清</button>
                    </div>
                </div>
            </div>

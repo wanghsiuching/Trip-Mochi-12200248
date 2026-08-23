@@ -82,21 +82,31 @@ export const CreateTripModal = ({ isOpen, onClose, onConfirm }: { isOpen: boolea
     const [name, setName] = useState('');
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 bg-cocoa/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-white p-6 rounded-[2rem] w-full max-w-sm shadow-2xl border-2 border-beige-dark animate-scale-in" onClick={e => e.stopPropagation()}>
-                <h3 className="text-xl font-black text-cocoa mb-6 text-center">建立新行程</h3>
-                <div className="bg-beige/50 p-4 rounded-2xl border-2 border-beige-dark mb-6">
-                    <label className="text-xs font-bold text-gray-400 block mb-2">行程名稱</label>
-                    <input 
-                        autoFocus
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full text-lg font-bold text-cocoa outline-none bg-transparent placeholder:text-gray-300"
-                        placeholder="例如: 東京五日遊"
-                        onKeyDown={(e) => e.key === 'Enter' && name && onConfirm(name)}
-                    />
+        <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
+                    <h3 className="text-xl font-black text-cocoa">建立新行程</h3>
+                    <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                        <X size={18} />
+                    </button>
                 </div>
-                <button onClick={() => name && onConfirm(name)} disabled={!name} className="w-full py-4 rounded-xl font-bold text-white bg-sage hover:bg-sage-dark shadow-hard-sage border-2 border-sage active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 disabled:shadow-none">建立行程</button>
+                <div className="my-auto py-6 space-y-4">
+                    <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm">
+                        <label className="text-xs font-bold text-gray-400 block mb-2">行程名稱</label>
+                        <input 
+                            autoFocus
+                            value={name}
+                            onChange={(e) => setName(e.target.value)}
+                            className="w-full text-lg font-bold text-cocoa outline-none bg-transparent placeholder:text-gray-300"
+                            placeholder="例如: 東京五日遊"
+                            onKeyDown={(e) => e.key === 'Enter' && name && onConfirm(name)}
+                        />
+                    </div>
+                </div>
+                <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                    <button onClick={onClose} className="flex-1 py-4 rounded-2xl font-bold text-gray-400 bg-white border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+                    <button onClick={() => name && onConfirm(name)} disabled={!name} className="flex-1 py-4 rounded-2xl font-bold text-white bg-sage hover:bg-sage-dark shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 disabled:shadow-none">建立行程</button>
+                </div>
             </div>
         </div>
     );
@@ -105,16 +115,24 @@ export const CreateTripModal = ({ isOpen, onClose, onConfirm }: { isOpen: boolea
 export const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, tripName }: { isOpen: boolean, onClose: () => void, onConfirm: () => void, tripName: string }) => {
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 bg-cocoa/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={onClose}>
-             <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl border-2 border-beige-dark animate-scale-in" onClick={e => e.stopPropagation()}>
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500 border-2 border-red-200">
-                    <Trash2 size={24} />
+        <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={onClose}>
+             <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
+                    <h3 className="text-xl font-black text-cocoa">刪除行程</h3>
+                    <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                        <X size={18} />
+                    </button>
                 </div>
-                <h3 className="text-xl font-black text-cocoa mb-2 text-center">刪除行程?</h3>
-                <p className="text-gray-400 font-bold text-center text-sm mb-6">確定要刪除 <span className="text-cocoa">{tripName}</span> 嗎？此動作無法復原。</p>
-                <div className="flex gap-3">
-                    <button onClick={onClose} className="flex-1 py-3 rounded-xl font-bold text-gray-400 bg-gray-100 hover:bg-gray-200 transition-colors">取消</button>
-                    <button onClick={onConfirm} className="flex-1 py-3 rounded-xl font-bold text-white bg-red-400 hover:bg-red-50 shadow-hard-sm border-2 border-red-500 active:translate-y-1 active:shadow-none transition-all">刪除</button>
+                <div className="my-auto py-6 text-center">
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500 border-2 border-red-200 shadow-sm">
+                        <Trash2 size={28} />
+                    </div>
+                    <h4 className="text-xl font-black text-cocoa mb-2">確定要刪除行程?</h4>
+                    <p className="text-gray-400 font-bold text-sm leading-relaxed">確定要刪除 <span className="text-red-500 font-black">{tripName}</span> 嗎？<br/>此動作無法復原。</p>
+                </div>
+                <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                    <button onClick={onClose} className="flex-1 py-4 rounded-2xl font-bold text-gray-400 bg-white border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+                    <button onClick={onConfirm} className="flex-1 py-4 rounded-2xl font-bold text-white bg-red-400 hover:bg-red-500 shadow-hard-sm border-2 border-red-500 active:translate-y-1 active:shadow-none transition-all">刪除</button>
                 </div>
             </div>
         </div>
@@ -124,14 +142,24 @@ export const DeleteConfirmModal = ({ isOpen, onClose, onConfirm, tripName }: { i
 export const SearchErrorModal = ({ isOpen, onClose, message }: { isOpen: boolean, onClose: () => void, message: string }) => {
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 bg-cocoa/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={onClose}>
-             <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl border-2 border-beige-dark animate-scale-in" onClick={e => e.stopPropagation()}>
-                <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 text-yellow-500 border-2 border-yellow-200">
-                    <AlertCircle size={24} />
+        <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={onClose}>
+             <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
+                    <h3 className="text-xl font-black text-cocoa">搜尋結果</h3>
+                    <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                        <X size={18} />
+                    </button>
                 </div>
-                <h3 className="text-xl font-black text-cocoa mb-2 text-center">搜尋結果</h3>
-                <p className="text-gray-400 font-bold text-center text-sm mb-6">{message}</p>
-                <button onClick={onClose} className="w-full py-3 rounded-xl font-bold text-cocoa bg-gray-100 hover:bg-gray-200 transition-colors">關閉</button>
+                <div className="my-auto py-6 text-center">
+                    <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4 text-yellow-500 border-2 border-yellow-200 shadow-sm">
+                        <AlertCircle size={28} />
+                    </div>
+                    <h4 className="text-xl font-black text-cocoa mb-2">提示訊息</h4>
+                    <p className="text-gray-400 font-bold text-sm leading-relaxed">{message}</p>
+                </div>
+                <div className="pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                    <button onClick={onClose} className="w-full py-4 rounded-2xl font-bold text-cocoa bg-white border-2 border-beige-dark hover:bg-gray-50 transition-colors">關閉</button>
+                </div>
             </div>
         </div>
     );
@@ -140,16 +168,24 @@ export const SearchErrorModal = ({ isOpen, onClose, message }: { isOpen: boolean
 export const DeleteDayConfirmModal = ({ isOpen, onClose, onConfirm, date }: { isOpen: boolean, onClose: () => void, onConfirm: () => void, date: string }) => {
      if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 bg-cocoa/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl border-2 border-beige-dark animate-scale-in" onClick={e => e.stopPropagation()}>
-                 <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500 border-2 border-red-200">
-                    <Trash2 size={24} />
+        <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
+                    <h3 className="text-xl font-black text-cocoa">刪除天數</h3>
+                    <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                        <X size={18} />
+                    </button>
                 </div>
-                <h3 className="text-xl font-black text-cocoa mb-2 text-center">刪除這一天?</h3>
-                <p className="text-gray-400 font-bold text-center text-sm mb-6">確定要刪除 <span className="text-cocoa">{date}</span> 及其所有行程嗎？</p>
-                <div className="flex gap-3">
-                    <button onClick={onClose} className="flex-1 py-3 rounded-xl font-bold text-gray-400 bg-gray-100 hover:bg-gray-200 transition-colors">取消</button>
-                    <button onClick={onConfirm} className="flex-1 py-3 rounded-xl font-bold text-white bg-red-400 hover:bg-red-50 shadow-hard-sm border-2 border-red-500 active:translate-y-1 active:shadow-none transition-all">刪除</button>
+                <div className="my-auto py-6 text-center">
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500 border-2 border-red-200 shadow-sm">
+                        <Trash2 size={28} />
+                    </div>
+                    <h4 className="text-xl font-black text-cocoa mb-2">刪除這一天?</h4>
+                    <p className="text-gray-400 font-bold text-sm leading-relaxed">確定要刪除 <span className="text-red-500 font-black">{date}</span> 及其所有行程嗎？</p>
+                </div>
+                <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                    <button onClick={onClose} className="flex-1 py-4 rounded-2xl font-bold text-gray-400 bg-white border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+                    <button onClick={onConfirm} className="flex-1 py-4 rounded-2xl font-bold text-white bg-red-400 hover:bg-red-500 shadow-hard-sm border-2 border-red-500 active:translate-y-1 active:shadow-none transition-all">刪除</button>
                 </div>
             </div>
         </div>
@@ -177,49 +213,55 @@ export const TripSettingsModal = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-cocoa/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-white p-6 rounded-[2.5rem] w-full max-w-md shadow-2xl border-2 border-beige-dark animate-scale-in max-h-[85vh] overflow-y-auto no-scrollbar" onClick={e => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-6">
+        <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-lg sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                     <h3 className="text-xl font-black text-cocoa flex items-center gap-2"><Settings size={20} className="text-sage"/> 行程設定</h3>
-                    <button onClick={onClose} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200"><X size={16}/></button>
+                    <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors"><X size={18}/></button>
                 </div>
 
-                {/* Currency Section */}
-                <div className="mb-8">
-                     <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center gap-2"><Coins size={16}/> 匯率設定 (相對於 TWD)</h4>
-                     <div className="space-y-2 mb-3">
-                         {currencies.map(c => (
-                             <div key={c.code} className="flex justify-between items-center bg-white border border-beige-dark p-3 rounded-xl shadow-sm">
-                                 <span className="font-bold text-cocoa">{c.code}</span>
-                                 <div className="flex items-center gap-3">
-                                     <span className="font-mono text-gray-500 font-bold">{c.rate}</span>
-                                     <button onClick={() => onRemoveCurrency(c.code)} className="text-red-300 hover:text-red-500"><X size={14}/></button>
+                <div className="overflow-y-auto custom-scroll flex-1 py-4 pr-1 space-y-6">
+                    {/* Currency Section */}
+                    <div>
+                         <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center gap-2"><Coins size={16}/> 匯率設定 (相對於 TWD)</h4>
+                         <div className="space-y-2 mb-3">
+                             {currencies.map(c => (
+                                 <div key={c.code} className="flex justify-between items-center bg-white border border-beige-dark p-3 rounded-xl shadow-sm">
+                                     <span className="font-bold text-cocoa">{c.code}</span>
+                                     <div className="flex items-center gap-3">
+                                         <span className="font-mono text-gray-500 font-bold">{c.rate}</span>
+                                         <button onClick={() => onRemoveCurrency(c.code)} className="text-red-300 hover:text-red-500"><X size={14}/></button>
+                                     </div>
                                  </div>
-                             </div>
-                         ))}
-                     </div>
-                     <div className="flex gap-2 items-center">
-                         <input value={newCurrencyCode} onChange={e => setNewCurrencyCode(e.target.value)} placeholder="幣別" className="w-24 h-11 bg-gray-50 px-3 rounded-xl text-sm font-bold outline-none border border-transparent focus:border-sage text-cocoa text-center"/>
-                         <input type="number" value={newCurrencyRate} onChange={e => setNewCurrencyRate(e.target.value)} placeholder="匯率" className="w-32 h-11 bg-gray-50 px-3 rounded-xl text-sm font-bold outline-none border border-transparent focus:border-sage text-cocoa text-center"/>
-                         <button onClick={handleAddCurrency} disabled={!newCurrencyCode || !newCurrencyRate} className="h-11 w-11 flex-shrink-0 flex items-center justify-center bg-sage text-white rounded-xl shadow-hard-sm-sage disabled:opacity-50 hover:bg-sage-dark transition-colors"><Plus size={20}/></button>
-                     </div>
+                             ))}
+                         </div>
+                         <div className="flex gap-2 items-center">
+                             <input value={newCurrencyCode} onChange={e => setNewCurrencyCode(e.target.value)} placeholder="幣別" className="w-24 h-11 bg-white px-3 rounded-xl text-sm font-bold outline-none border border-beige-dark focus:border-sage text-cocoa text-center"/>
+                             <input type="number" value={newCurrencyRate} onChange={e => setNewCurrencyRate(e.target.value)} placeholder="匯率" className="w-32 h-11 bg-white px-3 rounded-xl text-sm font-bold outline-none border border-beige-dark focus:border-sage text-cocoa text-center"/>
+                             <button onClick={handleAddCurrency} disabled={!newCurrencyCode || !newCurrencyRate} className="h-11 w-11 flex-shrink-0 flex items-center justify-center bg-sage text-white rounded-xl shadow-hard-sm-sage disabled:opacity-50 hover:bg-sage-dark transition-colors"><Plus size={20}/></button>
+                         </div>
+                    </div>
+
+                    {/* Backup Section */}
+                    <div className="border-t border-dashed border-gray-200 pt-6">
+                        <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center gap-2"><Save size={16}/> 備份</h4>
+                        {onDuplicate && (
+                            <>
+                            <button 
+                                onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDuplicate(); }} 
+                                className="w-full py-3.5 bg-blue-50 text-blue-500 font-black rounded-2xl border-2 border-blue-100 hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 shadow-sm"
+                                type="button"
+                            >
+                                <Copy size={16}/> 建立行程副本
+                            </button>
+                            <p className="text-[10px] text-gray-400 mt-2 text-center">這將會建立一個內容完全相同但代碼不同的新行程 (副本)，不會影響目前裝置上的資料。</p>
+                            </>
+                        )}
+                    </div>
                 </div>
 
-                {/* Backup Section */}
-                <div className="border-t border-dashed border-gray-200 pt-6">
-                    <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center gap-2"><Save size={16}/> 備份</h4>
-                    {onDuplicate && (
-                        <>
-                        <button 
-                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDuplicate(); }} 
-                            className="w-full py-3 bg-blue-50 text-blue-500 font-black rounded-xl border-2 border-blue-100 hover:bg-blue-100 transition-colors flex items-center justify-center gap-2 shadow-sm"
-                            type="button"
-                        >
-                            <Copy size={16}/> 建立行程副本
-                        </button>
-                        <p className="text-[10px] text-gray-400 mt-2 text-center">這將會建立一個內容完全相同但代碼不同的新行程 (副本)，不會影響目前裝置上的資料。</p>
-                        </>
-                    )}
+                <div className="pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                    <button onClick={onClose} className="w-full py-3.5 rounded-2xl font-bold text-cocoa bg-white border-2 border-beige-dark hover:bg-gray-50 transition-colors">關閉</button>
                 </div>
             </div>
         </div>
@@ -229,16 +271,24 @@ export const TripSettingsModal = ({
 export const BackupConfirmModal = ({ isOpen, onClose, onConfirm, tripName }: { isOpen: boolean, onClose: () => void, onConfirm: () => void, tripName: string }) => {
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 bg-cocoa/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={onClose}>
-             <div className="bg-white p-6 rounded-3xl w-full max-sm shadow-2xl border-2 border-beige-dark animate-scale-in" onClick={e => e.stopPropagation()}>
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-500 border-2 border-blue-200">
-                    <Copy size={24} />
+        <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={onClose}>
+             <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
+                    <h3 className="text-xl font-black text-cocoa">建立行程副本</h3>
+                    <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                        <X size={18} />
+                    </button>
                 </div>
-                <h3 className="text-xl font-black text-cocoa mb-2 text-center">建立行程副本</h3>
-                <p className="text-gray-400 font-bold text-center text-sm mb-6">確定要複製 <span className="text-cocoa">{tripName}</span> 嗎？<br/>這將會產生一個全新的行程代碼。</p>
-                <div className="flex gap-3">
-                    <button onClick={onClose} className="flex-1 py-3 rounded-xl font-bold text-gray-400 bg-gray-100 hover:bg-gray-200 transition-colors">取消</button>
-                    <button onClick={onConfirm} className="flex-1 py-3 rounded-xl font-bold text-white bg-blue-500 hover:bg-blue-600 shadow-hard-sm border-2 border-blue-600 active:translate-y-1 active:shadow-none transition-all">建立副本</button>
+                <div className="my-auto py-6 text-center">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-500 border-2 border-blue-200 shadow-sm">
+                        <Copy size={28} />
+                    </div>
+                    <h4 className="text-xl font-black text-cocoa mb-2">建立行程副本</h4>
+                    <p className="text-gray-400 font-bold text-sm leading-relaxed">確定要複製 <span className="text-cocoa font-black">{tripName}</span> 嗎？<br/>這將會產生一個全新的行程代碼。</p>
+                </div>
+                <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                    <button onClick={onClose} className="flex-1 py-4 rounded-2xl font-bold text-gray-400 bg-white border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+                    <button onClick={onConfirm} className="flex-1 py-4 rounded-2xl font-bold text-white bg-blue-500 hover:bg-blue-600 shadow-hard-sm border-2 border-blue-600 active:translate-y-1 active:shadow-none transition-all">建立副本</button>
                 </div>
             </div>
         </div>
@@ -325,11 +375,16 @@ export const PotentialExpensesModal = ({
         }
         if (item.type === 'transport') {
             if (item.transitDetails?.isPotential) {
-                const disc = Number(item.transitDetails.fare.discountedPrice) || 0;
+                const disc = (item.transitDetails.fare.discountedPrice !== undefined && item.transitDetails.fare.discountedPrice !== '' && item.transitDetails.fare.discountedPrice !== null)
+                    ? (Number(item.transitDetails.fare.discountedPrice) || 0)
+                    : (Number(item.transitDetails.fare.originalPrice) || 0);
                 const extra = Number(item.transitDetails.fare.seatReservationFee) || 0;
                 const mainCurr = item.transitDetails.fare.currency || 'TWD';
                 const extraCurr = item.transitDetails.fare.seatReservationFeeCurrency || mainCurr;
                 const extraName = item.transitDetails.fare.extraFeeName?.trim() || '大眾交通加價';
+                const participants = (item.transitDetails.participants && item.transitDetails.participants.length > 0)
+                    ? item.transitDetails.participants
+                    : members.map(m => m.id);
 
                 if (disc > 0) {
                     processCost(
@@ -337,7 +392,7 @@ export const PotentialExpensesModal = ({
                         disc,
                         mainCurr,
                         false, 0,
-                        item.transitDetails.participants || []
+                        participants
                     );
                 }
                 if (extra > 0) {
@@ -346,7 +401,7 @@ export const PotentialExpensesModal = ({
                         extra,
                         extraCurr,
                         false, 0,
-                        item.transitDetails.participants || []
+                        participants
                     );
                 }
             }
@@ -388,84 +443,90 @@ export const PotentialExpensesModal = ({
     });
 
     return (
-        <div className="fixed inset-0 bg-cocoa/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-white p-6 rounded-[2.5rem] w-full max-w-md shadow-2xl border-2 border-beige-dark animate-scale-in max-h-[85vh] overflow-y-auto no-scrollbar" onClick={e => e.stopPropagation()}>
-                <div className="flex justify-between items-center mb-6">
+        <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-lg sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                     <h3 className="text-xl font-black text-cocoa flex items-center gap-2"><Coins size={20} className="text-yellow-500"/> 潛在花費清單</h3>
-                    <button onClick={onClose} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200"><X size={16}/></button>
+                    <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors"><X size={18}/></button>
                 </div>
                 
-                <div className="bg-yellow-50 p-4 rounded-2xl border-2 border-yellow-200 mb-6 flex justify-between items-center">
-                    <span className="font-bold text-yellow-800 text-sm">預估總額 (約略 TWD)</span>
-                    <span className="font-black text-2xl text-yellow-600">${Math.round(totalPotentialTWD).toLocaleString()}</span>
+                <div className="overflow-y-auto custom-scroll flex-1 py-4 pr-1 space-y-6">
+                    <div className="bg-yellow-50 p-4 rounded-2xl border-2 border-yellow-200 flex justify-between items-center shadow-sm">
+                        <span className="font-bold text-yellow-800 text-sm">預估總額 (約略 TWD)</span>
+                        <span className="font-black text-2xl text-yellow-600">${Math.round(totalPotentialTWD).toLocaleString()}</span>
+                    </div>
+
+                    {totalPotentialTWD > 0 && (
+                        <div className="space-y-2">
+                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">每人分攤預估</h4>
+                            <div className="grid grid-cols-2 gap-2">
+                                {members.map(m => (
+                                    <div key={m.id} className="bg-white border border-beige-dark p-2.5 rounded-xl flex justify-between items-center shadow-sm">
+                                        <div className="flex items-center gap-1.5">
+                                            <MemberAvatar 
+                                              avatar={m.avatar} 
+                                              name={m.name} 
+                                              id={m.id} 
+                                              size="xs" 
+                                              showBorder={false}
+                                              className="w-5 h-5 border border-gray-200"
+                                            />
+                                            <span className="text-xs font-bold text-cocoa">{m.name}</span>
+                                        </div>
+                                        <span className="text-xs font-black text-sage font-mono">${Math.round(memberTotals[m.id]).toLocaleString()}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="space-y-3">
+                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">項目明細</h4>
+                        {potentialItems.length === 0 ? (
+                            <div className="text-center text-gray-400 font-bold py-8">沒有列入潛在花費的項目</div>
+                        ) : (
+                            potentialItems.map((p, i) => (
+                                <div key={i} className="bg-white p-3.5 rounded-2xl border border-beige-dark shadow-sm">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold">{p.type}</span>
+                                            <span className="font-bold text-cocoa text-sm">{p.title}</span>
+                                        </div>
+                                        <div className="text-sm font-black text-cocoa">
+                                            ≈ ${Math.round(toTWD(p.originalAmount, p.originalCurrency)).toLocaleString()}
+                                        </div>
+                                    </div>
+                                    <div className="flex justify-between items-center">
+                                        <div className="text-[10px] font-bold text-gray-400">
+                                            原幣: {p.originalCurrency} {p.originalAmount.toLocaleString()}
+                                        </div>
+                                        <div className="flex -space-x-1.5">
+                                            {p.participants.map(pid => {
+                                                const mem = members.find(m => m.id === pid);
+                                                if (!mem) return null;
+                                                return (
+                                                    <div key={pid} className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center border border-white" title={mem.name}>
+                                                        <MemberAvatar 
+                                                          avatar={mem.avatar} 
+                                                          name={mem.name} 
+                                                          id={mem.id} 
+                                                          size="xs" 
+                                                          showBorder={false}
+                                                          className="w-full h-full"
+                                                        />
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
                 </div>
 
-                {totalPotentialTWD > 0 && (
-                    <div className="mb-6 space-y-2">
-                        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">每人分攤預估</h4>
-                        <div className="grid grid-cols-2 gap-2">
-                            {members.map(m => (
-                                <div key={m.id} className="bg-gray-50 border border-gray-100 p-2 rounded-xl flex justify-between items-center">
-                                    <div className="flex items-center gap-1.5">
-                                        <MemberAvatar 
-                                          avatar={m.avatar} 
-                                          name={m.name} 
-                                          id={m.id} 
-                                          size="xs" 
-                                          showBorder={false}
-                                          className="w-5 h-5 border border-gray-200"
-                                        />
-                                        <span className="text-xs font-bold text-cocoa">{m.name}</span>
-                                    </div>
-                                    <span className="text-xs font-black text-sage font-mono">${Math.round(memberTotals[m.id]).toLocaleString()}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                <div className="space-y-3">
-                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">項目明細</h4>
-                    {potentialItems.length === 0 ? (
-                        <div className="text-center text-gray-400 font-bold py-8">沒有列入潛在花費的項目</div>
-                    ) : (
-                        potentialItems.map((p, i) => (
-                            <div key={i} className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm">
-                                <div className="flex justify-between items-center mb-1">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold">{p.type}</span>
-                                        <span className="font-bold text-cocoa text-sm">{p.title}</span>
-                                    </div>
-                                    <div className="text-sm font-black text-cocoa">
-                                        ≈ ${Math.round(toTWD(p.originalAmount, p.originalCurrency)).toLocaleString()}
-                                    </div>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <div className="text-[10px] font-bold text-gray-400">
-                                        原幣: {p.originalCurrency} {p.originalAmount.toLocaleString()}
-                                    </div>
-                                    <div className="flex -space-x-1.5">
-                                        {p.participants.map(pid => {
-                                            const mem = members.find(m => m.id === pid);
-                                            if (!mem) return null;
-                                            return (
-                                                <div key={pid} className="w-4 h-4 rounded-full overflow-hidden flex items-center justify-center border border-white" title={mem.name}>
-                                                    <MemberAvatar 
-                                                      avatar={mem.avatar} 
-                                                      name={mem.name} 
-                                                      id={mem.id} 
-                                                      size="xs" 
-                                                      showBorder={false}
-                                                      className="w-full h-full"
-                                                    />
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                        ))
-                    )}
+                <div className="pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                    <button onClick={onClose} className="w-full py-3.5 rounded-2xl font-bold text-cocoa bg-white border-2 border-beige-dark hover:bg-gray-50 transition-colors">關閉</button>
                 </div>
             </div>
         </div>
@@ -475,16 +536,24 @@ export const PotentialExpensesModal = ({
 export const DeleteItemConfirmModal = ({ isOpen, onClose, onConfirm, title }: { isOpen: boolean, onClose: () => void, onConfirm: () => void, title: string }) => {
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 bg-cocoa/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-white p-6 rounded-3xl w-full max-w-sm shadow-2xl border-2 border-beige-dark animate-scale-in" onClick={e => e.stopPropagation()}>
-                 <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500 border-2 border-red-200">
-                    <Trash2 size={24} />
+        <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
+                    <h3 className="text-xl font-black text-cocoa">刪除項目</h3>
+                    <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                        <X size={18} />
+                    </button>
                 </div>
-                <h3 className="text-xl font-black text-cocoa mb-2 text-center">刪除項目?</h3>
-                <p className="text-gray-400 font-bold text-center text-sm mb-6">確定要刪除 <span className="text-cocoa">{title}</span> 嗎？</p>
-                <div className="flex gap-3">
-                    <button onClick={onClose} className="flex-1 py-3 rounded-xl font-bold text-gray-400 bg-gray-100 hover:bg-gray-200 transition-colors">取消</button>
-                    <button onClick={onConfirm} className="flex-1 py-3 rounded-xl font-bold text-white bg-red-400 hover:bg-red-50 shadow-hard-sm border-2 border-red-500 active:translate-y-1 active:shadow-none transition-all">刪除</button>
+                <div className="my-auto py-6 text-center">
+                    <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500 border-2 border-red-200 shadow-sm">
+                        <Trash2 size={28} />
+                    </div>
+                    <h4 className="text-xl font-black text-cocoa mb-2">確定要刪除?</h4>
+                    <p className="text-gray-400 font-bold text-sm leading-relaxed">確定要刪除 <span className="text-red-500 font-black">{title}</span> 嗎？</p>
+                </div>
+                <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                    <button onClick={onClose} className="flex-1 py-4 rounded-2xl font-bold text-gray-400 bg-white border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+                    <button onClick={onConfirm} className="flex-1 py-4 rounded-2xl font-bold text-white bg-red-400 hover:bg-red-500 shadow-hard-sm border-2 border-red-500 active:translate-y-1 active:shadow-none transition-all">刪除</button>
                 </div>
             </div>
         </div>
@@ -508,50 +577,58 @@ export const EditDayDetailsModal = ({ isOpen, onClose, onConfirm, initialDate, i
     
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 bg-cocoa/40 backdrop-blur-sm z-[70] flex items-center justify-center p-4" onClick={onClose}>
-            <div className="bg-white p-6 rounded-[2rem] w-full max-w-sm shadow-2xl border-2 border-beige-dark animate-scale-in" onClick={e => e.stopPropagation()}>
-                <div className="w-12 h-12 bg-sage-light rounded-full flex items-center justify-center mx-auto mb-4 text-sage border-2 border-white shadow-sm">
-                    <Edit3 size={24} />
+        <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={onClose}>
+            <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
+                    <h3 className="text-xl font-black text-cocoa">編輯行程資訊</h3>
+                    <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                        <X size={18} />
+                    </button>
                 </div>
-                <h3 className="text-xl font-black text-cocoa mb-2 text-center">編輯行程資訊</h3>
-                <p className="text-gray-400 font-bold text-center text-xs mb-6">修改日期與當日地點</p>
                 
-                <div className="space-y-4 mb-6">
-                    <DatePickerField
-                        label="日期"
-                        value={date}
-                        onChange={setDate}
-                        themeColor="sage"
-                    />
+                <div className="overflow-y-auto custom-scroll flex-1 py-4 space-y-4">
+                    <div className="w-14 h-14 bg-sage-light rounded-full flex items-center justify-center mx-auto text-sage border-2 border-white shadow-sm">
+                        <Edit3 size={24} />
+                    </div>
+                    <p className="text-gray-400 font-bold text-center text-xs">修改日期與當日地點</p>
+                    
+                    <div className="space-y-4">
+                        <DatePickerField
+                            label="日期"
+                            value={date}
+                            onChange={setDate}
+                            themeColor="sage"
+                        />
 
-                    <div className="bg-beige/50 p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-3">
-                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-xl shadow-sm border border-beige-dark flex-shrink-0 cursor-default select-none relative group">
-                            {initialFruit || '🍎'}
-                            <div className="absolute inset-0 bg-black/10 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Shuffle size={14} className="text-white"/>
+                        <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-3 shadow-sm">
+                            <div className="w-10 h-10 bg-beige rounded-xl flex items-center justify-center text-xl shadow-sm border border-beige-dark flex-shrink-0 cursor-default select-none relative group">
+                                {initialFruit || '🍎'}
+                                <div className="absolute inset-0 bg-black/10 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Shuffle size={14} className="text-white"/>
+                                </div>
+                            </div>
+                            <div className="flex-1">
+                                <label className="text-[10px] font-bold text-gray-400 block mb-1">主要地點</label>
+                                <input 
+                                    value={loc}
+                                    onChange={(e) => setLoc(e.target.value)}
+                                    placeholder="例如: 札幌 Sapporo"
+                                    className="w-full bg-transparent font-bold text-cocoa outline-none text-sm"
+                                    onKeyDown={e => {
+                                        if (e.key === 'Enter' && loc && date) {
+                                            handleConfirm();
+                                        }
+                                    }}
+                                />
                             </div>
                         </div>
-                        <div className="flex-1">
-                            <label className="text-[10px] font-bold text-gray-400 block mb-1">主要地點</label>
-                            <input 
-                                value={loc}
-                                onChange={(e) => setLoc(e.target.value)}
-                                placeholder="例如: 札幌 Sapporo"
-                                className="w-full bg-transparent font-bold text-cocoa outline-none text-sm"
-                                onKeyDown={e => {
-                                    if (e.key === 'Enter' && loc && date) {
-                                        handleConfirm();
-                                    }
-                                }}
-                            />
-                        </div>
+                        <p className="text-[10px] text-gray-400 font-bold text-center italic">* 確認修改時將會隨機更換水果圖示</p>
                     </div>
-                    <p className="text-[10px] text-gray-400 font-bold text-center mt-2 italic">* 確認修改時將會隨機更換水果圖示</p>
                 </div>
 
-                <div className="flex gap-3">
-                    <button onClick={onClose} className="flex-1 py-3 rounded-xl font-bold text-gray-400 bg-gray-100 hover:bg-gray-200 transition-colors">取消</button>
-                    <button onClick={handleConfirm} disabled={!loc || !date} className="flex-1 py-3 rounded-xl font-bold text-white bg-sage hover:bg-sage-dark shadow-hard-sage border-2 border-sage active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 disabled:shadow-none">確認修改</button>
+                <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                    <button onClick={onClose} className="flex-1 py-4 rounded-2xl font-bold text-gray-400 bg-white border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+                    <button onClick={handleConfirm} disabled={!loc || !date} className="flex-1 py-4 rounded-2xl font-bold text-white bg-sage hover:bg-sage-dark shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 disabled:shadow-none">確認修改</button>
                 </div>
             </div>
         </div>
@@ -576,24 +653,23 @@ export const ScheduleDetailModal = ({
     const openMap = (location: string) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`, '_blank');
 
     return (
-        <div className="fixed inset-0 bg-cocoa/50 z-[100] flex items-center justify-center px-4 backdrop-blur-sm" onClick={onClose}>
-            <div className="bg-beige w-full max-w-sm rounded-[2.5rem] p-6 shadow-2xl border-4 border-beige-dark relative overflow-hidden animate-scale-in flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-cocoa/60 z-[100] flex flex-col items-center justify-end sm:justify-center sm:p-4 backdrop-blur-sm animate-fade-in" onClick={onClose}>
+            <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-lg sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark relative overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
                 {/* Header */}
-                <div className="flex justify-between items-start mb-4 flex-shrink-0">
-                    <div className="flex items-center gap-3">
+                <div className="flex justify-between items-start pb-3 border-b-2 border-beige-dark flex-shrink-0 gap-2">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
                         <div className={`p-3 rounded-2xl ${colorClass} border-2 border-white shadow-sm flex-shrink-0`}>
                             <Icon size={24} strokeWidth={2.5} />
                         </div>
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
                                 <span className="font-mono text-xs font-black text-white bg-sage px-2 py-0.5 rounded-lg shadow-sm">{item.time}</span>
                                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{item.type}</span>
                             </div>
-                            <h3 className="text-xl font-black text-cocoa leading-tight">{item.title}</h3>
+                            <h3 className="text-lg sm:text-xl font-black text-cocoa leading-snug break-words">{item.title}</h3>
                         </div>
                     </div>
-                    {/* Updated Close Button Style to Match Delete Button (Light Red) */}
-                    <button onClick={onClose} className="p-2 bg-red-100 text-red-400 rounded-full hover:bg-red-200 border border-red-200 flex-shrink-0 transition-colors shadow-sm"><X size={16}/></button>
+                    <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors flex-shrink-0"><X size={18}/></button>
                 </div>
 
                 <div className="overflow-y-auto custom-scroll flex-1 space-y-4 pr-1">
@@ -704,12 +780,14 @@ export const ScheduleDetailModal = ({
                         <div className="flex flex-wrap gap-2">
                             {members.map(m => {
                                 const isParticipant = 
-                                    item.type === 'flight' ? item.flightDetails?.participants?.includes(m.id) :
-                                    item.type === 'stay' ? item.stayDetails?.participants?.includes(m.id) :
-                                    item.type === 'transport' ? item.carRental?.participants?.includes(m.id) :
-                                    (item.type === 'spot' || item.type === 'food') ? item.spotDetails?.participants?.includes(m.id) : false;
+                                    item.type === 'flight' ? (item.flightDetails?.participants ? item.flightDetails.participants.includes(m.id) : true) :
+                                    item.type === 'stay' ? (item.stayDetails?.participants ? item.stayDetails.participants.includes(m.id) : true) :
+                                    item.type === 'transport' ? (
+                                        (item.transitDetails?.participants ? item.transitDetails.participants.includes(m.id) : (item.transitDetails ? true : false)) ||
+                                        (item.carRental?.participants ? item.carRental.participants.includes(m.id) : (item.carRental?.hasRental ? true : false))
+                                    ) :
+                                    (item.type === 'spot' || item.type === 'food') ? (item.spotDetails?.participants ? item.spotDetails.participants.includes(m.id) : true) : true;
                                 
-                                if (!isParticipant && (item.type !== 'spot' && item.type !== 'food')) return null; // Only show relevant participants unless it's basic spot/food where logic might differ (currently defaulting all unless specified)
                                 if (!isParticipant) return null;
 
                                 return (
@@ -812,10 +890,12 @@ export const AddScheduleModal = ({
   ]);
   const [transitFare, setTransitFare] = useState<TransitFareDetails>({
     passUsed: 'pass_free',
-    originalPrice: 0,
-    discountedPrice: 0,
-    currency: 'JPY',
-    seatReservationFee: 0,
+    originalPrice: '',
+    discountedPrice: '',
+    currency: 'TWD',
+    extraFeeName: '',
+    seatReservationFee: '',
+    seatReservationFeeCurrency: 'TWD',
     notes: ''
   });
   const [transitParticipants, setTransitParticipants] = useState<string[]>([]);
@@ -877,7 +957,7 @@ export const AddScheduleModal = ({
             setFlightCurrency(initialData.flightDetails.currency || 'TWD');
             setFlightHasServiceFee(initialData.flightDetails.hasServiceFee || false);
             setFlightServiceFeePercentage(initialData.flightDetails.serviceFeePercentage?.toString() || '');
-            setFlightParticipants(initialData.flightDetails.participants || members.map(m => m.id));
+            setFlightParticipants(initialData.flightDetails.participants && initialData.flightDetails.participants.length > 0 ? initialData.flightDetails.participants : members.map(m => m.id));
             setIsFlightPotential(initialData.flightDetails.isPotential || false);
         } else {
             setFlightDepDate(initialData.date || currentDate || '');
@@ -903,7 +983,7 @@ export const AddScheduleModal = ({
             setStayCurrency(initialData.stayDetails.currency || 'TWD');
             setStayHasServiceFee(initialData.stayDetails.hasServiceFee || false);
             setStayServiceFeePercentage(initialData.stayDetails.serviceFeePercentage?.toString() || '');
-            setStayParticipants(initialData.stayDetails.participants || members.map(m => m.id));
+            setStayParticipants(initialData.stayDetails.participants && initialData.stayDetails.participants.length > 0 ? initialData.stayDetails.participants : members.map(m => m.id));
             setIsStayPotential(initialData.stayDetails.isPotential || false);
         } else {
             setStayParticipants(members.map(m => m.id));
@@ -919,21 +999,21 @@ export const AddScheduleModal = ({
               ...initialData.transitDetails.fare,
               originalPrice: initialData.transitDetails.fare.originalPrice !== undefined ? initialData.transitDetails.fare.originalPrice : '',
               discountedPrice: initialData.transitDetails.fare.discountedPrice !== undefined ? initialData.transitDetails.fare.discountedPrice : '',
-              currency: initialData.transitDetails.fare.currency || 'JPY',
+              currency: initialData.transitDetails.fare.currency || 'TWD',
               extraFeeName: initialData.transitDetails.fare.extraFeeName || '',
               seatReservationFee: initialData.transitDetails.fare.seatReservationFee !== undefined ? initialData.transitDetails.fare.seatReservationFee : '',
-              seatReservationFeeCurrency: initialData.transitDetails.fare.seatReservationFeeCurrency || initialData.transitDetails.fare.currency || 'JPY',
+              seatReservationFeeCurrency: initialData.transitDetails.fare.seatReservationFeeCurrency || initialData.transitDetails.fare.currency || 'TWD',
               notes: initialData.transitDetails.fare.notes || ''
             } : {
               originalPrice: '',
               discountedPrice: '',
-              currency: 'JPY',
+              currency: 'TWD',
               extraFeeName: '',
               seatReservationFee: '',
-              seatReservationFeeCurrency: 'JPY',
+              seatReservationFeeCurrency: 'TWD',
               notes: ''
             });
-            setTransitParticipants(initialData.transitDetails.participants || members.map(m => m.id));
+            setTransitParticipants(initialData.transitDetails.participants && initialData.transitDetails.participants.length > 0 ? initialData.transitDetails.participants : members.map(m => m.id));
             setIsTransitPotential(initialData.transitDetails.isPotential || false);
         } else if (initialData.carRental?.hasRental) {
             setTransportMode('rental');
@@ -946,10 +1026,10 @@ export const AddScheduleModal = ({
             setTransitFare({
               originalPrice: '',
               discountedPrice: '',
-              currency: 'JPY',
+              currency: 'TWD',
               extraFeeName: '',
               seatReservationFee: '',
-              seatReservationFeeCurrency: 'JPY',
+              seatReservationFeeCurrency: 'TWD',
               notes: ''
             });
             setTransitParticipants(members.map(m => m.id));
@@ -972,7 +1052,7 @@ export const AddScheduleModal = ({
            setEstimatedFuelCost(initialData.carRental.estimatedFuelCost?.toString() || '');
            setFuelCurrency(initialData.carRental.fuelCurrency || 'TWD');
            setRentalExpenses(initialData.carRental.expenses || []);
-           setRentalParticipants(initialData.carRental.participants || members.map(m => m.id));
+           setRentalParticipants(initialData.carRental.participants && initialData.carRental.participants.length > 0 ? initialData.carRental.participants : members.map(m => m.id));
            setIsRentalPotential(initialData.carRental.isPotential || false);
         } else {
            setPickupDate(initialData.date || currentDate || '');
@@ -989,7 +1069,7 @@ export const AddScheduleModal = ({
           setSelectedCurrency(initialData.spotDetails.currency || 'TWD');
           setHasServiceFee(initialData.spotDetails.hasServiceFee || false);
           setServiceFeePercentage(initialData.spotDetails.serviceFeePercentage?.toString() || '');
-          setParticipantIds(initialData.spotDetails.participants || []);
+          setParticipantIds(initialData.spotDetails.participants && initialData.spotDetails.participants.length > 0 ? initialData.spotDetails.participants : members.map(m => m.id));
           setIsPotential(initialData.spotDetails.isPotential || false);
         } else {
             setParticipantIds(members.map(m => m.id));
@@ -1007,10 +1087,10 @@ export const AddScheduleModal = ({
         setTransitFare({
           originalPrice: '',
           discountedPrice: '',
-          currency: 'JPY',
+          currency: 'TWD',
           extraFeeName: '',
           seatReservationFee: '',
-          seatReservationFeeCurrency: 'JPY',
+          seatReservationFeeCurrency: 'TWD',
           notes: ''
         });
         setTransitParticipants(members.map(m => m.id));
@@ -1091,15 +1171,14 @@ export const AddScheduleModal = ({
     }
     if (selectedType === 'transport') {
       if (transportMode === 'transit') {
+        const updatedLegs = transitLegs.map((leg, idx) => (idx === 0) ? { ...leg, departureTime: finalTime } : leg);
         itemData.transitDetails = {
-          legs: transitLegs,
+          legs: updatedLegs,
           fare: transitFare,
           participants: transitParticipants,
           isPotential: isTransitPotential
         };
-        if (transitLegs.length > 0 && transitLegs[0].departureTime) {
-          itemData.time = transitLegs[0].departureTime;
-        }
+        itemData.time = finalTime;
       } else {
         itemData.carRental = {
           hasRental, company: hasRental ? rentalCompany : undefined, carModel: hasRental ? carModel : undefined,
@@ -1112,6 +1191,7 @@ export const AddScheduleModal = ({
         };
         if (pickupDate) itemData.date = pickupDate;
         if (pickupTime) itemData.time = pickupTime;
+        else itemData.time = finalTime;
       }
     }
     if (selectedType === 'spot' || selectedType === 'food') {
@@ -1161,34 +1241,41 @@ export const AddScheduleModal = ({
     return totalInRentalCurrency;
   };
 
+  if (!isOpen) return null;
+
   return (
     <>
-      <div className={`fixed inset-0 bg-cocoa/40 backdrop-blur-sm z-50 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={onClose} />
-      <div className={`fixed bottom-0 left-0 w-full bg-beige rounded-t-[2.5rem] z-50 p-6 pb-12 border-t-2 border-beige-dark shadow-[0_-8px_30px_rgba(0,0,0,0.1)] transform ${isOpen ? 'translate-y-0' : 'translate-y-full'} ${THEME.animation.overshoot} max-h-[90vh] overflow-y-auto`}>
-        <div className="w-12 h-1.5 bg-beige-dark rounded-full mx-auto mb-8 sticky top-0" />
-        
-        {step === 'category' ? (
-          <>
-            <h3 className="text-xl font-black text-cocoa mb-6 text-center tracking-widest">選擇項目類型</h3>
-            <div className="grid grid-cols-2 gap-4">
-              {[ { type: 'spot', label: '景點', icon: Camera, color: 'bg-green-100 text-green-600' }, { type: 'food', label: '美食', icon: Utensils, color: 'bg-orange-100 text-orange-500' }, { type: 'transport', label: '交通', icon: Train, color: 'bg-blue-100 text-blue-500' }, { type: 'stay', label: '住宿', icon: Bed, color: 'bg-purple-100 text-purple-500' }, { type: 'flight', label: '航班', icon: Plane, color: 'bg-cyan-100 text-cyan-600' } ].map((item, i) => (
-                <button key={i} onClick={() => { setSelectedType(item.type as ItemType); setStep('details'); }} className="flex flex-col items-center justify-center p-4 bg-white rounded-3xl shadow-hard active:translate-y-1 active:shadow-none transition-all border-2 border-beige-dark">
-                  <div className={`w-12 h-12 rounded-2xl ${item.color} flex items-center justify-center mb-3 border-2 border-white shadow-sm`}><item.icon size={24} strokeWidth={2.5} /></div>
-                  <span className="font-bold text-cocoa text-lg">{item.label}</span>
-                </button>
-              ))}
+      <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-50 flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={onClose}>
+        <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-xl sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+          
+          {step === 'category' ? (
+            <div className="flex flex-col h-full justify-between overflow-y-auto custom-scroll">
+              <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
+                <h3 className="text-xl font-black text-cocoa tracking-wider">選擇項目類型</h3>
+                <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors"><X size={18}/></button>
+              </div>
+              <div className="grid grid-cols-2 gap-4 py-6 my-auto">
+                {[ { type: 'spot', label: '景點', icon: Camera, color: 'bg-green-100 text-green-600' }, { type: 'food', label: '美食', icon: Utensils, color: 'bg-orange-100 text-orange-500' }, { type: 'transport', label: '交通', icon: Train, color: 'bg-blue-100 text-blue-500' }, { type: 'stay', label: '住宿', icon: Bed, color: 'bg-purple-100 text-purple-500' }, { type: 'flight', label: '航班', icon: Plane, color: 'bg-cyan-100 text-cyan-600' } ].map((item, i) => (
+                  <button key={i} onClick={() => { setSelectedType(item.type as ItemType); setStep('details'); }} className="flex flex-col items-center justify-center p-5 bg-white rounded-3xl shadow-sm hover:shadow-md active:translate-y-1 transition-all border-2 border-beige-dark hover:border-sage">
+                    <div className={`w-14 h-14 rounded-2xl ${item.color} flex items-center justify-center mb-3 border-2 border-white shadow-sm`}><item.icon size={28} strokeWidth={2.5} /></div>
+                    <span className="font-black text-cocoa text-lg">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                <button onClick={onClose} className="w-full py-3.5 rounded-2xl font-bold text-cocoa bg-white border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+              </div>
             </div>
-          </>
-        ) : (
-          <div className="space-y-4">
-             {/* ... details form content ... */}
-             <div className="flex items-center justify-between mb-4">
-                <button onClick={() => !initialData && setStep('category')} className={`text-gray-400 font-bold text-sm ${initialData ? 'opacity-0 cursor-default' : 'hover:text-sage'}`}>← 返回種類</button>
-                <h3 className="text-xl font-black text-cocoa tracking-widest">{initialData ? '編輯項目' : '輸入細節'}</h3>
-                <div className="w-10"></div>
-             </div>
-             
-             {/* Basic Info */}
+          ) : (
+            <div className="flex flex-col h-full overflow-hidden">
+               <div className="flex items-center justify-between pb-3 border-b-2 border-beige-dark flex-shrink-0 mb-3">
+                  <button onClick={() => !initialData && setStep('category')} className={`text-gray-400 font-bold text-sm ${initialData ? 'opacity-0 pointer-events-none' : 'hover:text-sage'}`}>← 返回種類</button>
+                  <h3 className="text-xl font-black text-cocoa tracking-wider">{initialData ? '編輯項目' : '輸入細節'}</h3>
+                  <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors"><X size={18}/></button>
+               </div>
+
+               <div className="space-y-4 overflow-y-auto custom-scroll flex-1 pr-1 pb-4">
+               {/* Basic Info */}
              <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm">
                 <label className="text-xs font-bold text-gray-400 block mb-1">標題</label>
                 <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} className="w-full text-lg font-bold text-cocoa outline-none placeholder:text-gray-300 bg-transparent" placeholder={selectedType === 'flight' ? "例如: 台北 -> 東京" : selectedType === 'food' ? "例如：一蘭拉麵..." : selectedType === 'stay' ? "例如：希爾頓酒店..." : selectedType === 'transport' ? "例如：自駕或搭車..." : "例如：清水寺..."} />
@@ -1201,7 +1288,12 @@ export const AddScheduleModal = ({
                    onChange={val => {
                       const [d, t] = val.split('T');
                       if (d) setItemDate(d);
-                      if (t) setTime(t);
+                      if (t) {
+                        setTime(t);
+                        if (selectedType === 'transport' && transportMode === 'transit') {
+                          setTransitLegs(prev => prev.map((leg, idx) => idx === 0 ? { ...leg, departureTime: t } : leg));
+                        }
+                      }
                    }}
                    themeColor={selectedType === 'spot' ? 'green' : selectedType === 'food' ? 'orange' : 'sage'}
                    icon={selectedType === 'food' ? Utensils : selectedType === 'spot' ? Camera : Clock}
@@ -1567,11 +1659,15 @@ export const AddScheduleModal = ({
                 <label className="text-xs font-bold text-gray-400 flex items-center gap-1 mb-1"><AlignLeft size={12}/> 備註</label>
                 <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full text-sm font-medium text-cocoa outline-none min-h-[80px] resize-none bg-transparent" placeholder="詳細資訊..." style={{ colorScheme: 'light' }}/>
              </div>
+           </div>
 
-             <button onClick={handleSubmit} className="w-full mt-4 py-4 rounded-2xl bg-sage text-white text-lg font-bold shadow-hard-sage active:translate-y-1 active:shadow-none transition-all border-2 border-sage">{initialData ? '確認修改' : '確認新增'}</button>
+           <div className="pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+             <button onClick={handleSubmit} className="w-full py-4 rounded-2xl bg-sage text-white text-lg font-bold shadow-hard-sage active:translate-y-1 active:shadow-none transition-all border-2 border-sage">{initialData ? '確認修改' : '確認新增'}</button>
+           </div>
           </div>
         )}
       </div>
+    </div>
 
       <DeleteItemConfirmModal 
         isOpen={!!expenseToDelete} 
