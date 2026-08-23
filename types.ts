@@ -33,15 +33,37 @@ export interface TransitLeg {
   platform?: string;          // 月台/閘口 (e.g., Track 14)
 }
 
+// 額外加價項目 (如：指定席、劃位費、行李托運、觀光列車附加費等)
+export interface TransitExtraFeeItem {
+  id: string;
+  name: string;
+  amount: number | string;
+  currency: string;
+  hasServiceFee?: boolean;
+  serviceFeePercentage?: number | string;
+  serviceFee?: number;
+}
+
 // 票價與通行證折扣模型
 export interface TransitFareDetails {
   passUsed?: TransitPassType;
   originalPrice?: number | string;      // 原票價 (支援多幣別)
   discountedPrice?: number | string;    // 實際支付金額（套用通票或折扣後）
   currency: string;           // 幣別 (TWD, JPY, CHF, EUR 等)
+  hasServiceFee?: boolean;              // 是否有含稅/手續費 (例如海外刷卡1.5%或手續費)
+  serviceFeePercentage?: number | string; // 手續費百分比
+  serviceFee?: number;                  // 手續費金額
+  
+  // 支援多筆自定義額外加價項目
+  extraFees?: TransitExtraFeeItem[];
+
+  // 向下相容單一額外費用欄位
   extraFeeName?: string;      // 自定義額外費用名稱 (如：指定席加價 / 額外訂位費 / 行李加價)
   seatReservationFee?: number | string;// 額外費用金額
   seatReservationFeeCurrency?: string; // 額外費用幣別
+  extraFeeHasServiceFee?: boolean;              // 自訂加價項目是否含有手續費
+  extraFeeServiceFeePercentage?: number | string; // 自訂加價手續費百分比
+  extraFeeServiceFee?: number;                  // 自訂加價手續費金額
   notes?: string;             // 備註 (e.g., "需提前劃位，持有 JR Pass")
 }
 

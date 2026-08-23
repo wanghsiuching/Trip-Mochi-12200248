@@ -313,7 +313,17 @@ export const PotentialExpensesModal = ({
     const memberTotals: Record<string, number> = {};
     members.forEach(m => memberTotals[m.id] = 0);
 
-    const potentialItems: { title: string, amount: number, originalCurrency: string, originalAmount: number, type: string, participants: string[] }[] = [];
+    const potentialItems: { 
+        title: string; 
+        cost: number; 
+        fee: number; 
+        hasFee: boolean; 
+        feePct: number; 
+        amount: number; 
+        originalCurrency: string; 
+        type: string; 
+        participants: string[]; 
+    }[] = [];
 
     const processCost = (title: string, type: string, cost: number, currency: string, hasFee: boolean, feePct: number, participants: string[] = []) => {
         const fee = hasFee ? cost * (feePct / 100) : 0;
@@ -333,9 +343,12 @@ export const PotentialExpensesModal = ({
 
             potentialItems.push({ 
                 title, 
+                cost,
+                fee,
+                hasFee,
+                feePct,
                 amount: total, 
                 originalCurrency: currency, 
-                originalAmount: total, 
                 type,
                 participants 
             });
@@ -385,7 +398,8 @@ export const PotentialExpensesModal = ({
                         `${item.title} (大眾交通票價)`, '交通',
                         mainAmount,
                         mainCurrency,
-                        false, 0,
+                        item.transitDetails.fare?.hasServiceFee || false,
+                        Number(item.transitDetails.fare?.serviceFeePercentage) || 0,
                         participants
                     );
                 }
@@ -394,7 +408,8 @@ export const PotentialExpensesModal = ({
                         `${item.title} (${extraName})`, '交通',
                         extraAmount,
                         extraCurrency,
-                        false, 0,
+                        item.transitDetails.fare?.extraFeeHasServiceFee || false,
+                        Number(item.transitDetails.fare?.extraFeeServiceFeePercentage) || 0,
                         participants
                     );
                 }
@@ -480,19 +495,23 @@ export const PotentialExpensesModal = ({
                             <div className="text-center text-gray-400 font-bold py-8">沒有列入潛在花費的項目</div>
                         ) : (
                             potentialItems.map((p, i) => (
-                                <div key={i} className="bg-white p-3.5 rounded-2xl border border-beige-dark shadow-sm">
-                                    <div className="flex justify-between items-center mb-1">
+                                <div key={i} className="bg-white p-3.5 rounded-2xl border border-beige-dark shadow-sm space-y-1.5">
+                                    <div className="flex justify-between items-center">
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold">{p.type}</span>
                                             <span className="font-bold text-cocoa text-sm">{p.title}</span>
                                         </div>
                                         <div className="text-sm font-black text-cocoa">
-                                            ≈ ${Math.round(toTWD(p.originalAmount, p.originalCurrency)).toLocaleString()}
+                                            ≈ NT$ {Math.round(toTWD(p.amount, p.originalCurrency)).toLocaleString()}
                                         </div>
                                     </div>
-                                    <div className="flex justify-between items-center">
+                                    <div className="flex justify-between items-center pt-1 border-t border-dashed border-gray-100">
                                         <div className="text-[10px] font-bold text-gray-400">
-                                            原幣: {p.originalCurrency} {p.originalAmount.toLocaleString()}
+                                            {p.hasFee ? (
+                                                <span>原幣: {p.originalCurrency} {p.cost.toLocaleString()} + {p.feePct}%手續費 = <strong className="text-amber-800 font-mono">{p.originalCurrency} {Math.round(p.amount * 100) / 100}</strong></span>
+                                            ) : (
+                                                <span>原幣: {p.originalCurrency} {p.cost.toLocaleString()}</span>
+                                            )}
                                         </div>
                                         <div className="flex -space-x-1.5">
                                             {p.participants.map(pid => {
@@ -723,7 +742,7 @@ export const ScheduleDetailModal = ({
                     {/* Transport Details */}
                     {item.type === 'transport' && item.transitDetails && (
                         <div className="space-y-3">
-                            <TransitLegChainView legs={item.transitDetails.legs} fare={item.transitDetails.fare} isDetailed={true} />
+                            <TransitLegChainView legs={item.transitDetails.legs} fare={item.transitDetails.fare} isDetailed={true} currencies={currencies} />
                         </div>
                     )}
                     {item.type === 'transport' && !item.transitDetails && item.carRental?.hasRental && (
@@ -994,6 +1013,8 @@ export const AddScheduleModal = ({
               originalPrice: initialData.transitDetails.fare.originalPrice !== undefined ? initialData.transitDetails.fare.originalPrice : '',
               discountedPrice: initialData.transitDetails.fare.discountedPrice !== undefined ? initialData.transitDetails.fare.discountedPrice : '',
               currency: initialData.transitDetails.fare.currency || 'TWD',
+              hasServiceFee: initialData.transitDetails.fare.hasServiceFee || false,
+              serviceFeePercentage: initialData.transitDetails.fare.serviceFeePercentage !== undefined ? initialData.transitDetails.fare.serviceFeePercentage : '',
               extraFeeName: initialData.transitDetails.fare.extraFeeName || '',
               seatReservationFee: initialData.transitDetails.fare.seatReservationFee !== undefined ? initialData.transitDetails.fare.seatReservationFee : '',
               seatReservationFeeCurrency: initialData.transitDetails.fare.seatReservationFeeCurrency || initialData.transitDetails.fare.currency || 'TWD',
@@ -1002,6 +1023,8 @@ export const AddScheduleModal = ({
               originalPrice: '',
               discountedPrice: '',
               currency: 'TWD',
+              hasServiceFee: false,
+              serviceFeePercentage: '',
               extraFeeName: '',
               seatReservationFee: '',
               seatReservationFeeCurrency: 'TWD',
@@ -1082,6 +1105,8 @@ export const AddScheduleModal = ({
           originalPrice: '',
           discountedPrice: '',
           currency: 'TWD',
+          hasServiceFee: false,
+          serviceFeePercentage: '',
           extraFeeName: '',
           seatReservationFee: '',
           seatReservationFeeCurrency: 'TWD',

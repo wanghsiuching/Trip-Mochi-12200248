@@ -73,16 +73,42 @@ export const MembersView: React.FC<MembersViewProps> = ({
           }
           if (item.type === 'transport') {
               if (item.transitDetails) {
-                  const { mainAmount, mainCurrency, extraAmount, extraCurrency, extraName } = getTransitEffectiveFare(item.transitDetails.fare);
+                  const { mainAmount, mainCurrency, extraItems } = getTransitEffectiveFare(item.transitDetails.fare);
                   const participants = (item.transitDetails.participants && item.transitDetails.participants.length > 0)
                     ? item.transitDetails.participants
                     : members.map(m => m.id);
 
                   if (mainAmount > 0) {
-                    processItemCost(item.id, item.date, `${item.title} (大眾交通)`, '交通', mainAmount, mainCurrency, false, 0, participants, item.transitDetails.isPotential || false);
+                    processItemCost(
+                      item.id, 
+                      item.date, 
+                      `${item.title} (大眾交通)`, 
+                      '交通', 
+                      mainAmount, 
+                      mainCurrency, 
+                      item.transitDetails.fare?.hasServiceFee || false, 
+                      Number(item.transitDetails.fare?.serviceFeePercentage) || 0, 
+                      participants, 
+                      item.transitDetails.isPotential || false
+                    );
                   }
-                  if (extraAmount > 0) {
-                    processItemCost(item.id, item.date, `${item.title} (${extraName})`, '交通', extraAmount, extraCurrency, false, 0, participants, item.transitDetails.isPotential || false);
+                  if (Array.isArray(extraItems) && extraItems.length > 0) {
+                    extraItems.forEach((extraItem) => {
+                      if (extraItem.amount > 0) {
+                        processItemCost(
+                          `${item.id}-${extraItem.id}`, 
+                          item.date, 
+                          `${item.title} (${extraItem.name})`, 
+                          '交通', 
+                          extraItem.amount, 
+                          extraItem.currency, 
+                          extraItem.hasServiceFee || false, 
+                          Number(extraItem.serviceFeePercentage) || 0, 
+                          participants, 
+                          item.transitDetails?.isPotential || false
+                        );
+                      }
+                    });
                   }
               } else if (item.carRental && item.carRental.hasRental) {
                   processItemCost(item.id, item.date, `${item.title} (租車)`, '交通', Number(item.carRental.rentalCost) || 0, item.carRental.rentalCurrency || 'TWD', item.carRental.hasServiceFee || false, Number(item.carRental.serviceFeePercentage) || 0, item.carRental.participants || [], item.carRental.isPotential || false);

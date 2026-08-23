@@ -686,7 +686,7 @@ export default function App() {
                                     )}
                                     {item.type === 'transport' && item.transitDetails && (
                                         <div className="pt-1">
-                                            <TransitLegChainView legs={item.transitDetails.legs} fare={item.transitDetails.fare} />
+                                            <TransitLegChainView legs={item.transitDetails.legs} fare={item.transitDetails.fare} currencies={currencies} />
                                         </div>
                                     )}
                                     {item.type === 'transport' && !item.transitDetails && item.carRental?.hasRental && (() => {
