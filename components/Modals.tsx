@@ -710,6 +710,18 @@ export const ScheduleDetailModal = ({
                                 <div className="flex items-center gap-1"><Luggage size={12}/> {item.flightDetails.checkedBag || '--'}</div>
                                 <div className="flex items-center gap-1"><Luggage size={12}/> {item.flightDetails.carryOnBag || '--'}</div>
                             </div>
+                            {item.flightDetails.transitAirport && (
+                                <div className="flex items-center justify-between text-xs font-bold text-amber-800 bg-amber-100/70 border border-amber-200 rounded-xl px-3 py-1.5">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="px-1.5 py-0.5 bg-amber-200 text-amber-900 rounded text-[10px] font-black uppercase">轉機</span>
+                                        <span className="font-mono font-black">{item.flightDetails.transitAirport}</span>
+                                        {item.flightDetails.transitFlightCode && <span className="font-mono text-gray-600">({item.flightDetails.transitFlightCode})</span>}
+                                    </div>
+                                    {item.flightDetails.transitDuration && (
+                                        <span className="text-[11px] font-mono text-amber-700">停留 {item.flightDetails.transitDuration}</span>
+                                    )}
+                                </div>
+                            )}
                             {Number(item.flightDetails.cost) > 0 && (
                                 <div className="pt-2 border-t border-cyan-200 flex justify-between items-center">
                                     <span className="text-[10px] font-bold text-gray-400">總費用</span>
@@ -877,6 +889,10 @@ export const AddScheduleModal = ({
   const [flightCurrency, setFlightCurrency] = useState('TWD');
   const [flightHasServiceFee, setFlightHasServiceFee] = useState(false);
   const [flightServiceFeePercentage, setFlightServiceFeePercentage] = useState('');
+  const [flightHasTransit, setFlightHasTransit] = useState(false);
+  const [flightTransitAirport, setFlightTransitAirport] = useState('');
+  const [flightTransitDuration, setFlightTransitDuration] = useState('');
+  const [flightTransitFlightCode, setFlightTransitFlightCode] = useState('');
   const [flightParticipants, setFlightParticipants] = useState<string[]>([]);
   const [isFlightPotential, setIsFlightPotential] = useState(false);
 
@@ -964,6 +980,10 @@ export const AddScheduleModal = ({
             setFlightArrTime(initialData.flightDetails.arrivalTime || '12:00');
             setFlightDepAirport(initialData.flightDetails.departureAirport || '');
             setFlightArrAirport(initialData.flightDetails.arrivalAirport || '');
+            setFlightHasTransit(initialData.flightDetails.hasTransit || !!initialData.flightDetails.transitAirport);
+            setFlightTransitAirport(initialData.flightDetails.transitAirport || '');
+            setFlightTransitDuration(initialData.flightDetails.transitDuration || '');
+            setFlightTransitFlightCode(initialData.flightDetails.transitFlightCode || '');
             setFlightCheckedBag(initialData.flightDetails.checkedBag || '');
             setFlightCarryOnBag(initialData.flightDetails.carryOnBag || '');
             setFlightCost(initialData.flightDetails.cost?.toString() || '');
@@ -977,6 +997,10 @@ export const AddScheduleModal = ({
             setFlightDepTime(initialData.time || '09:00');
             setFlightArrDate(initialData.date || currentDate || '');
             setFlightArrTime('12:00');
+            setFlightHasTransit(false);
+            setFlightTransitAirport('');
+            setFlightTransitDuration('');
+            setFlightTransitFlightCode('');
             setFlightParticipants(members.map(m => m.id));
         }
 

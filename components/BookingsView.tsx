@@ -312,7 +312,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                             <div className={`w-1.5 h-12 rounded-full ${flight.color}`}></div>
                                             <div>
                                                 <div className="text-sm font-bold text-gray-400 tracking-wider uppercase mb-0.5">{flight.airline}</div>
-                                                <h3 className="text-4xl lg:text-5xl font-black text-cocoa font-mono tracking-wide select-all cursor-text hover:bg-yellow-50 px-2 -ml-2 rounded-lg transition-colors">{flight.code}</h3>
+                                                <h3 className="text-4xl lg:text-5xl font-black text-cocoa font-mono tracking-wide select-all cursor-text hover:bg-yellow-50 px-2 -ml-2 rounded-lg transition-colors">{flight.code ? flight.code.toUpperCase() : ''}</h3>
                                             </div>
                                         </div>
                                         <div className="text-right">
@@ -327,7 +327,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         
                                         <div className="flex items-center justify-between mb-2">
                                             <div className="flex flex-col">
-                                                <span className="text-2xl font-black text-cocoa font-mono">{flight.origin}</span>
+                                                <span className="text-2xl font-black text-cocoa font-mono">{flight.origin ? flight.origin.toUpperCase() : ''}</span>
                                                 <span className="text-xs font-bold text-sage bg-sage-light px-2 py-0.5 rounded-md inline-block mt-1 w-max">{flight.originCity}</span>
                                             </div>
                                             
@@ -343,7 +343,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                             </div>
 
                                             <div className="flex flex-col text-right">
-                                                <span className="text-2xl font-black text-cocoa font-mono">{flight.dest}</span>
+                                                <span className="text-2xl font-black text-cocoa font-mono">{flight.dest ? flight.dest.toUpperCase() : ''}</span>
                                                 <span className="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md inline-block mt-1 w-max ml-auto">{flight.destCity}</span>
                                             </div>
                                         </div>
@@ -351,6 +351,23 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                             <span>DEP: {displayDate}</span>
                                             <span>ARR: {displayArrDate}</span>
                                         </div>
+
+                                        {(flight.transitAirport || flight.transitCity) && (
+                                            <div className="mt-2 flex items-center justify-between text-[11px] font-bold text-amber-800 bg-amber-50/90 border border-amber-200/80 rounded-xl px-3 py-1.5 shadow-xs">
+                                                <div className="flex items-center gap-1.5">
+                                                    <span className="px-1.5 py-0.5 bg-amber-200 text-amber-900 rounded-md text-[9px] font-black uppercase tracking-wider">轉機</span>
+                                                    <span className="font-mono font-black">{flight.transitAirport ? flight.transitAirport.toUpperCase() : ''}</span>
+                                                    {flight.transitCity && <span>{flight.transitCity}</span>}
+                                                    {flight.transitFlightCode && <span className="font-mono text-gray-500 font-semibold">({flight.transitFlightCode.toUpperCase()})</span>}
+                                                </div>
+                                                {flight.transitDuration && (
+                                                    <div className="flex items-center gap-1 text-[10px] font-black text-amber-700 font-mono">
+                                                        <Clock size={11} />
+                                                        <span>停留 {flight.transitDuration}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
 
                                     {flight.tripType === 'roundtrip' && (
@@ -359,7 +376,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                             
                                             <div className="flex items-center justify-between mb-2">
                                                 <div className="flex flex-col">
-                                                    <span className="text-2xl font-black text-cocoa font-mono">{flight.dest}</span>
+                                                    <span className="text-2xl font-black text-cocoa font-mono">{flight.dest ? flight.dest.toUpperCase() : ''}</span>
                                                     <span className="text-xs font-bold text-orange-500 bg-orange-50 px-2 py-0.5 rounded-md inline-block mt-1 w-max">{flight.destCity}</span>
                                                 </div>
                                                 
@@ -375,7 +392,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                                 </div>
 
                                                 <div className="flex flex-col text-right">
-                                                    <span className="text-2xl font-black text-cocoa font-mono">{flight.origin}</span>
+                                                    <span className="text-2xl font-black text-cocoa font-mono">{flight.origin ? flight.origin.toUpperCase() : ''}</span>
                                                     <span className="text-xs font-bold text-sage bg-sage-light px-2 py-0.5 rounded-md inline-block mt-1 w-max ml-auto">{flight.originCity}</span>
                                                 </div>
                                             </div>
@@ -383,6 +400,23 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                                 <span>DEP: {displayReturnDate}</span>
                                                 <span>ARR: {displayReturnArrDate}</span>
                                             </div>
+
+                                            {(flight.returnTransitAirport || flight.returnTransitCity) && (
+                                                <div className="mt-2 flex items-center justify-between text-[11px] font-bold text-amber-800 bg-amber-50/90 border border-amber-200/80 rounded-xl px-3 py-1.5 shadow-xs">
+                                                    <div className="flex items-center gap-1.5">
+                                                        <span className="px-1.5 py-0.5 bg-amber-200 text-amber-900 rounded-md text-[9px] font-black uppercase tracking-wider">轉機</span>
+                                                        <span className="font-mono font-black">{flight.returnTransitAirport ? flight.returnTransitAirport.toUpperCase() : ''}</span>
+                                                        {flight.returnTransitCity && <span>{flight.returnTransitCity}</span>}
+                                                        {flight.returnTransitFlightCode && <span className="font-mono text-gray-500 font-semibold">({flight.returnTransitFlightCode.toUpperCase()})</span>}
+                                                    </div>
+                                                    {flight.returnTransitDuration && (
+                                                        <div className="flex items-center gap-1 text-[10px] font-black text-amber-700 font-mono">
+                                                            <Clock size={11} />
+                                                            <span>停留 {flight.returnTransitDuration}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
@@ -398,24 +432,26 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         <div className="flex gap-4 border-b border-beige-dark pb-3 border-dashed">
                                              {flight.checkedBag && (
                                                  <div className="flex flex-col">
-                                                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">CHECKED</span>
+                                                     <span className="text-[9px] font-black text-gray-400 tracking-widest block mb-1">託運行李</span>
                                                      <div className="text-sm font-black text-cocoa flex items-center gap-1.5"><Luggage size={14} className="text-teal-500"/> {flight.checkedBag}</div>
                                                  </div>
                                              )}
                                              {flight.carryOnBag && (
                                                  <div className="flex flex-col">
-                                                     <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">CARRY-ON</span>
+                                                     <span className="text-[9px] font-black text-gray-400 tracking-widest block mb-1">手提行李</span>
                                                      <div className="text-sm font-black text-cocoa flex items-center gap-1.5"><Briefcase size={14} className="text-orange-400"/> {flight.carryOnBag}</div>
                                                  </div>
                                              )}
-                                             <div className="ml-auto flex flex-col items-end">
-                                                 <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">AIRCRAFT</span>
-                                                 <div className="text-sm font-black text-cocoa flex items-center gap-1.5">{flight.aircraft} <Plane size={14} className="text-gray-400"/></div>
-                                             </div>
+                                             {flight.aircraft && (
+                                                 <div className="ml-auto flex flex-col items-end">
+                                                     <span className="text-[9px] font-black text-gray-400 tracking-widest block mb-1">機型</span>
+                                                     <div className="text-sm font-black text-cocoa flex items-center gap-1.5">{flight.aircraft} <Plane size={14} className="text-gray-400"/></div>
+                                                 </div>
+                                             )}
                                         </div>
                                         <div className="flex justify-between items-end">
                                              <div>
-                                                 <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">TOTAL COST</span>
+                                                 <span className="text-[9px] font-black text-gray-400 tracking-widest block mb-1">總金額</span>
                                                  <div className="flex flex-col">
                                                      <div className="flex items-baseline gap-1">
                                                          <span className="text-sm font-black text-cocoa font-mono">{flight.currency} {totalCost.toLocaleString()}</span>
@@ -438,8 +474,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                                  </div>
                                              </div>
                                              <div className="text-right">
-                                                 <div className="text-[10px] text-gray-400 font-bold">Purchased: {flight.purchaseDate}</div>
-                                                 <div className="text-[10px] text-gray-400 font-bold opacity-70">{flight.platform}</div>
+                                                 {flight.purchaseDate && <div className="text-[10px] text-gray-400 font-bold">購買日期: {flight.purchaseDate}</div>}
+                                                 {flight.platform && <div className="text-[10px] text-gray-400 font-bold opacity-70">{flight.platform}</div>}
                                              </div>
                                         </div>
                                         {flight.note && <div className="bg-white p-2 rounded-xl border border-beige-dark text-[10px] font-bold text-gray-400 flex items-center gap-1"><Info size={12} className="text-yellow-500"/> {flight.note}</div>}
@@ -490,7 +526,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         <h3 className="text-xl font-black text-cocoa leading-tight mb-1">{acc.name}</h3>
                                         <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
                                             <span className="bg-sage-light text-sage px-2 py-0.5 rounded-md">{acc.city}</span>
-                                            <span>{acc.nights} Nights</span>
+                                            <span>{acc.nights} 晚</span>
                                         </div>
                                     </div>
                                     <div className="text-right">
@@ -498,13 +534,13 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         {acc.currency !== 'TWD' && (
                                             <div className="text-[10px] font-bold text-gray-400 font-mono">≈ TWD {Math.round(totalCost * getExchangeRate(acc.currency)).toLocaleString()}</div>
                                         )}
-                                        <div className="text-[10px] font-bold text-gray-400">Total (Inc. Tax)</div>
+                                        <div className="text-[10px] font-bold text-gray-400">總金額 (含稅)</div>
                                     </div>
                                 </div>
 
                                 <div className="bg-gray-50 rounded-2xl p-4 border border-beige-dark flex justify-between items-center my-4 relative">
                                     <div className="text-center pl-2">
-                                        <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">CHECK-IN</div>
+                                        <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">入住時間</div>
                                         <div className="text-sm font-black text-cocoa">{checkInDisplay}</div>
                                     </div>
                                     <div className="flex-1 border-b-2 border-dashed border-gray-300 mx-4 relative top-[-10px]">
@@ -513,7 +549,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         </div>
                                     </div>
                                     <div className="text-center pr-2">
-                                        <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">CHECK-OUT</div>
+                                        <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">退房時間</div>
                                         <div className="text-sm font-black text-cocoa">{checkOutDisplay}</div>
                                     </div>
                                 </div>
@@ -582,12 +618,12 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                 <div className="flex items-center gap-3">
                                     <div className="p-3 bg-white rounded-2xl shadow-sm text-blue-500"><Car size={24}/></div>
                                     <div>
-                                        <span className="text-[10px] font-black text-blue-400 tracking-widest uppercase block mb-0.5">RENTAL CAR</span>
+                                        <span className="text-[10px] font-black text-blue-400 tracking-widest uppercase block mb-0.5">租車資訊</span>
                                         <h3 className="text-2xl font-black text-cocoa leading-none">{car.company}</h3>
                                     </div>
                                 </div>
                                 <div className="text-right">
-                                    <span className="bg-white text-blue-500 px-3 py-1 rounded-full text-xs font-black shadow-sm border border-blue-100">{car.platform || 'Rental'}</span>
+                                    <span className="bg-white text-blue-500 px-3 py-1 rounded-full text-xs font-black shadow-sm border border-blue-100">{car.platform || '租車'}</span>
                                     <div className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">{car.carModel}</div>
                                 </div>
                             </div>
@@ -597,7 +633,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                 <div className="flex items-center justify-between mb-6 relative">
                                     <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-100 -z-0"></div>
                                     <div className="bg-white z-10 pr-4">
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1">PICK-UP</span>
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1">取車時間</span>
                                         <div className="text-sm font-black text-cocoa">
                                             {new Date(car.pickupDate).toLocaleString('zh-TW', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})}
                                         </div>
@@ -608,7 +644,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         </div>
                                     </div>
                                     <div className="bg-white z-10 pl-4 text-right">
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1">RETURN</span>
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1">還車時間</span>
                                         <div className="text-sm font-black text-cocoa">
                                             {new Date(car.returnDate).toLocaleString('zh-TW', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})}
                                         </div>
@@ -620,7 +656,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         <div className="flex items-center gap-3">
                                             <div className="w-2 h-2 rounded-full bg-blue-400"></div>
                                             <div>
-                                                <span className="text-[10px] font-bold text-gray-400 block uppercase">Pick-up Location</span>
+                                                 <span className="text-[10px] font-bold text-gray-400 block uppercase">取車地點</span>
                                                 <span className="text-sm font-bold text-cocoa">{car.pickupLocation}</span>
                                             </div>
                                         </div>
@@ -630,7 +666,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         <div className="flex items-center gap-3">
                                             <div className="w-2 h-2 rounded-full bg-orange-400"></div>
                                             <div>
-                                                <span className="text-[10px] font-bold text-gray-400 block uppercase">Return Location</span>
+                                                 <span className="text-[10px] font-bold text-gray-400 block uppercase">還車地點</span>
                                                 <span className="text-sm font-bold text-cocoa">{car.returnLocation}</span>
                                             </div>
                                         </div>
@@ -641,12 +677,12 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                 <div className="flex gap-2 mb-6">
                                     {car.gps && (
                                         <button onClick={() => openNav('', car.gps)} className="flex-1 py-2 bg-white border-2 border-beige-dark rounded-xl text-xs font-bold text-sage flex items-center justify-center gap-1 hover:bg-sage hover:text-white transition-colors">
-                                            <MapPin size={14}/> GPS Navigation
+                                            <MapPin size={14}/> GPS 導航
                                         </button>
                                     )}
                                     {car.url && (
                                         <a href={car.url} target="_blank" className="flex-1 py-2 bg-white border-2 border-beige-dark rounded-xl text-xs font-bold text-blue-400 flex items-center justify-center gap-1 hover:bg-blue-50 transition-colors">
-                                            <LinkIcon size={14}/> Website
+                                            <LinkIcon size={14}/> 租車網站
                                         </a>
                                     )}
                                 </div>
@@ -700,7 +736,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
                         <div className="grid grid-cols-2 gap-2">
                             <input value={editingFlight.airline} onChange={e => setEditingFlight({...editingFlight, airline: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="航空公司 (EVA)"/>
-                            <input value={editingFlight.code} onChange={e => setEditingFlight({...editingFlight, code: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-black text-cocoa uppercase text-sm" placeholder="航班號 (BR123)"/>
+                            <input value={editingFlight.code} onChange={e => setEditingFlight({...editingFlight, code: e.target.value.toUpperCase()})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-black text-cocoa uppercase text-sm" placeholder="航班號 (BR123)"/>
                         </div>
 
                         <div className="space-y-3">
@@ -746,8 +782,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             </div>
                             <div className="flex gap-2">
                                 <div className="flex-[1]">
-                                    <label className="text-[9px] font-bold text-gray-400 ml-1">代碼</label>
-                                    <input value={editingFlight.origin} onChange={e => setEditingFlight({...editingFlight, origin: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-black text-cocoa uppercase mb-1 text-center" placeholder="TPE"/>
+                                    <label className="text-[9px] font-bold text-gray-400 ml-1">代碼 (如 TPE)</label>
+                                    <input value={editingFlight.origin} onChange={e => setEditingFlight({...editingFlight, origin: e.target.value.toUpperCase()})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-black text-cocoa uppercase mb-1 text-center" placeholder="TPE"/>
                                 </div>
                                 <div className="flex-[2]">
                                     <label className="text-[9px] font-bold text-gray-400 ml-1">出發城市</label>
@@ -757,15 +793,107 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             <div className="text-center text-gray-300 font-bold text-xs">⬇</div>
                             <div className="flex gap-2">
                                 <div className="flex-[1]">
-                                    <label className="text-[9px] font-bold text-gray-400 ml-1">代碼</label>
-                                    <input value={editingFlight.dest} onChange={e => setEditingFlight({...editingFlight, dest: e.target.value})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-black text-cocoa uppercase mb-1 text-center" placeholder="PUS"/>
+                                    <label className="text-[9px] font-bold text-gray-400 ml-1">代碼 (如 ZRH)</label>
+                                    <input value={editingFlight.dest} onChange={e => setEditingFlight({...editingFlight, dest: e.target.value.toUpperCase()})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-black text-cocoa uppercase mb-1 text-center" placeholder="ZRH"/>
                                 </div>
                                 <div className="flex-[2]">
                                     <label className="text-[9px] font-bold text-gray-400 ml-1">抵達城市</label>
-                                    <input value={editingFlight.destCity} onChange={e => setEditingFlight({...editingFlight, destCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-beige-dark font-bold text-cocoa outline-none text-sm" placeholder="例如：釜山"/>
+                                    <input value={editingFlight.destCity} onChange={e => setEditingFlight({...editingFlight, destCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-beige-dark font-bold text-cocoa outline-none text-sm" placeholder="例如：蘇黎世"/>
                                 </div>
                             </div>
                         </div>
+
+                        {/* 去程轉機資訊 */}
+                        <div className="bg-amber-50/60 p-3 rounded-2xl border border-amber-200/80 space-y-2">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-5 h-5 rounded-full bg-amber-200 text-amber-800 flex items-center justify-center text-xs font-black">轉</div>
+                                    <span className="text-xs font-black text-amber-900">去程轉機資訊 (可選)</span>
+                                </div>
+                                <ToggleSwitch 
+                                    checked={editingFlight.hasTransit || !!editingFlight.transitAirport || !!editingFlight.transitCity} 
+                                    onChange={(checked) => setEditingFlight({
+                                        ...editingFlight, 
+                                        hasTransit: checked,
+                                        ...(!checked ? { transitAirport: '', transitCity: '', transitDuration: '', transitFlightCode: '' } : {})
+                                    })} 
+                                    label={editingFlight.hasTransit || !!editingFlight.transitAirport ? "有轉機" : "直飛/無轉機"} 
+                                    colorClass="bg-amber-400" 
+                                />
+                            </div>
+
+                            {(editingFlight.hasTransit || !!editingFlight.transitAirport || !!editingFlight.transitCity) && (
+                                <div className="space-y-2 pt-2 border-t border-amber-200/60">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">轉機機場代碼 (如 AUH)</label>
+                                            <input value={editingFlight.transitAirport || ''} onChange={e => setEditingFlight({...editingFlight, transitAirport: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="AUH"/>
+                                        </div>
+                                        <div>
+                                            <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">轉機城市 (如 阿布達比)</label>
+                                            <input value={editingFlight.transitCity || ''} onChange={e => setEditingFlight({...editingFlight, transitCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="阿布達比"/>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">轉機停留時間</label>
+                                            <input value={editingFlight.transitDuration || ''} onChange={e => setEditingFlight({...editingFlight, transitDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：2h 30m"/>
+                                        </div>
+                                        <div>
+                                            <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">銜接航班號 (可選)</label>
+                                            <input value={editingFlight.transitFlightCode || ''} onChange={e => setEditingFlight({...editingFlight, transitFlightCode: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="EY073"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 回程轉機資訊 */}
+                        {editingFlight.tripType === 'roundtrip' && (
+                            <div className="bg-amber-50/60 p-3 rounded-2xl border border-amber-200/80 space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-5 h-5 rounded-full bg-amber-200 text-amber-800 flex items-center justify-center text-xs font-black">轉</div>
+                                        <span className="text-xs font-black text-amber-900">回程轉機資訊 (可選)</span>
+                                    </div>
+                                    <ToggleSwitch 
+                                        checked={editingFlight.hasReturnTransit || !!editingFlight.returnTransitAirport || !!editingFlight.returnTransitCity} 
+                                        onChange={(checked) => setEditingFlight({
+                                            ...editingFlight, 
+                                            hasReturnTransit: checked,
+                                            ...(!checked ? { returnTransitAirport: '', returnTransitCity: '', returnTransitDuration: '', returnTransitFlightCode: '' } : {})
+                                        })} 
+                                        label={editingFlight.hasReturnTransit || !!editingFlight.returnTransitAirport ? "有轉機" : "直飛/無轉機"} 
+                                        colorClass="bg-amber-400" 
+                                    />
+                                </div>
+
+                                {(editingFlight.hasReturnTransit || !!editingFlight.returnTransitAirport || !!editingFlight.returnTransitCity) && (
+                                    <div className="space-y-2 pt-2 border-t border-amber-200/60">
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">回程轉機機場 (如 AUH)</label>
+                                                <input value={editingFlight.returnTransitAirport || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitAirport: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="AUH"/>
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">回程轉機城市</label>
+                                                <input value={editingFlight.returnTransitCity || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="阿布達比"/>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">回程轉機停留時間</label>
+                                                <input value={editingFlight.returnTransitDuration || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：2h 30m"/>
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">回程銜接航班號 (可選)</label>
+                                                <input value={editingFlight.returnTransitFlightCode || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitFlightCode: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="EY898"/>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         <div className="flex gap-2">
                             <div className="flex-[1]">

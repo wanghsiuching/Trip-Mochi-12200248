@@ -261,6 +261,20 @@ export interface BookingFlight {
   arrivalAirport?: string;
   depTime?: string;
   arrTime?: string;
+
+  // 轉機資訊 (Layover / Transit)
+  hasTransit?: boolean;
+  transitAirport?: string;       // 轉機機場代碼 (如：AUH, HKG, DXB)
+  transitCity?: string;          // 轉機城市 (如：阿布達比, 香港)
+  transitDuration?: string;      // 轉機停留時間 (如：2h 15m)
+  transitFlightCode?: string;    // 第二段/銜接航班號 (如：EY073)
+
+  // 回程轉機資訊 (Return Transit)
+  hasReturnTransit?: boolean;
+  returnTransitAirport?: string; // 回程轉機機場代碼
+  returnTransitCity?: string;    // 回程轉機城市
+  returnTransitDuration?: string;// 回程轉機停留時間
+  returnTransitFlightCode?: string; // 回程第二段/銜接航班號
 }
 
 export interface BookingAccommodation {
