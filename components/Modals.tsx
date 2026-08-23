@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, Utensils, Train, Bed, PenTool, Trash2, AlertCircle, Map, Coffee, Moon, AlignLeft, Ticket, Coins, Users, Plus, X, Settings, Car, Clock, DollarSign, Navigation, ExternalLink, Fuel, Calendar as CalendarIcon, Plane, Edit3, Luggage, Copy, Save, Shuffle, MapPin, ArrowRightLeft, Layers } from 'lucide-react';
 import { ItemType, ScheduleItem, Currency, Member, THEME, ExpenseItem, TransitLeg, TransitFareDetails, UniversalTransportType, TransitPassType } from '../types';
-import { TransitLegEditor, TransitLegChainView, TransitPassBadge } from './TransitComponents';
+import { TransitLegEditor, TransitLegChainView, TransitPassBadge, getTransitEffectiveFare } from './TransitComponents';
 import { TimePickerField, DatePickerField, DateTimePickerField } from './TimePickerComponents';
 import { MemberAvatar } from './MemberAvatar';
 
@@ -375,31 +375,25 @@ export const PotentialExpensesModal = ({
         }
         if (item.type === 'transport') {
             if (item.transitDetails?.isPotential) {
-                const disc = (item.transitDetails.fare.discountedPrice !== undefined && item.transitDetails.fare.discountedPrice !== '' && item.transitDetails.fare.discountedPrice !== null)
-                    ? (Number(item.transitDetails.fare.discountedPrice) || 0)
-                    : (Number(item.transitDetails.fare.originalPrice) || 0);
-                const extra = Number(item.transitDetails.fare.seatReservationFee) || 0;
-                const mainCurr = item.transitDetails.fare.currency || 'TWD';
-                const extraCurr = item.transitDetails.fare.seatReservationFeeCurrency || mainCurr;
-                const extraName = item.transitDetails.fare.extraFeeName?.trim() || '大眾交通加價';
+                const { mainAmount, mainCurrency, extraAmount, extraCurrency, extraName } = getTransitEffectiveFare(item.transitDetails.fare);
                 const participants = (item.transitDetails.participants && item.transitDetails.participants.length > 0)
                     ? item.transitDetails.participants
                     : members.map(m => m.id);
 
-                if (disc > 0) {
+                if (mainAmount > 0) {
                     processCost(
                         `${item.title} (大眾交通票價)`, '交通',
-                        disc,
-                        mainCurr,
+                        mainAmount,
+                        mainCurrency,
                         false, 0,
                         participants
                     );
                 }
-                if (extra > 0) {
+                if (extraAmount > 0) {
                     processCost(
                         `${item.title} (${extraName})`, '交通',
-                        extra,
-                        extraCurr,
+                        extraAmount,
+                        extraCurrency,
                         false, 0,
                         participants
                     );

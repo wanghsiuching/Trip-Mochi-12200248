@@ -5,6 +5,7 @@ import { User, PenTool, X, Lock, Plus, Info, DollarSign, Navigation, Calendar, A
 import { AvatarPickerModal } from './AvatarPickerModal';
 import { MemberAvatar } from './MemberAvatar';
 import { getMemberAvatarSrc, getDefaultMemberAvatar } from '../constants/avatars';
+import { getTransitEffectiveFare } from './TransitComponents';
 
 interface MembersViewProps {
   members: Member[];
@@ -45,16 +46,19 @@ export const MembersView: React.FC<MembersViewProps> = ({
       const breakdown: { id: string, date: string, title: string, amount: number, type: string, isPotential: boolean, category: 'schedule' | 'expense' }[] = [];
 
       const processItemCost = (id: string, date: string, title: string, type: string, cost: number, currency: string, hasFee: boolean, feePct: number, participants: string[], isPotential: boolean) => {
+          const base = Number(cost) || 0;
+          if (base <= 0) return; // 實付費用為 0 時不計入分攤總計與明細
+
           const effectiveParticipants = (participants && participants.length > 0) ? participants : members.map(m => m.id);
           if (effectiveParticipants.includes(memberId)) {
-              const base = Number(cost) || 0;
               const fee = hasFee ? base * (Number(feePct) || 0) / 100 : 0;
               const total = base + fee;
+              if (total <= 0) return;
               const perPerson = total / (effectiveParticipants.length || 1);
               const twdAmount = toTWD(perPerson, currency);
 
               totalPotential += twdAmount;
-              if (twdAmount > 0) {
+              if (twdAmount > 0 && Math.round(twdAmount) > 0) {
                   breakdown.push({ id, date, title, amount: Math.round(twdAmount), type, isPotential: true, category: 'schedule' });
               }
           }
@@ -69,20 +73,16 @@ export const MembersView: React.FC<MembersViewProps> = ({
           }
           if (item.type === 'transport') {
               if (item.transitDetails) {
-                  const farePrice = (item.transitDetails.fare.discountedPrice !== undefined && item.transitDetails.fare.discountedPrice !== '' && item.transitDetails.fare.discountedPrice !== null)
-                    ? (Number(item.transitDetails.fare.discountedPrice) || 0)
-                    : (Number(item.transitDetails.fare.originalPrice) || 0);
-                  const fareCurr = item.transitDetails.fare.currency || 'TWD';
-                  const extraFee = Number(item.transitDetails.fare.seatReservationFee) || 0;
-                  const extraCurr = item.transitDetails.fare.seatReservationFeeCurrency || fareCurr;
-                  const participants = item.transitDetails.participants || [];
+                  const { mainAmount, mainCurrency, extraAmount, extraCurrency, extraName } = getTransitEffectiveFare(item.transitDetails.fare);
+                  const participants = (item.transitDetails.participants && item.transitDetails.participants.length > 0)
+                    ? item.transitDetails.participants
+                    : members.map(m => m.id);
 
-                  if (farePrice > 0) {
-                    processItemCost(item.id, item.date, `${item.title} (大眾交通)`, '交通', farePrice, fareCurr, false, 0, participants, item.transitDetails.isPotential || false);
+                  if (mainAmount > 0) {
+                    processItemCost(item.id, item.date, `${item.title} (大眾交通)`, '交通', mainAmount, mainCurrency, false, 0, participants, item.transitDetails.isPotential || false);
                   }
-                  if (extraFee > 0) {
-                    const extraName = item.transitDetails.fare.extraFeeName?.trim() || '交通加價';
-                    processItemCost(item.id, item.date, `${item.title} (${extraName})`, '交通', extraFee, extraCurr, false, 0, participants, item.transitDetails.isPotential || false);
+                  if (extraAmount > 0) {
+                    processItemCost(item.id, item.date, `${item.title} (${extraName})`, '交通', extraAmount, extraCurrency, false, 0, participants, item.transitDetails.isPotential || false);
                   }
               } else if (item.carRental && item.carRental.hasRental) {
                   processItemCost(item.id, item.date, `${item.title} (租車)`, '交通', Number(item.carRental.rentalCost) || 0, item.carRental.rentalCurrency || 'TWD', item.carRental.hasServiceFee || false, Number(item.carRental.serviceFeePercentage) || 0, item.carRental.participants || [], item.carRental.isPotential || false);

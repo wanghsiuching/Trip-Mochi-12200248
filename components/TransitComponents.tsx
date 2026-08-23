@@ -133,6 +133,44 @@ export const PASS_TYPE_CONFIG: Record<TransitPassType, {
 };
 
 /**
+ * 取得大眾交通的實際生效票價與附加費用
+ */
+export const getTransitEffectiveFare = (fare?: TransitFareDetails): {
+  mainAmount: number;
+  mainCurrency: string;
+  extraAmount: number;
+  extraCurrency: string;
+  extraName: string;
+} => {
+  if (!fare) {
+    return { mainAmount: 0, mainCurrency: 'TWD', extraAmount: 0, extraCurrency: 'TWD', extraName: '' };
+  }
+  const orig = (fare.originalPrice !== undefined && fare.originalPrice !== '' && fare.originalPrice !== null) ? Number(fare.originalPrice) || 0 : 0;
+  
+  let mainAmount = 0;
+  // 若有明確輸入實際支付金額（包含 0 或 '0'）
+  if (fare.discountedPrice !== undefined && fare.discountedPrice !== '' && fare.discountedPrice !== null) {
+    mainAmount = Math.max(0, Number(fare.discountedPrice) || 0);
+  } else if (fare.passUsed === 'pass_free') {
+    mainAmount = 0;
+  } else if (fare.passUsed === 'pass_discount') {
+    mainAmount = orig > 0 ? Math.round(orig * 0.5 * 100) / 100 : 0;
+  } else if (fare.passUsed === 'point_to_point' || fare.passUsed === 'ic_card') {
+    mainAmount = orig;
+  } else {
+    // 若未填寫實付且未特別指定全額購票，預設實際支出為 0（避免僅輸入原票價作參考時意外產生扣款與分攤項目）
+    mainAmount = 0;
+  }
+
+  const mainCurrency = fare.currency || 'TWD';
+  const extraAmount = (fare.seatReservationFee !== undefined && fare.seatReservationFee !== '' && fare.seatReservationFee !== null) ? Math.max(0, Number(fare.seatReservationFee) || 0) : 0;
+  const extraCurrency = fare.seatReservationFeeCurrency || mainCurrency;
+  const extraName = fare.extraFeeName?.trim() || '交通加價';
+
+  return { mainAmount, mainCurrency, extraAmount, extraCurrency, extraName };
+};
+
+/**
  * 智慧票卡標籤 (Pass Badges) - 日系手帳風格印章/標籤
  */
 export const TransitPassBadge: React.FC<{
@@ -437,15 +475,17 @@ export const TransitLegEditor: React.FC<{
   const applyDiscount = (type: 'pass_free' | 'half' | 'eighty' | 'ic' | 'full') => {
     const orig = Number(fare.originalPrice) || 0;
     if (type === 'pass_free') {
-      setFare(prev => ({ ...prev, passUsed: 'pass_free', discountedPrice: 0 }));
+      setFare(prev => ({ ...prev, passUsed: 'pass_free', discountedPrice: '0' }));
     } else if (type === 'half') {
-      setFare(prev => ({ ...prev, passUsed: 'pass_discount', discountedPrice: Math.round(orig * 0.5) }));
+      const halfPrice = orig > 0 ? (Math.round(orig * 0.5 * 100) / 100).toString() : '0';
+      setFare(prev => ({ ...prev, passUsed: 'pass_discount', discountedPrice: halfPrice }));
     } else if (type === 'eighty') {
-      setFare(prev => ({ ...prev, passUsed: 'pass_discount', discountedPrice: Math.round(orig * 0.8) }));
+      const eightyPrice = orig > 0 ? (Math.round(orig * 0.8 * 100) / 100).toString() : '0';
+      setFare(prev => ({ ...prev, passUsed: 'pass_discount', discountedPrice: eightyPrice }));
     } else if (type === 'ic') {
-      setFare(prev => ({ ...prev, passUsed: 'ic_card', discountedPrice: orig }));
+      setFare(prev => ({ ...prev, passUsed: 'ic_card', discountedPrice: orig > 0 ? orig.toString() : '' }));
     } else if (type === 'full') {
-      setFare(prev => ({ ...prev, passUsed: 'point_to_point', discountedPrice: orig }));
+      setFare(prev => ({ ...prev, passUsed: 'point_to_point', discountedPrice: orig > 0 ? orig.toString() : '' }));
     }
   };
 
@@ -593,6 +633,52 @@ export const TransitLegEditor: React.FC<{
             <span>票價與花費設定 (Fare & Expenses)</span>
           </label>
           <span className="text-[10px] text-gray-400 font-bold">可自由設定幣別與實付金額</span>
+        </div>
+
+        {/* Quick Pass & Discount Presets */}
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-black text-gray-500 flex items-center gap-1">
+            <Sparkles size={12} className="text-amber-500" />
+            <span>通票 / 折扣快速套用：</span>
+          </label>
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            <button
+              type="button"
+              onClick={() => applyDiscount('pass_free')}
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-black border transition-all whitespace-nowrap flex items-center gap-1 active:scale-95 ${
+                fare.passUsed === 'pass_free' || fare.discountedPrice === '0' || fare.discountedPrice === 0
+                  ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
+                  : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
+              }`}
+            >
+              <span>🟢 憑Pass免費 (實付0元)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => applyDiscount('half')}
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-black border transition-all whitespace-nowrap flex items-center gap-1 active:scale-95 ${
+                fare.passUsed === 'pass_discount' && Number(fare.discountedPrice) > 0 && Number(fare.originalPrice) > 0 && Number(fare.discountedPrice) === Math.round(Number(fare.originalPrice) * 0.5 * 100) / 100
+                  ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
+                  : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'
+              }`}
+            >
+              <span>🟡 半價卡 (50%)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => applyDiscount('eighty')}
+              className="px-2.5 py-1.5 rounded-xl text-xs font-black border bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200 whitespace-nowrap flex items-center gap-1 active:scale-95"
+            >
+              <span>八折 (80%)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => applyDiscount('full')}
+              className="px-2.5 py-1.5 rounded-xl text-xs font-black border bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200 whitespace-nowrap flex items-center gap-1 active:scale-95"
+            >
+              <span>全額原價 (100%)</span>
+            </button>
+          </div>
         </div>
 
         {/* Prices Input */}
