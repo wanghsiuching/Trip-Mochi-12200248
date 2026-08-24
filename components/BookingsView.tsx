@@ -230,29 +230,29 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
       setEditingAcc({ ...editingAcc, participants: updated });
   };
 
-  // Smart Navigation Handler (avoids pasting full URL into Google Maps search)
+  // Direct Link or Smart Navigation Handler (directly opens web URLs or searches address without pasting raw URLs into Google search)
   const openMapNav = (options: { address?: string; gps?: string; name?: string; city?: string }) => {
       const { address, gps, name, city } = options;
-      
-      // 1. If GPS is provided and is not a URL
-      if (gps && gps.trim() && !gps.startsWith('http://') && !gps.startsWith('https://')) {
-          window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(gps.trim())}`, '_blank', 'noopener,noreferrer');
+      const target = (address || gps || '').trim();
+
+      // If user provided an address / link / GPS
+      if (target) {
+          // If it is a web URL or Google Maps share link (http://, https://, maps.app.goo.gl, goo.gl, www., etc.)
+          if (/^(https?:\/\/|www\.|maps\.app\.goo\.gl|goo\.gl)/i.test(target)) {
+              const fullUrl = /^https?:\/\//i.test(target) ? target : `https://${target}`;
+              window.open(fullUrl, '_blank', 'noopener,noreferrer');
+              return;
+          }
+
+          // If plain text address / place name, search on Google Maps
+          window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(target)}`, '_blank', 'noopener,noreferrer');
           return;
       }
-      // 2. If address is provided and is NOT a web URL
-      if (address && address.trim() && !address.startsWith('http://') && !address.startsWith('https://')) {
-          window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address.trim())}`, '_blank', 'noopener,noreferrer');
-          return;
-      }
-      // 3. If address is a web URL or empty, fallback to searching for the hotel name and city on Google Maps!
-      const placeName = [city, name].filter(Boolean).join(' ').trim();
-      if (placeName) {
-          window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeName)}`, '_blank', 'noopener,noreferrer');
-          return;
-      }
-      // 4. If address itself is a URL and nothing else, open the URL directly
-      if (address && (address.startsWith('http://') || address.startsWith('https://'))) {
-          window.open(address.trim(), '_blank', 'noopener,noreferrer');
+
+      // Fallback: If no address/gps given, search by city and name
+      const fallbackPlace = [city, name].filter(Boolean).join(' ').trim();
+      if (fallbackPlace) {
+          window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fallbackPlace)}`, '_blank', 'noopener,noreferrer');
       }
   };
 
@@ -570,7 +570,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                         const perPerson = Math.round(totalCost / (acc.participants.length || 1));
                         const checkInDisplay = new Date(acc.checkInDate).toLocaleDateString('zh-TW', {month:'numeric', day:'numeric'}) + ' ' + new Date(acc.checkInDate).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                         const checkOutDisplay = new Date(acc.checkOutDate).toLocaleDateString('zh-TW', {month:'numeric', day:'numeric'}) + ' ' + new Date(acc.checkOutDate).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                        const isAddressUrl = !!(acc.address && (acc.address.startsWith('http://') || acc.address.startsWith('https://')));
+                        const hasAddress = !!(acc.address && acc.address.trim());
                         return (
                         <div 
                             key={acc.id} 
@@ -638,28 +638,33 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                 </div>
                             </div>
 
-                            {/* Location & Map Search Row */}
+                            {/* Location & Map Search Row - strictly bound to address field */}
                             <div className="space-y-2.5 pt-1">
-                                <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-purple-50/50 border border-purple-100 text-xs font-bold text-cocoa">
-                                    <div className="flex items-center gap-2 truncate flex-1">
-                                        <MapPin size={14} className="text-purple-600 flex-shrink-0"/>
-                                        <span className="truncate">
-                                            {acc.address && !isAddressUrl 
-                                                ? acc.address 
-                                                : (acc.city ? `${acc.city} · ${acc.name}` : acc.name || '住宿地點')}
-                                        </span>
+                                {hasAddress ? (
+                                    <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-purple-50/50 border border-purple-100 text-xs font-bold text-cocoa">
+                                        <div className="flex items-center gap-2 truncate flex-1">
+                                            <MapPin size={14} className="text-purple-600 flex-shrink-0"/>
+                                            <span className="truncate">{acc.address}</span>
+                                        </div>
+                                        <button 
+                                            onClick={(e) => {
+                                                e.stopPropagation(); 
+                                                openMapNav({ address: acc.address });
+                                            }} 
+                                            className="px-2.5 py-1 rounded-lg bg-white hover:bg-purple-100 text-purple-700 border border-purple-200 shadow-2xs text-[11px] font-black flex items-center gap-1 flex-shrink-0 transition-colors"
+                                            title="開啟地圖或直接導航"
+                                        >
+                                            <Navigation size={12}/> 地圖搜尋
+                                        </button>
                                     </div>
-                                    <button 
-                                        onClick={(e) => {
-                                            e.stopPropagation(); 
-                                            openMapNav({ address: acc.address, gps: acc.gps, name: acc.name, city: acc.city });
-                                        }} 
-                                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-purple-100 text-purple-700 border border-purple-200 shadow-2xs text-[11px] font-black flex items-center gap-1 flex-shrink-0 transition-colors"
-                                        title="開啟 Google Maps 搜尋"
-                                    >
-                                        <Navigation size={12}/> 地圖搜尋
-                                    </button>
-                                </div>
+                                ) : (
+                                    <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-gray-50/80 border border-gray-200 text-xs font-bold text-gray-400">
+                                        <div className="flex items-center gap-2 truncate flex-1">
+                                            <MapPin size={14} className="text-gray-400 flex-shrink-0"/>
+                                            <span className="truncate italic">尚未設定地址 (點擊卡片編輯)</span>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Note */}
                                 {acc.note && (
@@ -1111,7 +1116,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                 value={editingAcc.address || ''} 
                                 onChange={e => setEditingAcc({...editingAcc, address: e.target.value})} 
                                 className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" 
-                                placeholder="例如：Centralstrasse 1, 3800 Interlaken 或詳細地址"
+                                placeholder="例如：詳細地址 或 Google Maps 地點/導航連結"
                             />
                         </div>
 
@@ -1190,18 +1195,6 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             />
 
                             <div><label className="text-[10px] font-bold text-gray-400 block mb-2">分攤成員</label><div className="flex flex-wrap gap-2">{members.map(m => (<button key={m.id} onClick={() => toggleAccParticipant(m.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${editingAcc.participants.includes(m.id) ? 'bg-sage text-white border-sage' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{m.name}</button>))}</div></div>
-                        </div>
-
-                        <div>
-                            <label className="text-[10px] font-bold text-gray-400 ml-1 flex items-center gap-1">
-                                <LinkIcon size={12} className="text-blue-500" /> 訂房連結 / 官網網址 (可選)
-                            </label>
-                            <input 
-                                value={editingAcc.url || ''} 
-                                onChange={e => setEditingAcc({...editingAcc, url: e.target.value})} 
-                                className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" 
-                                placeholder="https://www.booking.com/..."
-                            />
                         </div>
 
                         <div><label className="text-[10px] font-bold text-gray-400 ml-1">備註</label><textarea value={editingAcc.note} onChange={e => setEditingAcc({...editingAcc, note: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold h-20 text-cocoa"></textarea></div>
