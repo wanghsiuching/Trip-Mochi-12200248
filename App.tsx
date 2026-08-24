@@ -613,9 +613,9 @@ export default function App() {
                  </div>
                </div>
 
-               <div className="px-5 pt-2">
-                  <div className="relative border-l-[3px] border-beige-dark ml-4 space-y-8 py-2">
-                    {scheduleItems.filter(item => item.date === selectedDate).length === 0 && (<div className="pl-8 text-gray-400 font-bold italic py-10">此日期尚無行程，點擊右下角新增！</div>)}
+               <div className="px-2.5 sm:px-4 pt-2">
+                  <div className="relative border-l-2 border-beige-dark ml-2.5 sm:ml-3 space-y-6 py-2">
+                    {scheduleItems.filter(item => item.date === selectedDate).length === 0 && (<div className="pl-6 text-gray-400 font-bold italic py-10">此日期尚無行程，點擊右下角新增！</div>)}
                     {scheduleItems.filter(item => item.date === selectedDate).map((item, index) => {
                       let icon = MapPin; let colorClass = 'bg-gray-100 text-gray-500';
                       if (item.type === 'food') { icon = Utensils; colorClass = 'bg-orange-100 text-orange-500'; }
@@ -628,44 +628,150 @@ export default function App() {
                       const participantNames = getMemberNames(partIds);
                       const fruitIcon = getScheduleIcon(item.id);
                       return (
-                        <div key={item.id} className="relative pl-8 group mb-8">
+                        <div key={item.id} className="relative pl-3.5 sm:pl-4 group mb-6">
                           <button onClick={(e) => { e.stopPropagation(); handleDeleteItemClick(item.id); }} className="absolute right-0 -top-3 bg-red-100 text-red-400 p-1.5 rounded-full opacity-0 group-hover:opacity-100 z-30 border border-red-200 shadow-sm"><X size={12} strokeWidth={3} /></button>
-                          <div className="absolute -left-[9px] top-6 z-10 w-4 h-4 rounded-full bg-white border-2 border-sage shadow-sm flex items-center justify-center">
-                              <div className="w-1.5 h-1.5 rounded-full bg-sage"></div>
+                          <div className="absolute -left-[7px] top-6 z-10 w-3 h-3 rounded-full bg-white border-2 border-sage shadow-sm flex items-center justify-center">
+                              <div className="w-1 h-1 rounded-full bg-sage"></div>
                           </div>
-                          <div onClick={() => setViewingItem(item)} className="bg-white rounded-[2rem] shadow-hard-sm border-2 border-beige-dark overflow-hidden relative transition-all cursor-pointer hover:border-sage group-hover:-translate-y-1">
-                            <div className="p-5">
-                                <div className="flex justify-between items-start mb-4 gap-2">
-                                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                                         <div className={`p-3 rounded-2xl ${colorClass} border-2 border-white shadow-sm flex-shrink-0`}><IconComp size={22} strokeWidth={2.5} /></div>
+                          <div onClick={() => setViewingItem(item)} className="bg-white rounded-[1.75rem] shadow-hard-sm border-2 border-beige-dark overflow-hidden relative transition-all cursor-pointer hover:border-sage group-hover:-translate-y-1">
+                            <div className="p-3.5 sm:p-4">
+                                <div className="flex justify-between items-start mb-3 gap-2">
+                                    <div className="flex items-start gap-2.5 flex-1 min-w-0">
+                                         <div className={`p-2.5 rounded-xl ${colorClass} border-2 border-white shadow-sm flex-shrink-0`}><IconComp size={20} strokeWidth={2.5} /></div>
                                          <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                                <span className="font-mono text-sm font-black text-white bg-sage px-2.5 py-0.5 rounded-lg shadow-sm">{item.time}</span>
+                                            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+                                                <span className="font-mono text-xs font-black text-white bg-sage px-2 py-0.5 rounded-md shadow-sm">{item.time}</span>
                                                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">{item.type}</span>
                                             </div>
-                                            <h3 className="text-lg sm:text-xl font-black text-cocoa leading-snug break-words">{item.title}</h3>
+                                            <h3 className="text-base sm:text-lg font-black text-cocoa leading-snug break-words">{item.title}</h3>
                                          </div>
                                     </div>
                                     <div className="flex flex-col gap-1 flex-shrink-0"><button onClick={(e) => { e.stopPropagation(); handleMoveItem(index, 'up'); }} disabled={index === 0} className={`p-1 rounded-full border border-beige-dark ${index === 0 ? 'opacity-0' : 'text-gray-300 hover:bg-sage hover:text-white'}`}><ChevronUp size={12} /></button><button onClick={(e) => { e.stopPropagation(); handleMoveItem(index, 'down'); }} disabled={index === scheduleItems.filter(i => i.date === selectedDate).length - 1} className={`p-1 rounded-full border border-beige-dark ${index === scheduleItems.filter(i => i.date === selectedDate).length - 1 ? 'opacity-0' : 'text-gray-300 hover:bg-sage hover:text-white'}`}><ChevronDown size={12} /></button></div>
                                 </div>
-                                <div className="flex items-center text-gray-500 text-sm gap-2 font-bold bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 w-full"><MapPin size={16} className="text-sage flex-shrink-0" /><span className="truncate flex-1">{item.location}</span><button onClick={(e) => { e.stopPropagation(); openMap(item.location); }} className="p-1.5 bg-white rounded-lg text-cocoa hover:text-white hover:bg-sage shadow-sm border border-gray-200 transition-colors flex-shrink-0"><Navigation size={12} strokeWidth={2.5} /></button></div>
+                                <div className="flex items-center text-gray-500 text-xs sm:text-sm gap-2 font-bold bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 w-full"><MapPin size={15} className="text-sage flex-shrink-0" /><span className="truncate flex-1">{item.location}</span><button onClick={(e) => { e.stopPropagation(); openMap(item.location); }} className="p-1.5 bg-white rounded-lg text-cocoa hover:text-white hover:bg-sage shadow-sm border border-gray-200 transition-colors flex-shrink-0"><Navigation size={12} strokeWidth={2.5} /></button></div>
                             </div>
                             <div className="relative w-full h-0 border-t-2 border-dashed border-beige-dark flex justify-between items-center"><div className="absolute -left-3 -top-3 w-6 h-6 bg-beige rounded-full border-r-2 border-beige-dark"></div><div className="absolute -right-3 -top-3 w-6 h-6 bg-beige rounded-full border-l-2 border-beige-dark"></div></div>
-                            <div className="bg-[#FAF9F6] p-5">
+                            <div className="bg-[#FAF9F6] p-3.5 sm:p-4">
                                 <div className="space-y-3">
                                     {item.type === 'flight' && item.flightDetails && (
-                                        <div className="bg-cyan-50/30 p-3 rounded-2xl border border-cyan-100/50 space-y-2">
-                                            <div className="flex justify-between items-center border-b border-cyan-100/50 pb-2">
-                                                <div className="flex items-center gap-2"><Plane size={14} className="text-cyan-600"/><span className="text-sm font-black text-cocoa">{item.flightDetails.airline} {item.flightDetails.flightCode}</span></div>
-                                                <span className="text-[10px] font-bold text-cyan-600">{item.flightDetails.departureAirport} → {item.flightDetails.arrivalAirport}</span>
+                                        <div className="bg-gradient-to-br from-cyan-50/80 via-sky-50/40 to-blue-50/50 p-3 rounded-2xl border border-cyan-200/80 space-y-2.5">
+                                            {/* Header: Airline & Flight Code */}
+                                            <div className="flex items-center justify-between gap-2 border-b border-cyan-200/60 pb-2">
+                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                    <div className="w-5 h-5 rounded-md bg-cyan-500 text-white flex items-center justify-center flex-shrink-0">
+                                                        <Plane size={12} />
+                                                    </div>
+                                                    <span className="text-xs sm:text-sm font-black text-cocoa truncate">
+                                                        {item.flightDetails.airline || '航班'}
+                                                    </span>
+                                                    {item.flightDetails.flightCode && (
+                                                        <span className="font-mono text-[11px] font-black bg-cyan-100/90 text-cyan-800 px-1.5 py-0.5 rounded border border-cyan-200 flex-shrink-0">
+                                                            {item.flightDetails.flightCode.toUpperCase()}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                {item.flightDetails.flightDuration && (
+                                                    <div className="flex items-center gap-1 text-[10px] font-bold text-cyan-800 bg-white/90 px-1.5 py-0.5 rounded border border-cyan-200 flex-shrink-0 font-mono">
+                                                        <Clock size={10} className="text-cyan-600"/>
+                                                        <span>{item.flightDetails.flightDuration}</span>
+                                                    </div>
+                                                )}
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-gray-500">
-                                                <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>DEP: {item.flightDetails.departureTime}</div>
-                                                <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>ARR: {item.flightDetails.arrivalTime}</div>
-                                                <div className="flex items-center gap-1"><Luggage size={12} className="text-teal-500"/>託運: {item.flightDetails.checkedBag || '--'}</div>
-                                                <div className="flex items-center gap-1"><Briefcase size={12} className="text-orange-400"/>手提: {item.flightDetails.carryOnBag || '--'}</div>
+
+                                            {/* Flight Route Boarding-Pass Box */}
+                                            <div className="bg-white/95 rounded-xl p-2.5 border border-cyan-100 space-y-1.5">
+                                                <div className="flex items-center justify-between gap-1 text-xs">
+                                                    {/* Departure */}
+                                                    <div className="flex-1 min-w-0 text-left">
+                                                        <div className="font-mono text-xs sm:text-sm font-black text-cyan-950 truncate" title={item.flightDetails.departureAirport}>
+                                                            {item.flightDetails.departureAirport?.toUpperCase() || 'DEP'}
+                                                        </div>
+                                                        {item.flightDetails.departureTime && (
+                                                            <div className="text-[10px] font-bold text-gray-500 flex items-center gap-1 mt-0.5">
+                                                                <span className="text-[8px] px-1 py-0.2 bg-gray-100 text-gray-600 rounded">起飛</span>
+                                                                <span className="font-mono">{item.flightDetails.departureTime}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Arrow / Transit Center Indicator */}
+                                                    {item.flightDetails.transitAirport || item.flightDetails.transitCity ? (
+                                                        <div className="flex flex-col items-center px-1 flex-shrink-0">
+                                                            <div className="flex items-center gap-1">
+                                                                <span className="w-2.5 h-0.5 bg-amber-200"></span>
+                                                                <span className="text-[8px] font-black bg-amber-200 text-amber-900 px-1 py-0.2 rounded">
+                                                                    轉機
+                                                                </span>
+                                                                <span className="w-2.5 h-0.5 bg-amber-200"></span>
+                                                            </div>
+                                                            <span className="font-mono text-[11px] font-black text-amber-900 mt-0.5">
+                                                                {item.flightDetails.transitAirport?.toUpperCase()}
+                                                            </span>
+                                                            {item.flightDetails.transitDuration && (
+                                                                <span className="text-[8px] font-bold text-amber-700">
+                                                                    停 {item.flightDetails.transitDuration}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex flex-col items-center px-1 flex-shrink-0">
+                                                            <div className="flex items-center text-cyan-300">
+                                                                <span className="w-3 h-0.5 bg-cyan-200"></span>
+                                                                <Plane size={10} className="text-cyan-500 mx-0.5" />
+                                                                <span className="w-3 h-0.5 bg-cyan-200"></span>
+                                                            </div>
+                                                            <span className="text-[8px] font-bold text-cyan-600 mt-0.5">直飛</span>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Arrival */}
+                                                    <div className="flex-1 min-w-0 text-right">
+                                                        <div className="font-mono text-xs sm:text-sm font-black text-cyan-950 truncate" title={item.flightDetails.arrivalAirport}>
+                                                            {item.flightDetails.arrivalAirport?.toUpperCase() || 'ARR'}
+                                                        </div>
+                                                        {item.flightDetails.arrivalTime && (
+                                                            <div className="text-[10px] font-bold text-gray-500 flex items-center justify-end gap-1 mt-0.5">
+                                                                <span className="font-mono">{item.flightDetails.arrivalTime}</span>
+                                                                <span className="text-[8px] px-1 py-0.2 bg-gray-100 text-gray-600 rounded">抵達</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                                {/* Transit Detail Line if city or transit flight code exists */}
+                                                {(item.flightDetails.transitCity || item.flightDetails.transitFlightCode) && (
+                                                    <div className="pt-1.5 border-t border-dashed border-amber-100 flex items-center justify-between text-[10px] text-amber-900">
+                                                        <span className="flex items-center gap-1 truncate">
+                                                            <span className="text-gray-400">轉機城市:</span>
+                                                            <span className="font-bold">{item.flightDetails.transitCity || item.flightDetails.transitAirport}</span>
+                                                        </span>
+                                                        {item.flightDetails.transitFlightCode && (
+                                                            <span className="font-mono font-bold text-amber-800 flex-shrink-0 ml-1">
+                                                                銜接: {item.flightDetails.transitFlightCode.toUpperCase()}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
-                                            {Number(item.flightDetails.cost) > 0 && <div className="text-right text-[10px] font-black text-sage">費用: {item.flightDetails.currency} {Number(item.flightDetails.cost).toLocaleString()}</div>}
+
+                                            {/* Baggage & Cost */}
+                                            <div className="flex items-center justify-between text-[11px] font-bold text-gray-500 px-0.5 pt-0.5">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex items-center gap-1">
+                                                        <Luggage size={12} className="text-teal-600"/>
+                                                        <span>託運: {item.flightDetails.checkedBag || '--'}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <Briefcase size={12} className="text-orange-500"/>
+                                                        <span>手提: {item.flightDetails.carryOnBag || '--'}</span>
+                                                    </div>
+                                                </div>
+                                                {Number(item.flightDetails.cost) > 0 && (
+                                                    <div className="text-[11px] font-black text-sage font-mono">
+                                                        費用: {item.flightDetails.currency} {Number(item.flightDetails.cost).toLocaleString()}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
                                     {item.type === 'stay' && item.stayDetails && (

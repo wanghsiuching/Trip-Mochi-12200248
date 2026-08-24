@@ -699,32 +699,114 @@ export const ScheduleDetailModal = ({
 
                     {/* Flight Details */}
                     {item.type === 'flight' && item.flightDetails && (
-                        <div className="bg-cyan-50/50 p-4 rounded-2xl border border-cyan-100 space-y-3">
-                            <div className="flex justify-between items-center border-b border-cyan-200 pb-2">
-                                <span className="text-sm font-black text-cocoa">{item.flightDetails.airline} {item.flightDetails.flightCode}</span>
-                                <span className="text-xs font-bold text-cyan-600">{item.flightDetails.departureAirport} → {item.flightDetails.arrivalAirport}</span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2 text-xs font-bold text-gray-500">
-                                <div className="flex items-center gap-1"><Clock size={12}/> DEP: {item.flightDetails.departureTime}</div>
-                                <div className="flex items-center gap-1"><Clock size={12}/> ARR: {item.flightDetails.arrivalTime}</div>
-                                <div className="flex items-center gap-1"><Luggage size={12}/> {item.flightDetails.checkedBag || '--'}</div>
-                                <div className="flex items-center gap-1"><Luggage size={12}/> {item.flightDetails.carryOnBag || '--'}</div>
-                            </div>
-                            {item.flightDetails.transitAirport && (
-                                <div className="flex items-center justify-between text-xs font-bold text-amber-800 bg-amber-100/70 border border-amber-200 rounded-xl px-3 py-1.5">
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="px-1.5 py-0.5 bg-amber-200 text-amber-900 rounded text-[10px] font-black uppercase">轉機</span>
-                                        <span className="font-mono font-black">{item.flightDetails.transitAirport}</span>
-                                        {item.flightDetails.transitFlightCode && <span className="font-mono text-gray-600">({item.flightDetails.transitFlightCode})</span>}
+                        <div className="bg-gradient-to-br from-cyan-50/80 via-sky-50/40 to-blue-50/50 p-4 rounded-2xl border border-cyan-200/80 space-y-3">
+                            <div className="flex items-center justify-between gap-2 border-b border-cyan-200/70 pb-2.5">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <div className="w-6 h-6 rounded-lg bg-cyan-500 text-white flex items-center justify-center flex-shrink-0 shadow-xs">
+                                        <Plane size={14} />
                                     </div>
-                                    {item.flightDetails.transitDuration && (
-                                        <span className="text-[11px] font-mono text-amber-700">停留 {item.flightDetails.transitDuration}</span>
+                                    <span className="text-sm font-black text-cocoa truncate">
+                                        {item.flightDetails.airline || '航班'}
+                                    </span>
+                                    {item.flightDetails.flightCode && (
+                                        <span className="font-mono text-xs font-black bg-cyan-100/90 text-cyan-800 px-2 py-0.5 rounded-md border border-cyan-200 flex-shrink-0">
+                                            {item.flightDetails.flightCode.toUpperCase()}
+                                        </span>
                                     )}
                                 </div>
-                            )}
+                                {item.flightDetails.flightDuration && (
+                                    <div className="flex items-center gap-1 text-[11px] font-bold text-cyan-800 bg-white/90 px-2 py-0.5 rounded-md border border-cyan-200 flex-shrink-0 font-mono">
+                                        <Clock size={11} className="text-cyan-600"/>
+                                        <span>{item.flightDetails.flightDuration}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Flight Route Boarding-Pass Box */}
+                            <div className="bg-white/95 rounded-xl p-3 border border-cyan-100 space-y-2">
+                                <div className="flex items-center justify-between gap-2 text-xs">
+                                    {/* Departure */}
+                                    <div className="flex-1 min-w-0 text-left">
+                                        <div className="font-mono text-sm sm:text-base font-black text-cyan-950 truncate">
+                                            {item.flightDetails.departureAirport?.toUpperCase() || 'DEP'}
+                                        </div>
+                                        {item.flightDetails.departureTime && (
+                                            <div className="text-[11px] font-bold text-gray-500 flex items-center gap-1 mt-0.5">
+                                                <span className="text-[9px] px-1.5 py-0.2 bg-gray-100 text-gray-600 rounded">起飛</span>
+                                                <span className="font-mono">{item.flightDetails.departureTime}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Arrow / Transit Center Indicator */}
+                                    {item.flightDetails.transitAirport || item.flightDetails.transitCity ? (
+                                        <div className="flex flex-col items-center px-1.5 flex-shrink-0">
+                                            <div className="flex items-center gap-1">
+                                                <span className="w-3 h-0.5 bg-amber-200"></span>
+                                                <span className="text-[9px] font-black bg-amber-200 text-amber-900 px-1.5 py-0.2 rounded">
+                                                    轉機
+                                                </span>
+                                                <span className="w-3 h-0.5 bg-amber-200"></span>
+                                            </div>
+                                            <span className="font-mono text-xs font-black text-amber-900 mt-0.5">
+                                                {item.flightDetails.transitAirport?.toUpperCase()}
+                                            </span>
+                                            {item.flightDetails.transitDuration && (
+                                                <span className="text-[9px] font-bold text-amber-700">
+                                                    停留 {item.flightDetails.transitDuration}
+                                                </span>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center px-2 flex-shrink-0">
+                                            <div className="flex items-center text-cyan-300">
+                                                <span className="w-4 h-0.5 bg-cyan-200"></span>
+                                                <Plane size={12} className="text-cyan-500 mx-0.5" />
+                                                <span className="w-4 h-0.5 bg-cyan-200"></span>
+                                            </div>
+                                            <span className="text-[9px] font-bold text-cyan-600 mt-0.5">直飛</span>
+                                        </div>
+                                    )}
+
+                                    {/* Arrival */}
+                                    <div className="flex-1 min-w-0 text-right">
+                                        <div className="font-mono text-sm sm:text-base font-black text-cyan-950 truncate">
+                                            {item.flightDetails.arrivalAirport?.toUpperCase() || 'ARR'}
+                                        </div>
+                                        {item.flightDetails.arrivalTime && (
+                                            <div className="text-[11px] font-bold text-gray-500 flex items-center justify-end gap-1 mt-0.5">
+                                                <span className="font-mono">{item.flightDetails.arrivalTime}</span>
+                                                <span className="text-[9px] px-1.5 py-0.2 bg-gray-100 text-gray-600 rounded">抵達</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Transit Detail Line if city or transit flight code exists */}
+                                {(item.flightDetails.transitCity || item.flightDetails.transitFlightCode) && (
+                                    <div className="pt-2 border-t border-dashed border-amber-100 flex items-center justify-between text-xs text-amber-900">
+                                        <span className="flex items-center gap-1 truncate">
+                                            <span className="text-gray-400">轉機城市:</span>
+                                            <span className="font-bold">{item.flightDetails.transitCity || item.flightDetails.transitAirport}</span>
+                                        </span>
+                                        {item.flightDetails.transitFlightCode && (
+                                            <span className="font-mono font-bold text-amber-800 flex-shrink-0 ml-1">
+                                                銜接航班: {item.flightDetails.transitFlightCode.toUpperCase()}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Baggage Row */}
+                            <div className="grid grid-cols-2 gap-2 text-xs font-bold text-gray-500 bg-white/70 p-2.5 rounded-xl border border-cyan-100">
+                                <div className="flex items-center gap-1.5"><Luggage size={14} className="text-teal-600"/> 託運行李: {item.flightDetails.checkedBag || '--'}</div>
+                                <div className="flex items-center gap-1.5"><Briefcase size={14} className="text-orange-500"/> 手提行李: {item.flightDetails.carryOnBag || '--'}</div>
+                            </div>
+
                             {Number(item.flightDetails.cost) > 0 && (
                                 <div className="pt-2 border-t border-cyan-200 flex justify-between items-center">
-                                    <span className="text-[10px] font-bold text-gray-400">總費用</span>
+                                    <span className="text-xs font-bold text-gray-400">總機票費用</span>
                                     <span className="text-sm font-black text-sage font-mono">{item.flightDetails.currency} {Number(item.flightDetails.cost).toLocaleString()}</span>
                                 </div>
                             )}
@@ -891,8 +973,10 @@ export const AddScheduleModal = ({
   const [flightServiceFeePercentage, setFlightServiceFeePercentage] = useState('');
   const [flightHasTransit, setFlightHasTransit] = useState(false);
   const [flightTransitAirport, setFlightTransitAirport] = useState('');
+  const [flightTransitCity, setFlightTransitCity] = useState('');
   const [flightTransitDuration, setFlightTransitDuration] = useState('');
   const [flightTransitFlightCode, setFlightTransitFlightCode] = useState('');
+  const [flightDuration, setFlightDuration] = useState('');
   const [flightParticipants, setFlightParticipants] = useState<string[]>([]);
   const [isFlightPotential, setIsFlightPotential] = useState(false);
 
@@ -980,10 +1064,12 @@ export const AddScheduleModal = ({
             setFlightArrTime(initialData.flightDetails.arrivalTime || '12:00');
             setFlightDepAirport(initialData.flightDetails.departureAirport || '');
             setFlightArrAirport(initialData.flightDetails.arrivalAirport || '');
-            setFlightHasTransit(initialData.flightDetails.hasTransit || !!initialData.flightDetails.transitAirport);
+            setFlightHasTransit(initialData.flightDetails.hasTransit || !!initialData.flightDetails.transitAirport || !!initialData.flightDetails.transitCity);
             setFlightTransitAirport(initialData.flightDetails.transitAirport || '');
+            setFlightTransitCity(initialData.flightDetails.transitCity || '');
             setFlightTransitDuration(initialData.flightDetails.transitDuration || '');
             setFlightTransitFlightCode(initialData.flightDetails.transitFlightCode || '');
+            setFlightDuration(initialData.flightDetails.flightDuration || '');
             setFlightCheckedBag(initialData.flightDetails.checkedBag || '');
             setFlightCarryOnBag(initialData.flightDetails.carryOnBag || '');
             setFlightCost(initialData.flightDetails.cost?.toString() || '');
@@ -999,8 +1085,10 @@ export const AddScheduleModal = ({
             setFlightArrTime('12:00');
             setFlightHasTransit(false);
             setFlightTransitAirport('');
+            setFlightTransitCity('');
             setFlightTransitDuration('');
             setFlightTransitFlightCode('');
+            setFlightDuration('');
             setFlightParticipants(members.map(m => m.id));
         }
 
@@ -1119,7 +1207,7 @@ export const AddScheduleModal = ({
         // Reset Logic
         setStep('category'); setTitle(''); setItemDate(currentDate || ''); setTime('09:00'); setLocation(''); setNotes(''); setGpsInput('');
         // Reset Category Specifics
-        setFlightAirline(''); setFlightCode(''); setFlightDepDate(currentDate || ''); setFlightDepTime('09:00'); setFlightArrDate(currentDate || ''); setFlightArrTime('12:00'); setFlightDepAirport(''); setFlightArrAirport(''); setFlightCheckedBag(''); setFlightCarryOnBag(''); setFlightCost(''); setFlightCurrency('TWD'); setFlightHasServiceFee(false); setFlightServiceFeePercentage(''); setFlightParticipants(members.map(m => m.id)); setIsFlightPotential(false);
+        setFlightAirline(''); setFlightCode(''); setFlightDepDate(currentDate || ''); setFlightDepTime('09:00'); setFlightArrDate(currentDate || ''); setFlightArrTime('12:00'); setFlightDepAirport(''); setFlightArrAirport(''); setFlightHasTransit(false); setFlightTransitAirport(''); setFlightTransitCity(''); setFlightTransitDuration(''); setFlightTransitFlightCode(''); setFlightDuration(''); setFlightCheckedBag(''); setFlightCarryOnBag(''); setFlightCost(''); setFlightCurrency('TWD'); setFlightHasServiceFee(false); setFlightServiceFeePercentage(''); setFlightParticipants(members.map(m => m.id)); setIsFlightPotential(false);
         setCheckIn('15:00'); setCheckOut('11:00'); setCheckInDate(currentDate || ''); setCheckInTime('15:00'); setCheckOutDate(currentDate || ''); setCheckOutTime('11:00'); setHasBreakfast(false); setHasDinner(false); setStayCost(''); setStayCurrency('TWD'); setStayHasServiceFee(false); setStayServiceFeePercentage(''); setStayParticipants(members.map(m => m.id)); setIsStayPotential(false);
         setTransportMode('transit');
         setTransitLegs([
@@ -1187,7 +1275,14 @@ export const AddScheduleModal = ({
 
     if (selectedType === 'flight') {
         itemData.flightDetails = {
-            airline: flightAirline, flightCode, departureDate: flightDepDate, departureTime: flightDepTime, arrivalDate: flightArrDate, arrivalTime: flightArrTime, departureAirport: flightDepAirport, arrivalAirport: flightArrAirport, checkedBag: flightCheckedBag, carryOnBag: flightCarryOnBag,
+            airline: flightAirline, flightCode, departureDate: flightDepDate, departureTime: flightDepTime, arrivalDate: flightArrDate, arrivalTime: flightArrTime, departureAirport: flightDepAirport, arrivalAirport: flightArrAirport,
+            hasTransit: flightHasTransit || !!flightTransitAirport || !!flightTransitCity,
+            transitAirport: flightTransitAirport,
+            transitCity: flightTransitCity,
+            transitDuration: flightTransitDuration,
+            transitFlightCode: flightTransitFlightCode,
+            flightDuration: flightDuration,
+            checkedBag: flightCheckedBag, carryOnBag: flightCarryOnBag,
             cost: Number(flightCost) || 0, currency: flightCurrency, hasServiceFee: flightHasServiceFee, serviceFeePercentage: flightHasServiceFee ? (Number(flightServiceFeePercentage) || 0) : undefined, participants: flightParticipants, isPotential: isFlightPotential
         };
         if (flightDepDate) itemData.date = flightDepDate;
@@ -1354,77 +1449,136 @@ export const AddScheduleModal = ({
              )}
 
              {/* === FLIGHT SECTION === */}
-             {selectedType === 'flight' && (
-                 <div className="space-y-4 pt-2 border-t-2 border-dashed border-beige-dark animate-scale-in">
-                     <div className="bg-cyan-50/50 p-3 rounded-2xl border-2 border-cyan-100 space-y-3">
-                         {/* ... flight inputs ... */}
-                         <div className="grid grid-cols-2 gap-2">
-                             <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">航空公司</label><input value={flightAirline} onChange={e => setFlightAirline(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: EVA"/></div>
-                             <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">航班代碼</label><input value={flightCode} onChange={e => setFlightCode(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: BR123"/></div>
-                         </div>
-                         {/* Route/Times */}
-                         <div className="space-y-3">
-                             <DateTimePickerField
-                                 label="去程出發 (Departure)"
-                                 value={flightDepDate && flightDepTime ? `${flightDepDate}T${flightDepTime}` : flightDepDate ? `${flightDepDate}T09:00` : ''}
-                                 onChange={val => {
-                                     const [d, t] = val.split('T');
-                                     if (d) {
-                                         setFlightDepDate(d);
-                                         setItemDate(d);
-                                     }
-                                     if (t) {
-                                         setFlightDepTime(t);
-                                         setTime(t);
-                                     }
-                                 }}
-                                 themeColor="cyan"
-                                 icon={Plane}
-                             />
-                             <DateTimePickerField
-                                 label="去程抵達 (Arrival)"
-                                 value={flightArrDate && flightArrTime ? `${flightArrDate}T${flightArrTime}` : flightArrDate ? `${flightArrDate}T12:00` : ''}
-                                 onChange={val => {
-                                     const [d, t] = val.split('T');
-                                     if (d) setFlightArrDate(d);
-                                     if (t) setFlightArrTime(t);
-                                 }}
-                                 themeColor="cyan"
-                                 icon={Clock}
-                             />
-                         </div>
-                         <div className="grid grid-cols-2 gap-2">
-                             <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">起飛機場</label><input value={flightDepAirport} onChange={e => setFlightDepAirport(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="TPE T2"/></div>
-                             <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">抵達機場</label><input value={flightArrAirport} onChange={e => setFlightArrAirport(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="KIX T1"/></div>
-                         </div>
-                         <div className="grid grid-cols-2 gap-2">
-                             <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">託運行李</label><input value={flightCheckedBag} onChange={e => setFlightCheckedBag(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="23kg"/></div>
-                             <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">手提行李</label><input value={flightCarryOnBag} onChange={e => setFlightCarryOnBag(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="7kg"/></div>
-                         </div>
-                         {/* Cost */}
-                         <div className="pt-2 border-t border-dashed border-cyan-200 mt-2">
-                            <div className="text-xs font-bold text-cyan-600 mb-2 flex items-center gap-1"><DollarSign size={12}/> 機票費用 (總計)</div>
-                            <div className="flex gap-2 mb-2">
-                               <div className="bg-white p-2 rounded-xl border border-beige-dark shadow-sm flex-[2]"><input type="number" value={flightCost} onChange={(e) => setFlightCost(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="0"/></div>
-                               <div className="w-24"><CurrencySelect value={flightCurrency} onChange={setFlightCurrency}/></div>
-                            </div>
-                            <div className="flex items-center gap-4 mb-2">
-                                <ToggleSwitch checked={flightHasServiceFee} onChange={setFlightHasServiceFee} label="含稅/手續費" colorClass="bg-cyan-400" />
-                                {flightHasServiceFee && <div className="flex items-center bg-white px-2 py-1 rounded border border-beige-dark"><input type="number" value={flightServiceFeePercentage} onChange={e => setFlightServiceFeePercentage(e.target.value)} className="w-8 bg-transparent text-xs font-bold outline-none text-right text-cocoa" placeholder="0"/><span className="text-xs font-bold text-gray-400 ml-1">%</span></div>}
-                            </div>
-                            <CostDisplay amount={Number(flightCost)} currency={flightCurrency} hasFee={flightHasServiceFee} feePct={Number(flightServiceFeePercentage)} currencies={currencies} />
-                            
-                            <label className="text-[10px] font-bold text-gray-400 block mb-1 mt-2">參與分攤人員</label>
-                            <ParticipantsSelector selected={flightParticipants} toggle={(id) => toggleParticipant(id, setFlightParticipants)}/>
-                            <div className="mt-2">
-                                <ToggleSwitch checked={isFlightPotential} onChange={setIsFlightPotential} label="列入潛在花費 (預算參考)" colorClass="bg-yellow-400" />
-                            </div>
-                         </div>
-                     </div>
-                 </div>
-             )}
+              {selectedType === 'flight' && (
+                  <div className="space-y-4 pt-2 border-t-2 border-dashed border-beige-dark animate-scale-in">
+                      <div className="bg-cyan-50/50 p-3 rounded-2xl border-2 border-cyan-100 space-y-3">
+                          {/* ... flight inputs ... */}
+                          <div className="grid grid-cols-2 gap-2">
+                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">航空公司</label><input value={flightAirline} onChange={e => setFlightAirline(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: EVA"/></div>
+                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">航班代碼</label><input value={flightCode} onChange={e => setFlightCode(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: BR123"/></div>
+                          </div>
+                          {/* Route/Times */}
+                          <div className="space-y-3">
+                              <DateTimePickerField
+                                  label="去程出發 (Departure)"
+                                  value={flightDepDate && flightDepTime ? `${flightDepDate}T${flightDepTime}` : flightDepDate ? `${flightDepDate}T09:00` : ''}
+                                  onChange={val => {
+                                      const [d, t] = val.split('T');
+                                      if (d) {
+                                          setFlightDepDate(d);
+                                          setItemDate(d);
+                                      }
+                                      if (t) {
+                                          setFlightDepTime(t);
+                                          setTime(t);
+                                      }
+                                  }}
+                                  themeColor="cyan"
+                                  icon={Plane}
+                              />
+                              <DateTimePickerField
+                                  label="去程抵達 (Arrival)"
+                                  value={flightArrDate && flightArrTime ? `${flightArrDate}T${flightArrTime}` : flightArrDate ? `${flightArrDate}T12:00` : ''}
+                                  onChange={val => {
+                                      const [d, t] = val.split('T');
+                                      if (d) setFlightArrDate(d);
+                                      if (t) setFlightArrTime(t);
+                                  }}
+                                  themeColor="cyan"
+                                  icon={Clock}
+                              />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">起飛機場</label><input value={flightDepAirport} onChange={e => setFlightDepAirport(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="TPE T2"/></div>
+                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">抵達機場</label><input value={flightArrAirport} onChange={e => setFlightArrAirport(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="KIX T1"/></div>
+                          </div>
 
-             {/* === STAY SECTION === */}
+                          {/* 轉機資訊 (Transit / Layover) */}
+                          <div className="bg-amber-50/70 p-3 rounded-2xl border border-amber-200/80 space-y-2">
+                              <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                      <div className="w-5 h-5 rounded-full bg-amber-200 text-amber-800 flex items-center justify-center text-xs font-black">轉</div>
+                                      <span className="text-xs font-black text-amber-900">轉機資訊 (可選)</span>
+                                  </div>
+                                  <ToggleSwitch 
+                                      checked={flightHasTransit || !!flightTransitAirport || !!flightTransitCity} 
+                                      onChange={(checked) => {
+                                          setFlightHasTransit(checked);
+                                          if (!checked) {
+                                              setFlightTransitAirport('');
+                                              setFlightTransitCity('');
+                                              setFlightTransitDuration('');
+                                              setFlightTransitFlightCode('');
+                                          }
+                                      }} 
+                                      label={flightHasTransit || !!flightTransitAirport ? "有轉機" : "直飛 / 無轉機"} 
+                                      colorClass="bg-amber-400" 
+                                  />
+                              </div>
+
+                              {(flightHasTransit || !!flightTransitAirport || !!flightTransitCity) && (
+                                  <div className="space-y-2 pt-2 border-t border-amber-200/60">
+                                      <div className="grid grid-cols-2 gap-2">
+                                          <div className="bg-white p-2.5 rounded-xl border border-amber-200 shadow-xs">
+                                              <label className="text-[9px] font-bold text-amber-800 block mb-0.5">轉機機場代碼 (如 AUH)</label>
+                                              <input value={flightTransitAirport} onChange={e => setFlightTransitAirport(e.target.value.toUpperCase())} className="w-full font-mono text-sm font-black text-cocoa outline-none bg-transparent" placeholder="AUH"/>
+                                          </div>
+                                          <div className="bg-white p-2.5 rounded-xl border border-amber-200 shadow-xs">
+                                              <label className="text-[9px] font-bold text-amber-800 block mb-0.5">轉機城市 (如 阿布達比)</label>
+                                              <input value={flightTransitCity} onChange={e => setFlightTransitCity(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="阿布達比"/>
+                                          </div>
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                          <div className="bg-white p-2.5 rounded-xl border border-amber-200 shadow-xs">
+                                              <label className="text-[9px] font-bold text-amber-800 block mb-0.5">轉機時間 / 停留時長</label>
+                                              <input value={flightTransitDuration} onChange={e => setFlightTransitDuration(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="如：2h 15m 或 3小時"/>
+                                          </div>
+                                          <div className="bg-white p-2.5 rounded-xl border border-amber-200 shadow-xs">
+                                              <label className="text-[9px] font-bold text-amber-800 block mb-0.5">銜接航班號 (可選)</label>
+                                              <input value={flightTransitFlightCode} onChange={e => setFlightTransitFlightCode(e.target.value.toUpperCase())} className="w-full font-mono text-sm font-black text-cocoa outline-none bg-transparent" placeholder="EY073"/>
+                                          </div>
+                                      </div>
+                                  </div>
+                              )}
+                          </div>
+
+                          {/* 總飛行/航程時間 */}
+                          <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm">
+                              <label className="text-[10px] font-bold text-gray-400 block mb-1">飛行時間 / 總航程時長 (可選)</label>
+                              <div className="flex items-center gap-2">
+                                  <Clock size={15} className="text-cyan-600 flex-shrink-0"/>
+                                  <input value={flightDuration} onChange={e => setFlightDuration(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="例如：16h 40m 或 4小時30分"/>
+                              </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">託運行李</label><input value={flightCheckedBag} onChange={e => setFlightCheckedBag(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="23kg"/></div>
+                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">手提行李</label><input value={flightCarryOnBag} onChange={e => setFlightCarryOnBag(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="7kg"/></div>
+                          </div>
+                          {/* Cost */}
+                          <div className="pt-2 border-t border-dashed border-cyan-200 mt-2">
+                             <div className="text-xs font-bold text-cyan-600 mb-2 flex items-center gap-1"><DollarSign size={12}/> 機票費用 (總計)</div>
+                             <div className="flex gap-2 mb-2">
+                                <div className="bg-white p-2 rounded-xl border border-beige-dark shadow-sm flex-[2]"><input type="number" value={flightCost} onChange={(e) => setFlightCost(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="0"/></div>
+                                <div className="w-24"><CurrencySelect value={flightCurrency} onChange={setFlightCurrency}/></div>
+                             </div>
+                             <div className="flex items-center gap-4 mb-2">
+                                 <ToggleSwitch checked={flightHasServiceFee} onChange={setFlightHasServiceFee} label="含稅/手續費" colorClass="bg-cyan-400" />
+                                 {flightHasServiceFee && <div className="flex items-center bg-white px-2 py-1 rounded border border-beige-dark"><input type="number" value={flightServiceFeePercentage} onChange={e => setFlightServiceFeePercentage(e.target.value)} className="w-8 bg-transparent text-xs font-bold outline-none text-right text-cocoa" placeholder="0"/><span className="text-xs font-bold text-gray-400 ml-1">%</span></div>}
+                             </div>
+                             <CostDisplay amount={Number(flightCost)} currency={flightCurrency} hasFee={flightHasServiceFee} feePct={Number(flightServiceFeePercentage)} currencies={currencies} />
+                             
+                             <label className="text-[10px] font-bold text-gray-400 block mb-1 mt-2">參與分攤人員</label>
+                             <ParticipantsSelector selected={flightParticipants} toggle={(id) => toggleParticipant(id, setFlightParticipants)}/>
+                             <div className="mt-2">
+                                 <ToggleSwitch checked={isFlightPotential} onChange={setIsFlightPotential} label="列入潛在花費 (預算參考)" colorClass="bg-yellow-400" />
+                             </div>
+                          </div>
+                      </div>
+                  </div>
+              )}
+
+              {/* === STAY SECTION === */}
              {selectedType === 'stay' && (
                <div className="space-y-4 pt-2 border-t-2 border-dashed border-beige-dark animate-scale-in">
                  <div className="space-y-3 bg-purple-50/50 p-3 rounded-2xl border-2 border-purple-100 mt-2">
