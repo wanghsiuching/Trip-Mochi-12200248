@@ -141,7 +141,25 @@ export default function App() {
 
   useEffect(() => {
     const storedTrips = localStorage.getItem('trip_mochi_index');
-    if (storedTrips) setSavedTrips(JSON.parse(storedTrips));
+    if (storedTrips) {
+      try {
+        const parsed = JSON.parse(storedTrips);
+        if (Array.isArray(parsed)) {
+          // Deduplicate trips by id to avoid duplicate React keys
+          const seen = new Set<string>();
+          const uniqueTrips: SavedTrip[] = [];
+          for (const trip of parsed) {
+            if (trip && trip.id && !seen.has(trip.id)) {
+              seen.add(trip.id);
+              uniqueTrips.push(trip);
+            }
+          }
+          setSavedTrips(uniqueTrips);
+        }
+      } catch (e) {
+        console.error("Failed to parse saved trips", e);
+      }
+    }
     try {
       const params = new URLSearchParams(window.location.search);
       const urlTripCode = params.get('tripCode');
@@ -185,7 +203,7 @@ export default function App() {
     try {
         const newId = await createTrip(customName);
         const today = new Date().toISOString().split('T')[0];
-        setSavedTrips(prev => [{ id: newId, name: customName, date: today }, ...prev]);
+        setSavedTrips(prev => [{ id: newId, name: customName, date: today }, ...prev.filter(t => t.id !== newId)]);
         openTrip(newId, customName);
     } catch (e) {
         alert('建立失敗'); setLoading(false);
@@ -197,7 +215,7 @@ export default function App() {
     const cleanId = inputDetail.trim().toUpperCase();
     try {
         const tripData = await joinTripByCode(cleanId);
-        if (!savedTrips.find(t => t.id === cleanId)) setSavedTrips(prev => [{ id: cleanId, name: tripData.name, date: new Date().toISOString().split('T')[0] }, ...prev]);
+        setSavedTrips(prev => [{ id: cleanId, name: tripData.name, date: new Date().toISOString().split('T')[0] }, ...prev.filter(t => t.id !== cleanId)]);
         openTrip(cleanId, tripData.name);
     } catch (e) { setSearchError('找不到此行程碼'); } finally { setIsSearching(false); }
   };

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Camera, Utensils, Train, Bed, PenTool, Trash2, AlertCircle, Map, Coffee, Moon, AlignLeft, Ticket, Coins, Users, Plus, X, Settings, Car, Clock, DollarSign, Navigation, ExternalLink, Fuel, Calendar as CalendarIcon, Plane, Edit3, Luggage, Copy, Save, Shuffle, MapPin, ArrowRightLeft, Layers } from 'lucide-react';
+import { Camera, Utensils, Train, Bed, PenTool, Trash2, AlertCircle, Map, Coffee, Moon, AlignLeft, Ticket, Coins, Users, Plus, X, Settings, Car, Clock, DollarSign, Navigation, ExternalLink, Fuel, Calendar as CalendarIcon, Plane, Edit3, Luggage, Briefcase, Copy, Save, Shuffle, MapPin, ArrowRightLeft, Layers } from 'lucide-react';
 import { ItemType, ScheduleItem, Currency, Member, THEME, ExpenseItem, TransitLeg, TransitFareDetails, UniversalTransportType, TransitPassType } from '../types';
 import { TransitLegEditor, TransitLegChainView, TransitPassBadge, getTransitEffectiveFare } from './TransitComponents';
 import { TimePickerField, DatePickerField, DateTimePickerField } from './TimePickerComponents';
