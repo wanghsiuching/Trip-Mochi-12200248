@@ -275,6 +275,7 @@ export interface BookingFlight {
   returnTransitCity?: string;    // 回程轉機城市
   returnTransitDuration?: string;// 回程轉機停留時間
   returnTransitFlightCode?: string; // 回程第二段/銜接航班號
+  isPotential?: boolean;         // 列入潛在花費 (預算參考)
 }
 
 export interface BookingAccommodation {
@@ -301,6 +302,7 @@ export interface BookingAccommodation {
   pax?: number;
   photos?: string[];
   note: string;
+  isPotential?: boolean;         // 列入潛在花費 (預算參考)
 }
 
 export interface BookingCarRental {
@@ -325,6 +327,7 @@ export interface BookingCarRental {
   pax?: number;
   participants: string[];
   hasRental: boolean;
+  isPotential?: boolean;         // 列入潛在花費 (預算參考)
 }
 
 export interface BookingTicket {

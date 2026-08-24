@@ -1,5 +1,10 @@
 import React, { useState } from 'react';
-import { Plane, Bed, Car, Plus, MapPin, Compass, House, PenTool, Briefcase, Info, Luggage, Navigation, Leaf, Link as LinkIcon, X, Calendar as CalendarIcon, ArrowRightLeft, Users, Clock, DollarSign, Trash2 } from 'lucide-react';
+import { 
+  Plane, Bed, Car, Plus, MapPin, Compass, House, PenTool, Briefcase, 
+  Info, Luggage, Navigation, Leaf, Link as LinkIcon, ExternalLink, X, 
+  Calendar as CalendarIcon, ArrowRightLeft, Users, Clock, DollarSign, 
+  Trash2, Moon, Sparkles, Building, CheckCircle2, TrendingUp, HelpCircle
+} from 'lucide-react';
 import { BookingFlight, BookingAccommodation, BookingCarRental, BookingTicket, Currency, Member } from '../types';
 import { ToggleSwitch } from './Modals';
 import { DateTimePickerField, TimePickerField, DatePickerField } from './TimePickerComponents';
@@ -145,9 +150,24 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   };
 
   // --- Accommodation Logic ---
+  const calculateStayNights = (inDate?: string, outDate?: string, fallbackNights?: number) => {
+      if (!inDate || !outDate) return fallbackNights || 1;
+      try {
+          const d1 = new Date(inDate);
+          const d2 = new Date(outDate);
+          const d1Zero = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate()).getTime();
+          const d2Zero = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate()).getTime();
+          const diffDays = Math.round((d2Zero - d1Zero) / (1000 * 60 * 60 * 24));
+          return diffDays > 0 ? diffDays : (fallbackNights || 1);
+      } catch {
+          return fallbackNights || 1;
+      }
+  };
+
   const openAccEdit = (acc?: BookingAccommodation) => {
       if(acc) {
-          setEditingAcc({ ...acc, photos: acc.photos || [] });
+          const stayNights = calculateStayNights(acc.checkInDate, acc.checkOutDate, acc.nights);
+          setEditingAcc({ ...acc, nights: stayNights, photos: acc.photos || [] });
       } else {
           const today = new Date();
           today.setHours(15, 0, 0, 0);
@@ -162,7 +182,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
           setEditingAcc({ 
               id: Date.now(), 
               name: '', 
-              city: '釜山', 
+              city: '', 
               platform: '',
               ref: '',
               address: '',
@@ -182,7 +202,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
               participants: members.map(m => m.id),
               pax: 2,
               photos: [],
-              note: ''
+              note: '',
+              isPotential: false
           });
       }
       setShowAccModal(true);
@@ -190,10 +211,12 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
   const saveAcc = () => {
       if(!editingAcc) return;
+      const stayNights = calculateStayNights(editingAcc.checkInDate, editingAcc.checkOutDate, editingAcc.nights);
+      const accToSave = { ...editingAcc, nights: stayNights };
       if(accommodations.find(a => a.id === editingAcc.id)) {
-          onUpdateAccommodation(editingAcc);
+          onUpdateAccommodation(accToSave);
       } else {
-          onAddAccommodation(editingAcc);
+          onAddAccommodation(accToSave);
       }
       setShowAccModal(false);
   };
@@ -207,11 +230,40 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
       setEditingAcc({ ...editingAcc, participants: updated });
   };
 
-  const openNav = (address: string, gps?: string) => {
-      const query = gps || address;
-      if (query) {
-          window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank');
+  // Smart Navigation Handler (avoids pasting full URL into Google Maps search)
+  const openMapNav = (options: { address?: string; gps?: string; name?: string; city?: string }) => {
+      const { address, gps, name, city } = options;
+      
+      // 1. If GPS is provided and is not a URL
+      if (gps && gps.trim() && !gps.startsWith('http://') && !gps.startsWith('https://')) {
+          window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(gps.trim())}`, '_blank', 'noopener,noreferrer');
+          return;
       }
+      // 2. If address is provided and is NOT a web URL
+      if (address && address.trim() && !address.startsWith('http://') && !address.startsWith('https://')) {
+          window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address.trim())}`, '_blank', 'noopener,noreferrer');
+          return;
+      }
+      // 3. If address is a web URL or empty, fallback to searching for the hotel name and city on Google Maps!
+      const placeName = [city, name].filter(Boolean).join(' ').trim();
+      if (placeName) {
+          window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(placeName)}`, '_blank', 'noopener,noreferrer');
+          return;
+      }
+      // 4. If address itself is a URL and nothing else, open the URL directly
+      if (address && (address.startsWith('http://') || address.startsWith('https://'))) {
+          window.open(address.trim(), '_blank', 'noopener,noreferrer');
+      }
+  };
+
+  const openWebLink = (url?: string) => {
+      if (!url) return;
+      const formatted = (url.startsWith('http://') || url.startsWith('https://')) ? url : `https://${url}`;
+      window.open(formatted, '_blank', 'noopener,noreferrer');
+  };
+
+  const openNav = (address: string, gps?: string) => {
+      openMapNav({ address, gps });
   };
 
   // --- Car Logic ---
@@ -501,95 +553,149 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             <Plus size={16}/> 新增住宿
                         </button>
                     </div>
-                    {accommodations.length === 0 && <div className="text-center py-12 bg-white rounded-[2rem] border-2 border-dashed border-gray-300"><Bed size={40} className="mx-auto mb-3 text-gray-300" /><p className="text-cocoa font-black">尚未新增住宿</p></div>}
+
+                    {accommodations.length === 0 ? (
+                        <div className="text-center py-16 bg-white rounded-[2.5rem] border-2 border-dashed border-gray-300">
+                            <div className="w-16 h-16 rounded-full bg-purple-50 text-purple-400 flex items-center justify-center mx-auto mb-3">
+                                <Bed size={32} />
+                            </div>
+                            <p className="text-cocoa font-black text-lg">尚未新增住宿</p>
+                            <p className="text-gray-400 text-xs font-bold mt-1">點擊上方按鈕新增飯店、民宿或 Airbnb 資訊</p>
+                        </div>
+                    ) : (
+                    <div className="space-y-5">
                     {accommodations.map(acc => {
+                        const stayNights = calculateStayNights(acc.checkInDate, acc.checkOutDate, acc.nights);
                         const totalCost = calculateTotal(acc.cost, acc.hasServiceFee, acc.serviceFeePercentage);
                         const perPerson = Math.round(totalCost / (acc.participants.length || 1));
                         const checkInDisplay = new Date(acc.checkInDate).toLocaleDateString('zh-TW', {month:'numeric', day:'numeric'}) + ' ' + new Date(acc.checkInDate).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                         const checkOutDisplay = new Date(acc.checkOutDate).toLocaleDateString('zh-TW', {month:'numeric', day:'numeric'}) + ' ' + new Date(acc.checkOutDate).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-
+                        const isAddressUrl = !!(acc.address && (acc.address.startsWith('http://') || acc.address.startsWith('https://')));
                         return (
-                        <div key={acc.id} onClick={() => openAccEdit(acc)} className="bg-white rounded-[2.5rem] overflow-hidden shadow-hard-sm border-2 border-beige-dark flex flex-col group transition-all hover:shadow-lg cursor-pointer active:scale-[0.99] mb-6 relative">
-                            {/* ... accommodation card content ... */}
-                            <div className="h-48 relative bg-gray-100 border-b-2 border-dashed border-beige-dark">
-                                <div className="w-full h-full flex items-center justify-center bg-beige"><Bed size={48} className="text-gray-300"/></div>
-                                <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-black text-cocoa shadow-sm border border-beige-dark flex items-center gap-1">
-                                    <Leaf size={12} className="text-sage"/>
-                                    {acc.platform || 'Booking'}
+                        <div 
+                            key={acc.id} 
+                            onClick={() => openAccEdit(acc)} 
+                            className="bg-white rounded-[2rem] p-5 sm:p-6 shadow-sm hover:shadow-md border-2 border-beige-dark flex flex-col transition-all cursor-pointer group active:scale-[0.995] relative space-y-4"
+                        >
+                            {/* Card Top Category & Duration Pills */}
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex flex-wrap gap-1.5 items-center">
+                                    <div className="bg-beige-light px-3 py-1 rounded-full text-xs font-black text-cocoa border border-beige-dark flex items-center gap-1.5 shadow-2xs">
+                                        <Leaf size={12} className="text-sage"/>
+                                        {acc.platform || '住宿預訂'}
+                                    </div>
+                                    {acc.city && (
+                                        <div className="bg-purple-600 text-white px-2.5 py-0.5 rounded-full text-[11px] font-black shadow-2xs">
+                                            {acc.city}
+                                        </div>
+                                    )}
+                                    {acc.isPotential && (
+                                        <div className="bg-amber-500 text-white px-2.5 py-0.5 rounded-full text-[11px] font-black shadow-2xs flex items-center gap-1">
+                                            <Sparkles size={11} /> 潛在預算
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="absolute bottom-0 w-full h-4 bg-white rounded-t-[2rem]"></div>
+                                <div className="bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-xs font-black border border-purple-200 shadow-2xs flex items-center gap-1">
+                                    <Moon size={12} /> {stayNights} 晚
+                                </div>
                             </div>
 
-                            <div className="px-6 pt-2 pb-6">
-                                <div className="flex justify-between items-start mb-2">
-                                    <div>
-                                        <h3 className="text-xl font-black text-cocoa leading-tight mb-1">{acc.name}</h3>
-                                        <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
-                                            <span className="bg-sage-light text-sage px-2 py-0.5 rounded-md">{acc.city}</span>
-                                            <span>{acc.nights} 晚</span>
-                                        </div>
-                                    </div>
-                                    <div className="text-right">
-                                        <div className="text-2xl font-black text-cocoa font-mono">{acc.currency} {totalCost.toLocaleString()}</div>
-                                        {acc.currency !== 'TWD' && (
-                                            <div className="text-[10px] font-bold text-gray-400 font-mono">≈ TWD {Math.round(totalCost * getExchangeRate(acc.currency)).toLocaleString()}</div>
-                                        )}
-                                        <div className="text-[10px] font-bold text-gray-400">總金額 (含稅)</div>
-                                    </div>
-                                </div>
-
-                                <div className="bg-gray-50 rounded-2xl p-4 border border-beige-dark flex justify-between items-center my-4 relative">
-                                    <div className="text-center pl-2">
-                                        <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">入住時間</div>
-                                        <div className="text-sm font-black text-cocoa">{checkInDisplay}</div>
-                                    </div>
-                                    <div className="flex-1 border-b-2 border-dashed border-gray-300 mx-4 relative top-[-10px]">
-                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-50 px-2 text-gray-300">
-                                            <House size={14}/>
-                                        </div>
-                                    </div>
-                                    <div className="text-center pr-2">
-                                        <div className="text-[10px] font-bold text-gray-400 uppercase mb-1">退房時間</div>
-                                        <div className="text-sm font-black text-cocoa">{checkOutDisplay}</div>
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-2 text-xs font-bold text-gray-500">
-                                        <MapPin size={14} className="text-sage"/>
-                                        <span className="truncate flex-1">{acc.address}</span>
-                                        <button onClick={(e) => {e.stopPropagation(); openNav(acc.address, acc.gps)}} className="text-sage hover:text-sage-dark"><Navigation size={14}/></button>
-                                    </div>
-                                    {acc.url && (
-                                        <a href={acc.url} target="_blank" onClick={e => e.stopPropagation()} className="flex items-center gap-2 text-xs font-bold text-blue-400 hover:underline">
-                                            <LinkIcon size={14}/> 訂房連結 / 官網
-                                        </a>
-                                    )}
-                                    {acc.note && (
-                                        <div className="flex items-start gap-2 text-[10px] font-bold text-orange-400 bg-orange-50 p-2 rounded-lg border border-orange-100 mt-2">
-                                            <Info size={12} className="flex-shrink-0 mt-0.5"/>
-                                            <span>{acc.note}</span>
+                            {/* Card Title & Cost */}
+                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                                <div>
+                                    <h3 className="text-xl font-black text-cocoa leading-snug group-hover:text-purple-700 transition-colors">
+                                        {acc.name || '未命名住宿'}
+                                    </h3>
+                                    {acc.ref && (
+                                        <div className="flex items-center gap-2 text-xs font-bold text-gray-400 mt-0.5">
+                                            <span>確認碼: {acc.ref}</span>
                                         </div>
                                     )}
                                 </div>
+                                <div className="sm:text-right">
+                                    <div className="text-2xl font-black text-cocoa font-mono">{acc.currency} {totalCost.toLocaleString()}</div>
+                                    {acc.currency !== 'TWD' && (
+                                        <div className="text-xs font-bold text-sage font-mono">≈ NT$ {Math.round(totalCost * getExchangeRate(acc.currency)).toLocaleString()}</div>
+                                    )}
+                                    <div className="text-[10px] font-bold text-gray-400">總金額 {acc.hasServiceFee ? `(含稅 ${acc.serviceFeePercentage}%)` : '(含稅)'}</div>
+                                </div>
+                            </div>
 
-                                <div className="mt-4 pt-4 border-t-2 border-dashed border-beige-dark flex justify-between items-center">
+                            {/* Check-in & Check-out time badge */}
+                            <div className="bg-gray-50/80 rounded-2xl p-3.5 border border-beige-dark flex justify-between items-center relative">
+                                <div className="text-center pl-2">
+                                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">入住時間</div>
+                                    <div className="text-xs sm:text-sm font-black text-cocoa">{checkInDisplay}</div>
+                                </div>
+                                <div className="flex-1 border-b-2 border-dashed border-gray-300 mx-3 sm:mx-6 relative top-[-6px]">
+                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-50 px-2 text-purple-400">
+                                        <House size={14}/>
+                                    </div>
+                                </div>
+                                <div className="text-center pr-2">
+                                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">退房時間</div>
+                                    <div className="text-xs sm:text-sm font-black text-cocoa">{checkOutDisplay}</div>
+                                </div>
+                            </div>
+
+                            {/* Location & Map Search Row */}
+                            <div className="space-y-2.5 pt-1">
+                                <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-purple-50/50 border border-purple-100 text-xs font-bold text-cocoa">
+                                    <div className="flex items-center gap-2 truncate flex-1">
+                                        <MapPin size={14} className="text-purple-600 flex-shrink-0"/>
+                                        <span className="truncate">
+                                            {acc.address && !isAddressUrl 
+                                                ? acc.address 
+                                                : (acc.city ? `${acc.city} · ${acc.name}` : acc.name || '住宿地點')}
+                                        </span>
+                                    </div>
+                                    <button 
+                                        onClick={(e) => {
+                                            e.stopPropagation(); 
+                                            openMapNav({ address: acc.address, gps: acc.gps, name: acc.name, city: acc.city });
+                                        }} 
+                                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-purple-100 text-purple-700 border border-purple-200 shadow-2xs text-[11px] font-black flex items-center gap-1 flex-shrink-0 transition-colors"
+                                        title="開啟 Google Maps 搜尋"
+                                    >
+                                        <Navigation size={12}/> 地圖搜尋
+                                    </button>
+                                </div>
+
+                                {/* Note */}
+                                {acc.note && (
+                                    <div className="flex items-start gap-2 text-xs font-bold text-amber-700 bg-amber-50 p-2.5 rounded-xl border border-amber-100">
+                                        <Info size={13} className="flex-shrink-0 mt-0.5 text-amber-500"/>
+                                        <span>{acc.note}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Card Footer with Members and Per-person Split */}
+                            <div className="pt-3 border-t-2 border-dashed border-beige-dark flex justify-between items-center">
+                                <div className="flex items-center gap-2">
                                     <div className="flex -space-x-2">
                                         {acc.participants.slice(0, 3).map((pid, i) => (
-                                            <div key={i} className="w-6 h-6 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center text-[10px] font-bold text-gray-500">
-                                                {members.find(m => m.id === pid)?.name[0]}
+                                            <div key={i} className="w-6 h-6 rounded-full bg-purple-100 border-2 border-white flex items-center justify-center text-[10px] font-black text-purple-700 shadow-xs">
+                                                {members.find(m => m.id === pid)?.name[0] || '人'}
                                             </div>
                                         ))}
-                                        {(acc.participants.length > 3) && <div className="w-6 h-6 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[8px] font-bold">+{acc.participants.length - 3}</div>}
+                                        {(acc.participants.length > 3) && (
+                                            <div className="w-6 h-6 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[8px] font-bold text-gray-500">
+                                                +{acc.participants.length - 3}
+                                            </div>
+                                        )}
                                     </div>
-                                    <div className="text-right">
-                                        <div className="text-[10px] font-bold text-gray-400 uppercase">每人分攤金額</div>
-                                        <div className="text-sm font-black text-sage font-mono">{acc.currency} {perPerson.toLocaleString()}</div>
-                                    </div>
+                                    <span className="text-[10px] font-bold text-gray-400">{acc.participants.length} 人分攤</span>
+                                </div>
+                                <div className="text-right">
+                                    <div className="text-[10px] font-bold text-gray-400 uppercase">每人分攤金額</div>
+                                    <div className="text-base font-black text-sage font-mono">{acc.currency} {perPerson.toLocaleString()}</div>
                                 </div>
                             </div>
                         </div>
                     )})}
+                    </div>
+                    )}
                 </div>
             )}
             
@@ -997,21 +1103,45 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
                         <div><label className="text-[10px] font-bold text-gray-400 ml-1">住宿名稱</label><input value={editingAcc.name} onChange={e => setEditingAcc({...editingAcc, name: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa" placeholder="飯店名稱"/></div>
 
+                        <div>
+                            <label className="text-[10px] font-bold text-gray-400 ml-1 flex items-center gap-1">
+                                <MapPin size={12} className="text-sage" /> 地址 (Google Maps 導航/地點)
+                            </label>
+                            <input 
+                                value={editingAcc.address || ''} 
+                                onChange={e => setEditingAcc({...editingAcc, address: e.target.value})} 
+                                className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" 
+                                placeholder="例如：Centralstrasse 1, 3800 Interlaken 或詳細地址"
+                            />
+                        </div>
+
                         <div className="bg-purple-50/50 p-3.5 rounded-2xl border-2 border-purple-100 space-y-3">
                             <DateTimePickerField
                                 label="入住時間 (Check-in)"
                                 value={editingAcc.checkInDate}
-                                onChange={val => setEditingAcc({...editingAcc, checkInDate: val})}
+                                onChange={val => {
+                                    const newNights = calculateStayNights(val, editingAcc.checkOutDate, editingAcc.nights);
+                                    setEditingAcc({...editingAcc, checkInDate: val, nights: newNights});
+                                }}
                                 themeColor="purple"
                                 icon={House}
                             />
                             <DateTimePickerField
                                 label="退房時間 (Check-out)"
                                 value={editingAcc.checkOutDate}
-                                onChange={val => setEditingAcc({...editingAcc, checkOutDate: val})}
+                                onChange={val => {
+                                    const newNights = calculateStayNights(editingAcc.checkInDate, val, editingAcc.nights);
+                                    setEditingAcc({...editingAcc, checkOutDate: val, nights: newNights});
+                                }}
                                 themeColor="purple"
                                 icon={House}
                             />
+                            <div className="flex items-center justify-between px-1 pt-1 text-xs font-bold text-purple-700">
+                                <span>入住天數計算：</span>
+                                <span className="bg-purple-100/80 px-2.5 py-0.5 rounded-full font-black">
+                                    共 {calculateStayNights(editingAcc.checkInDate, editingAcc.checkOutDate, editingAcc.nights)} 晚
+                                </span>
+                            </div>
                         </div>
 
                         <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark space-y-3">
@@ -1040,6 +1170,18 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                 )}
                             </div>
 
+                            <div className="pt-1 border-t border-gray-100 flex items-center justify-between">
+                                <ToggleSwitch 
+                                    checked={!!editingAcc.isPotential} 
+                                    onChange={(checked) => setEditingAcc({...editingAcc, isPotential: checked})} 
+                                    label="列入潛在花費 (預算參考)" 
+                                    colorClass="bg-amber-400" 
+                                />
+                                <span className="text-[10px] font-bold text-amber-500 bg-amber-50 px-2 py-0.5 rounded-md">
+                                    {editingAcc.isPotential ? '暫定/預估' : '已確認訂房'}
+                                </span>
+                            </div>
+
                             <CostPreview 
                                 cost={editingAcc.cost} 
                                 currency={editingAcc.currency} 
@@ -1050,9 +1192,31 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             <div><label className="text-[10px] font-bold text-gray-400 block mb-2">分攤成員</label><div className="flex flex-wrap gap-2">{members.map(m => (<button key={m.id} onClick={() => toggleAccParticipant(m.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${editingAcc.participants.includes(m.id) ? 'bg-sage text-white border-sage' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{m.name}</button>))}</div></div>
                         </div>
 
+                        <div>
+                            <label className="text-[10px] font-bold text-gray-400 ml-1 flex items-center gap-1">
+                                <LinkIcon size={12} className="text-blue-500" /> 訂房連結 / 官網網址 (可選)
+                            </label>
+                            <input 
+                                value={editingAcc.url || ''} 
+                                onChange={e => setEditingAcc({...editingAcc, url: e.target.value})} 
+                                className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" 
+                                placeholder="https://www.booking.com/..."
+                            />
+                        </div>
+
                         <div><label className="text-[10px] font-bold text-gray-400 ml-1">備註</label><textarea value={editingAcc.note} onChange={e => setEditingAcc({...editingAcc, note: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold h-20 text-cocoa"></textarea></div>
                     </div>
                     <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                        {editingAcc.id && accommodations.find(a => a.id === editingAcc.id) && (
+                            <button onClick={() => {
+                                if (window.confirm('確定刪除此住宿紀錄？')) {
+                                    onDeleteAccommodation(editingAcc.id);
+                                    setShowAccModal(false);
+                                }
+                            }} type="button" className="px-5 py-3.5 rounded-2xl bg-red-50 text-red-400 font-bold border-2 border-red-100 flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
+                                <Trash2 size={18}/> 刪除
+                            </button>
+                        )}
                         <button onClick={() => setShowAccModal(false)} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
                         <button onClick={saveAcc} className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all">保存</button>
                     </div>
