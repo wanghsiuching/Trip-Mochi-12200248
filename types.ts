@@ -163,6 +163,7 @@ export interface PocketItem {
   priceRange?: string;       // 預算 / 價格 (如：¥1,000~2,000)
   assignedDate?: string;     // 預計前往日期 (可選)
   isVisited?: boolean;       // 是否已造訪
+  images?: string[];         // 照片/圖片 (支援多張照片、免費本機壓縮儲存)
   createdAt?: number;
 }
 

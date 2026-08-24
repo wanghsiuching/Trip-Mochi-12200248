@@ -242,19 +242,6 @@ export const MembersView: React.FC<MembersViewProps> = ({
                     );
                 })}
             </div>
-            
-            <div className="mt-8 p-4 bg-emerald-50/70 rounded-2xl text-xs text-emerald-800 leading-relaxed border-2 border-emerald-100 font-bold flex gap-3 items-start">
-                <div className="p-2 rounded-xl bg-white border border-emerald-200 text-emerald-600 flex-shrink-0 mt-0.5">
-                  <Smile size={18} />
-                </div>
-                <div className="space-y-1">
-                  <p className="font-black text-sm text-emerald-900">簡約可愛人物頭像與費用統計</p>
-                  <ul className="list-disc list-inside space-y-0.5 text-emerald-700/90 text-[11px]">
-                      <li>點擊成員卡片可查看個人花費明細，並可隨時更換簡約可愛的人物頭像。</li>
-                      <li>精選可愛女孩與陽光男孩等多種清新髮型與表情造型，載入迅速不破圖。</li>
-                  </ul>
-                </div>
-            </div>
         </div>
 
         {/* Member Details Modal */}

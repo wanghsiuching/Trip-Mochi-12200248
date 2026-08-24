@@ -1,10 +1,56 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   X, Plus, Utensils, Compass, MapPin, ExternalLink, StickyNote, 
   Trash2, Edit3, CheckCircle2, Circle, Navigation, Tag, Star, 
-  Search, CalendarPlus, ChevronRight, Copy, Check
+  Search, CalendarPlus, ChevronRight, Copy, Check,
+  Image as ImageIcon, Upload, Camera, Loader2, ZoomIn
 } from 'lucide-react';
 import { PocketItem, TripDay } from '../types';
+import { Lightbox } from './Lightbox';
+
+// Client-side instant image compression (100% Free, no server/cloud storage cost needed)
+const compressImage = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (e) => {
+      const img = new Image();
+      img.src = e.target?.result as string;
+      img.onload = () => {
+        const maxWidth = 1200;
+        const maxHeight = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+        } else {
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(img.src);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+        resolve(compressedBase64);
+      };
+      img.onerror = (err) => reject(err);
+    };
+    reader.onerror = (err) => reject(err);
+  });
+};
 
 interface PocketPlacesModalProps {
   isOpen: boolean;
@@ -40,6 +86,12 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
   // Form State
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isCompressingImages, setIsCompressingImages] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Lightbox State
+  const [lightboxState, setLightboxState] = useState<{ images: string[]; index: number } | null>(null);
+
   const [formData, setFormData] = useState<{
     category: 'food' | 'spot';
     title: string;
@@ -49,6 +101,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
     tag: string;
     rating: number;
     assignedDate: string;
+    images: string[];
   }>({
     category: initialTab,
     title: '',
@@ -58,6 +111,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
     tag: '',
     rating: 5,
     assignedDate: '',
+    images: [],
   });
 
   // Add to Schedule dialog state
@@ -103,6 +157,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
       tag: '',
       rating: 5,
       assignedDate: '',
+      images: [],
     });
     setIsFormOpen(true);
   };
@@ -118,8 +173,40 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
       tag: item.tag || '',
       rating: item.rating || 5,
       assignedDate: item.assignedDate || '',
+      images: item.images || [],
     });
     setIsFormOpen(true);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsCompressingImages(true);
+    try {
+      const fileList = Array.from(files);
+      // Process and compress each image
+      const compressedList = await Promise.all(fileList.map(f => compressImage(f)));
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, ...compressedList].slice(0, 10), // Support up to 10 photos
+      }));
+    } catch (error) {
+      console.error('Error compressing image:', error);
+    } finally {
+      setIsCompressingImages(false);
+      // Reset input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemoveImage = (indexToRemove: number) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, idx) => idx !== indexToRemove),
+    }));
   };
 
   const handleSaveForm = (e: React.FormEvent) => {
@@ -139,6 +226,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
           tag: formData.tag.trim(),
           rating: formData.rating,
           assignedDate: formData.assignedDate,
+          images: formData.images || [],
         });
       }
     } else {
@@ -151,6 +239,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
         tag: formData.tag.trim(),
         rating: formData.rating,
         assignedDate: formData.assignedDate,
+        images: formData.images || [],
         isVisited: false,
       });
     }
@@ -472,6 +561,36 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                     </div>
                   )}
 
+                  {/* Photo Thumbnails */}
+                  {item.images && item.images.length > 0 && (
+                    <div className="mb-2.5">
+                      <div className="flex items-center gap-2 overflow-x-auto custom-scroll pb-1">
+                        {item.images.map((imgSrc, imgIdx) => (
+                          <button
+                            key={imgIdx}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLightboxState({ images: item.images!, index: imgIdx });
+                            }}
+                            className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 border-beige-dark flex-shrink-0 group shadow-2xs hover:border-sage transition-all"
+                            title="點擊放大檢視"
+                          >
+                            <img
+                              src={imgSrc}
+                              alt={`${item.title} 照片 ${imgIdx + 1}`}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                              loading="lazy"
+                            />
+                            <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                              <ZoomIn size={14} />
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Notes Box */}
                   {item.notes && (
                     <div className="bg-amber-50/70 p-3 rounded-2xl border border-amber-200/70 flex items-start gap-2">
@@ -689,6 +808,75 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                 </div>
               </div>
 
+              {/* Photo Upload & Preview Section (100% Free Client-Side Storage) */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-black text-gray-400 flex items-center gap-1.5">
+                    <ImageIcon size={14} className="text-orange-500" /> 照片記錄 / 菜單圖片 (免費)
+                  </label>
+                  <span className="text-[10px] font-bold text-sage bg-sage/10 px-2 py-0.5 rounded-full">
+                    {formData.images.length}/10 張
+                  </span>
+                </div>
+
+                {/* Hidden File Input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+
+                {/* Upload Button */}
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isCompressingImages || formData.images.length >= 10}
+                  className={`w-full py-3 px-4 rounded-xl border-2 border-dashed transition-all flex items-center justify-center gap-2 text-xs font-black mb-2 ${
+                    formData.images.length >= 10
+                      ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                      : 'border-orange-200 bg-orange-50/50 text-orange-700 hover:bg-orange-100/70 hover:border-orange-300'
+                  }`}
+                >
+                  {isCompressingImages ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin text-orange-500" />
+                      <span>正在快速壓縮圖片中...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Camera size={16} className="text-orange-500" />
+                      <span>點此上傳圖片 / 照片（免費、支援相簿與相機）</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Image Thumbnails Grid */}
+                {formData.images.length > 0 && (
+                  <div className="grid grid-cols-4 gap-2 bg-gray-50 p-2.5 rounded-xl border border-gray-200">
+                    {formData.images.map((imgUrl, index) => (
+                      <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group bg-black/5">
+                        <img
+                          src={imgUrl}
+                          alt={`上傳照片 ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(index)}
+                          className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-red-500 text-white rounded-full transition-colors shadow-sm"
+                          title="刪除這張照片"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Notes */}
               <div>
                 <label className="text-xs font-black text-gray-400 block mb-1">備註說明 (推薦菜色、注意事項、營業時間等)</label>
@@ -796,6 +984,15 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Lightbox for Fullscreen Image Viewing */}
+      {lightboxState && (
+        <Lightbox
+          images={lightboxState.images}
+          initialIndex={lightboxState.index}
+          onClose={() => setLightboxState(null)}
+        />
       )}
     </div>
   );
