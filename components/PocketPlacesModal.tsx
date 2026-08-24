@@ -8,47 +8,56 @@ import {
 import { PocketItem, TripDay } from '../types';
 import { Lightbox } from './Lightbox';
 
-// Client-side instant image compression (100% Free, no server/cloud storage cost needed)
+// Client-side instant image compression (optimizes file size, prevents sequential failure)
 const compressImage = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const reader = new FileReader();
-    reader.readAsDataURL(file);
     reader.onload = (e) => {
+      const src = e.target?.result as string;
+      if (!src) {
+        resolve('');
+        return;
+      }
       const img = new Image();
-      img.src = e.target?.result as string;
       img.onload = () => {
-        const maxWidth = 1200;
-        const maxHeight = 1200;
-        let width = img.width;
-        let height = img.height;
+        try {
+          const maxWidth = 1000;
+          const maxHeight = 1000;
+          let width = img.width || 800;
+          let height = img.height || 600;
 
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
           }
-        } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
-        }
 
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          resolve(img.src);
-          return;
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(src);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.75);
+          resolve(compressedBase64);
+        } catch {
+          resolve(src);
         }
-        ctx.drawImage(img, 0, 0, width, height);
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
-        resolve(compressedBase64);
       };
-      img.onerror = (err) => reject(err);
+      img.onerror = () => resolve(src);
+      img.src = src;
     };
-    reader.onerror = (err) => reject(err);
+    reader.onerror = () => resolve('');
+    reader.readAsDataURL(file);
   });
 };
 
@@ -808,11 +817,11 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                 </div>
               </div>
 
-              {/* Photo Upload & Preview Section (100% Free Client-Side Storage) */}
+              {/* Photo Upload & Preview Section */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-xs font-black text-gray-400 flex items-center gap-1.5">
-                    <ImageIcon size={14} className="text-orange-500" /> 照片記錄 / 菜單圖片 (免費)
+                    <ImageIcon size={14} className="text-orange-500" /> 照片記錄 / 菜單圖片
                   </label>
                   <span className="text-[10px] font-bold text-sage bg-sage/10 px-2 py-0.5 rounded-full">
                     {formData.images.length}/10 張
@@ -843,12 +852,12 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                   {isCompressingImages ? (
                     <>
                       <Loader2 size={16} className="animate-spin text-orange-500" />
-                      <span>正在快速壓縮圖片中...</span>
+                      <span>正在處理圖片中...</span>
                     </>
                   ) : (
                     <>
                       <Camera size={16} className="text-orange-500" />
-                      <span>點此上傳圖片 / 照片（免費、支援相簿與相機）</span>
+                      <span>點此上傳圖片</span>
                     </>
                   )}
                 </button>
@@ -857,16 +866,27 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                 {formData.images.length > 0 && (
                   <div className="grid grid-cols-4 gap-2 bg-gray-50 p-2.5 rounded-xl border border-gray-200">
                     {formData.images.map((imgUrl, index) => (
-                      <div key={index} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group bg-black/5">
+                      <div 
+                        key={index} 
+                        className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group bg-black/5 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLightboxState({ images: formData.images, index });
+                        }}
+                        title="點擊放大預覽"
+                      >
                         <img
                           src={imgUrl}
                           alt={`上傳照片 ${index + 1}`}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                         />
                         <button
                           type="button"
-                          onClick={() => handleRemoveImage(index)}
-                          className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-red-500 text-white rounded-full transition-colors shadow-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemoveImage(index);
+                          }}
+                          className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-red-500 text-white rounded-full transition-colors shadow-sm z-10"
                           title="刪除這張照片"
                         >
                           <X size={12} />

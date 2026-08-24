@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface LightboxProps {
     images: string[];
@@ -34,8 +35,9 @@ export const Lightbox: React.FC<LightboxProps> = ({ images, initialIndex = 0, on
 
     // Reset on open
     useEffect(() => {
+        const originalOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
-        return () => { document.body.style.overflow = ''; };
+        return () => { document.body.style.overflow = originalOverflow; };
     }, []);
 
     // Helper: Reset zoom when changing images
@@ -46,6 +48,7 @@ export const Lightbox: React.FC<LightboxProps> = ({ images, initialIndex = 0, on
     };
 
     const handlePrev = (e?: React.MouseEvent) => {
+        e?.preventDefault();
         e?.stopPropagation();
         if (currentIndex > 0) {
             setCurrentIndex(prev => prev - 1);
@@ -54,11 +57,18 @@ export const Lightbox: React.FC<LightboxProps> = ({ images, initialIndex = 0, on
     };
 
     const handleNext = (e?: React.MouseEvent) => {
+        e?.preventDefault();
         e?.stopPropagation();
         if (currentIndex < images.length - 1) {
             setCurrentIndex(prev => prev + 1);
             resetZoom();
         }
+    };
+
+    const handleClose = (e?: React.MouseEvent | React.TouchEvent) => {
+        e?.preventDefault();
+        e?.stopPropagation();
+        onClose();
     };
 
     const clamp = (num: number, min: number, max: number) => Math.min(Math.max(num, min), max);
@@ -132,14 +142,14 @@ export const Lightbox: React.FC<LightboxProps> = ({ images, initialIndex = 0, on
             } else if (scale === 1 && isSwiping && swipeStart.current) {
                 // Horizontal Swipe for Navigation
                 const dx = e.touches[0].clientX - swipeStart.current.x;
-                // Only swipe if mostly horizontal movement to prevent accidental swipes when scrolling vertically (though body is locked)
                 setSwipeOffset(dx);
             }
         }
     };
 
     // 4. Touch End (Mobile)
-    const handleTouchEnd = () => {
+    const handleTouchEnd = (e: React.TouchEvent) => {
+        e.stopPropagation();
         lastTouchDistance.current = null;
         setIsDragging(false);
         dragStart.current = null;
@@ -166,11 +176,12 @@ export const Lightbox: React.FC<LightboxProps> = ({ images, initialIndex = 0, on
 
     // 5. Double Tap Logic
     const handleDoubleTap = (e: React.TouchEvent | React.MouseEvent) => {
+        e.stopPropagation();
         if (scale > 1) {
             resetZoom();
         } else {
             setScale(2.5);
-            setTranslate({ x: 0, y: 0 }); // Center zoom for simplicity
+            setTranslate({ x: 0, y: 0 });
         }
     };
 
@@ -178,49 +189,55 @@ export const Lightbox: React.FC<LightboxProps> = ({ images, initialIndex = 0, on
 
     return (
         <div 
-            className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center touch-none overflow-hidden"
-            onClick={onClose}
+            className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center touch-none overflow-hidden select-none animate-fade-in"
+            onClick={handleClose}
         >
             {/* Top Bar */}
             <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-50 pointer-events-none">
-                <span className="text-white font-bold bg-black/30 px-3 py-1 rounded-full backdrop-blur-md">
+                <span className="text-white font-bold bg-black/50 px-3.5 py-1.5 rounded-full backdrop-blur-md text-xs shadow-md">
                     {currentIndex + 1} / {images.length}
                 </span>
                 <button 
-                    className="w-10 h-10 bg-white/10 backdrop-blur-md rounded-full text-white flex items-center justify-center hover:bg-white/20 transition-colors pointer-events-auto"
-                    onClick={(e) => { e.stopPropagation(); onClose(); }}
+                    type="button"
+                    className="w-10 h-10 bg-white/20 hover:bg-white/30 active:scale-90 backdrop-blur-md rounded-full text-white flex items-center justify-center transition-all pointer-events-auto shadow-lg"
+                    onClick={handleClose}
+                    title="關閉相片預覽"
                 >
-                    <i className="fa-solid fa-xmark text-lg"></i>
+                    <X size={20} />
                 </button>
             </div>
 
             {/* Navigation Arrows (Desktop) */}
             {currentIndex > 0 && (
                 <button 
-                    className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white flex items-center justify-center z-50 hidden lg:flex transition-all"
+                    type="button"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/15 hover:bg-white/30 backdrop-blur-md rounded-full text-white flex items-center justify-center z-50 hidden lg:flex transition-all active:scale-95 shadow-lg"
                     onClick={handlePrev}
+                    title="上一張"
                 >
-                    <i className="fa-solid fa-chevron-left"></i>
+                    <ChevronLeft size={24} />
                 </button>
             )}
             {currentIndex < images.length - 1 && (
                 <button 
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/10 hover:bg-white/20 backdrop-blur-md rounded-full text-white flex items-center justify-center z-50 hidden lg:flex transition-all"
+                    type="button"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/15 hover:bg-white/30 backdrop-blur-md rounded-full text-white flex items-center justify-center z-50 hidden lg:flex transition-all active:scale-95 shadow-lg"
                     onClick={handleNext}
+                    title="下一張"
                 >
-                    <i className="fa-solid fa-chevron-right"></i>
+                    <ChevronRight size={24} />
                 </button>
             )}
 
             {/* Bottom Hint */}
-            <div className="absolute bottom-10 left-0 right-0 text-center pointer-events-none text-white/50 text-xs font-bold">
-                {scale === 1 ? '左右滑動切換 • 雙擊縮放' : '雙擊還原'}
+            <div className="absolute bottom-8 left-0 right-0 text-center pointer-events-none text-white/60 text-xs font-bold px-4">
+                {scale === 1 ? '左右滑動切換 • 點擊任意處或右上角關閉' : '雙擊縮小還原'}
             </div>
 
             {/* Image Container */}
             <div 
                 ref={containerRef}
-                className="relative w-full h-full flex items-center justify-center p-2"
+                className="relative w-full h-full flex items-center justify-center p-4"
                 onWheel={handleWheel}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
@@ -230,7 +247,7 @@ export const Lightbox: React.FC<LightboxProps> = ({ images, initialIndex = 0, on
                     ref={imageRef}
                     src={currentImage} 
                     alt={`Preview ${currentIndex + 1}`}
-                    className="max-w-full max-h-full object-contain transition-transform ease-out origin-center select-none"
+                    className="max-w-full max-h-full object-contain transition-transform ease-out origin-center select-none rounded-sm shadow-2xl"
                     style={{ 
                         transform: `translate(${translate.x + swipeOffset}px, ${translate.y}px) scale(${scale})`,
                         transitionDuration: isDragging || isSwiping ? '0ms' : '200ms',
