@@ -8,18 +8,25 @@ import {
 import { PocketItem, TripDay } from '../types';
 import { Lightbox } from './Lightbox';
 
-// Client-side instant image compression (optimizes file size, prevents sequential failure)
-const compressImage = (file: File): Promise<string> => {
+// Client-side instant image compression with progress feedback
+const compressImageWithProgress = (
+  file: File, 
+  onProgress: (percent: number) => void
+): Promise<string> => {
   return new Promise((resolve) => {
+    onProgress(20);
     const reader = new FileReader();
     reader.onload = (e) => {
+      onProgress(45);
       const src = e.target?.result as string;
       if (!src) {
+        onProgress(100);
         resolve('');
         return;
       }
       const img = new Image();
       img.onload = () => {
+        onProgress(70);
         try {
           const maxWidth = 1000;
           const maxHeight = 1000;
@@ -43,23 +50,40 @@ const compressImage = (file: File): Promise<string> => {
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           if (!ctx) {
+            onProgress(100);
             resolve(src);
             return;
           }
           ctx.drawImage(img, 0, 0, width, height);
+          onProgress(90);
           const compressedBase64 = canvas.toDataURL('image/jpeg', 0.75);
+          onProgress(100);
           resolve(compressedBase64);
         } catch {
+          onProgress(100);
           resolve(src);
         }
       };
-      img.onerror = () => resolve(src);
+      img.onerror = () => {
+        onProgress(100);
+        resolve(src);
+      };
       img.src = src;
     };
-    reader.onerror = () => resolve('');
+    reader.onerror = () => {
+      onProgress(100);
+      resolve('');
+    };
     reader.readAsDataURL(file);
   });
 };
+
+interface FormImageItem {
+  id: string;
+  url: string;
+  progress: number;
+  isReady: boolean;
+}
 
 interface PocketPlacesModalProps {
   isOpen: boolean;
@@ -95,7 +119,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
   // Form State
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [isCompressingImages, setIsCompressingImages] = useState(false);
+  const [formImages, setFormImages] = useState<FormImageItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Lightbox State
@@ -110,7 +134,6 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
     tag: string;
     rating: number;
     assignedDate: string;
-    images: string[];
   }>({
     category: initialTab,
     title: '',
@@ -120,7 +143,6 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
     tag: '',
     rating: 5,
     assignedDate: '',
-    images: [],
   });
 
   // Add to Schedule dialog state
@@ -166,8 +188,8 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
       tag: '',
       rating: 5,
       assignedDate: '',
-      images: [],
     });
+    setFormImages([]);
     setIsFormOpen(true);
   };
 
@@ -182,45 +204,87 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
       tag: item.tag || '',
       rating: item.rating || 5,
       assignedDate: item.assignedDate || '',
-      images: item.images || [],
     });
+    setFormImages(
+      (item.images || []).map((imgUrl, i) => ({
+        id: `existing-${item.id}-${i}-${Date.now()}`,
+        url: imgUrl,
+        progress: 100,
+        isReady: true,
+      }))
+    );
     setIsFormOpen(true);
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    setIsCompressingImages(true);
-    try {
-      const fileList = Array.from(files);
-      // Process and compress each image
-      const compressedList = await Promise.all(fileList.map(f => compressImage(f)));
-      setFormData(prev => ({
-        ...prev,
-        images: [...prev.images, ...compressedList].slice(0, 10), // Support up to 10 photos
-      }));
-    } catch (error) {
-      console.error('Error compressing image:', error);
-    } finally {
-      setIsCompressingImages(false);
-      // Reset input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+    const currentCount = formImages.length;
+    const remaining = 10 - currentCount;
+    if (remaining <= 0) return;
+
+    const filesToUpload = Array.from(files).slice(0, remaining);
+
+    // 1. Create immediate placeholder items with local preview
+    const newItems: FormImageItem[] = filesToUpload.map((file, idx) => ({
+      id: `upload-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
+      url: URL.createObjectURL(file),
+      progress: 15,
+      isReady: false,
+    }));
+
+    setFormImages(prev => [...prev, ...newItems]);
+
+    // 2. Process each file with progress updates
+    filesToUpload.forEach(async (file, idx) => {
+      const targetItem = newItems[idx];
+      try {
+        const finalBase64 = await compressImageWithProgress(file, (percent) => {
+          setFormImages(prev =>
+            prev.map(item =>
+              item.id === targetItem.id
+                ? { ...item, progress: percent }
+                : item
+            )
+          );
+        });
+
+        setFormImages(prev =>
+          prev.map(item =>
+            item.id === targetItem.id
+              ? { ...item, url: finalBase64 || item.url, progress: 100, isReady: true }
+              : item
+          )
+        );
+      } catch (error) {
+        console.error('Error compressing image:', error);
+        setFormImages(prev =>
+          prev.map(item =>
+            item.id === targetItem.id
+              ? { ...item, progress: 100, isReady: true }
+              : item
+          )
+        );
       }
+    });
+
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
-  const handleRemoveImage = (indexToRemove: number) => {
-    setFormData(prev => ({
-      ...prev,
-      images: prev.images.filter((_, idx) => idx !== indexToRemove),
-    }));
+  const handleRemoveFormImage = (idToRemove: string) => {
+    setFormImages(prev => prev.filter(img => img.id !== idToRemove));
   };
 
   const handleSaveForm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title.trim()) return;
+
+    // Filter only completed images
+    const finalImages = formImages.filter(img => img.isReady && img.url).map(img => img.url);
 
     if (editingId) {
       const original = pocketItems.find(p => p.id === editingId);
@@ -235,7 +299,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
           tag: formData.tag.trim(),
           rating: formData.rating,
           assignedDate: formData.assignedDate,
-          images: formData.images || [],
+          images: finalImages,
         });
       }
     } else {
@@ -248,7 +312,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
         tag: formData.tag.trim(),
         rating: formData.rating,
         assignedDate: formData.assignedDate,
-        images: formData.images || [],
+        images: finalImages,
         isVisited: false,
       });
     }
@@ -824,7 +888,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                     <ImageIcon size={14} className="text-orange-500" /> 照片記錄 / 菜單圖片
                   </label>
                   <span className="text-[10px] font-bold text-sage bg-sage/10 px-2 py-0.5 rounded-full">
-                    {formData.images.length}/10 張
+                    {formImages.length}/10 張
                   </span>
                 </div>
 
@@ -842,17 +906,17 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={isCompressingImages || formData.images.length >= 10}
+                  disabled={formImages.some(img => !img.isReady) || formImages.length >= 10}
                   className={`w-full py-3 px-4 rounded-xl border-2 border-dashed transition-all flex items-center justify-center gap-2 text-xs font-black mb-2 ${
-                    formData.images.length >= 10
+                    formImages.length >= 10
                       ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
                       : 'border-orange-200 bg-orange-50/50 text-orange-700 hover:bg-orange-100/70 hover:border-orange-300'
                   }`}
                 >
-                  {isCompressingImages ? (
+                  {formImages.some(img => !img.isReady) ? (
                     <>
                       <Loader2 size={16} className="animate-spin text-orange-500" />
-                      <span>正在處理圖片中...</span>
+                      <span>正在上傳處理圖片 ({formImages.filter(img => img.isReady).length}/{formImages.length})...</span>
                     </>
                   ) : (
                     <>
@@ -862,34 +926,57 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                   )}
                 </button>
 
-                {/* Image Thumbnails Grid */}
-                {formData.images.length > 0 && (
+                {/* Image Thumbnails Grid with Top-Right Percentage Badge */}
+                {formImages.length > 0 && (
                   <div className="grid grid-cols-4 gap-2 bg-gray-50 p-2.5 rounded-xl border border-gray-200">
-                    {formData.images.map((imgUrl, index) => (
+                    {formImages.map((img, index) => (
                       <div 
-                        key={index} 
-                        className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group bg-black/5 cursor-pointer"
+                        key={img.id} 
+                        className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group bg-black/5 cursor-pointer shadow-2xs"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setLightboxState({ images: formData.images, index });
+                          if (img.isReady) {
+                            const readyImages = formImages.filter(i => i.isReady).map(i => i.url);
+                            const activeIdx = readyImages.indexOf(img.url);
+                            setLightboxState({ images: readyImages, index: Math.max(0, activeIdx) });
+                          }
                         }}
-                        title="點擊放大預覽"
+                        title={img.isReady ? "點擊放大預覽" : `正在上傳中 ${img.progress}%`}
                       >
                         <img
-                          src={imgUrl}
+                          src={img.url}
                           alt={`上傳照片 ${index + 1}`}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                          className={`w-full h-full object-cover transition-all ${
+                            img.isReady ? 'group-hover:scale-105' : 'opacity-70 scale-95 blur-[0.3px]'
+                          }`}
                         />
+
+                        {/* Top-Right Progress Badge (百分比標籤) */}
+                        <div className="absolute top-1 right-1 z-10 pointer-events-none">
+                          {!img.isReady ? (
+                            <div className="bg-black/80 backdrop-blur-xs text-amber-300 text-[10px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-1 shadow-md border border-white/20">
+                              <Loader2 size={10} className="animate-spin text-amber-400" />
+                              <span>{img.progress}%</span>
+                            </div>
+                          ) : (
+                            <div className="bg-emerald-600/90 backdrop-blur-xs text-white text-[10px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-md border border-white/20">
+                              <Check size={10} className="stroke-[3]" />
+                              <span>100%</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Top-Left Delete Button */}
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleRemoveImage(index);
+                            handleRemoveFormImage(img.id);
                           }}
-                          className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-red-500 text-white rounded-full transition-colors shadow-sm z-10"
+                          className="absolute top-1 left-1 p-1 bg-black/60 hover:bg-red-500 text-white rounded-full transition-colors shadow-sm z-20"
                           title="刪除這張照片"
                         >
-                          <X size={12} />
+                          <X size={11} />
                         </button>
                       </div>
                     ))}
@@ -922,11 +1009,21 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                 </button>
                 <button
                   type="submit"
+                  disabled={formImages.some(img => !img.isReady)}
                   className={`flex-1 py-3.5 rounded-2xl ${
-                    formData.category === 'food' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-teal-600 hover:bg-teal-700'
-                  } text-white font-black text-sm shadow-md transition-all active:scale-95`}
+                    formImages.some(img => !img.isReady)
+                      ? 'bg-gray-400 cursor-not-allowed opacity-80'
+                      : formData.category === 'food' ? 'bg-orange-500 hover:bg-orange-600 active:scale-95' : 'bg-teal-600 hover:bg-teal-700 active:scale-95'
+                  } text-white font-black text-sm shadow-md transition-all flex items-center justify-center gap-2`}
                 >
-                  {editingId ? '儲存變更' : '新增項目'}
+                  {formImages.some(img => !img.isReady) ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>圖片上傳處理中...</span>
+                    </>
+                  ) : (
+                    editingId ? '儲存變更' : '新增項目'
+                  )}
                 </button>
               </div>
             </form>
