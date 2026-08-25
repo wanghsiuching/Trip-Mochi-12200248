@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { PocketItem, TripDay } from '../types';
 import { Lightbox } from './Lightbox';
-import { uploadOrCompressImage } from '../utils/imageService';
+import { compressImageToBase64 } from '../utils/imageService';
 
 interface FormImageItem {
   id: string;
@@ -164,7 +164,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
 
     const filesToUpload = Array.from(files).slice(0, remaining);
 
-    // 1. Create immediate placeholder items with local preview
+    // 1. Create immediate placeholder items
     const newItems: FormImageItem[] = filesToUpload.map((file, idx) => {
       let previewUrl = '';
       try {
@@ -175,57 +175,43 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
       return {
         id: `upload-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
         url: previewUrl,
-        progress: 15,
+        progress: 30,
         isReady: false,
       };
     });
 
     setFormImages(prev => [...prev, ...newItems]);
 
-    // Reset input immediately
+    // Reset input immediately so user can select again if needed
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
 
-    // 2. Process each file with progress feedback
-    const uploadPromises = filesToUpload.map(async (file, idx) => {
+    // 2. Compress each file directly to Base64 in browser memory (instant & zero external server dependency)
+    const compressionPromises = filesToUpload.map(async (file, idx) => {
       const targetItem = newItems[idx];
       try {
-        const finalUrl = await uploadOrCompressImage(
-          file,
-          tripId || 'general',
-          'pocket',
-          (percent) => {
-            setFormImages(prev =>
-              prev.map(item =>
-                item.id === targetItem.id
-                  ? { ...item, progress: Math.max(item.progress, percent) }
-                  : item
-              )
-            );
-          }
-        );
+        const compressedBase64 = await compressImageToBase64(file);
 
-        if (finalUrl && (finalUrl.startsWith('data:image/') || finalUrl.startsWith('http'))) {
+        if (compressedBase64 && compressedBase64.startsWith('data:image/')) {
           setFormImages(prev =>
             prev.map(item =>
               item.id === targetItem.id
-                ? { ...item, url: finalUrl, progress: 100, isReady: true, error: undefined }
+                ? { ...item, url: compressedBase64, progress: 100, isReady: true, error: undefined }
                 : item
             )
           );
         } else {
-          throw new Error('無法轉換此圖片格式');
+          throw new Error('圖片格式無法解碼');
         }
       } catch (error: any) {
-        console.error(`Error uploading image #${idx + 1}:`, error);
-        setUploadError(`第 ${idx + 1} 張圖片讀取失敗，已自動跳過`);
-        // Remove failed item cleanly so it doesn't block other photos
+        console.error(`Error processing image #${idx + 1}:`, error);
+        setUploadError(`第 ${idx + 1} 張圖片「${file.name || '照片'}」處理失敗，已自動跳過`);
         setFormImages(prev => prev.filter(item => item.id !== targetItem.id));
       }
     });
 
-    await Promise.allSettled(uploadPromises);
+    await Promise.allSettled(compressionPromises);
   };
 
   const handleRemoveFormImage = (idToRemove: string) => {
@@ -238,7 +224,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
 
     // Filter only fully compressed base64 / valid URLs (never allow transient blob: URLs to database)
     const finalImages = formImages
-      .filter(img => img.isReady && img.url && !img.url.startsWith('blob:'))
+      .filter(img => img.isReady && img.url && (img.url.startsWith('data:image/') || img.url.startsWith('http')))
       .map(img => img.url);
 
     if (editingId) {
@@ -867,7 +853,6 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                   type="file"
                   accept="image/*"
                   multiple
-                  onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
                   onChange={handleImageUpload}
                   className="hidden"
                 />
