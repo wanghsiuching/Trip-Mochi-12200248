@@ -8,40 +8,40 @@ import {
 import { PocketItem, TripDay } from '../types';
 import { Lightbox } from './Lightbox';
 
-// Client-side instant image compression with progress feedback
+// Client-side lightweight image compression with progress feedback
 const compressImageWithProgress = (
   file: File, 
   onProgress: (percent: number) => void
 ): Promise<string> => {
   return new Promise((resolve) => {
-    onProgress(20);
+    onProgress(15);
     const reader = new FileReader();
     reader.onload = (e) => {
-      onProgress(45);
-      const src = e.target?.result as string;
-      if (!src) {
+      onProgress(35);
+      const rawSrc = e.target?.result as string;
+      if (!rawSrc) {
         onProgress(100);
         resolve('');
         return;
       }
       const img = new Image();
       img.onload = () => {
-        onProgress(70);
+        onProgress(60);
         try {
-          const maxWidth = 1000;
-          const maxHeight = 1000;
+          // Optimized max dimension (800px) ensures fast rendering and lightweight storage (<40KB)
+          const maxDimension = 800;
           let width = img.width || 800;
           let height = img.height || 600;
 
           if (width > height) {
-            if (width > maxWidth) {
-              height = Math.round((height * maxWidth) / width);
-              width = maxWidth;
+            if (width > maxDimension) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
             }
           } else {
-            if (height > maxHeight) {
-              width = Math.round((width * maxHeight) / height);
-              height = maxHeight;
+            if (height > maxDimension) {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
             }
           }
 
@@ -51,24 +51,31 @@ const compressImageWithProgress = (
           const ctx = canvas.getContext('2d');
           if (!ctx) {
             onProgress(100);
-            resolve(src);
+            resolve(rawSrc);
             return;
           }
           ctx.drawImage(img, 0, 0, width, height);
-          onProgress(90);
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.75);
+          onProgress(85);
+
+          // Compress to JPEG with 0.65 quality (perfect balance for mobile previews)
+          let compressedBase64 = canvas.toDataURL('image/jpeg', 0.65);
+          // If still over 80KB, compress further to prevent any Firestore payload limit
+          if (compressedBase64.length > 80000) {
+            compressedBase64 = canvas.toDataURL('image/jpeg', 0.48);
+          }
           onProgress(100);
           resolve(compressedBase64);
-        } catch {
+        } catch (err) {
+          console.error('Compression error, fallback to raw source:', err);
           onProgress(100);
-          resolve(src);
+          resolve(rawSrc);
         }
       };
       img.onerror = () => {
         onProgress(100);
-        resolve(src);
+        resolve(rawSrc);
       };
-      img.src = src;
+      img.src = rawSrc;
     };
     reader.onerror = () => {
       onProgress(100);
@@ -216,7 +223,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
     setIsFormOpen(true);
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -230,15 +237,21 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
     const newItems: FormImageItem[] = filesToUpload.map((file, idx) => ({
       id: `upload-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
       url: URL.createObjectURL(file),
-      progress: 15,
+      progress: 10,
       isReady: false,
     }));
 
     setFormImages(prev => [...prev, ...newItems]);
 
-    // 2. Process each file with progress updates
-    filesToUpload.forEach(async (file, idx) => {
-      const targetItem = newItems[idx];
+    // Reset input immediately
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+
+    // 2. Process each file sequentially with progress updates to prevent mobile browser memory drops
+    for (let i = 0; i < filesToUpload.length; i++) {
+      const file = filesToUpload[i];
+      const targetItem = newItems[i];
       try {
         const finalBase64 = await compressImageWithProgress(file, (percent) => {
           setFormImages(prev =>
@@ -267,11 +280,6 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
           )
         );
       }
-    });
-
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
     }
   };
 
@@ -926,7 +934,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                   )}
                 </button>
 
-                {/* Image Thumbnails Grid with Top-Right Percentage Badge */}
+                {/* Image Thumbnails Grid */}
                 {formImages.length > 0 && (
                   <div className="grid grid-cols-4 gap-2 bg-gray-50 p-2.5 rounded-xl border border-gray-200">
                     {formImages.map((img, index) => (
@@ -947,37 +955,40 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                           src={img.url}
                           alt={`上傳照片 ${index + 1}`}
                           className={`w-full h-full object-cover transition-all ${
-                            img.isReady ? 'group-hover:scale-105' : 'opacity-70 scale-95 blur-[0.3px]'
+                            img.isReady ? 'group-hover:scale-105' : 'opacity-60 scale-95'
                           }`}
                         />
 
-                        {/* Top-Right Progress Badge (百分比標籤) */}
-                        <div className="absolute top-1 right-1 z-10 pointer-events-none">
-                          {!img.isReady ? (
-                            <div className="bg-black/80 backdrop-blur-xs text-amber-300 text-[10px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-1 shadow-md border border-white/20">
-                              <Loader2 size={10} className="animate-spin text-amber-400" />
-                              <span>{img.progress}%</span>
+                        {/* Active Uploading Progress Overlay (只在正在上傳時顯示進度條與百分比，上傳完成後不顯示) */}
+                        {!img.isReady && (
+                          <div className="absolute inset-0 bg-black/65 backdrop-blur-[1px] flex flex-col items-center justify-center p-2 z-10">
+                            <Loader2 size={16} className="animate-spin text-amber-300 mb-1" />
+                            <span className="text-[10px] font-black text-amber-200 tracking-tight leading-none mb-1.5">
+                              {img.progress}%
+                            </span>
+                            <div className="w-full h-1.5 bg-white/25 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-amber-400 rounded-full transition-all duration-200 ease-out"
+                                style={{ width: `${img.progress}%` }}
+                              />
                             </div>
-                          ) : (
-                            <div className="bg-emerald-600/90 backdrop-blur-xs text-white text-[10px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5 shadow-md border border-white/20">
-                              <Check size={10} className="stroke-[3]" />
-                              <span>100%</span>
-                            </div>
-                          )}
-                        </div>
+                          </div>
+                        )}
 
-                        {/* Top-Left Delete Button */}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveFormImage(img.id);
-                          }}
-                          className="absolute top-1 left-1 p-1 bg-black/60 hover:bg-red-500 text-white rounded-full transition-colors shadow-sm z-20"
-                          title="刪除這張照片"
-                        >
-                          <X size={11} />
-                        </button>
+                        {/* Delete Button (Only for ready images or user cancel) */}
+                        {img.isReady && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemoveFormImage(img.id);
+                            }}
+                            className="absolute top-1 right-1 p-1 bg-black/60 hover:bg-red-500 text-white rounded-full transition-colors shadow-sm z-20 opacity-90 group-hover:opacity-100"
+                            title="刪除這張照片"
+                          >
+                            <X size={11} />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
