@@ -314,23 +314,32 @@ export default function App() {
       id: Date.now().toString(),
       createdAt: Date.now(),
     };
-    setPocketItems(prev => [...prev, newItem]);
-    addTripItem(currentTripId, 'pocketItems', newItem).catch(err => {
-      console.error('Failed to add pocket item:', err);
+    setPocketItems(prev => {
+      const next = [...prev, newItem];
+      updateTripField(currentTripId, 'pocketItems', next).catch(err => {
+        console.error('Failed to add pocket item:', err);
+      });
+      return next;
     });
   };
 
   const handleUpdatePocketItem = (updated: PocketItem) => {
-    setPocketItems(prev => prev.map(p => p.id === updated.id ? updated : p));
-    updateTripField(currentTripId, 'pocketItems', pocketItems.map(p => p.id === updated.id ? updated : p)).catch(err => {
-      console.error('Failed to update pocket item:', err);
+    setPocketItems(prev => {
+      const next = prev.map(p => p.id === updated.id ? updated : p);
+      updateTripField(currentTripId, 'pocketItems', next).catch(err => {
+        console.error('Failed to update pocket item:', err);
+      });
+      return next;
     });
   };
 
   const handleDeletePocketItem = (id: string) => {
-    setPocketItems(prev => prev.filter(p => p.id !== id));
-    updateTripField(currentTripId, 'pocketItems', pocketItems.filter(p => p.id !== id)).catch(err => {
-      console.error('Failed to delete pocket item:', err);
+    setPocketItems(prev => {
+      const next = prev.filter(p => p.id !== id);
+      updateTripField(currentTripId, 'pocketItems', next).catch(err => {
+        console.error('Failed to delete pocket item:', err);
+      });
+      return next;
     });
   };
 
@@ -351,7 +360,13 @@ export default function App() {
       },
     };
     addTripItem(currentTripId, 'scheduleItems', { ...newScheduleItem, id: Date.now().toString() });
-    updateTripField(currentTripId, 'pocketItems', pocketItems.map(p => p.id === item.id ? { ...p, assignedDate: targetDate } : p));
+    setPocketItems(prev => {
+      const next = prev.map(p => p.id === item.id ? { ...p, assignedDate: targetDate } : p);
+      updateTripField(currentTripId, 'pocketItems', next).catch(err => {
+        console.error('Failed to update assignedDate in pocket:', err);
+      });
+      return next;
+    });
   };
 
   const handleSaveItem = (itemData: Omit<ScheduleItem, 'id'>) => { if (editingItem) { updateTripField(currentTripId, 'scheduleItems', scheduleItems.map(item => item.id === editingItem.id ? { ...itemData, id: item.id } : item)); setEditingItem(null); } else { addTripItem(currentTripId, 'scheduleItems', { ...itemData, id: Date.now().toString() }); } };

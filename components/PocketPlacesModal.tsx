@@ -15,15 +15,15 @@ const compressImageWithProgress = async (
 ): Promise<string> => {
   onProgress(15);
 
-  const maxDimension = 600; // 600px yields crisp display on mobile screens and ~18-28KB JPEG
+  const maxDimension = 520; // 520px yields crisp display on mobile screens and ~12-18KB JPEG
 
   const renderToCompressedJpeg = (
     imageSource: CanvasImageSource,
     origWidth: number,
     origHeight: number
   ): string => {
-    let width = origWidth || 600;
-    let height = origHeight || 450;
+    let width = origWidth || 520;
+    let height = origHeight || 390;
 
     if (width > height) {
       if (width > maxDimension) {
@@ -51,21 +51,61 @@ const compressImageWithProgress = async (
     ctx.imageSmoothingQuality = 'medium';
     ctx.drawImage(imageSource, 0, 0, canvas.width, canvas.height);
 
-    let compressed = canvas.toDataURL('image/jpeg', 0.62);
-    // If still large (>50KB), downscale quality slightly to guarantee safe Firestore sync
-    if (compressed.length > 50000) {
-      compressed = canvas.toDataURL('image/jpeg', 0.42);
+    let compressed = canvas.toDataURL('image/jpeg', 0.58);
+    // If still large (>35KB), downscale quality slightly to guarantee safe Firestore sync
+    if (compressed.length > 35000) {
+      compressed = canvas.toDataURL('image/jpeg', 0.38);
     }
     return compressed;
   };
 
-  // Method 1: FileReader DataURL -> Image Element (Most reliable across all mobile browsers including iOS Safari)
-  const tryFileReader = (): Promise<string> => {
+  const withTimeout = <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
+    return Promise.race([
+      promise,
+      new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
+    ]);
+  };
+
+  // Method 1: Object URL -> Image Element (Fastest, avoids large string memory allocations)
+  const tryObjectUrl = (): Promise<string> => {
     return new Promise((resolve) => {
       onProgress(30);
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        onProgress(75);
+        const res = renderToCompressedJpeg(img, img.naturalWidth || img.width, img.naturalHeight || img.height);
+        URL.revokeObjectURL(objectUrl);
+        resolve(res);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve('');
+      };
+      img.src = objectUrl;
+    });
+  };
+
+  // Method 2: createImageBitmap (Native hardware accelerated)
+  const tryBitmap = async (): Promise<string> => {
+    if (typeof window !== 'undefined' && 'createImageBitmap' in window) {
+      onProgress(35);
+      const bitmap = await createImageBitmap(file);
+      onProgress(75);
+      const res = renderToCompressedJpeg(bitmap, bitmap.width, bitmap.height);
+      bitmap.close();
+      return res;
+    }
+    return '';
+  };
+
+  // Method 3: FileReader DataURL
+  const tryFileReader = (): Promise<string> => {
+    return new Promise((resolve) => {
+      onProgress(40);
       const reader = new FileReader();
       reader.onload = (e) => {
-        onProgress(60);
+        onProgress(70);
         const rawSrc = e.target?.result as string;
         if (!rawSrc) {
           resolve('');
@@ -73,7 +113,7 @@ const compressImageWithProgress = async (
         }
         const img = new Image();
         img.onload = () => {
-          onProgress(85);
+          onProgress(90);
           const res = renderToCompressedJpeg(img, img.naturalWidth || img.width, img.naturalHeight || img.height);
           resolve(res || rawSrc);
         };
@@ -89,47 +129,13 @@ const compressImageWithProgress = async (
     });
   };
 
-  // Method 2: createImageBitmap (Fast for modern devices)
-  const tryBitmap = async (): Promise<string> => {
-    if (typeof window !== 'undefined' && 'createImageBitmap' in window) {
-      onProgress(30);
-      const bitmap = await createImageBitmap(file);
-      onProgress(75);
-      const res = renderToCompressedJpeg(bitmap, bitmap.width, bitmap.height);
-      bitmap.close();
-      return res;
-    }
-    return '';
-  };
-
-  // Method 3: Object URL
-  const tryObjectUrl = (): Promise<string> => {
-    return new Promise((resolve) => {
-      onProgress(40);
-      const objectUrl = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = () => {
-        onProgress(80);
-        const res = renderToCompressedJpeg(img, img.naturalWidth || img.width, img.naturalHeight || img.height);
-        URL.revokeObjectURL(objectUrl);
-        resolve(res);
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        resolve('');
-      };
-      img.src = objectUrl;
-    });
-  };
-
   try {
-    // Run FileReader first as primary because it handles Mobile Safari/Chrome consistently
-    let result = await tryFileReader();
+    let result = await withTimeout(tryObjectUrl(), 4000, '');
     if (!result || !result.startsWith('data:image/')) {
-      result = await tryBitmap();
+      result = await withTimeout(tryBitmap(), 3000, '');
     }
     if (!result || !result.startsWith('data:image/')) {
-      result = await tryObjectUrl();
+      result = await withTimeout(tryFileReader(), 4000, '');
     }
 
     onProgress(100);
@@ -963,6 +969,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                   type="file"
                   accept="image/*"
                   multiple
+                  onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
                   onChange={handleImageUpload}
                   className="hidden"
                 />
