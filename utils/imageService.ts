@@ -1,23 +1,50 @@
 /**
  * Fast, pure client-side image compression to lightweight JPEG Base64.
  * 
- * - Max dimension: 480px (crisp on mobile retina screens, optimal for travel cards)
- * - Compression ratio: 0.55 (~10KB - 16KB per photo)
+ * - Max dimension: 420px (crisp on mobile retina screens, optimal for travel cards)
+ * - Compression ratio: 0.48 (~8KB - 14KB per photo)
  * - Zero external storage / Firebase Storage dependency (No paid Blaze plan needed)
  * - 100% saved directly in Firestore database as Base64 strings
  * - Instant processing (<100ms per image)
  */
 
-export const compressImageToBase64 = (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    if (!file) {
-      reject(new Error('未選擇檔案'));
-      return;
-    }
+const isHeicFile = (file: File): boolean => {
+  const fileName = (file.name || '').toLowerCase();
+  const fileType = (file.type || '').toLowerCase();
+  return (
+    fileType.includes('heic') ||
+    fileType.includes('heif') ||
+    fileName.endsWith('.heic') ||
+    fileName.endsWith('.heif')
+  );
+};
 
-    // Check if valid image type or file
+export const compressImageToBase64 = async (rawFile: File): Promise<string> => {
+  if (!rawFile) {
+    throw new Error('未選擇檔案');
+  }
+
+  let fileOrBlob: Blob | File = rawFile;
+
+  // Handle HEIC if needed
+  if (isHeicFile(rawFile)) {
+    try {
+      const heic2anyModule = await import('heic2any');
+      const heic2any = (heic2anyModule.default || heic2anyModule) as any;
+      const converted = await heic2any({
+        blob: rawFile,
+        toType: 'image/jpeg',
+        quality: 0.65,
+      });
+      fileOrBlob = Array.isArray(converted) ? converted[0] : converted;
+    } catch (e) {
+      console.warn('heic2any fallback skipped:', e);
+    }
+  }
+
+  return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    
+
     reader.onerror = () => {
       reject(new Error('無法讀取本機圖片檔案'));
     };
@@ -31,8 +58,7 @@ export const compressImageToBase64 = (file: File): Promise<string> => {
 
       const img = new Image();
       img.onerror = () => {
-        // If image fails decoding (e.g. unknown raw format), fallback to raw if small
-        if (rawDataUrl.startsWith('data:image/') && rawDataUrl.length < 60000) {
+        if (rawDataUrl.startsWith('data:image/') && rawDataUrl.length < 50000) {
           resolve(rawDataUrl);
         } else {
           reject(new Error('此圖片格式無法解析，請嘗試使用 JPG / PNG 格式'));
@@ -41,9 +67,9 @@ export const compressImageToBase64 = (file: File): Promise<string> => {
 
       img.onload = () => {
         try {
-          const maxDimension = 480;
-          let width = img.naturalWidth || img.width || 480;
-          let height = img.naturalHeight || img.height || 360;
+          const maxDimension = 420;
+          let width = img.naturalWidth || img.width || 420;
+          let height = img.naturalHeight || img.height || 315;
 
           if (width > height) {
             if (width > maxDimension) {
@@ -74,10 +100,10 @@ export const compressImageToBase64 = (file: File): Promise<string> => {
           ctx.imageSmoothingQuality = 'medium';
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-          let compressed = canvas.toDataURL('image/jpeg', 0.55);
-          // If still slightly large, downscale slightly
-          if (compressed.length > 30000) {
-            compressed = canvas.toDataURL('image/jpeg', 0.38);
+          let compressed = canvas.toDataURL('image/jpeg', 0.48);
+          // If still slightly large (>25KB), downscale slightly
+          if (compressed.length > 25000) {
+            compressed = canvas.toDataURL('image/jpeg', 0.32);
           }
 
           resolve(compressed);
@@ -90,6 +116,6 @@ export const compressImageToBase64 = (file: File): Promise<string> => {
       img.src = rawDataUrl;
     };
 
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(fileOrBlob);
   });
 };

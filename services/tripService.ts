@@ -1,14 +1,17 @@
-
 import { db } from '../firebase';
 import { 
   doc, 
   setDoc, 
   getDoc, 
   updateDoc, 
+  deleteDoc,
+  collection,
+  getDocs,
   onSnapshot, 
   arrayUnion, 
   Timestamp 
 } from 'firebase/firestore';
+import { PocketItem } from '../types';
 
 /**
  * Utility to recursively remove undefined properties from an object.
@@ -71,7 +74,7 @@ export const createTrip = async (name: string): Promise<string> => {
       members: [{ id: '1', name: '我', fruit: '🍎' }],
       flights: [],
       accommodations: [],
-      carRentals: [], // Changed from carRental object to carRentals array
+      carRentals: [],
       tickets: [],
       expenses: [],
       journals: [],
@@ -80,7 +83,8 @@ export const createTrip = async (name: string): Promise<string> => {
         { code: 'JPY', rate: 0.21 }, 
         { code: 'USD', rate: 32.5 }, 
         { code: 'KRW', rate: 0.024 }
-      ]
+      ],
+      pocketItems: []
     };
 
     const tripRef = doc(db, 'trips', code);
@@ -130,6 +134,17 @@ export const duplicateTrip = async (originalTripId: string): Promise<string> => 
 
     const newTripRef = doc(db, 'trips', newCode);
     await setDoc(newTripRef, newData);
+
+    // Also copy subcollection pocketItems if any
+    try {
+      const pocketCol = collection(db, 'trips', originalTripId, 'pocketItems');
+      const pocketSnap = await getDocs(pocketCol);
+      for (const pocketDoc of pocketSnap.docs) {
+        await setDoc(doc(db, 'trips', newCode, 'pocketItems', pocketDoc.id), pocketDoc.data());
+      }
+    } catch (subErr) {
+      console.warn("Failed to copy subcollection pocketItems:", subErr);
+    }
     
     return newCode;
   } catch (error) {
@@ -153,7 +168,19 @@ export const joinTripByCode = async (code: string): Promise<any> => {
       throw new Error("找不到此行程碼，請檢查是否輸入正確。");
     }
 
-    return snap.data();
+    const data = snap.data();
+    // Also fetch pocket items from subcollection
+    try {
+      const pocketCol = collection(db, 'trips', cleanCode, 'pocketItems');
+      const pocketSnap = await getDocs(pocketCol);
+      if (!pocketSnap.empty) {
+        data.pocketItems = pocketSnap.docs.map(d => d.data() as PocketItem);
+      }
+    } catch (e) {
+      console.warn("Subcollection read fallback:", e);
+    }
+
+    return data;
   } catch (error: any) {
     console.error("Failed to join trip:", error);
     throw error;
@@ -161,21 +188,103 @@ export const joinTripByCode = async (code: string): Promise<any> => {
 };
 
 /**
+ * Saves a single pocket item into subcollection (prevents 1MB root doc limit)
+ */
+export const savePocketItem = async (tripId: string, item: PocketItem): Promise<void> => {
+  try {
+    if (!tripId || !item || !item.id) return;
+    const cleaned = cleanData(item);
+    const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(item.id));
+    await setDoc(itemRef, cleaned, { merge: true });
+  } catch (err) {
+    console.error("Failed to save pocket item to subcollection:", err);
+    throw err;
+  }
+};
+
+/**
+ * Deletes a single pocket item from subcollection
+ */
+export const deletePocketItem = async (tripId: string, itemId: string): Promise<void> => {
+  try {
+    if (!tripId || !itemId) return;
+    const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(itemId));
+    await deleteDoc(itemRef);
+  } catch (err) {
+    console.error("Failed to delete pocket item from subcollection:", err);
+    throw err;
+  }
+};
+
+/**
  * Subscribes to real-time updates for a specific trip.
+ * Automatically synchronizes subcollection `pocketItems` to avoid 1MB document limit.
  */
 export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) => {
   try {
     const tripRef = doc(db, 'trips', tripId);
+    const pocketColRef = collection(db, 'trips', tripId, 'pocketItems');
     
-    const unsubscribe = onSnapshot(tripRef, (docSnap) => {
+    let currentTripData: any = null;
+    let subcollectionPocketItems: PocketItem[] = [];
+    let isPocketSubcollectionLoaded = false;
+
+    const notifyCombined = () => {
+      if (!currentTripData) return;
+      const combined = {
+        ...currentTripData,
+        pocketItems: subcollectionPocketItems.length > 0 
+          ? subcollectionPocketItems 
+          : (currentTripData.pocketItems || [])
+      };
+      onUpdate(combined);
+    };
+
+    // 1. Subscribe to main trip document
+    const unsubTrip = onSnapshot(tripRef, async (docSnap) => {
       if (docSnap.exists()) {
-        onUpdate(docSnap.data());
+        const rawData = docSnap.data();
+        currentTripData = rawData;
+
+        // Auto-Migration & Document Slimming:
+        // If root document has oversized legacy pocketItems array, migrate them to subcollection
+        // and clear the root array to keep the root document well below the 1MB Firestore limit.
+        if (Array.isArray(rawData.pocketItems) && rawData.pocketItems.length > 0) {
+          try {
+            for (const item of rawData.pocketItems) {
+              if (item && item.id) {
+                await setDoc(doc(db, 'trips', tripId, 'pocketItems', String(item.id)), cleanData(item), { merge: true });
+              }
+            }
+            // Strip the heavy array from root doc to repair documents exceeding 1MB limit
+            await setDoc(tripRef, { pocketItems: [] }, { merge: true });
+            currentTripData.pocketItems = [];
+          } catch (migrateErr) {
+            console.warn("Migration/slimming of pocketItems:", migrateErr);
+          }
+        }
+
+        notifyCombined();
       }
     }, (error) => {
-      console.error("Real-time sync error:", error);
+      console.error("Real-time sync error (trip doc):", error);
     });
 
-    return unsubscribe;
+    // 2. Subscribe to pocketItems subcollection
+    const unsubPocket = onSnapshot(pocketColRef, (colSnap) => {
+      isPocketSubcollectionLoaded = true;
+      subcollectionPocketItems = colSnap.docs.map(d => d.data() as PocketItem);
+      // Sort pocket items newest first or by createdAt
+      subcollectionPocketItems.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      notifyCombined();
+    }, (error) => {
+      console.error("Real-time sync error (pocket subcollection):", error);
+    });
+
+    return () => {
+      unsubTrip();
+      unsubPocket();
+    };
   } catch (error) {
     console.error("Failed to subscribe to trip:", error);
     return () => {};
@@ -187,11 +296,13 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
  */
 export const addTripItem = async (tripId: string, collectionName: string, item: any): Promise<void> => {
   try {
+    if (collectionName === 'pocketItems') {
+      await savePocketItem(tripId, item);
+      return;
+    }
+
     const tripRef = doc(db, 'trips', tripId);
-    // Firestore does not allow 'undefined' values. Clean the item first.
     const cleanedItem = cleanData(item);
-    // Use setDoc with merge: true instead of updateDoc to implicitly create the document if it's missing (upsert)
-    // This fixes "No document to update" errors if the trip was deleted but local state still references it.
     await setDoc(tripRef, {
       [collectionName]: arrayUnion(cleanedItem)
     }, { merge: true });
@@ -206,10 +317,35 @@ export const addTripItem = async (tripId: string, collectionName: string, item: 
  */
 export const updateTripField = async (tripId: string, field: string, value: any): Promise<void> => {
   try {
+    // If updating pocketItems, store them in the subcollection to prevent 1MB document explosion
+    if (field === 'pocketItems' && Array.isArray(value)) {
+      const pocketColRef = collection(db, 'trips', tripId, 'pocketItems');
+      const existingSnap = await getDocs(pocketColRef);
+      const newIds = new Set(value.map(p => String(p.id)));
+
+      // Delete items no longer in the list
+      for (const existingDoc of existingSnap.docs) {
+        if (!newIds.has(existingDoc.id)) {
+          await deleteDoc(existingDoc.ref);
+        }
+      }
+
+      // Upsert each item in subcollection
+      for (const item of value) {
+        if (item && item.id) {
+          const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(item.id));
+          await setDoc(itemRef, cleanData(item), { merge: true });
+        }
+      }
+
+      // Also ensure root doc pocketItems is cleared so root doc is tiny
+      const tripRef = doc(db, 'trips', tripId);
+      await setDoc(tripRef, { pocketItems: [] }, { merge: true });
+      return;
+    }
+
     const tripRef = doc(db, 'trips', tripId);
-    // Firestore does not allow 'undefined' values. Clean the value first.
     const cleanedValue = cleanData(value);
-    // Use setDoc with merge: true to avoid "No document to update" errors
     await setDoc(tripRef, {
       [field]: cleanedValue
     }, { merge: true });
