@@ -8,16 +8,107 @@ import {
 import { PocketItem, TripDay } from '../types';
 import { Lightbox } from './Lightbox';
 
-// Client-side lightweight image compression with progress feedback
-const compressImageWithProgress = (
+// Client-side lightweight, mobile-optimized image compression with progress feedback
+const compressImageWithProgress = async (
   file: File, 
   onProgress: (percent: number) => void
 ): Promise<string> => {
+  onProgress(15);
+
+  const maxDimension = 640; // 640px is crisp on mobile screens and yields ~20-30KB JPEG
+
+  const renderToCompressedJpeg = (
+    imageSource: CanvasImageSource,
+    origWidth: number,
+    origHeight: number
+  ): string => {
+    let width = origWidth || 640;
+    let height = origHeight || 480;
+
+    if (width > height) {
+      if (width > maxDimension) {
+        height = Math.round((height * maxDimension) / width);
+        width = maxDimension;
+      }
+    } else {
+      if (height > maxDimension) {
+        width = Math.round((width * maxDimension) / height);
+        height = maxDimension;
+      }
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d', { alpha: false });
+    if (!ctx) return '';
+
+    // Draw white background in case of transparent png
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'medium';
+    ctx.drawImage(imageSource, 0, 0, width, height);
+
+    let compressed = canvas.toDataURL('image/jpeg', 0.65);
+    // If still large (>60KB), downscale quality slightly to guarantee safe Firestore sync
+    if (compressed.length > 60000) {
+      compressed = canvas.toDataURL('image/jpeg', 0.45);
+    }
+    return compressed;
+  };
+
+  // Method 1: Modern high-performance createImageBitmap (Natively supports Mobile iOS/Android & handles EXIF)
+  if (typeof window !== 'undefined' && 'createImageBitmap' in window) {
+    try {
+      onProgress(35);
+      const bitmap = await createImageBitmap(file);
+      onProgress(70);
+      const result = renderToCompressedJpeg(bitmap, bitmap.width, bitmap.height);
+      bitmap.close();
+      if (result && result.startsWith('data:image/jpeg')) {
+        onProgress(100);
+        return result;
+      }
+    } catch (err) {
+      console.warn('createImageBitmap failed or not supported for this file, trying fallback:', err);
+    }
+  }
+
+  // Method 2: HTMLImageElement with URL.createObjectURL
+  try {
+    onProgress(40);
+    const objectUrl = URL.createObjectURL(file);
+    const imgResult = await new Promise<string>((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        onProgress(75);
+        const res = renderToCompressedJpeg(img, img.naturalWidth || img.width, img.naturalHeight || img.height);
+        URL.revokeObjectURL(objectUrl);
+        resolve(res);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve('');
+      };
+      img.src = objectUrl;
+    });
+
+    if (imgResult && imgResult.startsWith('data:image/jpeg')) {
+      onProgress(100);
+      return imgResult;
+    }
+  } catch (err) {
+    console.warn('Object URL fallback failed:', err);
+  }
+
+  // Method 3: FileReader DataURL Fallback
   return new Promise((resolve) => {
-    onProgress(15);
+    onProgress(50);
     const reader = new FileReader();
     reader.onload = (e) => {
-      onProgress(35);
+      onProgress(70);
       const rawSrc = e.target?.result as string;
       if (!rawSrc) {
         onProgress(100);
@@ -26,54 +117,14 @@ const compressImageWithProgress = (
       }
       const img = new Image();
       img.onload = () => {
-        onProgress(60);
-        try {
-          // Optimized max dimension (800px) ensures fast rendering and lightweight storage (<40KB)
-          const maxDimension = 800;
-          let width = img.width || 800;
-          let height = img.height || 600;
-
-          if (width > height) {
-            if (width > maxDimension) {
-              height = Math.round((height * maxDimension) / width);
-              width = maxDimension;
-            }
-          } else {
-            if (height > maxDimension) {
-              width = Math.round((width * maxDimension) / height);
-              height = maxDimension;
-            }
-          }
-
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            onProgress(100);
-            resolve(rawSrc);
-            return;
-          }
-          ctx.drawImage(img, 0, 0, width, height);
-          onProgress(85);
-
-          // Compress to JPEG with 0.65 quality (perfect balance for mobile previews)
-          let compressedBase64 = canvas.toDataURL('image/jpeg', 0.65);
-          // If still over 80KB, compress further to prevent any Firestore payload limit
-          if (compressedBase64.length > 80000) {
-            compressedBase64 = canvas.toDataURL('image/jpeg', 0.48);
-          }
-          onProgress(100);
-          resolve(compressedBase64);
-        } catch (err) {
-          console.error('Compression error, fallback to raw source:', err);
-          onProgress(100);
-          resolve(rawSrc);
-        }
+        onProgress(90);
+        const res = renderToCompressedJpeg(img, img.naturalWidth || img.width, img.naturalHeight || img.height);
+        onProgress(100);
+        resolve(res || rawSrc);
       };
       img.onerror = () => {
         onProgress(100);
-        resolve(rawSrc);
+        resolve('');
       };
       img.src = rawSrc;
     };
@@ -263,22 +314,21 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
           );
         });
 
-        setFormImages(prev =>
-          prev.map(item =>
-            item.id === targetItem.id
-              ? { ...item, url: finalBase64 || item.url, progress: 100, isReady: true }
-              : item
-          )
-        );
+        if (finalBase64 && (finalBase64.startsWith('data:image/') || finalBase64.startsWith('http'))) {
+          setFormImages(prev =>
+            prev.map(item =>
+              item.id === targetItem.id
+                ? { ...item, url: finalBase64, progress: 100, isReady: true }
+                : item
+            )
+          );
+        } else {
+          // If compression failed or format unsupported, remove placeholder cleanly
+          setFormImages(prev => prev.filter(item => item.id !== targetItem.id));
+        }
       } catch (error) {
         console.error('Error compressing image:', error);
-        setFormImages(prev =>
-          prev.map(item =>
-            item.id === targetItem.id
-              ? { ...item, progress: 100, isReady: true }
-              : item
-          )
-        );
+        setFormImages(prev => prev.filter(item => item.id !== targetItem.id));
       }
     }
   };
@@ -291,8 +341,10 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
     e.preventDefault();
     if (!formData.title.trim()) return;
 
-    // Filter only completed images
-    const finalImages = formImages.filter(img => img.isReady && img.url).map(img => img.url);
+    // Filter only fully compressed base64 / valid URLs (never allow transient blob: URLs to database)
+    const finalImages = formImages
+      .filter(img => img.isReady && img.url && !img.url.startsWith('blob:'))
+      .map(img => img.url);
 
     if (editingId) {
       const original = pocketItems.find(p => p.id === editingId);
