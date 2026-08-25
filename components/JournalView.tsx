@@ -1,9 +1,18 @@
-
-import React, { useState } from 'react';
-import { PenTool, Trash2, X, Feather, Send, Check, AlertCircle } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { PenTool, Trash2, X, Feather, Send, Check, AlertCircle, Camera, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { Journal, Member, Comment } from '../types';
 import { DateTimePickerField } from './TimePickerComponents';
 import { MemberAvatar } from './MemberAvatar';
+import { compressImageToBase64 } from '../utils/imageService';
+import { Lightbox } from './Lightbox';
+
+interface FormImageItem {
+  id: string;
+  url: string;
+  progress: number;
+  isReady: boolean;
+  error?: string;
+}
 
 interface JournalViewProps {
   journals: Journal[];
@@ -30,6 +39,14 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
       author: members[0]?.name || '我', 
       photos: [] as string[] 
   });
+
+  const [formImages, setFormImages] = useState<FormImageItem[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Lightbox view state
+  const [lightboxImages, setLightboxImages] = useState<string[] | null>(null);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   
   // Delete Confirmation State
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -45,6 +62,8 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
   const openAdd = () => {
       setEditingJournal(null);
       setForm({ content: '', date: getCurrentDateTime(), author: members[0]?.name || '我', photos: [] });
+      setFormImages([]);
+      setUploadError(null);
       setShowModal(true);
   };
 
@@ -54,16 +73,102 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
       if (formattedDate.length === 10) { 
           formattedDate += 'T12:00';
       }
-      setForm({ ...journal, date: formattedDate });
+      const existingPhotos = journal.photos || [];
+      setForm({ ...journal, date: formattedDate, photos: existingPhotos });
+      setFormImages(existingPhotos.map((url, idx) => ({
+        id: `existing-${idx}-${Date.now()}`,
+        url,
+        progress: 100,
+        isReady: true,
+      })));
+      setUploadError(null);
       setShowModal(true);
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploadError(null);
+    const currentCount = formImages.length;
+    const remaining = 30 - currentCount;
+    if (remaining <= 0) return;
+
+    const filesToUpload = Array.from(files).slice(0, remaining);
+
+    // 1. Create immediate preview placeholders
+    const newItems: FormImageItem[] = filesToUpload.map((file, idx) => {
+      let previewUrl = '';
+      try {
+        previewUrl = URL.createObjectURL(file);
+      } catch (err) {
+        console.warn('URL.createObjectURL failed:', err);
+      }
+      return {
+        id: `upload-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
+        url: previewUrl,
+        progress: 30,
+        isReady: false,
+      };
+    });
+
+    setFormImages(prev => [...prev, ...newItems]);
+
+    // Reset input immediately so user can select again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+
+    // 2. Compress each file to lightweight JPEG Base64
+    const compressionPromises = filesToUpload.map(async (file, idx) => {
+      const targetItem = newItems[idx];
+      try {
+        const compressedBase64 = await compressImageToBase64(file);
+
+        if (compressedBase64 && compressedBase64.startsWith('data:image/')) {
+          setFormImages(prev =>
+            prev.map(item =>
+              item.id === targetItem.id
+                ? { ...item, url: compressedBase64, progress: 100, isReady: true, error: undefined }
+                : item
+            )
+          );
+        } else {
+          throw new Error('圖片格式無法解碼');
+        }
+      } catch (error: any) {
+        console.error(`Error processing journal image #${idx + 1}:`, error);
+        setUploadError(`第 ${idx + 1} 張圖片「${file.name || '照片'}」處理失敗，已自動跳過`);
+        setFormImages(prev => prev.filter(item => item.id !== targetItem.id));
+      }
+    });
+
+    await Promise.allSettled(compressionPromises);
+  };
+
+  const handleRemoveFormImage = (idToRemove: string) => {
+    setFormImages(prev => prev.filter(img => img.id !== idToRemove));
+  };
+
   const handleSave = () => {
-    if (!form.content) return;
+    if (!form.content && formImages.length === 0) return;
+
+    // Filter only valid base64 / http images
+    const finalPhotos = formImages
+      .filter(img => img.isReady && img.url && (img.url.startsWith('data:image/') || img.url.startsWith('http')))
+      .map(img => img.url);
+
+    const journalPayload = {
+      content: form.content.trim(),
+      date: form.date,
+      author: form.author,
+      photos: finalPhotos,
+    };
+
     if (editingJournal) {
-        onUpdate({ ...editingJournal, ...form });
+      onUpdate({ ...editingJournal, ...journalPayload });
     } else {
-        onAdd({ id: Date.now(), ...form });
+      onAdd({ id: Date.now(), ...journalPayload });
     }
     setShowModal(false);
   };
@@ -105,7 +210,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
 
   // --- Comment Actions ---
   const startEditComment = (journalId: number, comment: Comment) => {
-      setDeletingComment(null); // Clear delete state if any
+      setDeletingComment(null);
       setEditingComment({ itemId: journalId, commentId: comment.id, text: comment.text });
   };
 
@@ -123,7 +228,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
   };
 
   const promptDeleteComment = (journalId: number, commentId: string) => {
-      setEditingComment(null); // Clear edit state if any
+      setEditingComment(null);
       setDeletingComment({ itemId: journalId, commentId });
   };
 
@@ -136,7 +241,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
 
   // Group journals by date (YYYY-MM-DD)
   const groupedJournals = journals.reduce((acc, journal) => {
-      const dateKey = journal.date.split('T')[0];
+      const dateKey = (journal.date || '').split('T')[0] || '未分類';
       (acc[dateKey] = acc[dateKey] || []).push(journal);
       return acc;
   }, {} as Record<string, Journal[]>);
@@ -145,10 +250,19 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
 
   return (
     <div className="w-full lg:p-0 animate-scale-in">
+      {/* Lightbox for viewing photos */}
+      {lightboxImages && (
+        <Lightbox
+          images={lightboxImages}
+          initialIndex={lightboxIndex}
+          onClose={() => setLightboxImages(null)}
+        />
+      )}
+
       <div className="sticky top-0 bg-beige/95 backdrop-blur-md z-20 px-4 py-3 border-b border-beige-dark border-dashed flex justify-between items-center shadow-sm">
         <div>
             <h2 className="text-xl font-black text-cocoa">旅行日誌</h2>
-            <p className="text-[10px] text-gray-400 font-bold">紀錄旅途中的每一個精彩瞬間</p>
+            <p className="text-[10px] text-gray-400 font-bold">紀錄旅途中的每一個精彩瞬間與照片回憶</p>
         </div>
         <button onClick={openAdd} className="text-xs bg-sage text-white px-4 py-2 rounded-full shadow-hard-sm-sage active:shadow-none active:translate-y-[3px] transition-all hover:bg-sage-dark font-black border-2 border-white flex items-center gap-1.5">
           <PenTool size={14} /> 寫日誌
@@ -162,6 +276,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                     <Feather size={48} className="text-sage/50" />
                 </div>
                 <p className="font-bold text-lg">還沒有寫下任何回憶...</p>
+                <p className="text-xs text-gray-400 mt-1">點擊上方「寫日誌」記錄旅程與上傳照片</p>
             </div>
         )}
 
@@ -174,12 +289,13 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {groupedJournals[date].map(journal => {
-                        const journalTime = journal.date.includes('T') ? journal.date.split('T')[1] : '';
+                        const journalTime = journal.date && journal.date.includes('T') ? journal.date.split('T')[1] : '';
                         
                         const currentDraft = commentDrafts[journal.id] || '';
                         const currentAuthorId = commentAuthors[journal.id] || members[0]?.id;
                         const currentAuthor = members.find(m => m.id === currentAuthorId);
                         const journalAuthorMember = members.find(mem => mem.name === journal.author);
+                        const photos = journal.photos || [];
                         
                         return (
                         <div key={journal.id} className="bg-white rounded-[2rem] p-5 shadow-hard-sm border-2 border-beige-dark flex flex-col relative group hover:-translate-y-1 transition-transform duration-300">
@@ -200,15 +316,94 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                                      </div>
                                 </div>
                                 <div className="flex gap-1">
-                                    <button onClick={(e) => { e.stopPropagation(); openEdit(journal); }} className="text-gray-300 hover:text-sage p-2 bg-[#F9FAFB] rounded-full hover:bg-sage-light transition-colors"><PenTool size={14}/></button>
-                                    <button onClick={(e) => { e.stopPropagation(); setDeletingId(journal.id); }} className="text-gray-300 hover:text-red-400 p-2 bg-[#F9FAFB] rounded-full hover:bg-red-50 transition-colors"><Trash2 size={14}/></button>
+                                    <button onClick={(e) => { e.stopPropagation(); openEdit(journal); }} className="text-gray-300 hover:text-sage p-2 bg-[#F9FAFB] rounded-full hover:bg-sage-light transition-colors" title="編輯日誌"><PenTool size={14}/></button>
+                                    <button onClick={(e) => { e.stopPropagation(); setDeletingId(journal.id); }} className="text-gray-300 hover:text-red-400 p-2 bg-[#F9FAFB] rounded-full hover:bg-red-50 transition-colors" title="刪除日誌"><Trash2 size={14}/></button>
                                 </div>
                             </div>
 
-                            <p className="text-cocoa text-base leading-7 whitespace-pre-line font-medium mb-4">
-                                {journal.content}
-                            </p>
+                            {/* Journal Text Content */}
+                            {journal.content && (
+                              <p className="text-cocoa text-base leading-7 whitespace-pre-line font-medium mb-3">
+                                  {journal.content}
+                              </p>
+                            )}
 
+                            {/* Photo Gallery Grid */}
+                            {photos.length > 0 && (
+                              <div className="mb-4">
+                                {photos.length === 1 ? (
+                                  <div 
+                                    onClick={() => { setLightboxImages(photos); setLightboxIndex(0); }}
+                                    className="relative rounded-2xl overflow-hidden cursor-pointer group/single border border-beige-dark shadow-sm aspect-video max-h-56 bg-beige/20"
+                                  >
+                                    <img 
+                                      src={photos[0]} 
+                                      alt="日誌照片" 
+                                      referrerPolicy="no-referrer"
+                                      className="w-full h-full object-cover group-hover/single:scale-105 transition-transform duration-300" 
+                                    />
+                                  </div>
+                                ) : photos.length === 2 ? (
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {photos.map((p, idx) => (
+                                      <div 
+                                        key={idx}
+                                        onClick={() => { setLightboxImages(photos); setLightboxIndex(idx); }}
+                                        className="relative aspect-square rounded-2xl overflow-hidden cursor-pointer group/photo border border-beige-dark shadow-sm bg-beige/20"
+                                      >
+                                        <img 
+                                          src={p} 
+                                          alt={`照片 ${idx + 1}`} 
+                                          referrerPolicy="no-referrer"
+                                          className="w-full h-full object-cover group-hover/photo:scale-105 transition-transform duration-300" 
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : photos.length === 3 ? (
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {photos.map((p, idx) => (
+                                      <div 
+                                        key={idx}
+                                        onClick={() => { setLightboxImages(photos); setLightboxIndex(idx); }}
+                                        className="relative aspect-square rounded-2xl overflow-hidden cursor-pointer group/photo border border-beige-dark shadow-sm bg-beige/20"
+                                      >
+                                        <img 
+                                          src={p} 
+                                          alt={`照片 ${idx + 1}`} 
+                                          referrerPolicy="no-referrer"
+                                          className="w-full h-full object-cover group-hover/photo:scale-105 transition-transform duration-300" 
+                                        />
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {photos.slice(0, 3).map((p, idx) => (
+                                      <div 
+                                        key={idx}
+                                        onClick={() => { setLightboxImages(photos); setLightboxIndex(idx); }}
+                                        className="relative aspect-square rounded-2xl overflow-hidden cursor-pointer group/photo border border-beige-dark shadow-sm bg-beige/20"
+                                      >
+                                        <img 
+                                          src={p} 
+                                          alt={`照片 ${idx + 1}`} 
+                                          referrerPolicy="no-referrer"
+                                          className="w-full h-full object-cover group-hover/photo:scale-105 transition-transform duration-300" 
+                                        />
+                                        {idx === 2 && photos.length > 3 && (
+                                          <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px] flex items-center justify-center text-white font-black text-sm">
+                                            +{photos.length - 3}
+                                          </div>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Comments Section */}
                             <div className="pt-3 border-t-2 border-dashed border-gray-100 mt-auto">
                                 {journal.comments && journal.comments.length > 0 && (
                                     <div className="space-y-2 mb-3">
@@ -327,11 +522,15 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
         ))}
       </div>
 
+      {/* Add / Edit Journal Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-cocoa/60 z-[150] flex flex-col items-center justify-end sm:justify-center sm:p-4 backdrop-blur-sm animate-fade-in" onClick={() => setShowModal(false)}>
-            <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-lg sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
-                    <h3 className="font-black text-xl text-cocoa">{editingJournal ? '編輯日誌' : '寫新日誌'}</h3>
+                    <h3 className="font-black text-xl text-cocoa flex items-center gap-2">
+                      <PenTool size={20} className="text-sage" />
+                      {editingJournal ? '編輯旅行日誌' : '寫新日誌'}
+                    </h3>
                     <button onClick={() => setShowModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
                         <X size={18} />
                     </button>
@@ -344,11 +543,14 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                         onChange={val => setForm({...form, date: val})}
                         themeColor="sage"
                     />
+
+                    {/* Author Member Selection */}
                     <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
-                        <label className="text-[10px] text-gray-400 block mb-2 font-bold">記錄人</label>
+                        <label className="text-[10px] text-gray-400 block mb-2 font-bold uppercase tracking-wider">記錄人</label>
                         <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1">
                             {members.map(m => (
                                 <button
+                                    type="button"
                                     key={m.id}
                                     onClick={() => setForm({...form, author: m.name})}
                                     className={`px-3 py-1.5 rounded-xl text-xs border-2 whitespace-nowrap transition-all flex items-center gap-1.5 font-bold ${form.author === m.name ? 'bg-sage text-white border-sage-dark shadow-sm' : 'border-beige-dark text-gray-400 bg-beige/40'}`}
@@ -366,22 +568,119 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                             ))}
                         </div>
                     </div>
+
+                    {/* Photos Upload Section */}
+                    <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] text-gray-400 font-bold uppercase tracking-wider flex items-center gap-1">
+                          <ImageIcon size={13} className="text-sage" />
+                          照片記錄 ({formImages.length}/30 張)
+                        </label>
+                        <span className="text-[9px] text-gray-400 font-medium">支援多張上傳</span>
+                      </div>
+
+                      {uploadError && (
+                        <div className="flex items-center gap-1.5 p-2 bg-red-50 border border-red-200 rounded-xl text-red-600 text-xs font-bold animate-fade-in">
+                          <AlertCircle size={14} className="flex-shrink-0" />
+                          <span>{uploadError}</span>
+                        </div>
+                      )}
+
+                      {/* Image Thumbnails Grid (scrollable if many photos) */}
+                      {formImages.length > 0 && (
+                        <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-56 overflow-y-auto custom-scroll p-1 bg-beige/30 rounded-xl border border-beige-dark/50">
+                          {formImages.map(img => (
+                            <div
+                              key={img.id}
+                              className="relative aspect-square rounded-xl overflow-hidden border-2 border-beige-dark bg-beige/20 group"
+                            >
+                              <img
+                                src={img.url}
+                                alt="預覽照片"
+                                referrerPolicy="no-referrer"
+                                className={`w-full h-full object-cover transition-opacity ${img.isReady ? 'opacity-100' : 'opacity-50'}`}
+                              />
+                              {!img.isReady && (
+                                <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-1">
+                                  <Loader2 size={16} className="text-white animate-spin mb-1" />
+                                  <div className="w-full bg-white/30 rounded-full h-1 overflow-hidden">
+                                    <div
+                                      className="bg-sage h-full transition-all duration-200"
+                                      style={{ width: `${img.progress}%` }}
+                                    />
+                                  </div>
+                                </div>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveFormImage(img.id)}
+                                className="absolute top-1 right-1 w-5 h-5 bg-cocoa/80 text-white rounded-full flex items-center justify-center opacity-80 hover:opacity-100 shadow-sm"
+                              >
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Upload Button */}
+                      {formImages.length < 30 && (
+                        <div>
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            onChange={handleImageUpload}
+                            className="hidden"
+                            id="journal-file-input"
+                          />
+                          <label
+                            htmlFor="journal-file-input"
+                            className="w-full py-3.5 border-2 border-dashed border-sage/50 rounded-xl bg-sage-light/30 hover:bg-sage-light/60 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer text-sage font-black text-xs shadow-sm"
+                          >
+                            <Camera size={16} />
+                            點此選擇照片 (可一次選多張)
+                          </label>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Content Textarea */}
                     <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
-                        <label className="text-[10px] text-gray-400 block mb-1 font-bold">內容</label>
-                        <textarea value={form.content} onChange={e => setForm({...form, content: e.target.value})} className="w-full bg-beige/30 text-cocoa rounded-xl p-3 text-sm outline-none h-44 resize-none border border-beige-dark font-medium leading-relaxed placeholder-gray-300" placeholder="寫下今天發生的趣事..."></textarea>
+                        <label className="text-[10px] text-gray-400 block mb-1 font-bold uppercase tracking-wider">心得 / 趣事筆記</label>
+                        <textarea 
+                          value={form.content} 
+                          onChange={e => setForm({...form, content: e.target.value})} 
+                          className="w-full bg-beige/30 text-cocoa rounded-xl p-3 text-sm outline-none h-36 resize-none border border-beige-dark font-medium leading-relaxed placeholder-gray-300 focus:bg-white focus:border-sage transition-colors" 
+                          placeholder="寫下今天發生的精彩趣事、美食感受或行程心情..."
+                        ></textarea>
                     </div>
                 </div>
 
                 <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
-                    <button onClick={() => setShowModal(false)} className="flex-1 py-4 rounded-2xl bg-white text-gray-400 font-bold hover:bg-gray-50 border-2 border-beige-dark transition-colors">取消</button>
-                    <button onClick={handleSave} className="flex-1 py-4 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all disabled:opacity-50">
-                        保存
+                    <button 
+                      type="button"
+                      onClick={() => setShowModal(false)} 
+                      className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold hover:bg-gray-50 border-2 border-beige-dark transition-colors"
+                    >
+                      取消
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={handleSave} 
+                      disabled={!form.content && formImages.length === 0}
+                      className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                    >
+                      <Check size={16} />
+                      保存日誌
                     </button>
                 </div>
             </div>
         </div>
       )}
 
+      {/* Delete Confirmation Modal */}
       {deletingId && (
         <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[200] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={() => setDeletingId(null)}>
             <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-sm sm:rounded-[2.5rem] rounded-none p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -396,7 +695,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                          <Trash2 size={28} />
                      </div>
                      <h3 className="text-xl font-black text-cocoa mb-2 text-center">刪除日誌?</h3>
-                     <p className="text-gray-400 font-bold text-center text-sm leading-relaxed">確定要刪除這篇日誌嗎？此動作無法復原。</p>
+                     <p className="text-gray-400 font-bold text-center text-sm leading-relaxed">確定要刪除這篇日誌嗎？日誌與照片將會一併移除。</p>
                  </div>
                  <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
                     <button onClick={() => setDeletingId(null)} className="flex-1 py-4 rounded-2xl font-bold text-gray-400 bg-white border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>

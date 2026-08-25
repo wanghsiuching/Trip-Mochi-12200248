@@ -3,7 +3,6 @@ import {
   doc, 
   setDoc, 
   getDoc, 
-  updateDoc, 
   deleteDoc,
   collection,
   getDocs,
@@ -11,7 +10,7 @@ import {
   arrayUnion, 
   Timestamp 
 } from 'firebase/firestore';
-import { PocketItem } from '../types';
+import { PocketItem, Journal } from '../types';
 
 /**
  * Utility to recursively remove undefined properties from an object.
@@ -145,6 +144,17 @@ export const duplicateTrip = async (originalTripId: string): Promise<string> => 
     } catch (subErr) {
       console.warn("Failed to copy subcollection pocketItems:", subErr);
     }
+
+    // Also copy subcollection journals if any
+    try {
+      const journalCol = collection(db, 'trips', originalTripId, 'journals');
+      const journalSnap = await getDocs(journalCol);
+      for (const journalDoc of journalSnap.docs) {
+        await setDoc(doc(db, 'trips', newCode, 'journals', journalDoc.id), journalDoc.data());
+      }
+    } catch (subErr) {
+      console.warn("Failed to copy subcollection journals:", subErr);
+    }
     
     return newCode;
   } catch (error) {
@@ -169,7 +179,7 @@ export const joinTripByCode = async (code: string): Promise<any> => {
     }
 
     const data = snap.data();
-    // Also fetch pocket items from subcollection
+    // Fetch pocket items from subcollection
     try {
       const pocketCol = collection(db, 'trips', cleanCode, 'pocketItems');
       const pocketSnap = await getDocs(pocketCol);
@@ -177,7 +187,18 @@ export const joinTripByCode = async (code: string): Promise<any> => {
         data.pocketItems = pocketSnap.docs.map(d => d.data() as PocketItem);
       }
     } catch (e) {
-      console.warn("Subcollection read fallback:", e);
+      console.warn("Subcollection read fallback (pocket):", e);
+    }
+
+    // Fetch journals from subcollection
+    try {
+      const journalCol = collection(db, 'trips', cleanCode, 'journals');
+      const journalSnap = await getDocs(journalCol);
+      if (!journalSnap.empty) {
+        data.journals = journalSnap.docs.map(d => d.data() as Journal);
+      }
+    } catch (e) {
+      console.warn("Subcollection read fallback (journal):", e);
     }
 
     return data;
@@ -217,17 +238,47 @@ export const deletePocketItem = async (tripId: string, itemId: string): Promise<
 };
 
 /**
+ * Saves a single journal item into subcollection (prevents 1MB root doc limit for photos)
+ */
+export const saveJournalItem = async (tripId: string, journal: Journal): Promise<void> => {
+  try {
+    if (!tripId || !journal || !journal.id) return;
+    const cleaned = cleanData(journal);
+    const itemRef = doc(db, 'trips', tripId, 'journals', String(journal.id));
+    await setDoc(itemRef, cleaned, { merge: true });
+  } catch (err) {
+    console.error("Failed to save journal item to subcollection:", err);
+    throw err;
+  }
+};
+
+/**
+ * Deletes a single journal item from subcollection
+ */
+export const deleteJournalItem = async (tripId: string, journalId: number | string): Promise<void> => {
+  try {
+    if (!tripId || !journalId) return;
+    const itemRef = doc(db, 'trips', tripId, 'journals', String(journalId));
+    await deleteDoc(itemRef);
+  } catch (err) {
+    console.error("Failed to delete journal item from subcollection:", err);
+    throw err;
+  }
+};
+
+/**
  * Subscribes to real-time updates for a specific trip.
- * Automatically synchronizes subcollection `pocketItems` to avoid 1MB document limit.
+ * Automatically synchronizes subcollections `pocketItems` and `journals` to avoid 1MB document limit.
  */
 export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) => {
   try {
     const tripRef = doc(db, 'trips', tripId);
     const pocketColRef = collection(db, 'trips', tripId, 'pocketItems');
+    const journalColRef = collection(db, 'trips', tripId, 'journals');
     
     let currentTripData: any = null;
     let subcollectionPocketItems: PocketItem[] = [];
-    let isPocketSubcollectionLoaded = false;
+    let subcollectionJournals: Journal[] = [];
 
     const notifyCombined = () => {
       if (!currentTripData) return;
@@ -235,7 +286,10 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
         ...currentTripData,
         pocketItems: subcollectionPocketItems.length > 0 
           ? subcollectionPocketItems 
-          : (currentTripData.pocketItems || [])
+          : (currentTripData.pocketItems || []),
+        journals: subcollectionJournals.length > 0
+          ? subcollectionJournals
+          : (currentTripData.journals || [])
       };
       onUpdate(combined);
     };
@@ -246,9 +300,7 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
         const rawData = docSnap.data();
         currentTripData = rawData;
 
-        // Auto-Migration & Document Slimming:
-        // If root document has oversized legacy pocketItems array, migrate them to subcollection
-        // and clear the root array to keep the root document well below the 1MB Firestore limit.
+        // Auto-Migration & Document Slimming for pocketItems:
         if (Array.isArray(rawData.pocketItems) && rawData.pocketItems.length > 0) {
           try {
             for (const item of rawData.pocketItems) {
@@ -256,11 +308,25 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
                 await setDoc(doc(db, 'trips', tripId, 'pocketItems', String(item.id)), cleanData(item), { merge: true });
               }
             }
-            // Strip the heavy array from root doc to repair documents exceeding 1MB limit
             await setDoc(tripRef, { pocketItems: [] }, { merge: true });
             currentTripData.pocketItems = [];
           } catch (migrateErr) {
             console.warn("Migration/slimming of pocketItems:", migrateErr);
+          }
+        }
+
+        // Auto-Migration & Document Slimming for journals:
+        if (Array.isArray(rawData.journals) && rawData.journals.length > 0) {
+          try {
+            for (const j of rawData.journals) {
+              if (j && j.id) {
+                await setDoc(doc(db, 'trips', tripId, 'journals', String(j.id)), cleanData(j), { merge: true });
+              }
+            }
+            await setDoc(tripRef, { journals: [] }, { merge: true });
+            currentTripData.journals = [];
+          } catch (migrateErr) {
+            console.warn("Migration/slimming of journals:", migrateErr);
           }
         }
 
@@ -272,18 +338,26 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
 
     // 2. Subscribe to pocketItems subcollection
     const unsubPocket = onSnapshot(pocketColRef, (colSnap) => {
-      isPocketSubcollectionLoaded = true;
       subcollectionPocketItems = colSnap.docs.map(d => d.data() as PocketItem);
-      // Sort pocket items newest first or by createdAt
       subcollectionPocketItems.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       notifyCombined();
     }, (error) => {
       console.error("Real-time sync error (pocket subcollection):", error);
     });
 
+    // 3. Subscribe to journals subcollection
+    const unsubJournal = onSnapshot(journalColRef, (colSnap) => {
+      subcollectionJournals = colSnap.docs.map(d => d.data() as Journal);
+      subcollectionJournals.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      notifyCombined();
+    }, (error) => {
+      console.error("Real-time sync error (journal subcollection):", error);
+    });
+
     return () => {
       unsubTrip();
       unsubPocket();
+      unsubJournal();
     };
   } catch (error) {
     console.error("Failed to subscribe to trip:", error);
@@ -298,6 +372,10 @@ export const addTripItem = async (tripId: string, collectionName: string, item: 
   try {
     if (collectionName === 'pocketItems') {
       await savePocketItem(tripId, item);
+      return;
+    }
+    if (collectionName === 'journals') {
+      await saveJournalItem(tripId, item);
       return;
     }
 
@@ -323,14 +401,12 @@ export const updateTripField = async (tripId: string, field: string, value: any)
       const existingSnap = await getDocs(pocketColRef);
       const newIds = new Set(value.map(p => String(p.id)));
 
-      // Delete items no longer in the list
       for (const existingDoc of existingSnap.docs) {
         if (!newIds.has(existingDoc.id)) {
           await deleteDoc(existingDoc.ref);
         }
       }
 
-      // Upsert each item in subcollection
       for (const item of value) {
         if (item && item.id) {
           const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(item.id));
@@ -338,9 +414,32 @@ export const updateTripField = async (tripId: string, field: string, value: any)
         }
       }
 
-      // Also ensure root doc pocketItems is cleared so root doc is tiny
       const tripRef = doc(db, 'trips', tripId);
       await setDoc(tripRef, { pocketItems: [] }, { merge: true });
+      return;
+    }
+
+    // If updating journals, store them in the subcollection to prevent 1MB document explosion
+    if (field === 'journals' && Array.isArray(value)) {
+      const journalColRef = collection(db, 'trips', tripId, 'journals');
+      const existingSnap = await getDocs(journalColRef);
+      const newIds = new Set(value.map(j => String(j.id)));
+
+      for (const existingDoc of existingSnap.docs) {
+        if (!newIds.has(existingDoc.id)) {
+          await deleteDoc(existingDoc.ref);
+        }
+      }
+
+      for (const item of value) {
+        if (item && item.id) {
+          const itemRef = doc(db, 'trips', tripId, 'journals', String(item.id));
+          await setDoc(itemRef, cleanData(item), { merge: true });
+        }
+      }
+
+      const tripRef = doc(db, 'trips', tripId);
+      await setDoc(tripRef, { journals: [] }, { merge: true });
       return;
     }
 
