@@ -915,6 +915,7 @@ export default function App() {
                 isOpen={isPocketModalOpen} 
                 onClose={() => setIsPocketModalOpen(false)} 
                 initialTab={pocketInitialTab}
+                tripId={currentTripId}
                 pocketItems={pocketItems}
                 tripDays={tripDays}
                 onAddItem={handleAddPocketItem}

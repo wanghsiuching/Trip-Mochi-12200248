@@ -3,161 +3,25 @@ import {
   X, Plus, Utensils, Compass, MapPin, ExternalLink, StickyNote, 
   Trash2, Edit3, CheckCircle2, Circle, Navigation, Tag, Star, 
   Search, CalendarPlus, ChevronRight, Copy, Check,
-  Image as ImageIcon, Upload, Camera, Loader2, ZoomIn
+  Image as ImageIcon, Upload, Camera, Loader2, ZoomIn, AlertCircle
 } from 'lucide-react';
 import { PocketItem, TripDay } from '../types';
 import { Lightbox } from './Lightbox';
-
-// Client-side lightweight, mobile-optimized image compression with progress feedback
-const compressImageWithProgress = async (
-  file: File, 
-  onProgress: (percent: number) => void
-): Promise<string> => {
-  onProgress(15);
-
-  const maxDimension = 520; // 520px yields crisp display on mobile screens and ~12-18KB JPEG
-
-  const renderToCompressedJpeg = (
-    imageSource: CanvasImageSource,
-    origWidth: number,
-    origHeight: number
-  ): string => {
-    let width = origWidth || 520;
-    let height = origHeight || 390;
-
-    if (width > height) {
-      if (width > maxDimension) {
-        height = Math.round((height * maxDimension) / width);
-        width = maxDimension;
-      }
-    } else {
-      if (height > maxDimension) {
-        width = Math.round((width * maxDimension) / height);
-        height = maxDimension;
-      }
-    }
-
-    const canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, width);
-    canvas.height = Math.max(1, height);
-    const ctx = canvas.getContext('2d', { alpha: false });
-    if (!ctx) return '';
-
-    // Draw white background in case of transparent png
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'medium';
-    ctx.drawImage(imageSource, 0, 0, canvas.width, canvas.height);
-
-    let compressed = canvas.toDataURL('image/jpeg', 0.58);
-    // If still large (>35KB), downscale quality slightly to guarantee safe Firestore sync
-    if (compressed.length > 35000) {
-      compressed = canvas.toDataURL('image/jpeg', 0.38);
-    }
-    return compressed;
-  };
-
-  const withTimeout = <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
-    return Promise.race([
-      promise,
-      new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms))
-    ]);
-  };
-
-  // Method 1: Object URL -> Image Element (Fastest, avoids large string memory allocations)
-  const tryObjectUrl = (): Promise<string> => {
-    return new Promise((resolve) => {
-      onProgress(30);
-      const objectUrl = URL.createObjectURL(file);
-      const img = new Image();
-      img.onload = () => {
-        onProgress(75);
-        const res = renderToCompressedJpeg(img, img.naturalWidth || img.width, img.naturalHeight || img.height);
-        URL.revokeObjectURL(objectUrl);
-        resolve(res);
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(objectUrl);
-        resolve('');
-      };
-      img.src = objectUrl;
-    });
-  };
-
-  // Method 2: createImageBitmap (Native hardware accelerated)
-  const tryBitmap = async (): Promise<string> => {
-    if (typeof window !== 'undefined' && 'createImageBitmap' in window) {
-      onProgress(35);
-      const bitmap = await createImageBitmap(file);
-      onProgress(75);
-      const res = renderToCompressedJpeg(bitmap, bitmap.width, bitmap.height);
-      bitmap.close();
-      return res;
-    }
-    return '';
-  };
-
-  // Method 3: FileReader DataURL
-  const tryFileReader = (): Promise<string> => {
-    return new Promise((resolve) => {
-      onProgress(40);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        onProgress(70);
-        const rawSrc = e.target?.result as string;
-        if (!rawSrc) {
-          resolve('');
-          return;
-        }
-        const img = new Image();
-        img.onload = () => {
-          onProgress(90);
-          const res = renderToCompressedJpeg(img, img.naturalWidth || img.width, img.naturalHeight || img.height);
-          resolve(res || rawSrc);
-        };
-        img.onerror = () => {
-          resolve('');
-        };
-        img.src = rawSrc;
-      };
-      reader.onerror = () => {
-        resolve('');
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  try {
-    let result = await withTimeout(tryObjectUrl(), 4000, '');
-    if (!result || !result.startsWith('data:image/')) {
-      result = await withTimeout(tryBitmap(), 3000, '');
-    }
-    if (!result || !result.startsWith('data:image/')) {
-      result = await withTimeout(tryFileReader(), 4000, '');
-    }
-
-    onProgress(100);
-    return result;
-  } catch (err) {
-    console.error('All image compression methods failed:', err);
-    onProgress(100);
-    return '';
-  }
-};
+import { uploadOrCompressImage } from '../utils/imageService';
 
 interface FormImageItem {
   id: string;
   url: string;
   progress: number;
   isReady: boolean;
+  error?: string;
 }
 
 interface PocketPlacesModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialTab?: 'food' | 'spot';
+  tripId?: string;
   pocketItems: PocketItem[];
   tripDays: TripDay[];
   onAddItem: (item: Omit<PocketItem, 'id' | 'createdAt'>) => void;
@@ -173,6 +37,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
   isOpen,
   onClose,
   initialTab = 'food',
+  tripId,
   pocketItems,
   tripDays,
   onAddItem,
@@ -189,6 +54,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formImages, setFormImages] = useState<FormImageItem[]>([]);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Lightbox State
@@ -248,6 +114,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
 
   const handleOpenAddForm = (category: 'food' | 'spot') => {
     setEditingId(null);
+    setUploadError(null);
     setFormData({
       category,
       title: '',
@@ -264,6 +131,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
 
   const handleOpenEditForm = (item: PocketItem) => {
     setEditingId(item.id);
+    setUploadError(null);
     setFormData({
       category: item.category,
       title: item.title,
@@ -289,6 +157,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    setUploadError(null);
     const currentCount = formImages.length;
     const remaining = 10 - currentCount;
     if (remaining <= 0) return;
@@ -296,12 +165,20 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
     const filesToUpload = Array.from(files).slice(0, remaining);
 
     // 1. Create immediate placeholder items with local preview
-    const newItems: FormImageItem[] = filesToUpload.map((file, idx) => ({
-      id: `upload-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
-      url: URL.createObjectURL(file),
-      progress: 10,
-      isReady: false,
-    }));
+    const newItems: FormImageItem[] = filesToUpload.map((file, idx) => {
+      let previewUrl = '';
+      try {
+        previewUrl = URL.createObjectURL(file);
+      } catch (err) {
+        console.warn('URL.createObjectURL failed:', err);
+      }
+      return {
+        id: `upload-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 7)}`,
+        url: previewUrl,
+        progress: 15,
+        isReady: false,
+      };
+    });
 
     setFormImages(prev => [...prev, ...newItems]);
 
@@ -310,38 +187,45 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
       fileInputRef.current.value = '';
     }
 
-    // 2. Process each file sequentially with progress updates to prevent mobile browser memory drops
-    for (let i = 0; i < filesToUpload.length; i++) {
-      const file = filesToUpload[i];
-      const targetItem = newItems[i];
+    // 2. Process each file with progress feedback
+    const uploadPromises = filesToUpload.map(async (file, idx) => {
+      const targetItem = newItems[idx];
       try {
-        const finalBase64 = await compressImageWithProgress(file, (percent) => {
-          setFormImages(prev =>
-            prev.map(item =>
-              item.id === targetItem.id
-                ? { ...item, progress: percent }
-                : item
-            )
-          );
-        });
+        const finalUrl = await uploadOrCompressImage(
+          file,
+          tripId || 'general',
+          'pocket',
+          (percent) => {
+            setFormImages(prev =>
+              prev.map(item =>
+                item.id === targetItem.id
+                  ? { ...item, progress: Math.max(item.progress, percent) }
+                  : item
+              )
+            );
+          }
+        );
 
-        if (finalBase64 && (finalBase64.startsWith('data:image/') || finalBase64.startsWith('http'))) {
+        if (finalUrl && (finalUrl.startsWith('data:image/') || finalUrl.startsWith('http'))) {
           setFormImages(prev =>
             prev.map(item =>
               item.id === targetItem.id
-                ? { ...item, url: finalBase64, progress: 100, isReady: true }
+                ? { ...item, url: finalUrl, progress: 100, isReady: true, error: undefined }
                 : item
             )
           );
         } else {
-          // If compression failed or format unsupported, remove placeholder cleanly
-          setFormImages(prev => prev.filter(item => item.id !== targetItem.id));
+          throw new Error('無法轉換此圖片格式');
         }
-      } catch (error) {
-        console.error('Error compressing image:', error);
+      } catch (error: any) {
+        console.error(`Error uploading image #${idx + 1}:`, error);
+        setUploadError(`第 ${idx + 1} 張圖片讀取失敗，已自動跳過`);
+        // Remove failed item cleanly so it doesn't block other photos
         setFormImages(prev => prev.filter(item => item.id !== targetItem.id));
       }
-    }
+    });
+
+    await Promise.allSettled(uploadPromises);
   };
 
   const handleRemoveFormImage = (idToRemove: string) => {
@@ -962,6 +846,20 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                     {formImages.length}/10 張
                   </span>
                 </div>
+
+                {uploadError && (
+                  <div className="mb-2 p-2 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs font-bold text-red-600 animate-fade-in">
+                    <AlertCircle size={14} className="flex-shrink-0 text-red-500" />
+                    <span className="flex-1">{uploadError}</span>
+                    <button
+                      type="button"
+                      onClick={() => setUploadError(null)}
+                      className="p-1 hover:bg-red-100 rounded-lg text-red-400"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                )}
 
                 {/* Hidden File Input */}
                 <input
