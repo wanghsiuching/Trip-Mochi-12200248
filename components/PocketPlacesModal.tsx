@@ -15,15 +15,15 @@ const compressImageWithProgress = async (
 ): Promise<string> => {
   onProgress(15);
 
-  const maxDimension = 640; // 640px is crisp on mobile screens and yields ~20-30KB JPEG
+  const maxDimension = 600; // 600px yields crisp display on mobile screens and ~18-28KB JPEG
 
   const renderToCompressedJpeg = (
     imageSource: CanvasImageSource,
     origWidth: number,
     origHeight: number
   ): string => {
-    let width = origWidth || 640;
-    let height = origHeight || 480;
+    let width = origWidth || 600;
+    let height = origHeight || 450;
 
     if (width > height) {
       if (width > maxDimension) {
@@ -38,52 +38,78 @@ const compressImageWithProgress = async (
     }
 
     const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = Math.max(1, width);
+    canvas.height = Math.max(1, height);
     const ctx = canvas.getContext('2d', { alpha: false });
     if (!ctx) return '';
 
     // Draw white background in case of transparent png
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, width, height);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'medium';
-    ctx.drawImage(imageSource, 0, 0, width, height);
+    ctx.drawImage(imageSource, 0, 0, canvas.width, canvas.height);
 
-    let compressed = canvas.toDataURL('image/jpeg', 0.65);
-    // If still large (>60KB), downscale quality slightly to guarantee safe Firestore sync
-    if (compressed.length > 60000) {
-      compressed = canvas.toDataURL('image/jpeg', 0.45);
+    let compressed = canvas.toDataURL('image/jpeg', 0.62);
+    // If still large (>50KB), downscale quality slightly to guarantee safe Firestore sync
+    if (compressed.length > 50000) {
+      compressed = canvas.toDataURL('image/jpeg', 0.42);
     }
     return compressed;
   };
 
-  // Method 1: Modern high-performance createImageBitmap (Natively supports Mobile iOS/Android & handles EXIF)
-  if (typeof window !== 'undefined' && 'createImageBitmap' in window) {
-    try {
-      onProgress(35);
-      const bitmap = await createImageBitmap(file);
-      onProgress(70);
-      const result = renderToCompressedJpeg(bitmap, bitmap.width, bitmap.height);
-      bitmap.close();
-      if (result && result.startsWith('data:image/jpeg')) {
-        onProgress(100);
-        return result;
-      }
-    } catch (err) {
-      console.warn('createImageBitmap failed or not supported for this file, trying fallback:', err);
-    }
-  }
+  // Method 1: FileReader DataURL -> Image Element (Most reliable across all mobile browsers including iOS Safari)
+  const tryFileReader = (): Promise<string> => {
+    return new Promise((resolve) => {
+      onProgress(30);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        onProgress(60);
+        const rawSrc = e.target?.result as string;
+        if (!rawSrc) {
+          resolve('');
+          return;
+        }
+        const img = new Image();
+        img.onload = () => {
+          onProgress(85);
+          const res = renderToCompressedJpeg(img, img.naturalWidth || img.width, img.naturalHeight || img.height);
+          resolve(res || rawSrc);
+        };
+        img.onerror = () => {
+          resolve('');
+        };
+        img.src = rawSrc;
+      };
+      reader.onerror = () => {
+        resolve('');
+      };
+      reader.readAsDataURL(file);
+    });
+  };
 
-  // Method 2: HTMLImageElement with URL.createObjectURL
-  try {
-    onProgress(40);
-    const objectUrl = URL.createObjectURL(file);
-    const imgResult = await new Promise<string>((resolve) => {
+  // Method 2: createImageBitmap (Fast for modern devices)
+  const tryBitmap = async (): Promise<string> => {
+    if (typeof window !== 'undefined' && 'createImageBitmap' in window) {
+      onProgress(30);
+      const bitmap = await createImageBitmap(file);
+      onProgress(75);
+      const res = renderToCompressedJpeg(bitmap, bitmap.width, bitmap.height);
+      bitmap.close();
+      return res;
+    }
+    return '';
+  };
+
+  // Method 3: Object URL
+  const tryObjectUrl = (): Promise<string> => {
+    return new Promise((resolve) => {
+      onProgress(40);
+      const objectUrl = URL.createObjectURL(file);
       const img = new Image();
       img.onload = () => {
-        onProgress(75);
+        onProgress(80);
         const res = renderToCompressedJpeg(img, img.naturalWidth || img.width, img.naturalHeight || img.height);
         URL.revokeObjectURL(objectUrl);
         resolve(res);
@@ -94,46 +120,25 @@ const compressImageWithProgress = async (
       };
       img.src = objectUrl;
     });
+  };
 
-    if (imgResult && imgResult.startsWith('data:image/jpeg')) {
-      onProgress(100);
-      return imgResult;
+  try {
+    // Run FileReader first as primary because it handles Mobile Safari/Chrome consistently
+    let result = await tryFileReader();
+    if (!result || !result.startsWith('data:image/')) {
+      result = await tryBitmap();
     }
-  } catch (err) {
-    console.warn('Object URL fallback failed:', err);
-  }
+    if (!result || !result.startsWith('data:image/')) {
+      result = await tryObjectUrl();
+    }
 
-  // Method 3: FileReader DataURL Fallback
-  return new Promise((resolve) => {
-    onProgress(50);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      onProgress(70);
-      const rawSrc = e.target?.result as string;
-      if (!rawSrc) {
-        onProgress(100);
-        resolve('');
-        return;
-      }
-      const img = new Image();
-      img.onload = () => {
-        onProgress(90);
-        const res = renderToCompressedJpeg(img, img.naturalWidth || img.width, img.naturalHeight || img.height);
-        onProgress(100);
-        resolve(res || rawSrc);
-      };
-      img.onerror = () => {
-        onProgress(100);
-        resolve('');
-      };
-      img.src = rawSrc;
-    };
-    reader.onerror = () => {
-      onProgress(100);
-      resolve('');
-    };
-    reader.readAsDataURL(file);
-  });
+    onProgress(100);
+    return result;
+  } catch (err) {
+    console.error('All image compression methods failed:', err);
+    onProgress(100);
+    return '';
+  }
 };
 
 interface FormImageItem {
