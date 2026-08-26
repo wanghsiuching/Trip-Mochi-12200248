@@ -153,16 +153,16 @@ export interface ScheduleItem {
 
 export interface PocketItem {
   id: string;
-  category: 'food' | 'spot'; // 美食 or 探索景點
-  title: string;             // 名稱 (例如：一蘭拉麵、小樽運河)
+  category: 'food' | 'spot' | 'shopping'; // 美食, 探索景點, 購物/伴手禮
+  title: string;             // 名稱 (例如：一蘭拉麵、小樽運河、白色戀人)
   location?: string;         // 地址或地點
   url?: string;              // 相關網址 / 超連結 / IG / 官網 / 預約
-  notes?: string;            // 備註說明 (推薦必吃、拍照點、注意事項等)
-  tag?: string;              // 標籤 (如：拉麵、燒肉、甜點、夜景、古蹟、神社)
+  notes?: string;            // 備註說明 (推薦必吃、拍照點、必買清單等)
+  tag?: string;              // 標籤 (如：拉麵、伴手禮、藥妝、夜景、古蹟)
   rating?: number;           // 推薦星等 (1-5)
   priceRange?: string;       // 預算 / 價格 (如：¥1,000~2,000)
   assignedDate?: string;     // 預計前往日期 (可選)
-  isVisited?: boolean;       // 是否已造訪
+  isVisited?: boolean;       // 是否已造訪 / 已購買
   images?: string[];         // 照片/圖片 (支援多張照片、免費本機壓縮儲存)
   createdAt?: number;
 }

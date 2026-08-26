@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   MapPin, ArrowRight, Plane, Plus, X, Copy, BookOpen, ChevronLeft, Trash2,
   ChevronUp, ChevronDown, Navigation, StickyNote, Settings, AlertCircle, 
-  CalendarCheck, Coins, Edit3, Users, Luggage, Briefcase, Bed, Car, Coffee, Utensils, Fuel, Ticket, Clock,
+  CalendarCheck, Coins, Edit3, Users, Luggage, Briefcase, Bed, Car, Coffee, Utensils, ShoppingBag, Fuel, Ticket, Clock,
   Train, Camera, Compass
 } from 'lucide-react';
 
@@ -67,7 +67,7 @@ export default function App() {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isPotentialModalOpen, setIsPotentialModalOpen] = useState(false);
   const [isPocketModalOpen, setIsPocketModalOpen] = useState(false);
-  const [pocketInitialTab, setPocketInitialTab] = useState<'food' | 'spot'>('food');
+  const [pocketInitialTab, setPocketInitialTab] = useState<'food' | 'spot' | 'shopping'>('food');
   const [isEditDayModalOpen, setIsEditDayModalOpen] = useState(false);
   const [isDeleteDayModalOpen, setIsDeleteDayModalOpen] = useState(false);
   const [isBackupConfirmOpen, setIsBackupConfirmOpen] = useState(false);
@@ -686,6 +686,18 @@ export default function App() {
                             {pocketItems.filter(p => p.category === 'spot').length > 0 && (
                                 <span className="bg-teal-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-mono leading-none">
                                     {pocketItems.filter(p => p.category === 'spot').length}
+                                </span>
+                            )}
+                        </button>
+                        <button 
+                            onClick={() => { setPocketInitialTab('shopping'); setIsPocketModalOpen(true); }} 
+                            className="bg-rose-100 hover:bg-rose-200 text-rose-800 px-2.5 py-1.5 rounded-xl border border-rose-200 shadow-sm text-xs font-bold inline-flex items-center gap-1.5 transition-all active:scale-95 whitespace-nowrap"
+                            title="購物/伴手禮清單"
+                        >
+                            <ShoppingBag size={13} className="text-rose-600" /> 購物
+                            {pocketItems.filter(p => p.category === 'shopping').length > 0 && (
+                                <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-mono leading-none">
+                                    {pocketItems.filter(p => p.category === 'shopping').length}
                                 </span>
                             )}
                         </button>

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { 
-  X, Plus, Utensils, Compass, MapPin, ExternalLink, StickyNote, 
+  X, Plus, Utensils, Compass, ShoppingBag, MapPin, ExternalLink, StickyNote, 
   Trash2, Edit3, CheckCircle2, Circle, Navigation, Tag, Star, 
   Search, CalendarPlus, ChevronRight, Copy, Check,
   Image as ImageIcon, Upload, Camera, Loader2, ZoomIn, AlertCircle
@@ -20,7 +20,7 @@ interface FormImageItem {
 interface PocketPlacesModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialTab?: 'food' | 'spot';
+  initialTab?: 'food' | 'spot' | 'shopping';
   tripId?: string;
   pocketItems: PocketItem[];
   tripDays: TripDay[];
@@ -31,7 +31,8 @@ interface PocketPlacesModalProps {
 }
 
 const FOOD_PRESET_TAGS = ['拉麵', '燒肉', '甜點/咖啡', '壽司/海鮮', '居酒屋', '米其林/名店', '排隊美食', '伴手禮', '早午餐'];
-const SPOT_PRESET_TAGS = ['熱門景點', '自然風光', '夜景', '神社/古蹟', '購物商場', '體驗/手作', '文青展覽', '溫泉', '拍照打卡'];
+const SPOT_PRESET_TAGS = ['熱門景點', '自然風光', '夜景', '神社/古蹟', '體驗/手作', '文青展覽', '溫泉', '拍照打卡', '公園/散步'];
+const SHOPPING_PRESET_TAGS = ['伴手禮', '藥妝', '百貨商場', '零食/點心', '服飾/潮牌', '家電/雜貨', '文具/雜貨', '免稅店', '超市/量販', '限定商品'];
 
 export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
   isOpen,
@@ -45,7 +46,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
   onDeleteItem,
   onAddToSchedule,
 }) => {
-  const [activeTab, setActiveTab] = useState<'food' | 'spot'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'food' | 'spot' | 'shopping'>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('全部');
   const [filterVisited, setFilterVisited] = useState<'all' | 'unvisited' | 'visited'>('all');
@@ -61,7 +62,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
   const [lightboxState, setLightboxState] = useState<{ images: string[]; index: number } | null>(null);
 
   const [formData, setFormData] = useState<{
-    category: 'food' | 'spot';
+    category: 'food' | 'spot' | 'shopping';
     title: string;
     location: string;
     url: string;
@@ -112,7 +113,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
 
   const availableTags = ['全部', ...Array.from(new Set(currentTabItems.map(i => i.tag).filter(Boolean))) as string[]];
 
-  const handleOpenAddForm = (category: 'food' | 'spot') => {
+  const handleOpenAddForm = (category: 'food' | 'spot' | 'shopping') => {
     setEditingId(null);
     setUploadError(null);
     setFormData({
@@ -298,7 +299,8 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
         name: '美食口袋名單',
         itemType: '美食',
       }
-    : {
+    : activeTab === 'spot'
+    ? {
         primary: 'bg-teal-600',
         primaryHover: 'hover:bg-teal-700',
         lightBg: 'bg-teal-50',
@@ -307,6 +309,16 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
         iconColor: 'text-teal-600',
         name: '探索景點名單',
         itemType: '探索景點',
+      }
+    : {
+        primary: 'bg-rose-500',
+        primaryHover: 'hover:bg-rose-600',
+        lightBg: 'bg-rose-50',
+        badgeBg: 'bg-rose-100 text-rose-800 border-rose-200',
+        border: 'border-rose-200',
+        iconColor: 'text-rose-500',
+        name: '購物/伴手禮名單',
+        itemType: '購物/伴手禮',
       };
 
   return (
@@ -316,7 +328,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
         onClick={e => e.stopPropagation()}
       >
         {/* Header with Switchable Tabs */}
-        <div className="bg-white px-5 sm:px-6 pt-5 pb-3 border-b-2 border-beige-dark flex-shrink-0">
+        <div className="bg-white px-4 sm:px-6 pt-5 pb-3 border-b-2 border-beige-dark flex-shrink-0">
           <div className="flex justify-between items-center mb-4">
             <div className="flex items-center gap-2">
               <span className="text-xl font-black text-cocoa">口袋名單筆記</span>
@@ -332,18 +344,18 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
             </button>
           </div>
 
-          {/* Main Category Tabs */}
-          <div className="grid grid-cols-2 gap-2 bg-gray-100 p-1.5 rounded-2xl">
+          {/* Main Category Tabs (美食清單, 探索景點, 購物/伴手禮) */}
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-2 bg-gray-100 p-1.5 rounded-2xl">
             <button
               onClick={() => { setActiveTab('food'); setSelectedTag('全部'); }}
-              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl font-black text-sm transition-all ${
+              className={`flex items-center justify-center gap-1.5 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all ${
                 activeTab === 'food'
                   ? 'bg-orange-500 text-white shadow-sm'
                   : 'text-gray-500 hover:text-orange-600 hover:bg-white/50'
               }`}
             >
-              <Utensils size={16} /> 美食清單
-              <span className={`text-xs px-2 py-0.5 rounded-full ${
+              <Utensils size={15} /> <span className="truncate">美食清單</span>
+              <span className={`text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full ${
                 activeTab === 'food' ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-600'
               }`}>
                 {pocketItems.filter(p => p.category === 'food').length}
@@ -351,17 +363,32 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
             </button>
             <button
               onClick={() => { setActiveTab('spot'); setSelectedTag('全部'); }}
-              className={`flex items-center justify-center gap-2 py-2.5 rounded-xl font-black text-sm transition-all ${
+              className={`flex items-center justify-center gap-1.5 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all ${
                 activeTab === 'spot'
                   ? 'bg-teal-600 text-white shadow-sm'
                   : 'text-gray-500 hover:text-teal-700 hover:bg-white/50'
               }`}
             >
-              <Compass size={16} /> 探索景點
-              <span className={`text-xs px-2 py-0.5 rounded-full ${
+              <Compass size={15} /> <span className="truncate">探索景點</span>
+              <span className={`text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full ${
                 activeTab === 'spot' ? 'bg-teal-700 text-white' : 'bg-gray-200 text-gray-600'
               }`}>
                 {pocketItems.filter(p => p.category === 'spot').length}
+              </span>
+            </button>
+            <button
+              onClick={() => { setActiveTab('shopping'); setSelectedTag('全部'); }}
+              className={`flex items-center justify-center gap-1.5 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all ${
+                activeTab === 'shopping'
+                  ? 'bg-rose-500 text-white shadow-sm'
+                  : 'text-gray-500 hover:text-rose-600 hover:bg-white/50'
+              }`}
+            >
+              <ShoppingBag size={15} /> <span className="truncate">購物/伴手禮</span>
+              <span className={`text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full ${
+                activeTab === 'shopping' ? 'bg-rose-600 text-white' : 'bg-gray-200 text-gray-600'
+              }`}>
+                {pocketItems.filter(p => p.category === 'shopping').length}
               </span>
             </button>
           </div>
@@ -374,7 +401,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder={`搜尋${activeTab === 'food' ? '美食店名、地址、備註' : '景點、地名、備註'}...`}
+                placeholder={`搜尋${activeTab === 'food' ? '美食店名、地址、備註' : activeTab === 'spot' ? '景點、地名、備註' : '伴手禮、商品、店名、備註'}...`}
                 className="w-full bg-gray-50 pl-9 pr-3 py-2 rounded-xl text-xs font-bold border border-gray-200 focus:border-sage outline-none"
               />
               {searchQuery && (
@@ -391,7 +418,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
               onClick={() => handleOpenAddForm(activeTab)}
               className={`${currentTheme.primary} ${currentTheme.primaryHover} text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 flex-shrink-0`}
             >
-              <Plus size={15} strokeWidth={2.5} /> 新增{activeTab === 'food' ? '美食' : '探索'}
+              <Plus size={15} strokeWidth={2.5} /> 新增{activeTab === 'food' ? '美食' : activeTab === 'spot' ? '探索' : '購物'}
             </button>
           </div>
 
@@ -404,7 +431,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                   onClick={() => setSelectedTag(tag)}
                   className={`px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${
                     selectedTag === tag
-                      ? `${activeTab === 'food' ? 'bg-orange-100 text-orange-800 border-orange-300' : 'bg-teal-100 text-teal-800 border-teal-300'} border`
+                      ? `${activeTab === 'food' ? 'bg-orange-100 text-orange-800 border-orange-300' : activeTab === 'spot' ? 'bg-teal-100 text-teal-800 border-teal-300' : 'bg-rose-100 text-rose-800 border-rose-300'} border`
                       : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                   }`}
                 >
@@ -422,15 +449,19 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
               <div className={`w-16 h-16 mx-auto rounded-full ${currentTheme.lightBg} flex items-center justify-center mb-3`}>
                 {activeTab === 'food' ? (
                   <Utensils size={28} className="text-orange-400" />
-                ) : (
+                ) : activeTab === 'spot' ? (
                   <Compass size={28} className="text-teal-500" />
+                ) : (
+                  <ShoppingBag size={28} className="text-rose-500" />
                 )}
               </div>
               <h4 className="font-black text-cocoa text-base mb-1">
                 {searchQuery || selectedTag !== '全部' ? '沒有符合篩選條件的項目' : `尚未新增任何${currentTheme.itemType}`}
               </h4>
               <p className="text-xs text-gray-400 font-bold mb-4">
-                可以記錄網路上查到想吃的私房餐廳、必逛打卡點、地址超連結與備註！
+                {activeTab === 'shopping' 
+                  ? '可以記錄想買的伴手禮、藥妝清單、推薦零食、特色紀念品與購買地點！'
+                  : '可以記錄網路上查到想吃的私房餐廳、必逛打卡點、地址超連結與備註！'}
               </p>
               <button
                 onClick={() => handleOpenAddForm(activeTab)}
@@ -442,6 +473,8 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
           ) : (
             filteredItems.map(item => {
               const isFood = item.category === 'food';
+              const isSpot = item.category === 'spot';
+              const isShopping = item.category === 'shopping';
               return (
                 <div
                   key={item.id}
@@ -455,7 +488,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                       <button
                         onClick={() => handleToggleVisited(item)}
                         className="mt-0.5 text-gray-400 hover:text-sage transition-colors flex-shrink-0"
-                        title={item.isVisited ? '標記為未造訪' : '標記為已造訪'}
+                        title={item.isVisited ? '標記為未造訪/未購買' : '標記為已造訪/已購買'}
                       >
                         {item.isVisited ? (
                           <CheckCircle2 size={20} className="text-emerald-500 fill-emerald-50" />
@@ -472,7 +505,11 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
 
                           {item.tag && (
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                              isFood ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-teal-50 text-teal-700 border-teal-200'
+                              isFood 
+                                ? 'bg-orange-50 text-orange-700 border-orange-200' 
+                                : isSpot
+                                ? 'bg-teal-50 text-teal-700 border-teal-200'
+                                : 'bg-rose-50 text-rose-700 border-rose-200'
                             }`}>
                               {item.tag}
                             </span>
@@ -607,10 +644,12 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
 
                   {/* Notes Box */}
                   {item.notes && (
-                    <div className="bg-amber-50/70 p-3 rounded-2xl border border-amber-200/70 flex items-start gap-2">
-                      <StickyNote size={14} className="text-amber-500 flex-shrink-0 mt-0.5" />
-                      <div className="text-xs font-bold text-amber-950/90 whitespace-pre-wrap leading-relaxed flex-1">
-                        <span className="text-amber-800/80 font-black mr-1">備註:</span>
+                    <div className="bg-amber-50/70 p-3.5 rounded-2xl border border-amber-200/70">
+                      <div className="flex items-center gap-1.5 text-xs font-black text-amber-800 mb-1.5">
+                        <StickyNote size={14} className="text-amber-600 flex-shrink-0" />
+                        <span>備註:</span>
+                      </div>
+                      <div className="text-xs font-bold text-amber-950/90 whitespace-pre-wrap leading-relaxed">
                         {item.notes}
                       </div>
                     </div>
@@ -669,11 +708,13 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
           >
             <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
               <div className="flex items-center gap-2">
-                <div className={`w-8 h-8 rounded-full ${formData.category === 'food' ? 'bg-orange-100 text-orange-600' : 'bg-teal-100 text-teal-700'} flex items-center justify-center`}>
-                  {formData.category === 'food' ? <Utensils size={16} /> : <Compass size={16} />}
+                <div className={`w-8 h-8 rounded-full ${
+                  formData.category === 'food' ? 'bg-orange-100 text-orange-600' : formData.category === 'spot' ? 'bg-teal-100 text-teal-700' : 'bg-rose-100 text-rose-600'
+                } flex items-center justify-center`}>
+                  {formData.category === 'food' ? <Utensils size={16} /> : formData.category === 'spot' ? <Compass size={16} /> : <ShoppingBag size={16} />}
                 </div>
                 <h3 className="text-lg font-black text-cocoa">
-                  {editingId ? '編輯' : '新增'} {formData.category === 'food' ? '美食' : '探索地點'}
+                  {editingId ? '編輯' : '新增'} {formData.category === 'food' ? '美食' : formData.category === 'spot' ? '探索地點' : '購物/伴手禮'}
                 </h3>
               </div>
               <button 
@@ -689,11 +730,11 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
               {/* Category selector */}
               <div>
                 <label className="text-xs font-black text-gray-400 block mb-1.5 uppercase">類型</label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, category: 'food' })}
-                    className={`py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border-2 transition-all ${
+                    className={`py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1 border-2 transition-all ${
                       formData.category === 'food' 
                         ? 'bg-orange-500 text-white border-orange-500 shadow-sm' 
                         : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
@@ -704,7 +745,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, category: 'spot' })}
-                    className={`py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 border-2 transition-all ${
+                    className={`py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1 border-2 transition-all ${
                       formData.category === 'spot' 
                         ? 'bg-teal-600 text-white border-teal-600 shadow-sm' 
                         : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
@@ -712,33 +753,52 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                   >
                     <Compass size={14} /> 探索景點
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, category: 'shopping' })}
+                    className={`py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1 border-2 transition-all ${
+                      formData.category === 'shopping' 
+                        ? 'bg-rose-500 text-white border-rose-500 shadow-sm' 
+                        : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    <ShoppingBag size={14} /> 購物/伴手禮
+                  </button>
                 </div>
               </div>
 
               {/* Title */}
               <div>
                 <label className="text-xs font-black text-gray-400 block mb-1">
-                  {formData.category === 'food' ? '餐廳 / 美食店名 *' : '景點 / 地點名稱 *'}
+                  {formData.category === 'food' ? '餐廳 / 美食店名 *' : formData.category === 'spot' ? '景點 / 地點名稱 *' : '商品 / 伴手禮 / 店家名稱 *'}
                 </label>
                 <input
                   type="text"
                   required
                   value={formData.title}
                   onChange={e => setFormData({ ...formData, title: e.target.value })}
-                  placeholder={formData.category === 'food' ? '例：一蘭拉麵 本店 / 六花亭' : '例：小樽運河 / 函館山夜景'}
+                  placeholder={
+                    formData.category === 'food' 
+                      ? '例：一蘭拉麵 本店 / 六花亭' 
+                      : formData.category === 'spot' 
+                      ? '例：小樽運河 / 函館山夜景' 
+                      : '例：白色戀人 / 大國藥妝 / 獺祭二割三分'
+                  }
                   className="w-full bg-gray-50 p-3 rounded-xl border border-gray-200 focus:border-sage outline-none font-bold text-sm text-cocoa"
                 />
               </div>
 
               {/* Address / Location */}
               <div>
-                <label className="text-xs font-black text-gray-400 block mb-1">地址 / 地點</label>
+                <label className="text-xs font-black text-gray-400 block mb-1">
+                  {formData.category === 'shopping' ? '購買地點 / 店家地址' : '地址 / 地點'}
+                </label>
                 <div className="relative">
                   <input
                     type="text"
                     value={formData.location}
                     onChange={e => setFormData({ ...formData, location: e.target.value })}
-                    placeholder="例：北海道函館市若松町 / 地址"
+                    placeholder="例：北海道函館市若松町 / 新千歲機場免稅店"
                     className="w-full bg-gray-50 p-3 pr-10 rounded-xl border border-gray-200 focus:border-sage outline-none font-bold text-sm text-cocoa"
                   />
                   <MapPin size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -747,7 +807,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
 
               {/* URL Hyperlink */}
               <div>
-                <label className="text-xs font-black text-gray-400 block mb-1">超連結 (官網 / IG / 預約 / 食記)</label>
+                <label className="text-xs font-black text-gray-400 block mb-1">超連結 (網址)</label>
                 <div className="relative">
                   <input
                     type="text"
@@ -771,7 +831,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                   className="w-full bg-gray-50 p-2.5 rounded-xl border border-gray-200 focus:border-sage outline-none font-bold text-xs text-cocoa mb-1.5"
                 />
                 <div className="flex flex-wrap gap-1">
-                  {(formData.category === 'food' ? FOOD_PRESET_TAGS : SPOT_PRESET_TAGS).map(preset => (
+                  {(formData.category === 'food' ? FOOD_PRESET_TAGS : formData.category === 'spot' ? SPOT_PRESET_TAGS : SHOPPING_PRESET_TAGS).map(preset => (
                     <button
                       key={preset}
                       type="button"
@@ -944,13 +1004,13 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
 
               {/* Notes */}
               <div>
-                <label className="text-xs font-black text-gray-400 block mb-1">備註說明 (推薦菜色、注意事項、營業時間等)</label>
+                <label className="text-xs font-black text-gray-400 block mb-1">備註說明</label>
                 <textarea
-                  rows={3}
+                  rows={6}
                   value={formData.notes}
                   onChange={e => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="例：推薦點海鮮丼、晚上8點後免排隊、週二公休..."
-                  className="w-full bg-gray-50 p-3 rounded-xl border border-gray-200 focus:border-sage outline-none font-bold text-xs text-cocoa resize-none"
+                  placeholder="例：推薦必吃必買品項、注意事項、營業時間、心得等..."
+                  className="w-full bg-gray-50 p-3.5 rounded-xl border border-gray-200 focus:border-sage outline-none font-bold text-sm text-cocoa min-h-[140px] leading-relaxed resize-y"
                 />
               </div>
 
@@ -971,7 +1031,11 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                   className={`flex-1 py-3.5 rounded-2xl ${
                     formImages.some(img => !img.isReady)
                       ? 'bg-gray-400 cursor-not-allowed opacity-80'
-                      : formData.category === 'food' ? 'bg-orange-500 hover:bg-orange-600 active:scale-95' : 'bg-teal-600 hover:bg-teal-700 active:scale-95'
+                      : formData.category === 'food' 
+                      ? 'bg-orange-500 hover:bg-orange-600 active:scale-95' 
+                      : formData.category === 'spot'
+                      ? 'bg-teal-600 hover:bg-teal-700 active:scale-95'
+                      : 'bg-rose-500 hover:bg-rose-600 active:scale-95'
                   } text-white font-black text-sm shadow-md transition-all flex items-center justify-center gap-2`}
                 >
                   {formImages.some(img => !img.isReady) ? (
