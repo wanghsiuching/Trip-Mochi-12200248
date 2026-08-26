@@ -282,8 +282,8 @@ export default function App() {
   const handleAddJournal = (newJournal: Journal) => addTripItem(currentTripId, 'journals', newJournal);
   const handleUpdateJournal = (updated: Journal) => updateTripField(currentTripId, 'journals', journals.map(j => j.id === updated.id ? updated : j));
   const handleDeleteJournal = (id: number) => updateTripField(currentTripId, 'journals', journals.filter(j => j.id !== id));
-  const handleAddPlanning = (type: 'todo' | 'packing' | 'wish' | 'shopping', text: string, assignee: string | string[], image?: string, note?: string, url?: string) => {
-      const newItem = { id: Date.now(), text, assignee, completedBy: [], done: false, image, note, url };
+  const handleAddPlanning = (type: 'todo' | 'packing' | 'wish' | 'shopping', text: string, assignee: string | string[], image?: string, note?: string, url?: string, category?: string) => {
+      const newItem = { id: Date.now(), text, assignee, completedBy: [], done: false, image, note, url, category };
       const currentList = planningLists[type] || [];
       updateTripField(currentTripId, 'planning', { ...planningLists, [type]: [...currentList, newItem] });
   };

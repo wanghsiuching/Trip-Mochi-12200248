@@ -220,6 +220,7 @@ export interface TodoItem {
     note?: string;
     url?: string;
     comments?: Comment[];
+    category?: string; // e.g. 'clothes' | 'toiletries' | 'electronics' | 'documents' | 'medicine' | 'other'
 }
 
 export type DocumentCategory = 

@@ -4,6 +4,7 @@ import { ClipboardList, Luggage, Heart, FolderClosed, PenTool, Trash2, Link, X, 
 import { TodoItem, Member, Comment, TravelDocument } from '../types';
 import { MemberAvatar } from './MemberAvatar';
 import { DocumentsView } from './DocumentsView';
+import { PackingList } from './PackingList';
 
 interface PlanningViewProps {
   lists: { 
@@ -14,7 +15,7 @@ interface PlanningViewProps {
     documents?: TravelDocument[];
   };
   members: Member[];
-  onAdd: (type: 'todo' | 'packing' | 'wish' | 'shopping', text: string, assignee: string | string[], image?: string, note?: string, url?: string) => void;
+  onAdd: (type: 'todo' | 'packing' | 'wish' | 'shopping', text: string, assignee: string | string[], image?: string, note?: string, url?: string, category?: string) => void;
   onToggle: (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number, memberName?: string) => void;
   onUpdate: (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number, updates: Partial<TodoItem>) => void;
   onDelete: (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number) => void;
@@ -264,6 +265,17 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
               onAddDocument={onAddDocument || (() => {})}
               onUpdateDocument={onUpdateDocument || (() => {})}
               onDeleteDocument={onDeleteDocument || (() => {})}
+            />
+          </div>
+        ) : currentList === 'packing' ? (
+          <div className="px-4 pb-36 lg:pb-12 lg:p-0">
+            <PackingList
+              items={lists.packing || []}
+              members={members}
+              onAdd={(text, assignee, category) => onAdd('packing', text, assignee, undefined, undefined, undefined, category)}
+              onToggle={(id) => onToggle('packing', id)}
+              onUpdate={(id, updates) => onUpdate('packing', id, updates)}
+              onDelete={(id) => onDelete('packing', id)}
             />
           </div>
         ) : (
