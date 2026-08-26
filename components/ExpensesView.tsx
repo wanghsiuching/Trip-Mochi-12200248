@@ -5,12 +5,14 @@ import {
   Receipt, CreditCard, Clock, Check, ArrowLeft, Send, MessageCircle, X,
   ArrowUpRight, ArrowDownLeft, Scale, CheckCircle2, Circle, AlertCircle, HelpCircle,
   Percent, Landmark, PiggyBank, Edit3, Calendar as CalendarIcon, Tag, Users,
-  PlusCircle, MinusCircle, ReceiptText, Heart, ShoppingBag, Sparkles, HandCoins
+  PlusCircle, MinusCircle, ReceiptText, Heart, ShoppingBag, Sparkles, HandCoins,
+  Car, Bed, Utensils, Ticket, PieChart as PieChartIcon
 } from 'lucide-react';
 import { Expense, Member, Currency, Comment } from '../types';
 import { ToggleSwitch, DeleteItemConfirmModal } from './Modals';
 import { DatePickerField, TimePickerField, DateTimePickerField } from './TimePickerComponents';
 import { MemberAvatar } from './MemberAvatar';
+import { ExpenseDistributionChart, detectExpenseCategory, ExpenseCategoryKey } from './ExpenseDistributionChart';
 
 interface ExpensesViewProps {
   expenses: Expense[];
@@ -22,6 +24,14 @@ interface ExpensesViewProps {
   onShowToast: (message: string, type: 'success' | 'error') => void;
   highlightId?: string | null;
 }
+
+const CATEGORY_OPTIONS: { key: ExpenseCategoryKey; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; color: string }[] = [
+  { key: 'transport', label: '交通', icon: Car, color: 'text-sky-600 bg-sky-50 border-sky-200' },
+  { key: 'accommodation', label: '住宿', icon: Bed, color: 'text-purple-600 bg-purple-50 border-purple-200' },
+  { key: 'dining', label: '餐飲', icon: Utensils, color: 'text-orange-600 bg-orange-50 border-orange-200' },
+  { key: 'spot', label: '景點', icon: Ticket, color: 'text-rose-600 bg-rose-50 border-rose-200' },
+  { key: 'other', label: '其他', icon: ShoppingBag, color: 'text-stone-600 bg-stone-50 border-stone-200' },
+];
 
 export const ExpensesView: React.FC<ExpensesViewProps> = ({ 
   expenses, members, currencies, onAdd, onUpdate, onDelete, onShowToast, highlightId 
@@ -37,6 +47,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       amount: '', title: '', currency: 'TWD', payer: members[0]?.name || '我', involvedMembers: [] as string[],
       paymentMethod: '現金', location: '', 
       isCreditCard: false, hasServiceFee: false, serviceFeePercentage: '1.5',
+      expenseType: 'dining' as ExpenseCategoryKey,
       date: new Date().toISOString().split('T')[0], time: new Date().toTimeString().slice(0, 5)
   });
 
@@ -46,6 +57,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       amount: '', 
       title: '', 
       currency: 'TWD', 
+      expenseType: 'dining' as ExpenseCategoryKey,
       payers: [] as string[], // For Batch Deposit
       involvedMembers: [] as string[], // For Expense participants
       date: new Date().toISOString().split('T')[0], 
@@ -144,6 +156,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
     }
     onAdd({
         category: 'general',
+        expenseType: form.expenseType,
         amount: Number(form.amount), title: form.title, currency: form.currency, payer: form.payer,
         involvedMembers: form.involvedMembers.length > 0 ? form.involvedMembers : [form.payer], 
         settledMembers: [form.payer], 
@@ -186,6 +199,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           onAdd({
               category: 'public_fund',
               fundType: 'expense',
+              expenseType: fundForm.expenseType,
               amount: Number(fundForm.amount),
               title: fundForm.title,
               currency: fundForm.currency,
@@ -211,6 +225,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           isCreditCard: exp.isCreditCard,
           hasServiceFee: exp.hasServiceFee,
           serviceFeePercentage: exp.serviceFeePercentage,
+          expenseType: exp.expenseType || detectExpenseCategory(exp),
           date: exp.date, time: exp.time,
           fundType: exp.fundType,
           category: exp.category
@@ -231,6 +246,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           isCreditCard: editForm.isCreditCard,
           hasServiceFee: editForm.hasServiceFee,
           serviceFeePercentage: editForm.hasServiceFee ? Number(editForm.serviceFeePercentage) : 0,
+          expenseType: editForm.expenseType,
           date: editForm.date,
           time: editForm.time
       });
@@ -442,6 +458,31 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                         </div>
 
                         <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
+                            <label className="text-[10px] text-gray-400 block mb-1.5 font-bold">支出類別</label>
+                            <div className="grid grid-cols-5 gap-1.5">
+                                {CATEGORY_OPTIONS.map(cat => {
+                                    const Icon = cat.icon;
+                                    const isSelected = form.expenseType === cat.key;
+                                    return (
+                                        <button
+                                            key={cat.key}
+                                            type="button"
+                                            onClick={() => setForm({ ...form, expenseType: cat.key })}
+                                            className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 border-2 transition-all text-xs font-black ${
+                                                isSelected 
+                                                    ? `${cat.color} shadow-sm scale-105` 
+                                                    : 'bg-beige/20 text-gray-400 border-beige-dark hover:bg-beige/40'
+                                            }`}
+                                        >
+                                            <Icon size={16} />
+                                            <span className="text-[10px]">{cat.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
                             <label className="text-[10px] text-gray-400 block mb-1 font-bold">項目名稱</label>
                             <input type="text" value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full bg-transparent text-cocoa outline-none font-bold" placeholder="例如：藥妝店購物"/>
                         </div>
@@ -490,6 +531,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
                 <MemberStats />
 
+                {/* Expense Distribution Pie Chart (D3) */}
+                <ExpenseDistributionChart 
+                    expenses={filteredGeneralExpenses} 
+                    currencies={currencies} 
+                    filterMember={filter} 
+                    title="分帳費用分佈"
+                />
+
                 <div className="bg-sage text-white p-6 rounded-[2rem] shadow-hard-sm relative overflow-hidden border-2 border-sage-dark mb-6">
                     <div className="absolute -right-6 -top-6 w-32 h-32 bg-white rounded-full opacity-10 blur-2xl"></div>
                     <p className="opacity-80 text-xs mb-1 font-bold">{filter === 'all' ? '分帳總支出' : filter + ' 的分帳相關'} (TWD)</p>
@@ -508,6 +557,9 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                                     const finalAmountTWD = calculateTWD(exp.amount, exp.currency, exp.hasServiceFee || false, exp.serviceFeePercentage || 0);
                                     const splitAmountTWD = finalAmountTWD / (exp.involvedMembers?.length || 1);
                                     const payerMember = members.find(m => m.name === exp.payer);
+                                    const categoryKey = detectExpenseCategory(exp);
+                                    const categoryOpt = CATEGORY_OPTIONS.find(c => c.key === categoryKey) || CATEGORY_OPTIONS[4];
+                                    const CatIcon = categoryOpt.icon;
 
                                     return (
                                         <div key={exp.id} id={`expense-${exp.id}`} className={`bg-white p-5 rounded-[2rem] shadow-hard-sm border-2 transition-all border-beige-dark relative group`}>
@@ -531,7 +583,13 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                                                     {isPayer && <div className="absolute bottom-0 w-full bg-sage/90 text-white text-[8px] font-black py-0.5 text-center">付款人</div>}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <h4 className="font-black text-cocoa text-lg break-words leading-tight mb-1">{exp.title}</h4>
+                                                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                                        <h4 className="font-black text-cocoa text-lg break-words leading-tight">{exp.title}</h4>
+                                                        <span className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full border ${categoryOpt.color}`}>
+                                                            <CatIcon size={11} />
+                                                            {categoryOpt.label}
+                                                        </span>
+                                                    </div>
                                                     <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
                                                         <span className={`px-2 py-0.5 rounded border ${exp.isCreditCard ? 'bg-blue-50 text-blue-500 border-blue-100' : 'bg-orange-50 text-orange-500 border-orange-100'}`}>{exp.isCreditCard ? '信用卡' : '現金'}</span>
                                                         <span className="flex items-center gap-1"><Clock size={12}/>{exp.time}</span>
@@ -618,6 +676,13 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                            </div>
                        </button>
                    </div>
+
+                   {/* Public Fund Expense Category Distribution Chart (D3) */}
+                   <ExpenseDistributionChart 
+                       expenses={fundExpenses} 
+                       currencies={currencies} 
+                       title="公費支出類別分佈"
+                   />
 
                    {/* Fund History List */}
                    <div className="space-y-6">

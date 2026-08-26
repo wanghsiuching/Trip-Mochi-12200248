@@ -206,6 +206,9 @@ export interface Expense {
     // Public Fund Fields
     category?: 'general' | 'public_fund'; // Default is 'general'
     fundType?: 'deposit' | 'expense'; // Only for category === 'public_fund'
+    
+    // Category distribution field (交通, 住宿, 餐飲, 景點, 其他)
+    expenseType?: 'transport' | 'accommodation' | 'dining' | 'spot' | 'other' | string;
 }
 
 export interface TodoItem {
@@ -217,6 +220,30 @@ export interface TodoItem {
     note?: string;
     url?: string;
     comments?: Comment[];
+}
+
+export type DocumentCategory = 
+  | 'passport'     // 護照
+  | 'visa'         // 簽證
+  | 'insurance'    // 保險單
+  | 'hotel'        // 訂房確認
+  | 'ticket'       // 機票/車票憑證
+  | 'other'        // 其他文件
+  | 'license';     // 相容歷史資料
+
+export interface TravelDocument {
+  id: number | string;
+  title: string;
+  category: DocumentCategory;
+  holder: string; // 成員姓名或 '全體'
+  docNumber?: string;
+  expiryDate?: string; // YYYY-MM-DD
+  issueDate?: string;  // YYYY-MM-DD
+  note?: string;
+  url?: string;
+  images?: string[];
+  comments?: Comment[];
+  createdAt?: number;
 }
 
 export interface Journal {

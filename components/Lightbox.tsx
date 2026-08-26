@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface LightboxProps {
@@ -187,7 +188,7 @@ export const Lightbox: React.FC<LightboxProps> = ({ images, initialIndex = 0, on
 
     const currentImage = images[currentIndex];
 
-    return (
+    const content = (
         <div 
             className="fixed inset-0 bg-black/95 z-[9999] flex items-center justify-center touch-none overflow-hidden select-none animate-fade-in"
             onClick={handleClose}
@@ -259,4 +260,6 @@ export const Lightbox: React.FC<LightboxProps> = ({ images, initialIndex = 0, on
             </div>
         </div>
     );
+
+    return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 };

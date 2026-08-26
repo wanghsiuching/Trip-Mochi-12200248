@@ -9,6 +9,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@types/d3": "^7.4.3",
+    "d3": "^7.9.0",
     "firebase": "^12.6.0",
     "heic2any": "^0.0.4",
     "lucide-react": "^0.559.0",

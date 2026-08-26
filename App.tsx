@@ -10,7 +10,7 @@ import {
 import { 
   Tab, ViewState, ScheduleItem, SavedTrip, Currency, Member, THEME, TripDay,
   BookingFlight, BookingAccommodation, BookingCarRental, BookingTicket, Expense, Journal, TodoItem,
-  PocketItem
+  PocketItem, TravelDocument
 } from './types';
 import { BottomNav } from './components/CommonUI';
 import { 
@@ -52,7 +52,8 @@ export default function App() {
       packing: TodoItem[];
       wish: TodoItem[];
       shopping: TodoItem[];
-  }>({ todo: [], packing: [], wish: [], shopping: [] });
+      documents?: TravelDocument[];
+  }>({ todo: [], packing: [], wish: [], shopping: [], documents: [] });
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [pocketItems, setPocketItems] = useState<PocketItem[]>([]);
@@ -184,7 +185,13 @@ export default function App() {
           setBookingTickets(data.tickets || []);
           setExpenses(data.expenses || []);
           setJournals(data.journals || []);
-          setPlanningLists(data.planning || { todo: [], packing: [], wish: [], shopping: [] });
+          setPlanningLists({
+            todo: data.planning?.todo || [],
+            packing: data.planning?.packing || [],
+            wish: data.planning?.wish || [],
+            shopping: data.planning?.shopping || [],
+            documents: data.planning?.documents || [],
+          });
           setCurrencies(data.currencies || []);
           setMembers(data.members || []);
           setPocketItems(data.pocketItems || []);
@@ -277,14 +284,46 @@ export default function App() {
   const handleDeleteJournal = (id: number) => updateTripField(currentTripId, 'journals', journals.filter(j => j.id !== id));
   const handleAddPlanning = (type: 'todo' | 'packing' | 'wish' | 'shopping', text: string, assignee: string | string[], image?: string, note?: string, url?: string) => {
       const newItem = { id: Date.now(), text, assignee, completedBy: [], done: false, image, note, url };
-      updateTripField(currentTripId, 'planning', { ...planningLists, [type]: [...planningLists[type], newItem] });
+      const currentList = planningLists[type] || [];
+      updateTripField(currentTripId, 'planning', { ...planningLists, [type]: [...currentList, newItem] });
   };
   const handleTogglePlanning = (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number, memberName?: string) => {
-      const newLists = { ...planningLists, [type]: planningLists[type].map(item => { if (item.id !== id) return item; if (type === 'todo' && (item.assignee === '全體' || (Array.isArray(item.assignee) && item.assignee.length > 1))) { if (!memberName) return item; const currentCompleted = item.completedBy || []; const newCompleted = currentCompleted.includes(memberName) ? currentCompleted.filter(m => m !== memberName) : [...currentCompleted, memberName]; let targets: string[] = []; if (item.assignee === '全體') targets = members.map(m => m.name); else if (Array.isArray(item.assignee)) targets = item.assignee; else targets = [item.assignee as string]; const allDone = targets.every(t => newCompleted.includes(t)); return { ...item, completedBy: newCompleted, done: allDone }; } else { return { ...item, done: !item.done }; } }) };
+      const currentList = planningLists[type] || [];
+      const newLists = { ...planningLists, [type]: currentList.map(item => { if (item.id !== id) return item; if (type === 'todo' && (item.assignee === '全體' || (Array.isArray(item.assignee) && item.assignee.length > 1))) { if (!memberName) return item; const currentCompleted = item.completedBy || []; const newCompleted = currentCompleted.includes(memberName) ? currentCompleted.filter(m => m !== memberName) : [...currentCompleted, memberName]; let targets: string[] = []; if (item.assignee === '全體') targets = members.map(m => m.name); else if (Array.isArray(item.assignee)) targets = item.assignee; else targets = [item.assignee as string]; const allDone = targets.every(t => newCompleted.includes(t)); return { ...item, completedBy: newCompleted, done: allDone }; } else { return { ...item, done: !item.done }; } }) };
       updateTripField(currentTripId, 'planning', newLists);
   };
-  const handleUpdatePlanning = (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number, updates: Partial<TodoItem>) => updateTripField(currentTripId, 'planning', { ...planningLists, [type]: planningLists[type].map(item => item.id === id ? { ...item, ...updates } : item) });
-  const handleDeletePlanning = (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number) => updateTripField(currentTripId, 'planning', { ...planningLists, [type]: planningLists[type].filter(item => item.id !== id) });
+  const handleUpdatePlanning = (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number, updates: Partial<TodoItem>) => {
+      const currentList = planningLists[type] || [];
+      updateTripField(currentTripId, 'planning', { ...planningLists, [type]: currentList.map(item => item.id === id ? { ...item, ...updates } : item) });
+  };
+  const handleDeletePlanning = (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number) => {
+      const currentList = planningLists[type] || [];
+      updateTripField(currentTripId, 'planning', { ...planningLists, [type]: currentList.filter(item => item.id !== id) });
+  };
+
+  const handleAddDocument = (newDoc: Omit<TravelDocument, 'id' | 'createdAt'>) => {
+      const docWithId: TravelDocument = {
+          ...newDoc,
+          id: Date.now().toString(),
+          createdAt: Date.now(),
+      };
+      const updatedDocs = [...(planningLists.documents || []), docWithId];
+      const newPlanning = { ...planningLists, documents: updatedDocs };
+      setPlanningLists(newPlanning);
+      updateTripField(currentTripId, 'planning', newPlanning);
+  };
+  const handleUpdateDocument = (id: string | number, updates: Partial<TravelDocument>) => {
+      const updatedDocs = (planningLists.documents || []).map(d => String(d.id) === String(id) ? { ...d, ...updates } : d);
+      const newPlanning = { ...planningLists, documents: updatedDocs };
+      setPlanningLists(newPlanning);
+      updateTripField(currentTripId, 'planning', newPlanning);
+  };
+  const handleDeleteDocument = (id: string | number) => {
+      const updatedDocs = (planningLists.documents || []).filter(d => String(d.id) !== String(id));
+      const newPlanning = { ...planningLists, documents: updatedDocs };
+      setPlanningLists(newPlanning);
+      updateTripField(currentTripId, 'planning', newPlanning);
+  };
   
   const handleAddMember = (name: string, avatar: string | null) => {
       const fruits = [
@@ -928,7 +967,19 @@ export default function App() {
           {activeTab === 'bookings' && (<BookingsView flights={bookingFlights} accommodations={bookingAccommodations} carRentals={bookingCarRentals} tickets={bookingTickets} currencies={currencies} members={members} onAddFlight={handleAddFlight} onUpdateFlight={handleUpdateFlight} onDeleteFlight={handleDeleteFlight} onAddAccommodation={(a) => addTripItem(currentTripId, 'accommodations', a)} onUpdateAccommodation={(a) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.map(x => x.id === a.id ? a : x))} onDeleteAccommodation={(id) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.filter(x => x.id !== id))} onAddCar={handleAddCar} onUpdateCar={handleUpdateCar} onDeleteCar={handleDeleteCar} onAddTicket={(t) => addTripItem(currentTripId, 'tickets', t)} onUpdateTicket={(t) => updateTripField(currentTripId, 'tickets', bookingTickets.map(x => x.id === t.id ? t : x))} onDeleteTicket={(id) => updateTripField(currentTripId, 'tickets', bookingTickets.filter(x => x.id !== id))} />)}
           {activeTab === 'expense' && (<ExpensesView expenses={expenses} members={members} currencies={currencies} onAdd={handleAddExpense} onUpdate={handleUpdateExpense} onDelete={handleDeleteExpense} onShowToast={(m, t) => { if (t === 'error') alert(m); }} highlightId={highlightExpenseId} />)}
           {activeTab === 'journal' && (<JournalView journals={journals} members={members} onAdd={handleAddJournal} onUpdate={handleUpdateJournal} onDelete={handleDeleteJournal} />)}
-          {activeTab === 'planning' && (<PlanningView lists={planningLists} members={members} onAdd={handleAddPlanning} onToggle={handleTogglePlanning} onUpdate={handleUpdatePlanning} onDelete={handleDeletePlanning} />)}
+          {activeTab === 'planning' && (
+            <PlanningView 
+              lists={planningLists} 
+              members={members} 
+              onAdd={handleAddPlanning} 
+              onToggle={handleTogglePlanning} 
+              onUpdate={handleUpdatePlanning} 
+              onDelete={handleDeletePlanning}
+              onAddDocument={handleAddDocument}
+              onUpdateDocument={handleUpdateDocument}
+              onDeleteDocument={handleDeleteDocument}
+            />
+          )}
           {activeTab === 'members' && (<MembersView members={members} scheduleItems={scheduleItems} expenses={expenses} currencies={currencies} onAdd={handleAddMember} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} onJumpToSchedule={handleJumpToSchedule} onJumpToExpense={handleJumpToExpense} />)}
         </main>
         <BottomNav activeTab={activeTab} setTab={setActiveTab} />

@@ -1,20 +1,40 @@
 
 import React, { useState, useEffect } from 'react';
-import { ClipboardList, Luggage, Heart, ShoppingCart, PenTool, Trash2, Link, X, Check, Plus, Edit3, MessageCircle, Send } from 'lucide-react';
-import { TodoItem, Member, Comment } from '../types';
+import { ClipboardList, Luggage, Heart, FolderClosed, PenTool, Trash2, Link, X, Check, Plus, Edit3, MessageCircle, Send } from 'lucide-react';
+import { TodoItem, Member, Comment, TravelDocument } from '../types';
 import { MemberAvatar } from './MemberAvatar';
+import { DocumentsView } from './DocumentsView';
 
 interface PlanningViewProps {
-  lists: { todo: TodoItem[]; packing: TodoItem[]; wish: TodoItem[]; shopping: TodoItem[] };
+  lists: { 
+    todo: TodoItem[]; 
+    packing: TodoItem[]; 
+    wish: TodoItem[]; 
+    shopping?: TodoItem[];
+    documents?: TravelDocument[];
+  };
   members: Member[];
   onAdd: (type: 'todo' | 'packing' | 'wish' | 'shopping', text: string, assignee: string | string[], image?: string, note?: string, url?: string) => void;
   onToggle: (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number, memberName?: string) => void;
   onUpdate: (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number, updates: Partial<TodoItem>) => void;
   onDelete: (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number) => void;
+  onAddDocument?: (doc: Omit<TravelDocument, 'id' | 'createdAt'>) => void;
+  onUpdateDocument?: (id: string | number, updates: Partial<TravelDocument>) => void;
+  onDeleteDocument?: (id: string | number) => void;
 }
 
-export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAdd, onToggle, onUpdate, onDelete }) => {
-  const [currentList, setCurrentList] = useState<'todo' | 'packing' | 'wish' | 'shopping'>('todo');
+export const PlanningView: React.FC<PlanningViewProps> = ({ 
+  lists, 
+  members, 
+  onAdd, 
+  onToggle, 
+  onUpdate, 
+  onDelete,
+  onAddDocument,
+  onUpdateDocument,
+  onDeleteDocument,
+}) => {
+  const [currentList, setCurrentList] = useState<'todo' | 'packing' | 'wish' | 'documents'>('todo');
   const [newItem, setNewItem] = useState('');
   
   const [newNote, setNewNote] = useState('');
@@ -73,7 +93,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
   };
 
   const handleAdd = () => {
-    if (!newItem.trim()) return;
+    if (!newItem.trim() || currentList === 'documents') return;
     
     let finalAssignee: string | string[];
     if (filterSelection.includes('全體')) {
@@ -100,7 +120,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
   };
 
   const saveEditing = () => {
-      if (editingId && editingForm.text.trim()) {
+      if (editingId && editingForm.text.trim() && currentList !== 'documents') {
           onUpdate(currentList, editingId, { 
               text: editingForm.text,
               note: editingForm.note,
@@ -123,7 +143,9 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
 
   const confirmDelete = (e: React.MouseEvent, id: number) => {
       e.preventDefault(); e.stopPropagation();
-      onDelete(currentList, id);
+      if (currentList !== 'documents') {
+        onDelete(currentList, id);
+      }
       setDeletingId(null);
   };
 
@@ -138,6 +160,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
 
   const submitInlineComment = (e: React.MouseEvent | React.KeyboardEvent, item: TodoItem) => {
       e.stopPropagation();
+      if (currentList === 'documents') return;
       const text = commentDrafts[item.id];
       if (!text || !text.trim()) return;
 
@@ -166,7 +189,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
   };
 
   const saveEditComment = (item: TodoItem) => {
-      if (!editingComment) return;
+      if (!editingComment || currentList === 'documents') return;
       const updatedComments = item.comments?.map(c => 
           c.id === editingComment.commentId ? { ...c, text: editingComment.text } : c
       );
@@ -180,13 +203,13 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
   };
 
   const confirmDeleteComment = (item: TodoItem) => {
-      if (!deletingComment) return;
+      if (!deletingComment || currentList === 'documents') return;
       const updatedComments = item.comments?.filter(c => c.id !== deletingComment.commentId);
       onUpdate(currentList, item.id, { comments: updatedComments });
       setDeletingComment(null);
   };
 
-  const activeListItems = (lists[currentList] || []).filter(item => {
+  const activeListItems = currentList === 'documents' ? [] : (lists[currentList] || []).filter(item => {
       if (filterSelection.includes('全體')) return true;
       if (item.assignee === '全體') return true;
       const itemAssignees = Array.isArray(item.assignee) ? item.assignee : [item.assignee];
@@ -195,7 +218,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
 
   const getPlaceholderText = () => {
       if (filterSelection.includes('全體')) {
-          return `新增${currentList === 'todo' ? '待辦' : currentList === 'packing' ? '行李' : currentList === 'wish' ? '願望' : '採購'} (全體)...`;
+          return `新增${currentList === 'todo' ? '待辦' : currentList === 'packing' ? '行李' : '想去'} (全體)...`;
       }
       const names = filterSelection.join(', ');
       return `新增給 ${names}...`;
@@ -209,7 +232,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                     { id: 'todo', label: '待辦', icon: ClipboardList },
                     { id: 'packing', label: '行李', icon: Luggage },
                     { id: 'wish', label: '想去', icon: Heart },
-                    { id: 'shopping', label: '採購', icon: ShoppingCart }
+                    { id: 'documents', label: '文件', icon: FolderClosed }
                 ].map((tab) => {
                     const Icon = tab.icon;
                     return (
@@ -225,14 +248,26 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                                 : 'hover:bg-sage-light text-gray-400'}`}
                         >
                             <Icon size={14} />
-                            <span className="text-xs sm:text-sm">{tab.label}</span>
+                            <span className="text-xs sm:text-sm font-bold">{tab.label}</span>
                         </button>
                     )
                 })}
             </div>
         </div>
 
-        <div className="px-4 pb-4 lg:p-0">
+        {/* Documents / Credentials View */}
+        {currentList === 'documents' ? (
+          <div className="px-4 pb-36 lg:pb-12 lg:p-0">
+            <DocumentsView 
+              documents={lists.documents || []}
+              members={members}
+              onAddDocument={onAddDocument || (() => {})}
+              onUpdateDocument={onUpdateDocument || (() => {})}
+              onDeleteDocument={onDeleteDocument || (() => {})}
+            />
+          </div>
+        ) : (
+          <div className="px-4 pb-4 lg:p-0">
             <div className="mb-4">
                 <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-2 items-center">
                     <button
@@ -564,7 +599,8 @@ export const PlanningView: React.FC<PlanningViewProps> = ({ lists, members, onAd
                     );
                 })}
             </div>
-        </div>
+          </div>
+        )}
     </div>
   );
 };
