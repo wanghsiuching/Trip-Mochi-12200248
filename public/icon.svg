@@ -1,11 +1,96 @@
 
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="appBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#3AA89B;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#2C877D;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#257A6F;stop-opacity:1" />
     </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0E443E" flood-opacity="0.25"/>
+    </filter>
   </defs>
-  <rect width="512" height="512" rx="120" fill="url(#grad1)"/>
-  <path fill="white" d="M356.5 204.3l-28-28.1c-9.4-9.4-24.6-9.4-33.9 0L193.8 277l-83.3-13c-6.5-1-12.7 1.6-16.8 6.9-4.1 5.3-5.1 12.2-2.8 18.4l33.8 90.1-23.4 23.4c-9.4 9.4-9.4 24.6 0 33.9l17 17c9.4 9.4 24.6 9.4 33.9 0l23.4-23.4 90.1 33.8c6.2 2.3 13.1 1.3 18.4-2.8 5.3-4.1 7.9-10.3 6.9-16.8l-13-83.3 100.8-100.8c9.4-9.4 9.4-24.6 0-33.9l-28.1-28.1c-15.3-15.3-37.4-17.7-55.3-7.2l61 61L399 292.8l-61-61c10.5-17.9 8.1-40-7.2-55.3z"/>
+  
+  <!-- App Icon Background -->
+  <rect width="512" height="512" rx="116" fill="url(#appBgGrad)"/>
+  
+  <g filter="url(#shadow)" fill="white">
+    <!-- Travel Backpack Body -->
+    <!-- Top Handle -->
+    <path d="M188 128 C188 108 204 92 224 92 L248 92 C268 92 284 108 284 128 L284 140 L188 140 Z" fill="none" stroke="white" stroke-width="16" stroke-linecap="round"/>
+    
+    <!-- Main Backpack -->
+    <rect x="148" y="140" width="176" height="236" rx="44" />
+    
+    <!-- Backpack Top Flap Cover -->
+    <path d="M148 184 C148 152 174 126 206 126 L266 126 C298 126 324 152 324 184 L324 230 C324 242 314 252 302 252 L170 252 C158 252 148 242 148 230 Z" fill="white" />
+    
+    <!-- Flap Straps (Teal cutout) -->
+    <rect x="186" y="160" width="14" height="106" rx="7" fill="#31968A" />
+    <rect x="272" y="160" width="14" height="106" rx="7" fill="#31968A" />
+    <!-- Buckles -->
+    <rect x="183" y="234" width="20" height="16" rx="4" fill="white" />
+    <rect x="269" y="234" width="20" height="16" rx="4" fill="white" />
+    <rect x="187" y="238" width="12" height="8" rx="2" fill="#31968A" />
+    <rect x="273" y="238" width="12" height="8" rx="2" fill="#31968A" />
+
+    <!-- Front Zipper Pocket -->
+    <rect x="172" y="278" width="128" height="82" rx="20" fill="#E8F6F4" />
+    <!-- Pocket Zipper Line -->
+    <path d="M190 300 L282 300" stroke="#31968A" stroke-width="6" stroke-linecap="round" />
+    <!-- Zipper Pull -->
+    <circle cx="216" cy="300" r="5" fill="#257A6F" />
+
+    <!-- Side Pockets -->
+    <rect x="134" y="240" width="18" height="80" rx="9" fill="white" />
+    <rect x="320" y="240" width="18" height="80" rx="9" fill="white" />
+
+    <!-- Bottom Bedroll / Gear Mat -->
+    <rect x="156" y="388" width="160" height="28" rx="14" fill="white" opacity="0.95" />
+    <rect x="190" y="380" width="10" height="42" rx="5" fill="#31968A" />
+    <rect x="272" y="380" width="10" height="42" rx="5" fill="#31968A" />
+    
+    <!-- Cute Footprints (腳丫印子) Trail -->
+    <!-- Footprint 1 (Top right) -->
+    <g transform="translate(360, 110) rotate(22)">
+      <!-- Sole -->
+      <ellipse cx="20" cy="34" rx="14" ry="20" />
+      <ellipse cx="18" cy="54" rx="11" ry="13" />
+      <!-- Toes -->
+      <circle cx="9" cy="8" r="4.5" />
+      <circle cx="18" cy="5" r="4.8" />
+      <circle cx="27" cy="7" r="4.2" />
+      <circle cx="34" cy="12" r="3.6" />
+      <circle cx="39" cy="18" r="3" />
+    </g>
+
+    <!-- Footprint 2 (Middle right) -->
+    <g transform="translate(376, 220) rotate(15)">
+      <!-- Sole -->
+      <ellipse cx="20" cy="34" rx="13" ry="19" />
+      <ellipse cx="18" cy="52" rx="10" ry="12" />
+      <!-- Toes -->
+      <circle cx="9" cy="9" r="4.2" />
+      <circle cx="18" cy="6" r="4.5" />
+      <circle cx="26" cy="8" r="3.9" />
+      <circle cx="33" cy="13" r="3.4" />
+      <circle cx="38" cy="19" r="2.8" />
+    </g>
+
+    <!-- Footprint 3 (Bottom right) -->
+    <g transform="translate(356, 330) rotate(28)">
+      <!-- Sole -->
+      <ellipse cx="20" cy="34" rx="14" ry="20" />
+      <ellipse cx="18" cy="54" rx="11" ry="13" />
+      <!-- Toes -->
+      <circle cx="9" cy="8" r="4.5" />
+      <circle cx="18" cy="5" r="4.8" />
+      <circle cx="27" cy="7" r="4.2" />
+      <circle cx="34" cy="12" r="3.6" />
+      <circle cx="39" cy="18" r="3" />
+    </g>
+
+    <!-- Tiny decorative star sparkles -->
+    <path d="M120 130 Q120 142 108 142 Q120 142 120 154 Q120 142 132 142 Q120 142 120 130 Z" fill="white" opacity="0.8"/>
+    <path d="M370 70 Q370 80 360 80 Q370 80 370 90 Q370 80 380 80 Q370 80 370 70 Z" fill="white" opacity="0.9"/>
+  </g>
 </svg>

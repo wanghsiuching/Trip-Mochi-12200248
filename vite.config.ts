@@ -15,16 +15,28 @@ export default defineConfig(({ mode }) => {
         react(),
         VitePWA({
           registerType: 'autoUpdate',
-          includeAssets: ['icon.jpg', 'icon.svg'],
+          includeAssets: ['icon.jpg', 'icon.png', 'icon.svg', 'apple-touch-icon.png'],
           manifest: {
-            name: 'Trip Mochi 2026',
+            name: 'Trip Mochi',
             short_name: 'Trip Mochi',
-            description: 'My Aesthetic Travel Planner',
-            theme_color: '#F7F4EB',
+            description: 'Trip Mochi Travel Planner',
+            theme_color: '#3AA89B',
             background_color: '#F7F4EB',
             display: 'standalone',
             start_url: '/',
             icons: [
+              {
+                src: 'icon.png',
+                sizes: '192x192',
+                type: 'image/png',
+                purpose: 'any maskable'
+              },
+              {
+                src: 'icon.png',
+                sizes: '512x512',
+                type: 'image/png',
+                purpose: 'any maskable'
+              },
               {
                 src: 'icon.svg',
                 sizes: '192x192 512x512',
