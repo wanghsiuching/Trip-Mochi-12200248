@@ -415,7 +415,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
 
                     {/* Notes preview if any */}
                     {doc.note && (
-                      <p className="text-[11px] font-bold text-gray-500 mt-2 line-clamp-2 bg-beige/40 p-2.5 rounded-xl border border-beige-dark/60">
+                      <p className="text-[11px] font-bold text-gray-500 mt-2 break-words whitespace-pre-wrap bg-beige/40 p-2.5 rounded-xl border border-beige-dark/60">
                         {doc.note}
                       </p>
                     )}

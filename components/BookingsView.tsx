@@ -641,10 +641,10 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             {/* Location & Map Search Row - strictly bound to address field */}
                             <div className="space-y-2.5 pt-1">
                                 {hasAddress ? (
-                                    <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-purple-50/50 border border-purple-100 text-xs font-bold text-cocoa">
-                                        <div className="flex items-center gap-2 truncate flex-1">
+                                    <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-purple-50/50 border border-purple-100 text-xs font-bold text-cocoa flex-wrap sm:flex-nowrap">
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
                                             <MapPin size={14} className="text-purple-600 flex-shrink-0"/>
-                                            <span className="truncate">{acc.address}</span>
+                                            <span className="break-words flex-1 leading-snug">{acc.address}</span>
                                         </div>
                                         <button 
                                             onClick={(e) => {
@@ -659,9 +659,9 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                     </div>
                                 ) : (
                                     <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-gray-50/80 border border-gray-200 text-xs font-bold text-gray-400">
-                                        <div className="flex items-center gap-2 truncate flex-1">
+                                        <div className="flex items-center gap-2 flex-1 min-w-0">
                                             <MapPin size={14} className="text-gray-400 flex-shrink-0"/>
-                                            <span className="truncate italic">尚未設定地址 (點擊卡片編輯)</span>
+                                            <span className="break-words italic">尚未設定地址 (點擊卡片編輯)</span>
                                         </div>
                                     </div>
                                 )}

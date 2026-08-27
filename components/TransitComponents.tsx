@@ -515,8 +515,10 @@ export const TransitLegChainView: React.FC<{
   const [canScrollLeft, setCanScrollLeft] = React.useState(false);
   const [canScrollRight, setCanScrollRight] = React.useState(false);
 
-  // Highlight timeout ref
+  // Highlight & scroll lock refs
   const highlightTimeoutRef = React.useRef<any>(null);
+  const isProgrammaticScrollingRef = React.useRef<boolean>(false);
+  const scrollLockTimeoutRef = React.useRef<any>(null);
 
   // Check scroll position to display edge gradient shadows
   const updateScrollShadows = React.useCallback(() => {
@@ -552,9 +554,19 @@ export const TransitLegChainView: React.FC<{
     container.scrollTo({ left: Math.max(0, scrollOffset), behavior: 'smooth' });
   };
 
-  // Click on a top nav icon (Blue Box ONLY): scroll to leg card and highlight it
+  // Click on a top nav icon: scroll to leg card and center it in the mobile screen
   const handleSelectLeg = (index: number, e?: React.MouseEvent) => {
     e?.stopPropagation();
+    
+    // Lock observer to prevent scroll animation from overriding activeIndex back to earlier items
+    isProgrammaticScrollingRef.current = true;
+    if (scrollLockTimeoutRef.current) {
+      clearTimeout(scrollLockTimeoutRef.current);
+    }
+    scrollLockTimeoutRef.current = setTimeout(() => {
+      isProgrammaticScrollingRef.current = false;
+    }, 1200);
+
     setActiveIndex(index);
     setHighlightedIndex(index);
 
@@ -563,22 +575,25 @@ export const TransitLegChainView: React.FC<{
     }
     highlightTimeoutRef.current = setTimeout(() => {
       setHighlightedIndex(null);
-    }, 2000);
+    }, 2200);
 
-    // Scroll corresponding card into view on explicit button click
+    // Scroll corresponding card into view AND CENTER it in the mobile viewport
     const targetCard = legCardRefs.current[index];
     if (targetCard) {
-      targetCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      targetCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     // Scroll the top nav bar internally to keep the active icon centered
     scrollNavToCenter(index);
   };
 
-  // Passive visual sync: sync active index when cards become visible without interrupting page touch scrolls
+  // Passive visual sync: sync active index when user manually scrolls through cards
   React.useEffect(() => {
     if (!expanded && !isDetailed) return;
     const observerCallback: IntersectionObserverCallback = (entries) => {
+      // If the user just clicked an anchor, ignore scroll updates during animation to prevent bounce-back
+      if (isProgrammaticScrollingRef.current) return;
+
       const visibleEntries = entries.filter(entry => entry.isIntersecting);
       if (visibleEntries.length > 0) {
         visibleEntries.sort((a, b) => b.intersectionRatio - a.intersectionRatio);
@@ -622,50 +637,64 @@ export const TransitLegChainView: React.FC<{
       <div className="bg-gradient-to-r from-blue-50/90 via-sky-50/70 to-indigo-50/80 p-3.5 rounded-2xl border-2 border-blue-100 shadow-sm space-y-2.5">
         
         {/* Origin to Destination Bar */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500 ring-4 ring-blue-100 flex-shrink-0" />
-            <div>
-              <span className="text-xs sm:text-sm font-black text-cocoa block leading-tight">{firstLeg.fromStation || '起點'}</span>
+        <div className="flex items-center justify-between gap-2">
+          {/* Origin Station */}
+          <div className="flex items-start gap-2 flex-1 min-w-0">
+            <div className="w-3 h-3 rounded-full bg-blue-500 ring-4 ring-blue-100 flex-shrink-0 mt-1" />
+            <div className="min-w-0 flex-1">
+              <span className="text-xs sm:text-sm font-black text-cocoa block leading-snug break-words">
+                {firstLeg.fromStation || '起點'}
+              </span>
               {firstLeg.departureTime && (
-                <span className="text-[10px] font-mono font-bold text-blue-600 bg-white/80 px-1.5 py-0.2 rounded border border-blue-100 inline-block mt-0.5">{firstLeg.departureTime} 發</span>
+                <span className="text-[10px] font-mono font-bold text-blue-600 bg-white/90 px-1.5 py-0.5 rounded-md border border-blue-100 inline-block mt-0.5">
+                  {firstLeg.departureTime} 發
+                </span>
               )}
             </div>
           </div>
 
-          <div className="flex-1 mx-2 sm:mx-3 flex flex-col items-center">
-            <div className="w-full h-0.5 bg-dashed bg-blue-200 relative my-1">
-              <div className="absolute left-1/2 -top-2 -translate-x-1/2 bg-white px-2 py-0.5 rounded-full text-[9px] font-black text-blue-600 border border-blue-200 shadow-xs whitespace-nowrap flex items-center gap-1">
-                <Layers size={10} className="text-blue-500" />
-                <span>{isMultiLeg ? `經停 ${legs.length - 1} 轉乘 · 共 ${legs.length} 段` : '直達路線'}</span>
-              </div>
+          {/* Clean Middle Connector without text overlap */}
+          <div className="flex flex-col items-center px-1 flex-shrink-0 text-blue-300">
+            <div className="flex items-center gap-1">
+              <div className="w-2.5 sm:w-5 h-0.5 bg-blue-200" />
+              <ArrowRight size={13} className="text-blue-400" />
+              <div className="w-2.5 sm:w-5 h-0.5 bg-blue-200" />
             </div>
           </div>
 
-          <div className="flex items-center gap-2 text-right">
-            <div>
-              <span className="text-xs sm:text-sm font-black text-cocoa block leading-tight">{lastLeg.toStation || '終點'}</span>
+          {/* Destination Station */}
+          <div className="flex items-start justify-end gap-2 flex-1 min-w-0 text-right">
+            <div className="min-w-0 flex-1">
+              <span className="text-xs sm:text-sm font-black text-cocoa block leading-snug break-words">
+                {lastLeg.toStation || '終點'}
+              </span>
               {lastLeg.arrivalTime && (
-                <span className="text-[10px] font-mono font-bold text-indigo-600 bg-white/80 px-1.5 py-0.2 rounded border border-indigo-100 inline-block mt-0.5">{lastLeg.arrivalTime} 到</span>
+                <span className="text-[10px] font-mono font-bold text-indigo-600 bg-white/90 px-1.5 py-0.5 rounded-md border border-indigo-100 inline-block mt-0.5">
+                  {lastLeg.arrivalTime} 到
+                </span>
               )}
             </div>
-            <div className="w-3 h-3 rounded-full bg-indigo-500 ring-4 ring-indigo-100 flex-shrink-0" />
+            <div className="w-3 h-3 rounded-full bg-indigo-500 ring-4 ring-indigo-100 flex-shrink-0 mt-1" />
           </div>
         </div>
 
-        {/* Toggle Collapse Button for compact itinerary card */}
-        {isMultiLeg && !isDetailed && (
-          <div className="flex justify-end pt-1 border-t border-blue-100/60">
+        {/* Bottom Bar: Route Transit Summary & Toggle Button */}
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-blue-100/70 flex-wrap">
+          <div className="inline-flex items-center gap-1.5 bg-white/90 px-2.5 py-1 rounded-xl text-[10px] sm:text-[11px] font-black text-blue-700 border border-blue-200/80 shadow-xs">
+            <Layers size={12} className="text-blue-500 flex-shrink-0" />
+            <span>{isMultiLeg ? `經停 ${legs.length - 1} 轉乘 · 共 ${legs.length} 段` : '直達路線'}</span>
+          </div>
+
+          {isMultiLeg && !isDetailed && (
             <button 
               onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
-              className="text-[11px] font-black text-blue-600 hover:text-blue-800 bg-white px-2.5 py-1 rounded-xl border border-blue-200 shadow-xs flex items-center gap-1.5 transition-all active:scale-95"
+              className="text-[11px] font-black text-blue-600 hover:text-blue-800 bg-white px-2.5 py-1 rounded-xl border border-blue-200 shadow-xs flex items-center gap-1.5 transition-all active:scale-95 ml-auto"
             >
-              <Layers size={12} />
               <span>{expanded ? '收合轉乘區間' : `展開 ${legs.length} 段詳細轉乘`}</span>
               {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Expandable or Detailed Leg Timeline Chain with Interactive Sticky Anchor Nav */}
@@ -768,7 +797,7 @@ export const TransitLegChainView: React.FC<{
                   ))}
                 </div>
 
-                <div className="text-[10px] font-bold text-gray-500 truncate max-w-[200px] sm:max-w-xs text-right">
+                <div className="text-[10px] font-bold text-gray-500 break-words text-right flex-1 min-w-0">
                   <span className="text-cocoa font-black">第 {activeIndex + 1} 段：</span>
                   <span>{currentLeg.fromStation || '起點'}</span>
                   <span className="text-gray-300 mx-0.5">➔</span>
@@ -813,15 +842,15 @@ export const TransitLegChainView: React.FC<{
                     >
                       {/* Top Header of Leg Card */}
                       <div className="flex items-center justify-between gap-2 border-b border-dashed border-gray-200 pb-2">
-                        <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
                           <span className={`p-1.5 rounded-xl border text-xs shadow-xs flex-shrink-0 ${typeCfg.bg} ${typeCfg.color} ${typeCfg.border}`}>
                             <IconComp size={15} />
                           </span>
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <span className="text-[10px] font-black text-gray-400 block uppercase leading-none mb-0.5">
                               {typeCfg.label}
                             </span>
-                            <h4 className="text-xs sm:text-sm font-black text-cocoa truncate">
+                            <h4 className="text-xs sm:text-sm font-black text-cocoa break-words leading-snug">
                               {leg.fromStation || '起點'} <span className="text-blue-400 mx-0.5">➔</span> {leg.toStation || '目的地'}
                             </h4>
                           </div>
@@ -853,7 +882,7 @@ export const TransitLegChainView: React.FC<{
                             <Tag size={13} className="text-indigo-500 flex-shrink-0" />
                             <div className="min-w-0">
                               <span className="text-[9px] font-bold text-indigo-400 block leading-none">車次 / 班號</span>
-                              <span className="font-mono font-black text-indigo-700 text-xs truncate block">
+                              <span className="font-mono font-black text-indigo-700 text-xs break-all block leading-tight">
                                 {leg.serviceNumber}
                               </span>
                             </div>
@@ -865,7 +894,7 @@ export const TransitLegChainView: React.FC<{
                             <MapPin size={13} className="text-amber-500 flex-shrink-0" />
                             <div className="min-w-0">
                               <span className="text-[9px] font-bold text-amber-500 block leading-none">月台 / 乘車處</span>
-                              <span className="font-black text-amber-900 text-xs truncate block">
+                              <span className="font-black text-amber-900 text-xs break-words block leading-tight">
                                 {leg.platform}
                               </span>
                             </div>

@@ -306,8 +306,8 @@ export const MembersView: React.FC<MembersViewProps> = ({
                                     <div key={idx} onClick={() => { setSelectedMemberId(null); onJumpToSchedule(item.date, item.id); }} className="p-3.5 rounded-2xl border border-beige-dark bg-white flex justify-between items-center gap-3 cursor-pointer transition-all active:scale-[0.98] hover:border-sage/40 shadow-xs">
                                         <div className="flex gap-3 items-center flex-1 min-w-0">
                                             <div className="p-2.5 rounded-xl bg-gray-50 text-gray-400 border border-beige-dark flex-shrink-0"><Clock size={16}/></div>
-                                            <div className="flex flex-col min-w-0">
-                                                <span className="text-sm font-black text-cocoa truncate">{item.title}</span>
+                                            <div className="flex flex-col min-w-0 flex-1">
+                                                <span className="text-sm font-black text-cocoa break-words leading-tight">{item.title}</span>
                                                 <span className="text-[10px] font-bold text-gray-400">{item.type} • {item.date}</span>
                                             </div>
                                         </div>

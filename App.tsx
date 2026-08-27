@@ -618,7 +618,7 @@ export default function App() {
               <div className="lg:hidden sticky top-0 z-30 bg-beige/85 backdrop-blur-md border-b border-[#E0E5D5]/50 px-4 pb-2 pt-1">
                  <div className="flex items-center justify-between mb-2 px-1">
                     <button onClick={() => setIsEditDayModalOpen(true)} className="text-sm font-black text-cocoa flex items-center gap-1.5"><CalendarCheck size={14} className="text-sage" /> 行程日期 <Edit3 size={10} className="text-gray-300"/></button>
-                    <div className="flex items-center gap-2">{tripDays.length > 1 && <button onClick={() => setIsDeleteDayModalOpen(true)} className="p-1.5 bg-red-100 text-red-500 rounded-full border border-red-200"><Trash2 size={12} /></button>}<button onClick={() => setIsEditDayModalOpen(true)} className="text-[10px] font-bold px-2 py-1 rounded-full border bg-white border-[#E0E5D5] text-cocoa flex items-center gap-1 shadow-sm"><span>{currentFruit} {currentLocation}</span></button></div>
+                    <div className="flex items-center gap-2 flex-wrap justify-end min-w-0">{tripDays.length > 1 && <button onClick={() => setIsDeleteDayModalOpen(true)} className="p-1.5 bg-red-100 text-red-500 rounded-full border border-red-200 flex-shrink-0"><Trash2 size={12} /></button>}<button onClick={() => setIsEditDayModalOpen(true)} className="text-[10px] font-bold px-2.5 py-1 rounded-full border bg-white border-[#E0E5D5] text-cocoa flex items-center gap-1 shadow-sm max-w-full text-left leading-tight"><span className="break-words">{currentFruit} {currentLocation}</span></button></div>
                  </div>
                  
                  <div ref={scrollRef} className="flex space-x-2 overflow-x-auto no-scrollbar pb-1 snap-x touch-pan-x">
@@ -741,7 +741,7 @@ export default function App() {
                                     </div>
                                     <div className="flex flex-col gap-1 flex-shrink-0"><button onClick={(e) => { e.stopPropagation(); handleMoveItem(index, 'up'); }} disabled={index === 0} className={`p-1 rounded-full border border-beige-dark ${index === 0 ? 'opacity-0' : 'text-gray-300 hover:bg-sage hover:text-white'}`}><ChevronUp size={12} /></button><button onClick={(e) => { e.stopPropagation(); handleMoveItem(index, 'down'); }} disabled={index === scheduleItems.filter(i => i.date === selectedDate).length - 1} className={`p-1 rounded-full border border-beige-dark ${index === scheduleItems.filter(i => i.date === selectedDate).length - 1 ? 'opacity-0' : 'text-gray-300 hover:bg-sage hover:text-white'}`}><ChevronDown size={12} /></button></div>
                                 </div>
-                                <div className="flex items-center text-gray-500 text-xs sm:text-sm gap-2 font-bold bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 w-full"><MapPin size={15} className="text-sage flex-shrink-0" /><span className="truncate flex-1">{item.location}</span><button onClick={(e) => { e.stopPropagation(); openMap(item.location); }} className="p-1.5 bg-white rounded-lg text-cocoa hover:text-white hover:bg-sage shadow-sm border border-gray-200 transition-colors flex-shrink-0"><Navigation size={12} strokeWidth={2.5} /></button></div>
+                                <div className="flex items-center text-gray-500 text-xs sm:text-sm gap-2 font-bold bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 w-full"><MapPin size={15} className="text-sage flex-shrink-0" /><span className="break-words flex-1 leading-snug">{item.location}</span><button onClick={(e) => { e.stopPropagation(); openMap(item.location); }} className="p-1.5 bg-white rounded-lg text-cocoa hover:text-white hover:bg-sage shadow-sm border border-gray-200 transition-colors flex-shrink-0"><Navigation size={12} strokeWidth={2.5} /></button></div>
                             </div>
                             <div className="relative w-full h-0 border-t-2 border-dashed border-beige-dark flex justify-between items-center"><div className="absolute -left-3 -top-3 w-6 h-6 bg-beige rounded-full border-r-2 border-beige-dark"></div><div className="absolute -right-3 -top-3 w-6 h-6 bg-beige rounded-full border-l-2 border-beige-dark"></div></div>
                             <div className="bg-[#FAF9F6] p-3.5 sm:p-4">
@@ -750,11 +750,11 @@ export default function App() {
                                         <div className="bg-gradient-to-br from-cyan-50/80 via-sky-50/40 to-blue-50/50 p-3 rounded-2xl border border-cyan-200/80 space-y-2.5">
                                             {/* Header: Airline & Flight Code */}
                                             <div className="flex items-center justify-between gap-2 border-b border-cyan-200/60 pb-2">
-                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
                                                     <div className="w-5 h-5 rounded-md bg-cyan-500 text-white flex items-center justify-center flex-shrink-0">
                                                         <Plane size={12} />
                                                     </div>
-                                                    <span className="text-xs sm:text-sm font-black text-cocoa truncate">
+                                                    <span className="text-xs sm:text-sm font-black text-cocoa break-words">
                                                         {item.flightDetails.airline || '航班'}
                                                     </span>
                                                     {item.flightDetails.flightCode && (
@@ -776,7 +776,7 @@ export default function App() {
                                                 <div className="flex items-center justify-between gap-1 text-xs">
                                                     {/* Departure */}
                                                     <div className="flex-1 min-w-0 text-left">
-                                                        <div className="font-mono text-xs sm:text-sm font-black text-cyan-950 truncate" title={item.flightDetails.departureAirport}>
+                                                        <div className="font-mono text-xs sm:text-sm font-black text-cyan-950 break-words" title={item.flightDetails.departureAirport}>
                                                             {item.flightDetails.departureAirport?.toUpperCase() || 'DEP'}
                                                         </div>
                                                         {item.flightDetails.departureTime && (
@@ -819,7 +819,7 @@ export default function App() {
 
                                                     {/* Arrival */}
                                                     <div className="flex-1 min-w-0 text-right">
-                                                        <div className="font-mono text-xs sm:text-sm font-black text-cyan-950 truncate" title={item.flightDetails.arrivalAirport}>
+                                                        <div className="font-mono text-xs sm:text-sm font-black text-cyan-950 break-words" title={item.flightDetails.arrivalAirport}>
                                                             {item.flightDetails.arrivalAirport?.toUpperCase() || 'ARR'}
                                                         </div>
                                                         {item.flightDetails.arrivalTime && (
@@ -833,8 +833,8 @@ export default function App() {
 
                                                 {/* Transit Detail Line if city or transit flight code exists */}
                                                 {(item.flightDetails.transitCity || item.flightDetails.transitFlightCode) && (
-                                                    <div className="pt-1.5 border-t border-dashed border-amber-100 flex items-center justify-between text-[10px] text-amber-900">
-                                                        <span className="flex items-center gap-1 truncate">
+                                                    <div className="pt-1.5 border-t border-dashed border-amber-100 flex items-center justify-between text-[10px] text-amber-900 flex-wrap gap-1">
+                                                        <span className="flex items-center gap-1 break-words flex-1 min-w-0">
                                                             <span className="text-gray-400">轉機城市:</span>
                                                             <span className="font-bold">{item.flightDetails.transitCity || item.flightDetails.transitAirport}</span>
                                                         </span>

@@ -688,9 +688,9 @@ export const ScheduleDetailModal = ({
                 <div className="overflow-y-auto custom-scroll flex-1 space-y-4 pr-1">
                     {/* Location */}
                     <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark shadow-sm flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-sm font-bold text-gray-500 overflow-hidden">
+                        <div className="flex items-center gap-2 text-sm font-bold text-gray-500 flex-1 min-w-0">
                             <MapPin size={16} className="text-sage flex-shrink-0" />
-                            <span className="truncate">{item.location}</span>
+                            <span className="break-words flex-1 leading-snug">{item.location}</span>
                         </div>
                         <button onClick={() => openMap(item.location)} className="p-1.5 bg-gray-50 rounded-lg text-cocoa hover:text-white hover:bg-sage shadow-sm border border-gray-200 transition-colors flex-shrink-0 ml-2">
                             <Navigation size={14} strokeWidth={2.5} />
@@ -701,11 +701,11 @@ export const ScheduleDetailModal = ({
                     {item.type === 'flight' && item.flightDetails && (
                         <div className="bg-gradient-to-br from-cyan-50/80 via-sky-50/40 to-blue-50/50 p-4 rounded-2xl border border-cyan-200/80 space-y-3">
                             <div className="flex items-center justify-between gap-2 border-b border-cyan-200/70 pb-2.5">
-                                <div className="flex items-center gap-2 min-w-0">
+                                <div className="flex items-center gap-2 min-w-0 flex-wrap">
                                     <div className="w-6 h-6 rounded-lg bg-cyan-500 text-white flex items-center justify-center flex-shrink-0 shadow-xs">
                                         <Plane size={14} />
                                     </div>
-                                    <span className="text-sm font-black text-cocoa truncate">
+                                    <span className="text-sm font-black text-cocoa break-words">
                                         {item.flightDetails.airline || '航班'}
                                     </span>
                                     {item.flightDetails.flightCode && (
@@ -727,7 +727,7 @@ export const ScheduleDetailModal = ({
                                 <div className="flex items-center justify-between gap-2 text-xs">
                                     {/* Departure */}
                                     <div className="flex-1 min-w-0 text-left">
-                                        <div className="font-mono text-sm sm:text-base font-black text-cyan-950 truncate">
+                                        <div className="font-mono text-sm sm:text-base font-black text-cyan-950 break-words">
                                             {item.flightDetails.departureAirport?.toUpperCase() || 'DEP'}
                                         </div>
                                         {item.flightDetails.departureTime && (
@@ -770,7 +770,7 @@ export const ScheduleDetailModal = ({
 
                                     {/* Arrival */}
                                     <div className="flex-1 min-w-0 text-right">
-                                        <div className="font-mono text-sm sm:text-base font-black text-cyan-950 truncate">
+                                        <div className="font-mono text-sm sm:text-base font-black text-cyan-950 break-words">
                                             {item.flightDetails.arrivalAirport?.toUpperCase() || 'ARR'}
                                         </div>
                                         {item.flightDetails.arrivalTime && (
@@ -784,8 +784,8 @@ export const ScheduleDetailModal = ({
 
                                 {/* Transit Detail Line if city or transit flight code exists */}
                                 {(item.flightDetails.transitCity || item.flightDetails.transitFlightCode) && (
-                                    <div className="pt-2 border-t border-dashed border-amber-100 flex items-center justify-between text-xs text-amber-900">
-                                        <span className="flex items-center gap-1 truncate">
+                                    <div className="pt-2 border-t border-dashed border-amber-100 flex items-center justify-between text-xs text-amber-900 flex-wrap gap-1">
+                                        <span className="flex items-center gap-1 break-words flex-1 min-w-0">
                                             <span className="text-gray-400">轉機城市:</span>
                                             <span className="font-bold">{item.flightDetails.transitCity || item.flightDetails.transitAirport}</span>
                                         </span>

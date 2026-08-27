@@ -215,12 +215,12 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
                         <div className="flex-1 bg-white rounded-3xl shadow-sm relative overflow-hidden border-2 border-transparent hover:border-yellow-200 transition-colors cursor-pointer active:scale-[0.99] transition-transform">
                             {/* Top Section: Title & Location */}
                             <div className="p-4 pb-3">
-                                <h3 className="font-black text-cocoa text-lg">{item.title}</h3>
+                                <h3 className="font-black text-cocoa text-lg break-words leading-snug">{item.title}</h3>
                                 {(item.location || item.address) && (
                                     <div className="mt-2 flex justify-between items-start gap-2">
-                                        <div className="flex flex-col gap-0.5 min-w-0">
-                                            {item.location && <span className="text-xs text-gray-400 font-bold truncate"><i className="fa-solid fa-location-dot text-orange-400 mr-1"></i> {item.location}</span>}
-                                            {item.address && <span className="text-[11px] text-[#B0A590] font-medium truncate"><i className="fa-solid fa-map-pin mr-1"></i> {item.address}</span>}
+                                        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+                                            {item.location && <span className="text-xs text-gray-400 font-bold break-words leading-tight"><i className="fa-solid fa-location-dot text-orange-400 mr-1"></i> {item.location}</span>}
+                                            {item.address && <span className="text-[11px] text-[#B0A590] font-medium break-words leading-tight"><i className="fa-solid fa-map-pin mr-1"></i> {item.address}</span>}
                                         </div>
                                     </div>
                                 )}
@@ -230,7 +230,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
                             <div className="p-4 pt-3">
                                 {/* Note */}
                                 {item.notes || item.note ? (
-                                    <p className="text-sm text-cocoa bg-[#FDFDF5] p-3 rounded-xl border border-[#E0E5D5] border-dashed leading-relaxed font-medium line-clamp-2">
+                                    <p className="text-sm text-cocoa bg-[#FDFDF5] p-3 rounded-xl border border-[#E0E5D5] border-dashed leading-relaxed font-medium break-words whitespace-pre-wrap">
                                         {item.notes || item.note}
                                     </p>
                                 ) : (

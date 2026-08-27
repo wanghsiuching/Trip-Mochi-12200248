@@ -431,7 +431,7 @@ export const PackingList: React.FC<PackingListProps> = ({
                         </span>
                       )}
                     </div>
-                    <div className="text-[11px] font-bold text-gray-400 mt-0.5 truncate">
+                    <div className="text-[11px] font-bold text-gray-400 mt-0.5 break-words">
                       {catTotal === 0 ? '尚未新增任何項目' : percentage === 100 ? '🎉 此分類已全部打包完成！' : `還有 ${catTotal - catPacked} 件物品待打包`}
                     </div>
                   </div>
@@ -521,7 +521,7 @@ export const PackingList: React.FC<PackingListProps> = ({
                           <Check size={12} strokeWidth={3} />
                         </div>
                         <span
-                          className={`text-xs font-black truncate transition-all ${
+                          className={`text-xs font-black break-words leading-snug transition-all ${
                             item.done ? 'line-through text-gray-400' : 'text-cocoa'
                           }`}
                         >

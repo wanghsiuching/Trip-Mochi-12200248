@@ -499,7 +499,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
 
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <h4 className={`text-base font-black text-cocoa truncate ${item.isVisited ? 'line-through text-gray-400' : ''}`}>
+                          <h4 className={`text-base font-black text-cocoa break-words ${item.isVisited ? 'line-through text-gray-400' : ''}`}>
                             {item.title}
                           </h4>
 
@@ -573,10 +573,10 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
 
                   {/* Location & Address with Map navigation */}
                   {item.location && (
-                    <div className="flex items-center gap-2 text-xs font-bold text-gray-600 bg-gray-50 px-3 py-2 rounded-xl mb-2 border border-gray-100">
+                    <div className="flex items-center gap-2 text-xs font-bold text-gray-600 bg-gray-50 px-3 py-2 rounded-xl mb-2 border border-gray-100 flex-wrap sm:flex-nowrap">
                       <MapPin size={14} className="text-sage flex-shrink-0" />
-                      <span className="flex-1 truncate">{item.location}</span>
-                      <div className="flex items-center gap-1">
+                      <span className="flex-1 break-words leading-snug">{item.location}</span>
+                      <div className="flex items-center gap-1 flex-shrink-0">
                         <button
                           onClick={() => handleCopyText(item.location!, item.id)}
                           className="p-1 bg-white hover:bg-gray-100 rounded-lg text-gray-500 border border-gray-200 transition-colors"
@@ -605,7 +605,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                         className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50/80 hover:bg-blue-100 px-3 py-1.5 rounded-xl border border-blue-200/80 transition-colors break-all"
                       >
                         <ExternalLink size={13} className="flex-shrink-0" />
-                        <span className="truncate max-w-[280px] sm:max-w-md">
+                        <span className="break-all">
                           {item.url.replace(/^https?:\/\//, '')}
                         </span>
                       </a>
