@@ -1,96 +1,85 @@
 
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <linearGradient id="appBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#3AA89B;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#257A6F;stop-opacity:1" />
-    </linearGradient>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0E443E" flood-opacity="0.25"/>
+    <!-- Soft warm shadow under the backpack -->
+    <radialGradient id="bottomShadow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#2D3B2D" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#2D3B2D" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="stickerShadow" x="-15%" y="-15%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#556B2F" flood-opacity="0.18"/>
     </filter>
   </defs>
-  
-  <!-- App Icon Background -->
-  <rect width="512" height="512" rx="116" fill="url(#appBgGrad)"/>
-  
-  <g filter="url(#shadow)" fill="white">
-    <!-- Travel Backpack Body -->
-    <!-- Top Handle -->
-    <path d="M188 128 C188 108 204 92 224 92 L248 92 C268 92 284 108 284 128 L284 140 L188 140 Z" fill="none" stroke="white" stroke-width="16" stroke-linecap="round"/>
+
+  <!-- Clean Pure White Background -->
+  <rect width="512" height="512" rx="116" fill="#FFFFFF" />
+
+  <!-- Soft Ground Shadow -->
+  <ellipse cx="256" cy="445" rx="145" ry="22" fill="url(#bottomShadow)" />
+
+  <g filter="url(#stickerShadow)">
+    <!-- White Sticker Outline Effect -->
+    <!-- Outer Handle Backing -->
+    <path d="M210 110 C210 82 230 62 256 62 C282 62 302 82 302 110 L302 140 L210 140 Z" fill="#FFFFFF" stroke="#E5EAE2" stroke-width="14" stroke-linecap="round"/>
     
-    <!-- Main Backpack -->
-    <rect x="148" y="140" width="176" height="236" rx="44" />
+    <!-- Top Leather Handle -->
+    <path d="M220 115 C220 95 236 78 256 78 C276 78 292 95 292 115 L292 140 L220 140 Z" fill="none" stroke="#C59B63" stroke-width="18" stroke-linecap="round"/>
+    <path d="M220 115 C220 95 236 78 256 78 C276 78 292 95 292 115 L292 140 L220 140 Z" fill="none" stroke="#9A7038" stroke-width="4" stroke-linecap="round" stroke-dasharray="6,4"/>
+
+    <!-- Left Shoulder Strap Curved Behind -->
+    <path d="M165 180 C110 205 92 310 128 395 C136 414 150 422 165 422" fill="none" stroke="#FFFFFF" stroke-width="36" stroke-linecap="round"/>
+    <path d="M165 180 C110 205 92 310 128 395 C136 414 150 422 165 422" fill="none" stroke="#8F9E82" stroke-width="24" stroke-linecap="round"/>
+    <path d="M165 180 C110 205 92 310 128 395 C136 414 150 422 165 422" fill="none" stroke="#5E6F52" stroke-width="2" stroke-linecap="round"/>
+
+    <!-- Main Olive Canvas Backpack Body -->
+    <path d="M175 145 C150 145 135 170 132 205 L124 370 C120 405 145 430 180 430 L332 430 C367 430 392 405 388 370 L380 205 C377 170 362 145 337 145 Z" fill="#95A488" stroke="#526147" stroke-width="6" />
+
+    <!-- Canvas Texture / Stitches highlights -->
+    <path d="M142 360 L148 220 C150 190 162 165 185 160" fill="none" stroke="#B1C0A5" stroke-width="4" stroke-linecap="round"/>
+
+    <!-- Side Left Pocket -->
+    <path d="M120 280 C112 280 106 288 108 300 L114 365 C116 376 124 382 135 382 L138 382 L134 280 Z" fill="#88987C" stroke="#526147" stroke-width="5"/>
+    <path d="M106 280 C106 273 112 268 120 268 L138 268 L138 285 L106 285 Z" fill="#D3A76C" stroke="#755227" stroke-width="4"/>
+
+    <!-- Side Right Pocket -->
+    <path d="M374 280 L378 382 L381 382 C392 382 400 376 402 365 L408 300 C410 288 404 280 396 280 Z" fill="#88987C" stroke="#526147" stroke-width="5"/>
+    <path d="M374 268 L396 268 C404 268 410 273 410 280 L374 285 Z" fill="#D3A76C" stroke="#755227" stroke-width="4"/>
+
+    <!-- Main Leather Top Flap / Hood -->
+    <path d="M165 155 C165 140 185 132 256 132 C327 132 347 140 347 155 L352 245 C352 265 332 278 312 278 L200 278 C180 278 160 265 160 245 Z" fill="#D9AC72" stroke="#6F4D20" stroke-width="6"/>
+    <!-- Top Flap Inner Shade & Texture -->
+    <path d="M178 162 C195 150 225 146 256 146 C287 146 317 150 334 162 L338 238 C338 252 324 262 308 262 L204 262 C188 262 174 252 174 238 Z" fill="#C99B60"/>
     
-    <!-- Backpack Top Flap Cover -->
-    <path d="M148 184 C148 152 174 126 206 126 L266 126 C298 126 324 152 324 184 L324 230 C324 242 314 252 302 252 L170 252 C158 252 148 242 148 230 Z" fill="white" />
-    
-    <!-- Flap Straps (Teal cutout) -->
-    <rect x="186" y="160" width="14" height="106" rx="7" fill="#31968A" />
-    <rect x="272" y="160" width="14" height="106" rx="7" fill="#31968A" />
-    <!-- Buckles -->
-    <rect x="183" y="234" width="20" height="16" rx="4" fill="white" />
-    <rect x="269" y="234" width="20" height="16" rx="4" fill="white" />
-    <rect x="187" y="238" width="12" height="8" rx="2" fill="#31968A" />
-    <rect x="273" y="238" width="12" height="8" rx="2" fill="#31968A" />
+    <!-- Top Leather Patch Label -->
+    <rect x="230" y="195" width="52" height="34" rx="6" fill="#B38448" stroke="#5C3B12" stroke-width="4"/>
+    <circle cx="238" cy="203" r="2" fill="#5C3B12"/>
+    <circle cx="274" cy="203" r="2" fill="#5C3B12"/>
+    <circle cx="238" cy="221" r="2" fill="#5C3B12"/>
+    <circle cx="274" cy="221" r="2" fill="#5C3B12"/>
 
-    <!-- Front Zipper Pocket -->
-    <rect x="172" y="278" width="128" height="82" rx="20" fill="#E8F6F4" />
-    <!-- Pocket Zipper Line -->
-    <path d="M190 300 L282 300" stroke="#31968A" stroke-width="6" stroke-linecap="round" />
-    <!-- Zipper Pull -->
-    <circle cx="216" cy="300" r="5" fill="#257A6F" />
+    <!-- Front Big Pocket -->
+    <rect x="175" y="295" width="162" height="110" rx="20" fill="#88987C" stroke="#526147" stroke-width="6"/>
+    <path d="M175 330 L337 330" stroke="#526147" stroke-width="4" stroke-linecap="round"/>
+    <rect x="200" y="336" width="112" height="8" rx="4" fill="#C99B60" stroke="#6F4D20" stroke-width="3"/>
+    <!-- Zipper Pull Tab -->
+    <rect x="210" y="344" width="10" height="18" rx="3" fill="#B38448" stroke="#5C3B12" stroke-width="2"/>
+    <circle cx="215" cy="342" r="3" fill="#5C3B12"/>
+    <!-- Bottom Right Leather Brand Patch on pocket -->
+    <rect x="280" y="365" width="38" height="24" rx="4" fill="#C99B60" stroke="#6F4D20" stroke-width="3"/>
 
-    <!-- Side Pockets -->
-    <rect x="134" y="240" width="18" height="80" rx="9" fill="white" />
-    <rect x="320" y="240" width="18" height="80" rx="9" fill="white" />
+    <!-- Vertical Leather Straps with Buckles -->
+    <!-- Left Strap -->
+    <rect x="195" y="165" width="22" height="155" rx="8" fill="#C59458" stroke="#5C3B12" stroke-width="4"/>
+    <!-- Left Buckle -->
+    <rect x="190" y="252" width="32" height="26" rx="6" fill="#F4E8D4" stroke="#5C3B12" stroke-width="4"/>
+    <rect x="198" y="258" width="16" height="14" rx="2" fill="#C59458" stroke="#5C3B12" stroke-width="2"/>
+    <rect x="204" y="252" width="4" height="26" fill="#5C3B12"/>
 
-    <!-- Bottom Bedroll / Gear Mat -->
-    <rect x="156" y="388" width="160" height="28" rx="14" fill="white" opacity="0.95" />
-    <rect x="190" y="380" width="10" height="42" rx="5" fill="#31968A" />
-    <rect x="272" y="380" width="10" height="42" rx="5" fill="#31968A" />
-    
-    <!-- Cute Footprints (腳丫印子) Trail -->
-    <!-- Footprint 1 (Top right) -->
-    <g transform="translate(360, 110) rotate(22)">
-      <!-- Sole -->
-      <ellipse cx="20" cy="34" rx="14" ry="20" />
-      <ellipse cx="18" cy="54" rx="11" ry="13" />
-      <!-- Toes -->
-      <circle cx="9" cy="8" r="4.5" />
-      <circle cx="18" cy="5" r="4.8" />
-      <circle cx="27" cy="7" r="4.2" />
-      <circle cx="34" cy="12" r="3.6" />
-      <circle cx="39" cy="18" r="3" />
-    </g>
-
-    <!-- Footprint 2 (Middle right) -->
-    <g transform="translate(376, 220) rotate(15)">
-      <!-- Sole -->
-      <ellipse cx="20" cy="34" rx="13" ry="19" />
-      <ellipse cx="18" cy="52" rx="10" ry="12" />
-      <!-- Toes -->
-      <circle cx="9" cy="9" r="4.2" />
-      <circle cx="18" cy="6" r="4.5" />
-      <circle cx="26" cy="8" r="3.9" />
-      <circle cx="33" cy="13" r="3.4" />
-      <circle cx="38" cy="19" r="2.8" />
-    </g>
-
-    <!-- Footprint 3 (Bottom right) -->
-    <g transform="translate(356, 330) rotate(28)">
-      <!-- Sole -->
-      <ellipse cx="20" cy="34" rx="14" ry="20" />
-      <ellipse cx="18" cy="54" rx="11" ry="13" />
-      <!-- Toes -->
-      <circle cx="9" cy="8" r="4.5" />
-      <circle cx="18" cy="5" r="4.8" />
-      <circle cx="27" cy="7" r="4.2" />
-      <circle cx="34" cy="12" r="3.6" />
-      <circle cx="39" cy="18" r="3" />
-    </g>
-
-    <!-- Tiny decorative star sparkles -->
-    <path d="M120 130 Q120 142 108 142 Q120 142 120 154 Q120 142 132 142 Q120 142 120 130 Z" fill="white" opacity="0.8"/>
-    <path d="M370 70 Q370 80 360 80 Q370 80 370 90 Q370 80 380 80 Q370 80 370 70 Z" fill="white" opacity="0.9"/>
+    <!-- Right Strap -->
+    <rect x="295" y="165" width="22" height="155" rx="8" fill="#C59458" stroke="#5C3B12" stroke-width="4"/>
+    <!-- Right Buckle -->
+    <rect x="290" y="252" width="32" height="26" rx="6" fill="#F4E8D4" stroke="#5C3B12" stroke-width="4"/>
+    <rect x="298" y="258" width="16" height="14" rx="2" fill="#C59458" stroke="#5C3B12" stroke-width="2"/>
+    <rect x="304" y="252" width="4" height="26" fill="#5C3B12"/>
   </g>
 </svg>

@@ -20,8 +20,8 @@ export default defineConfig(({ mode }) => {
             name: 'Trip Mochi',
             short_name: 'Trip Mochi',
             description: 'Trip Mochi Travel Planner',
-            theme_color: '#3AA89B',
-            background_color: '#F7F4EB',
+            theme_color: '#FFFFFF',
+            background_color: '#FFFFFF',
             display: 'standalone',
             start_url: '/',
             icons: [
