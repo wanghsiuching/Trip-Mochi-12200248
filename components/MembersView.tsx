@@ -54,7 +54,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
               const fee = hasFee ? base * (Number(feePct) || 0) / 100 : 0;
               const total = base + fee;
               if (total <= 0) return;
-              const perPerson = total / (effectiveParticipants.length || 1);
+              const perPerson = total;
               const twdAmount = toTWD(perPerson, currency);
 
               totalPotential += twdAmount;

@@ -1115,7 +1115,7 @@ export const TransitLegEditor: React.FC<{
         {/* Prices Input */}
         <div className="grid grid-cols-2 gap-2">
           <div className="bg-beige/40 p-2.5 rounded-xl border border-beige-dark">
-            <label className="text-[9px] font-bold text-gray-400 block mb-0.5">原票價 (牌告價/參考)</label>
+            <label className="text-[9px] font-bold text-gray-400 block mb-0.5">每人原票價 (單人牌告價/參考)</label>
             <div className="flex gap-1.5 items-center">
               <input
                 type="number"
@@ -1136,7 +1136,7 @@ export const TransitLegEditor: React.FC<{
           </div>
 
           <div className="bg-beige/40 p-2.5 rounded-xl border border-beige-dark">
-            <label className="text-[9px] font-bold text-gray-400 block mb-0.5">實際支付費用 (實付金額)</label>
+            <label className="text-[9px] font-bold text-gray-400 block mb-0.5">每人實付票價 (單人實際支付)</label>
             <div className="flex gap-1.5 items-center">
               <input
                 type="number"
@@ -1364,7 +1364,7 @@ export const TransitLegEditor: React.FC<{
 
                       <div className="flex gap-2 items-center">
                         <div className="flex-1 bg-white px-2.5 py-1.5 rounded-xl border border-blue-200 flex items-center gap-1.5 shadow-xs">
-                          <label className="text-[9px] font-bold text-gray-400">金額</label>
+                          <label className="text-[9px] font-bold text-gray-400">每人金額</label>
                           <input
                             type="number"
                             value={item.amount !== undefined && item.amount !== null ? item.amount : ''}

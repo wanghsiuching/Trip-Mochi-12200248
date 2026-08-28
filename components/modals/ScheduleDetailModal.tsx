@@ -165,7 +165,7 @@ export const ScheduleDetailModal = ({
 
                             {Number(item.flightDetails.cost) > 0 && (
                                 <div className="pt-2 border-t border-cyan-200 flex justify-between items-center">
-                                    <span className="text-xs font-bold text-gray-400">總機票費用</span>
+                                    <span className="text-xs font-bold text-gray-400">每人機票費用</span>
                                     <span className="text-sm font-black text-sage font-mono">{item.flightDetails.currency} {Number(item.flightDetails.cost).toLocaleString()}</span>
                                 </div>
                             )}
@@ -185,7 +185,7 @@ export const ScheduleDetailModal = ({
                             </div>
                             {Number(item.stayDetails.cost) > 0 && (
                                 <div className="pt-2 border-t border-purple-200 flex justify-between items-center">
-                                    <span className="text-[10px] font-bold text-gray-400">總費用</span>
+                                    <span className="text-[10px] font-bold text-gray-400">每人費用</span>
                                     <span className="text-sm font-black text-sage font-mono">{item.stayDetails.currency} {Number(item.stayDetails.cost).toLocaleString()}</span>
                                 </div>
                             )}

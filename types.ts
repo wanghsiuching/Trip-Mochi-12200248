@@ -113,6 +113,57 @@ export interface ExpenseItem {
   serviceFeePercentage?: number | string;
 }
 
+export interface FlightDetails {
+  airline?: string;
+  flightCode?: string;
+  departureDate?: string;
+  departureTime?: string;
+  arrivalDate?: string;
+  arrivalTime?: string;
+  departureAirport?: string;
+  arrivalAirport?: string;
+  hasTransit?: boolean;
+  transitAirport?: string;
+  transitCity?: string;
+  transitDuration?: string;
+  transitFlightCode?: string;
+  flightDuration?: string;
+  checkedBag?: string;
+  carryOnBag?: string;
+  cost?: number;
+  currency?: string;
+  hasServiceFee?: boolean;
+  serviceFee?: number;
+  serviceFeePercentage?: number;
+  participants?: string[];
+  isPotential?: boolean;
+}
+
+export interface StayDetails {
+  checkInDate?: string;
+  checkInTime?: string;
+  checkOutDate?: string;
+  checkOutTime?: string;
+  cost?: number;
+  currency?: string;
+  hasServiceFee?: boolean;
+  serviceFee?: number;
+  serviceFeePercentage?: number;
+  participants?: string[];
+  isPotential?: boolean;
+}
+
+export interface SpotDetails {
+  hasTicket: boolean;
+  ticketCost?: number;
+  currency?: string;
+  hasServiceFee?: boolean;
+  serviceFee?: number;
+  serviceFeePercentage?: number;
+  participants?: string[];
+  isPotential?: boolean;
+}
+
 export interface ScheduleItem {
   id: string;
   date: string; 
@@ -132,18 +183,9 @@ export interface ScheduleItem {
     isPotential?: boolean;
     participants?: string[];
   };
-  stayDetails?: any;
-  flightDetails?: any;
-  spotDetails?: {
-    hasTicket: boolean;
-    ticketCost?: number;
-    currency?: string;
-    hasServiceFee?: boolean;
-    serviceFee?: number;
-    serviceFeePercentage?: number;
-    participants?: string[];
-    isPotential?: boolean;
-  };
+  stayDetails?: StayDetails;
+  flightDetails?: FlightDetails;
+  spotDetails?: SpotDetails;
   address?: string;
   googleMapUrl?: string;
   naverMapUrl?: string;

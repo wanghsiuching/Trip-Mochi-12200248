@@ -42,10 +42,10 @@ export const PotentialExpensesModal = ({
         const total = cost + fee;
         if (total > 0) {
             const twd = toTWD(total, currency);
-            totalPotentialTWD += twd;
-            
             const splitCount = participants.length > 0 ? participants.length : 1; 
-            const perMember = twd / splitCount;
+            totalPotentialTWD += twd * splitCount;
+            
+            const perMember = twd;
             
             participants.forEach(pid => {
                 if (memberTotals[pid] !== undefined) {
