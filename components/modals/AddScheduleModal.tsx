@@ -8,6 +8,7 @@ import { TransitLegEditor } from '../TransitComponents';
 import { DateTimePickerField } from '../TimePickerComponents';
 import { ToggleSwitch } from './ToggleSwitch';
 import { DeleteItemConfirmModal } from './DeleteItemConfirmModal';
+import { getExchangeRate, POPULAR_CURRENCIES } from '../../utils/currency';
 
 const CuteButton = ({ checked, onChange, icon: Icon, label, activeColor = 'bg-orange-100 text-orange-500 border-orange-200' }: any) => (
     <button
@@ -25,7 +26,7 @@ const CuteButton = ({ checked, onChange, icon: Icon, label, activeColor = 'bg-or
 
 const CostDisplay = ({ amount, currency, hasFee, feePct, currencies }: { amount: number, currency: string, hasFee: boolean, feePct: number, currencies: Currency[] }) => {
     const total = amount + (hasFee ? amount * (Number(feePct) / 100) : 0);
-    const rate = currencies.find(c => c.code === currency)?.rate || (currency === 'TWD' ? 1 : 1);
+    const rate = getExchangeRate(currency, currencies);
     const twdTotal = Math.round(total * rate);
 
     if (total <= 0) return null;
@@ -37,7 +38,7 @@ const CostDisplay = ({ amount, currency, hasFee, feePct, currencies }: { amount:
             </div>
             {currency !== 'TWD' && (
                 <div className="flex justify-between items-center border-t border-gray-100 pt-1">
-                    <span className="text-[10px] font-bold text-sage uppercase tracking-wider">約台幣 (TWD)</span>
+                    <span className="text-[10px] font-bold text-sage uppercase tracking-wider">約台幣 (TWD) (匯率 {rate})</span>
                     <span className="text-sm font-black text-sage font-mono">${twdTotal.toLocaleString()}</span>
                 </div>
             )}
@@ -458,9 +459,13 @@ export const AddScheduleModal = ({
   };
 
   // Reusable Components
+  const availableCurrencyCodes = Array.from(new Set(['TWD', ...currencies.map(c => c.code), ...POPULAR_CURRENCIES.map(c => c.code)]));
+
   const CurrencySelect = ({ value, onChange }: { value: string, onChange: (v: string) => void }) => (
       <select value={value} onChange={e => onChange(e.target.value)} className="bg-white p-2 rounded-lg border border-beige-dark outline-none text-xs font-bold text-cocoa max-w-full">
-          <option value="TWD">TWD</option>{currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
+          {availableCurrencyCodes.map(code => (
+              <option key={code} value={code}>{code}</option>
+          ))}
       </select>
   );
 
@@ -481,12 +486,12 @@ export const AddScheduleModal = ({
     totalInRentalCurrency += baseWithFee;
 
     // Convert each extra expense to rentalCurrency if possible
-    const rentalRate = currencies.find(c => c.code === rentalCurrency)?.rate || (rentalCurrency === 'TWD' ? 1 : 1);
+    const rentalRate = getExchangeRate(rentalCurrency, currencies);
     
     rentalExpenses.forEach(exp => {
       const expAmount = Number(exp.amount) || 0;
       const expWithFee = expAmount + (exp.hasServiceFee ? expAmount * (Number(exp.serviceFeePercentage) || 0) / 100 : 0);
-      const expRate = currencies.find(c => c.code === exp.currency)?.rate || (exp.currency === 'TWD' ? 1 : 1);
+      const expRate = getExchangeRate(exp.currency, currencies);
       
       // Convert extra to TWD then to rentalCurrency
       const amountInTWD = expWithFee * expRate;

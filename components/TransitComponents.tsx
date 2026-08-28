@@ -14,6 +14,7 @@ import {
   Currency 
 } from '../types';
 import { TimePickerField } from './TimePickerComponents';
+import { getExchangeRate, POPULAR_CURRENCIES } from '../utils/currency';
 
 export const TRANSPORT_TYPE_CONFIG: Record<UniversalTransportType, {
   label: string;
@@ -315,12 +316,12 @@ export const TransitPassBadge: React.FC<{
 
   const extraItems = getTransitExtraFeeList(fare);
 
-  const mainRate = currencies.find(c => c.code === currency)?.rate || (currency === 'TWD' ? 1 : 1);
+  const mainRate = getExchangeRate(currency, currencies);
   const twdMain = Math.round(totalDiscWithFee * mainRate);
 
   let twdExtraTotal = 0;
   const extraCalculated = extraItems.map(item => {
-    const rate = currencies.find(c => c.code === item.currency)?.rate || (item.currency === 'TWD' ? 1 : 1);
+    const rate = getExchangeRate(item.currency, currencies);
     const twd = Math.round(item.totalWithFee * rate);
     twdExtraTotal += twd;
     return {
@@ -1129,8 +1130,9 @@ export const TransitLegEditor: React.FC<{
                 onChange={e => setFare(prev => ({ ...prev, currency: e.target.value }))}
                 className="bg-white p-1 rounded-lg border border-beige-dark text-xs font-bold text-cocoa outline-none cursor-pointer"
               >
-                <option value="TWD">TWD</option>
-                {currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
+                {Array.from(new Set(['TWD', ...currencies.map(c => c.code), ...POPULAR_CURRENCIES.map(c => c.code)])).map(code => (
+                  <option key={code} value={code}>{code}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -1378,8 +1380,9 @@ export const TransitLegEditor: React.FC<{
                           onChange={e => handleUpdateExtraFee(idx, { currency: e.target.value })}
                           className="bg-white px-2.5 py-2 rounded-xl border border-blue-200 text-xs font-black text-blue-700 outline-none cursor-pointer shadow-xs"
                         >
-                          <option value="TWD">TWD</option>
-                          {currencies.map(c => <option key={c.code} value={c.code}>{c.code}</option>)}
+                          {Array.from(new Set(['TWD', ...currencies.map(c => c.code), ...POPULAR_CURRENCIES.map(c => c.code)])).map(code => (
+                            <option key={code} value={code}>{code}</option>
+                          ))}
                         </select>
                       </div>
 
@@ -1445,13 +1448,13 @@ export const TransitLegEditor: React.FC<{
           const mainFeeVal = fare.hasServiceFee ? (mainDiscounted * mainFeePct / 100) : 0;
           const mainTotalWithFee = mainDiscounted + mainFeeVal;
           const mainCurrency = fare.currency || 'TWD';
-          const mainRate = currencies.find(c => c.code === mainCurrency)?.rate || (mainCurrency === 'TWD' ? 1 : 1);
+          const mainRate = getExchangeRate(mainCurrency, currencies);
           const mainTWD = Math.round(mainTotalWithFee * mainRate);
 
           const extraItems = getTransitExtraFeeList(fare);
           let extraTotalTWD = 0;
           const extraCalculated = extraItems.map(item => {
-            const rate = currencies.find(c => c.code === item.currency)?.rate || (item.currency === 'TWD' ? 1 : 1);
+            const rate = getExchangeRate(item.currency, currencies);
             const twd = Math.round(item.totalWithFee * rate);
             extraTotalTWD += twd;
             return {
