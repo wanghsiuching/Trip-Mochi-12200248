@@ -6,7 +6,7 @@ import {
   Trash2, Moon, Sparkles, Building, CheckCircle2, TrendingUp, HelpCircle
 } from 'lucide-react';
 import { BookingFlight, BookingAccommodation, BookingCarRental, BookingTicket, Currency, Member } from '../types';
-import { ToggleSwitch } from './Modals';
+import { ToggleSwitch } from './modals';
 import { DateTimePickerField, TimePickerField, DatePickerField } from './TimePickerComponents';
 
 interface BookingsViewProps {

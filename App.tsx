@@ -15,7 +15,7 @@ import {
 import { BottomNav } from './components/CommonUI';
 import { 
   AddScheduleModal, CreateTripModal, DeleteConfirmModal, SearchErrorModal, DeleteItemConfirmModal, TripSettingsModal, PotentialExpensesModal, EditDayDetailsModal, DeleteDayConfirmModal, BackupConfirmModal, ScheduleDetailModal
-} from './components/Modals';
+} from './components/modals';
 import { PocketPlacesModal } from './components/PocketPlacesModal';
 import { TransitLegChainView } from './components/TransitComponents';
 import { BookingsView } from './components/BookingsView';
@@ -23,8 +23,17 @@ import { ExpensesView } from './components/ExpensesView';
 import { JournalView } from './components/JournalView';
 import { PlanningView } from './components/PlanningView';
 import { MembersView } from './components/MembersView';
-import { getDefaultMemberAvatar } from './constants/avatars';
 import { createTrip, joinTripByCode, subscribeToTrip, addTripItem, updateTripField, duplicateTrip } from './services/tripService';
+import { 
+  useTripData, 
+  useBookingsData, 
+  useExpensesData, 
+  useJournalsData, 
+  usePlanningData, 
+  usePocketItemsData, 
+  useMembersData, 
+  useModalState 
+} from './hooks';
 
 export default function App() {
   const [view, setView] = useState<ViewState>('landing');
@@ -38,46 +47,134 @@ export default function App() {
   const [currentTripId, setCurrentTripId] = useState<string>('');
   const [currentTripName, setCurrentTripName] = useState('');
   const [savedTrips, setSavedTrips] = useState<SavedTrip[]>([]);
-  
-  const [tripDays, setTripDays] = useState<TripDay[]>([]);
-  const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
-  const [bookingFlights, setBookingFlights] = useState<BookingFlight[]>([]);
-  const [bookingAccommodations, setBookingAccommodations] = useState<BookingAccommodation[]>([]);
-  const [bookingCarRentals, setBookingCarRentals] = useState<BookingCarRental[]>([]);
-  const [bookingTickets, setBookingTickets] = useState<BookingTicket[]>([]);
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [journals, setJournals] = useState<Journal[]>([]);
-  const [planningLists, setPlanningLists] = useState<{
-      todo: TodoItem[];
-      packing: TodoItem[];
-      wish: TodoItem[];
-      shopping: TodoItem[];
-      documents?: TravelDocument[];
-  }>({ todo: [], packing: [], wish: [], shopping: [], documents: [] });
-  const [currencies, setCurrencies] = useState<Currency[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [pocketItems, setPocketItems] = useState<PocketItem[]>([]);
-  
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<ScheduleItem | null>(null);
-  const [viewingItem, setViewingItem] = useState<ScheduleItem | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [deleteModalTarget, setDeleteModalTarget] = useState<string | null>(null);
-  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [isPotentialModalOpen, setIsPotentialModalOpen] = useState(false);
-  const [isPocketModalOpen, setIsPocketModalOpen] = useState(false);
-  const [pocketInitialTab, setPocketInitialTab] = useState<'food' | 'spot' | 'shopping'>('food');
-  const [isEditDayModalOpen, setIsEditDayModalOpen] = useState(false);
-  const [isDeleteDayModalOpen, setIsDeleteDayModalOpen] = useState(false);
-  const [isBackupConfirmOpen, setIsBackupConfirmOpen] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
 
-  const [highlightExpenseId, setHighlightExpenseId] = useState<string | null>(null);
+  // Domain Hooks
+  const {
+    tripDays,
+    setTripDays,
+    scheduleItems,
+    setScheduleItems,
+    handleSaveItem: handleSaveTripItem,
+    confirmDeleteItem: confirmDeleteTripItem,
+    handleMoveItem: handleMoveTripItem,
+    handleAddDay,
+    confirmDeleteDay: confirmDeleteTripDay,
+    handleUpdateDayDetails: handleUpdateTripDayDetails,
+    handleSwapLogic: handleSwapTripDaysLogic
+  } = useTripData(currentTripId);
 
-  // --- Optimized Swap State ---
-  const [swappingFromIndex, setSwappingFromIndex] = useState<number | null>(null);
+  const {
+    members,
+    setMembers,
+    handleAddMember,
+    handleUpdateMember,
+    handleDeleteMember,
+    getMemberNames
+  } = useMembersData(currentTripId);
+
+  const {
+    bookingFlights,
+    setBookingFlights,
+    bookingAccommodations,
+    setBookingAccommodations,
+    bookingCarRentals,
+    setBookingCarRentals,
+    bookingTickets,
+    setBookingTickets,
+    handleAddFlight,
+    handleUpdateFlight,
+    handleDeleteFlight,
+    handleAddAccommodation,
+    handleUpdateAccommodation,
+    handleDeleteAccommodation,
+    handleAddCar,
+    handleUpdateCar,
+    handleDeleteCar,
+    handleAddTicket,
+    handleUpdateTicket,
+    handleDeleteTicket
+  } = useBookingsData(currentTripId);
+
+  const {
+    expenses,
+    setExpenses,
+    currencies,
+    setCurrencies,
+    handleAddExpense,
+    handleUpdateExpense,
+    handleDeleteExpense,
+    addCurrency,
+    removeCurrency
+  } = useExpensesData(currentTripId);
+
+  const {
+    journals,
+    setJournals,
+    handleAddJournal,
+    handleUpdateJournal,
+    handleDeleteJournal
+  } = useJournalsData(currentTripId);
+
+  const {
+    planningLists,
+    setPlanningLists,
+    handleAddPlanning,
+    handleTogglePlanning,
+    handleUpdatePlanning,
+    handleDeletePlanning,
+    handleAddDocument,
+    handleUpdateDocument,
+    handleDeleteDocument
+  } = usePlanningData(currentTripId, members);
+
+  const {
+    pocketItems,
+    setPocketItems,
+    handleAddPocketItem,
+    handleUpdatePocketItem,
+    handleDeletePocketItem,
+    handleAddToScheduleFromPocket: handleAddPocketToSchedule
+  } = usePocketItemsData(currentTripId);
+
+  const {
+    isAddModalOpen,
+    setIsAddModalOpen,
+    editingItem,
+    setEditingItem,
+    viewingItem,
+    setViewingItem,
+    isCreateModalOpen,
+    setIsCreateModalOpen,
+    deleteModalTarget,
+    setDeleteModalTarget,
+    itemToDelete,
+    setItemToDelete,
+    isSettingsModalOpen,
+    setIsSettingsModalOpen,
+    isPotentialModalOpen,
+    setIsPotentialModalOpen,
+    isPocketModalOpen,
+    setIsPocketModalOpen,
+    pocketInitialTab,
+    setPocketInitialTab,
+    isEditDayModalOpen,
+    setIsEditDayModalOpen,
+    isDeleteDayModalOpen,
+    setIsDeleteDayModalOpen,
+    isBackupConfirmOpen,
+    setIsBackupConfirmOpen,
+    isSearching,
+    setIsSearching,
+    searchError,
+    setSearchError,
+    highlightExpenseId,
+    setHighlightExpenseId,
+    swappingFromIndex,
+    setSwappingFromIndex,
+    handleEditClick,
+    handleDeleteItemClick
+  } = useModalState();
+
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTriggeredAtRef = useRef<number>(0);
   const touchStartPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -133,11 +230,6 @@ export default function App() {
           hash = id.charCodeAt(i) + ((hash << 5) - hash);
       }
       return SCHEDULE_ICONS[Math.abs(hash) % SCHEDULE_ICONS.length];
-  };
-
-  const getMemberNames = (ids?: string[]) => {
-      if (!ids || ids.length === 0) return '';
-      return ids.map(id => members.find(m => m.id === id)?.name).filter(Boolean).join(', ');
   };
 
   useEffect(() => {
@@ -274,207 +366,45 @@ export default function App() {
     } finally {
         setLoading(false);
     }
-  }
-
-  const handleAddExpense = (newExpense: Omit<Expense, 'id'>) => addTripItem(currentTripId, 'expenses', { ...newExpense, id: Date.now() });
-  const handleUpdateExpense = (updated: Expense) => updateTripField(currentTripId, 'expenses', expenses.map(e => e.id === updated.id ? updated : e));
-  const handleDeleteExpense = (id: number) => updateTripField(currentTripId, 'expenses', expenses.filter(e => e.id !== id));
-  const handleAddJournal = (newJournal: Journal) => addTripItem(currentTripId, 'journals', newJournal);
-  const handleUpdateJournal = (updated: Journal) => updateTripField(currentTripId, 'journals', journals.map(j => j.id === updated.id ? updated : j));
-  const handleDeleteJournal = (id: number) => updateTripField(currentTripId, 'journals', journals.filter(j => j.id !== id));
-  const handleAddPlanning = (type: 'todo' | 'packing' | 'wish' | 'shopping', text: string, assignee: string | string[], image?: string, note?: string, url?: string, category?: string) => {
-      const newItem = { id: Date.now(), text, assignee, completedBy: [], done: false, image, note, url, category };
-      const currentList = planningLists[type] || [];
-      updateTripField(currentTripId, 'planning', { ...planningLists, [type]: [...currentList, newItem] });
-  };
-  const handleTogglePlanning = (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number, memberName?: string) => {
-      const currentList = planningLists[type] || [];
-      const newLists = { ...planningLists, [type]: currentList.map(item => { if (item.id !== id) return item; if (type === 'todo' && (item.assignee === '全體' || (Array.isArray(item.assignee) && item.assignee.length > 1))) { if (!memberName) return item; const currentCompleted = item.completedBy || []; const newCompleted = currentCompleted.includes(memberName) ? currentCompleted.filter(m => m !== memberName) : [...currentCompleted, memberName]; let targets: string[] = []; if (item.assignee === '全體') targets = members.map(m => m.name); else if (Array.isArray(item.assignee)) targets = item.assignee; else targets = [item.assignee as string]; const allDone = targets.every(t => newCompleted.includes(t)); return { ...item, completedBy: newCompleted, done: allDone }; } else { return { ...item, done: !item.done }; } }) };
-      updateTripField(currentTripId, 'planning', newLists);
-  };
-  const handleUpdatePlanning = (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number, updates: Partial<TodoItem>) => {
-      const currentList = planningLists[type] || [];
-      updateTripField(currentTripId, 'planning', { ...planningLists, [type]: currentList.map(item => item.id === id ? { ...item, ...updates } : item) });
-  };
-  const handleDeletePlanning = (type: 'todo' | 'packing' | 'wish' | 'shopping', id: number) => {
-      const currentList = planningLists[type] || [];
-      updateTripField(currentTripId, 'planning', { ...planningLists, [type]: currentList.filter(item => item.id !== id) });
-  };
-
-  const handleAddDocument = (newDoc: Omit<TravelDocument, 'id' | 'createdAt'>) => {
-      const docWithId: TravelDocument = {
-          ...newDoc,
-          id: Date.now().toString(),
-          createdAt: Date.now(),
-      };
-      const updatedDocs = [...(planningLists.documents || []), docWithId];
-      const newPlanning = { ...planningLists, documents: updatedDocs };
-      setPlanningLists(newPlanning);
-      updateTripField(currentTripId, 'planning', newPlanning);
-  };
-  const handleUpdateDocument = (id: string | number, updates: Partial<TravelDocument>) => {
-      const updatedDocs = (planningLists.documents || []).map(d => String(d.id) === String(id) ? { ...d, ...updates } : d);
-      const newPlanning = { ...planningLists, documents: updatedDocs };
-      setPlanningLists(newPlanning);
-      updateTripField(currentTripId, 'planning', newPlanning);
-  };
-  const handleDeleteDocument = (id: string | number) => {
-      const updatedDocs = (planningLists.documents || []).filter(d => String(d.id) !== String(id));
-      const newPlanning = { ...planningLists, documents: updatedDocs };
-      setPlanningLists(newPlanning);
-      updateTripField(currentTripId, 'planning', newPlanning);
-  };
-  
-  const handleAddMember = (name: string, avatar: string | null) => {
-      const fruits = [
-          '🍎', '🍏', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', 
-          '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🥑', '🍆',
-          '🥕', '🌽', '🌶️', '🫑', '🥒', '🥬', '🥦', '🍄', '栗', '🌰'
-      ];
-      const randomFruit = fruits[Math.floor(Math.random() * fruits.length)];
-      const finalAvatar = avatar || getDefaultMemberAvatar(name || `member-${Date.now()}`);
-      addTripItem(currentTripId, 'members', { id: Date.now().toString(), name, avatar: finalAvatar, fruit: randomFruit });
-  };
-  
-  const handleUpdateMember = (updated: Member) => updateTripField(currentTripId, 'members', members.map(m => m.id === updated.id ? updated : m));
-  const handleDeleteMember = (id: string) => { if (members.length > 1) updateTripField(currentTripId, 'members', members.filter(m => m.id !== id)); };
-  
-  const handleAddFlight = (flight: BookingFlight) => addTripItem(currentTripId, 'flights', flight);
-  const handleUpdateFlight = (updated: BookingFlight) => updateTripField(currentTripId, 'flights', bookingFlights.map(f => String(f.id) === String(updated.id) ? updated : f));
-  const handleDeleteFlight = (id: number) => updateTripField(currentTripId, 'flights', bookingFlights.filter(f => String(f.id) !== String(id)));
-  
-  const handleAddCar = (car: BookingCarRental) => addTripItem(currentTripId, 'carRentals', car);
-  const handleUpdateCar = (updated: BookingCarRental) => updateTripField(currentTripId, 'carRentals', bookingCarRentals.map(c => String(c.id) === String(updated.id) ? updated : c));
-  const handleDeleteCar = (id: number) => updateTripField(currentTripId, 'carRentals', bookingCarRentals.filter(c => String(c.id) !== String(id)));
-
-  const handleAddPocketItem = (item: Omit<PocketItem, 'id' | 'createdAt'>) => {
-    const newItem: PocketItem = {
-      ...item,
-      id: Date.now().toString(),
-      createdAt: Date.now(),
-    };
-    setPocketItems(prev => {
-      const next = [...prev, newItem];
-      updateTripField(currentTripId, 'pocketItems', next).catch(err => {
-        console.error('Failed to add pocket item:', err);
-      });
-      return next;
-    });
-  };
-
-  const handleUpdatePocketItem = (updated: PocketItem) => {
-    setPocketItems(prev => {
-      const next = prev.map(p => p.id === updated.id ? updated : p);
-      updateTripField(currentTripId, 'pocketItems', next).catch(err => {
-        console.error('Failed to update pocket item:', err);
-      });
-      return next;
-    });
-  };
-
-  const handleDeletePocketItem = (id: string) => {
-    setPocketItems(prev => {
-      const next = prev.filter(p => p.id !== id);
-      updateTripField(currentTripId, 'pocketItems', next).catch(err => {
-        console.error('Failed to delete pocket item:', err);
-      });
-      return next;
-    });
   };
 
   const handleAddToScheduleFromPocket = (item: PocketItem, targetDate: string, time: string) => {
-    const newScheduleItem: Omit<ScheduleItem, 'id'> = {
-      date: targetDate || selectedDate,
-      time: time || '12:00',
-      title: item.title,
-      type: item.category === 'food' ? 'food' : 'spot',
-      location: item.location || item.title,
-      notes: item.notes || '',
-      address: item.location,
-      googleMapUrl: item.url || (item.location ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(item.location)}` : undefined),
-      spotDetails: {
-        hasTicket: false,
-        participants: members.map(m => m.id),
-        isPotential: false,
-      },
-    };
-    addTripItem(currentTripId, 'scheduleItems', { ...newScheduleItem, id: Date.now().toString() });
-    setPocketItems(prev => {
-      const next = prev.map(p => p.id === item.id ? { ...p, assignedDate: targetDate } : p);
-      updateTripField(currentTripId, 'pocketItems', next).catch(err => {
-        console.error('Failed to update assignedDate in pocket:', err);
-      });
-      return next;
-    });
+    handleAddPocketToSchedule(item, targetDate, time, selectedDate, members);
   };
 
-  const handleSaveItem = (itemData: Omit<ScheduleItem, 'id'>) => { if (editingItem) { updateTripField(currentTripId, 'scheduleItems', scheduleItems.map(item => item.id === editingItem.id ? { ...itemData, id: item.id } : item)); setEditingItem(null); } else { addTripItem(currentTripId, 'scheduleItems', { ...itemData, id: Date.now().toString() }); } };
-  const handleEditClick = (item: ScheduleItem) => { setEditingItem(item); setIsAddModalOpen(true); };
-  const handleDeleteItemClick = (itemId: string) => setItemToDelete(itemId);
-  const confirmDeleteItem = () => { if (itemToDelete) { updateTripField(currentTripId, 'scheduleItems', scheduleItems.filter(item => item.id !== itemToDelete)); setItemToDelete(null); } };
-  const handleMoveItem = (index: number, direction: 'up' | 'down') => { const currentDayItems = scheduleItems.filter(i => i.date === selectedDate); const itemA = currentDayItems[index]; const targetIndex = direction === 'up' ? index - 1 : index + 1; const itemB = currentDayItems[targetIndex]; const itemAId = itemA.id; const itemBId = itemB.id; const newArr = [...scheduleItems]; const idxA = newArr.findIndex(i => i.id === itemAId); const idxB = newArr.findIndex(i => i.id === itemBId); if (idxA > -1 && idxB > -1) { [newArr[idxA], newArr[idxB]] = [newArr[idxB], newArr[idxA]]; updateTripField(currentTripId, 'scheduleItems', newArr); } };
+  const handleSaveItem = (itemData: Omit<ScheduleItem, 'id'>) => {
+    handleSaveTripItem(itemData, editingItem, () => setEditingItem(null));
+  };
+
+  const confirmDeleteItem = () => {
+    confirmDeleteTripItem(itemToDelete, () => setItemToDelete(null));
+  };
+
+  const handleMoveItem = (index: number, direction: 'up' | 'down') => {
+    handleMoveTripItem(index, direction, selectedDate);
+  };
+
   const openMap = (location: string) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`, '_blank');
-  
-  const handleAddDay = () => {
-    const sortedByDate = [...tripDays].sort((a, b) => a.date.localeCompare(b.date));
-    const latestDay = sortedByDate[sortedByDate.length - 1];
-    const nextDate = new Date(latestDay.date);
-    nextDate.setDate(nextDate.getDate() + 1);
-    const dateStr = nextDate.toISOString().split('T')[0];
-    
-    if (tripDays.some(d => d.date === dateStr)) {
-        alert('日期重複：' + dateStr + ' 已存在於行程中！');
-        return;
-    }
-    
-    updateTripField(currentTripId, 'tripDays', [...tripDays, { date: dateStr, location: latestDay.location, fruit: latestDay.fruit }]);
-  };
 
-  const confirmDeleteDay = () => { if (tripDays.length > 1) { const newDays = tripDays.filter(d => d.date !== selectedDate); updateTripField(currentTripId, 'tripDays', newDays); updateTripField(currentTripId, 'scheduleItems', scheduleItems.filter(item => item.date !== selectedDate)); if (!newDays.find(d => d.date === selectedDate)) setSelectedDate(newDays[0].date); setIsDeleteDayModalOpen(false); } };
+  const confirmDeleteDay = () => {
+    confirmDeleteTripDay(selectedDate, (newDate) => {
+      setSelectedDate(newDate);
+    });
+    setIsDeleteDayModalOpen(false);
+  };
   
   const handleUpdateDayDetails = (newDate: string, newLoc: string, newFruit: string) => { 
-    if (newDate !== selectedDate && tripDays.some(d => d.date === newDate)) {
-        alert('日期重複：' + newDate + ' 已存在於行程中！');
-        return;
-    }
-    updateTripField(currentTripId, 'tripDays', tripDays.map(d => d.date === selectedDate ? { date: newDate, location: newLoc, fruit: newFruit } : d)); 
-    updateTripField(currentTripId, 'scheduleItems', scheduleItems.map(item => item.date === selectedDate ? { ...item, date: newDate } : item)); 
-    setSelectedDate(newDate); 
-    setIsEditDayModalOpen(false); 
+    handleUpdateTripDayDetails(selectedDate, newDate, newLoc, newFruit, () => {
+      setSelectedDate(newDate);
+      setIsEditDayModalOpen(false);
+    });
   };
-  
-  const addCurrency = (c: Currency) => updateTripField(currentTripId, 'currencies', [...currencies, c]);
-  const removeCurrency = (code: string) => updateTripField(currentTripId, 'currencies', currencies.filter(c => c.code !== code));
-  
+
   // --- Enhanced Reordering Logic: Long Press -> Released -> Click Target to Swap ---
   const handleSwapLogic = (idx1: number, idx2: number) => {
-    if (idx1 === idx2) return;
-
-    const newTripDays = [...tripDays];
-    const day1 = { ...newTripDays[idx1] };
-    const day2 = { ...newTripDays[idx2] };
-    
-    const date1 = day1.date;
-    const date2 = day2.date;
-
-    // Swap logical contents (locations) but keep the original dates at their respective positions
-    newTripDays[idx1] = { ...day2, date: date1 };
-    newTripDays[idx2] = { ...day1, date: date2 };
-
-    // Update all schedule items to follow their day contents to the new date
-    const updatedScheduleItems = scheduleItems.map(item => {
-        if (item.date === date1) return { ...item, date: date2 };
-        if (item.date === date2) return { ...item, date: date1 };
-        return item;
+    handleSwapTripDaysLogic(idx1, idx2, (newDate) => {
+      setSelectedDate(newDate);
     });
-
-    updateTripField(currentTripId, 'tripDays', newTripDays);
-    updateTripField(currentTripId, 'scheduleItems', updatedScheduleItems);
-    
-    // Switch view to the date we just moved the content to
-    setSelectedDate(date2);
-
-    if (window.navigator.vibrate) window.navigator.vibrate([30, 50, 30]);
   };
 
   const handleDayTouchStart = (idx: number, e: React.TouchEvent | React.MouseEvent) => {

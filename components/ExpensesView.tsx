@@ -9,7 +9,7 @@ import {
   Car, Bed, Utensils, Ticket, PieChart as PieChartIcon
 } from 'lucide-react';
 import { Expense, Member, Currency, Comment } from '../types';
-import { ToggleSwitch, DeleteItemConfirmModal } from './Modals';
+import { ToggleSwitch, DeleteItemConfirmModal } from './modals';
 import { DatePickerField, TimePickerField, DateTimePickerField } from './TimePickerComponents';
 import { MemberAvatar } from './MemberAvatar';
 import { ExpenseDistributionChart, detectExpenseCategory, ExpenseCategoryKey } from './ExpenseDistributionChart';
