@@ -1,9 +1,9 @@
 /**
- * Fast, pure client-side image compression to lightweight JPEG Base64.
+ * Fast, pure client-side image compression to lightweight WebP/JPEG Base64.
  * 
- * - Max dimension: 420px (crisp on mobile retina screens, optimal for travel cards)
- * - Compression ratio: 0.48 (~8KB - 14KB per photo)
- * - Zero external storage / Firebase Storage dependency (No paid Blaze plan needed)
+ * - Max dimension: 640px (crisp on mobile retina screens, optimal for travel cards & preview)
+ * - Format: Prefer WebP with automatic fallback to JPEG
+ * - Zero external storage / Firebase Storage dependency
  * - 100% saved directly in Firestore database as Base64 strings
  * - Instant processing (<100ms per image)
  */
@@ -67,9 +67,9 @@ export const compressImageToBase64 = async (rawFile: File): Promise<string> => {
 
       img.onload = () => {
         try {
-          const maxDimension = 420;
-          let width = img.naturalWidth || img.width || 420;
-          let height = img.naturalHeight || img.height || 315;
+          const maxDimension = 640;
+          let width = img.naturalWidth || img.width || 640;
+          let height = img.naturalHeight || img.height || 480;
 
           if (width > height) {
             if (width > maxDimension) {
@@ -100,10 +100,30 @@ export const compressImageToBase64 = async (rawFile: File): Promise<string> => {
           ctx.imageSmoothingQuality = 'medium';
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-          let compressed = canvas.toDataURL('image/jpeg', 0.48);
-          // If still slightly large (>25KB), downscale slightly
-          if (compressed.length > 25000) {
-            compressed = canvas.toDataURL('image/jpeg', 0.32);
+          // Prefer WebP format; fallback to JPEG if browser does not support WebP canvas encoding
+          let isWebpSupported = false;
+          let compressed = '';
+          try {
+            const webpCandidate = canvas.toDataURL('image/webp', 0.6);
+            if (webpCandidate.startsWith('data:image/webp')) {
+              compressed = webpCandidate;
+              isWebpSupported = true;
+            }
+          } catch {
+            isWebpSupported = false;
+          }
+
+          if (!compressed) {
+            compressed = canvas.toDataURL('image/jpeg', 0.55);
+          }
+
+          // If still large (>35KB), apply secondary compression
+          if (compressed.length > 35000) {
+            if (isWebpSupported) {
+              compressed = canvas.toDataURL('image/webp', 0.4);
+            } else {
+              compressed = canvas.toDataURL('image/jpeg', 0.4);
+            }
           }
 
           resolve(compressed);
