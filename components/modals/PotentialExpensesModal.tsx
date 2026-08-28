@@ -5,10 +5,11 @@ import { getTransitEffectiveFare } from '../TransitComponents';
 import { MemberAvatar } from '../MemberAvatar';
 
 export const PotentialExpensesModal = ({ 
-    isOpen, onClose, items, currencies, members 
+    isOpen, onClose, items, currencies, members, onJumpToSchedule 
 }: { 
     isOpen: boolean, onClose: () => void, 
-    items: ScheduleItem[], currencies: Currency[], members: Member[] 
+    items: ScheduleItem[], currencies: Currency[], members: Member[],
+    onJumpToSchedule?: (date: string, itemId: string) => void
 }) => {
     if (!isOpen) return null;
 
@@ -23,6 +24,8 @@ export const PotentialExpensesModal = ({
     members.forEach(m => memberTotals[m.id] = 0);
 
     const potentialItems: { 
+        id: string;
+        date: string;
         title: string; 
         cost: number; 
         fee: number; 
@@ -34,7 +37,7 @@ export const PotentialExpensesModal = ({
         participants: string[]; 
     }[] = [];
 
-    const processCost = (title: string, type: string, cost: number, currency: string, hasFee: boolean, feePct: number, participants: string[] = []) => {
+    const processCost = (id: string, date: string, title: string, type: string, cost: number, currency: string, hasFee: boolean, feePct: number, participants: string[] = []) => {
         const fee = hasFee ? cost * (feePct / 100) : 0;
         const total = cost + fee;
         if (total > 0) {
@@ -51,6 +54,8 @@ export const PotentialExpensesModal = ({
             });
 
             potentialItems.push({ 
+                id,
+                date,
                 title, 
                 cost,
                 fee,
@@ -67,6 +72,7 @@ export const PotentialExpensesModal = ({
     items.forEach(item => {
         if (item.type === 'flight' && item.flightDetails?.isPotential) {
              processCost(
+                 item.id, item.date,
                  item.title, '機票', 
                  Number(item.flightDetails.cost) || 0, 
                  item.flightDetails.currency || 'TWD', 
@@ -77,6 +83,7 @@ export const PotentialExpensesModal = ({
         }
         if (item.type === 'stay' && item.stayDetails?.isPotential) {
              processCost(
+                 item.id, item.date,
                  item.title, '住宿', 
                  Number(item.stayDetails.cost) || 0, 
                  item.stayDetails.currency || 'TWD', 
@@ -87,6 +94,7 @@ export const PotentialExpensesModal = ({
         }
         if ((item.type === 'spot' || item.type === 'food') && item.spotDetails?.isPotential) {
              processCost(
+                 item.id, item.date,
                  item.title, item.type === 'food' ? '餐飲' : '門票', 
                  Number(item.spotDetails.ticketCost) || 0, 
                  item.spotDetails.currency || 'TWD', 
@@ -104,6 +112,7 @@ export const PotentialExpensesModal = ({
 
                 if (mainAmount > 0) {
                     processCost(
+                        item.id, item.date,
                         `${item.title} (大眾交通票價)`, '交通',
                         mainAmount,
                         mainCurrency,
@@ -114,6 +123,7 @@ export const PotentialExpensesModal = ({
                 }
                 if (extraAmount > 0) {
                     processCost(
+                        item.id, item.date,
                         `${item.title} (${extraName})`, '交通',
                         extraAmount,
                         extraCurrency,
@@ -127,6 +137,7 @@ export const PotentialExpensesModal = ({
                 if (item.carRental.isPotential && item.carRental.hasRental) {
                     const rentalBase = Number(item.carRental.rentalCost) || 0;
                     processCost(
+                        item.id, item.date,
                         `${item.title} (租車)`, '交通',
                         rentalBase,
                         item.carRental.rentalCurrency || 'TWD',
@@ -137,6 +148,7 @@ export const PotentialExpensesModal = ({
 
                     item.carRental.expenses?.forEach(exp => {
                         processCost(
+                            item.id, item.date,
                             `${item.title} (${exp.name})`, '交通',
                             Number(exp.amount) || 0,
                             exp.currency || 'TWD',
@@ -148,6 +160,7 @@ export const PotentialExpensesModal = ({
                 } else if (item.carRental.hasRental) {
                     if (item.carRental.estimatedFuelCost) {
                         processCost(
+                            item.id, item.date,
                             `${item.title} (油資)`, '油資',
                             Number(item.carRental.estimatedFuelCost) || 0,
                             item.carRental.fuelCurrency || 'TWD',
@@ -204,7 +217,20 @@ export const PotentialExpensesModal = ({
                             <div className="text-center text-gray-400 font-bold py-8">沒有列入潛在花費的項目</div>
                         ) : (
                             potentialItems.map((p, i) => (
-                                <div key={i} className="bg-white p-3.5 rounded-2xl border border-beige-dark shadow-sm space-y-1.5">
+                                <div 
+                                    key={i} 
+                                    onClick={() => {
+                                        if (onJumpToSchedule) {
+                                            onJumpToSchedule(p.date, p.id);
+                                            onClose();
+                                        }
+                                    }}
+                                    className={`bg-white p-3.5 rounded-2xl border border-beige-dark shadow-sm space-y-1.5 transition-all ${
+                                        onJumpToSchedule 
+                                            ? 'cursor-pointer hover:border-sage hover:shadow-hard-sm active:scale-[0.98]' 
+                                            : ''
+                                    }`}
+                                >
                                     <div className="flex justify-between items-center">
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded font-bold">{p.type}</span>

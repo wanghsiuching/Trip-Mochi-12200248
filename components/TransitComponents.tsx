@@ -515,10 +515,8 @@ export const TransitLegChainView: React.FC<{
   const [canScrollLeft, setCanScrollLeft] = React.useState(false);
   const [canScrollRight, setCanScrollRight] = React.useState(false);
 
-  // Highlight & scroll lock refs
+  // Highlight refs
   const highlightTimeoutRef = React.useRef<any>(null);
-  const isProgrammaticScrollingRef = React.useRef<boolean>(false);
-  const scrollLockTimeoutRef = React.useRef<any>(null);
 
   // Check scroll position to display edge gradient shadows
   const updateScrollShadows = React.useCallback(() => {
@@ -542,7 +540,7 @@ export const TransitLegChainView: React.FC<{
     }
   }, [updateScrollShadows, legs]);
 
-  // Helper to scroll the top horizontal navigation container internally without ever touching document/window scroll
+  // Helper to scroll the top horizontal navigation container internally when clicked
   const scrollNavToCenter = (index: number) => {
     const container = navContainerRef.current;
     const item = navItemRefs.current[index];
@@ -558,15 +556,6 @@ export const TransitLegChainView: React.FC<{
   const handleSelectLeg = (index: number, e?: React.MouseEvent) => {
     e?.stopPropagation();
     
-    // Lock observer to prevent scroll animation from overriding activeIndex back to earlier items
-    isProgrammaticScrollingRef.current = true;
-    if (scrollLockTimeoutRef.current) {
-      clearTimeout(scrollLockTimeoutRef.current);
-    }
-    scrollLockTimeoutRef.current = setTimeout(() => {
-      isProgrammaticScrollingRef.current = false;
-    }, 1200);
-
     setActiveIndex(index);
     setHighlightedIndex(index);
 
@@ -586,43 +575,6 @@ export const TransitLegChainView: React.FC<{
     // Scroll the top nav bar internally to keep the active icon centered
     scrollNavToCenter(index);
   };
-
-  // Passive visual sync: sync active index when user manually scrolls through cards
-  React.useEffect(() => {
-    if (!expanded && !isDetailed) return;
-    const observerCallback: IntersectionObserverCallback = (entries) => {
-      // If the user just clicked an anchor, ignore scroll updates during animation to prevent bounce-back
-      if (isProgrammaticScrollingRef.current) return;
-
-      const visibleEntries = entries.filter(entry => entry.isIntersecting);
-      if (visibleEntries.length > 0) {
-        visibleEntries.sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-        const topVisible = visibleEntries[0];
-        const indexAttr = topVisible.target.getAttribute('data-leg-index');
-        if (indexAttr !== null) {
-          const idx = parseInt(indexAttr, 10);
-          if (!isNaN(idx) && idx !== activeIndex) {
-            setActiveIndex(idx);
-            // Smoothly adjust internal nav container scroll ONLY (never touch page scroll)
-            scrollNavToCenter(idx);
-          }
-        }
-      }
-    };
-
-    const observer = new IntersectionObserver(observerCallback, {
-      threshold: [0.4, 0.7],
-      rootMargin: '-5% 0px -5% 0px'
-    });
-
-    legCardRefs.current.forEach((el) => {
-      if (el) observer.observe(el);
-    });
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [expanded, isDetailed, legs.length, activeIndex]);
 
   if (!legs || legs.length === 0) return null;
 

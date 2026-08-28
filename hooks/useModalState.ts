@@ -18,7 +18,9 @@ export const useModalState = () => {
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [highlightExpenseId, setHighlightExpenseId] = useState<string | null>(null);
+  const [highlightScheduleItemId, setHighlightScheduleItemId] = useState<string | null>(null);
   const [swappingFromIndex, setSwappingFromIndex] = useState<number | null>(null);
+  const [pendingSwapDays, setPendingSwapDays] = useState<{ idx1: number; idx2: number } | null>(null);
 
   const handleEditClick = (item: ScheduleItem) => {
     setEditingItem(item);
@@ -62,8 +64,12 @@ export const useModalState = () => {
     setSearchError,
     highlightExpenseId,
     setHighlightExpenseId,
+    highlightScheduleItemId,
+    setHighlightScheduleItemId,
     swappingFromIndex,
     setSwappingFromIndex,
+    pendingSwapDays,
+    setPendingSwapDays,
     handleEditClick,
     handleDeleteItemClick
   };

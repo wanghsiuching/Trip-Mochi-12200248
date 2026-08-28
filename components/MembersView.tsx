@@ -96,7 +96,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                     extraItems.forEach((extraItem) => {
                       if (extraItem.amount > 0) {
                         processItemCost(
-                          `${item.id}-${extraItem.id}`, 
+                          item.id, 
                           item.date, 
                           `${item.title} (${extraItem.name})`, 
                           '交通', 

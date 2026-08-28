@@ -14,7 +14,7 @@ import {
 } from './types';
 import { BottomNav } from './components/CommonUI';
 import { 
-  AddScheduleModal, CreateTripModal, DeleteConfirmModal, SearchErrorModal, DeleteItemConfirmModal, TripSettingsModal, PotentialExpensesModal, EditDayDetailsModal, DeleteDayConfirmModal, BackupConfirmModal, ScheduleDetailModal
+  AddScheduleModal, CreateTripModal, DeleteConfirmModal, SearchErrorModal, DeleteItemConfirmModal, TripSettingsModal, PotentialExpensesModal, EditDayDetailsModal, DeleteDayConfirmModal, BackupConfirmModal, ScheduleDetailModal, SwapDaysConfirmModal
 } from './components/modals';
 import { PocketPlacesModal } from './components/PocketPlacesModal';
 import { TransitLegChainView } from './components/TransitComponents';
@@ -169,8 +169,12 @@ export default function App() {
     setSearchError,
     highlightExpenseId,
     setHighlightExpenseId,
+    highlightScheduleItemId,
+    setHighlightScheduleItemId,
     swappingFromIndex,
     setSwappingFromIndex,
+    pendingSwapDays,
+    setPendingSwapDays,
     handleEditClick,
     handleDeleteItemClick
   } = useModalState();
@@ -455,9 +459,8 @@ export default function App() {
             // Cancel mode only if the user deliberately clicks the selected day again AFTER long press
             setSwappingFromIndex(null);
         } else {
-            // Execute swap with the target day
-            handleSwapLogic(swappingFromIndex, idx);
-            setSwappingFromIndex(null);
+            // Open confirmation modal for safety
+            setPendingSwapDays({ idx1: swappingFromIndex, idx2: idx });
         }
     } else {
         // Normal behavior: Select date
@@ -465,11 +468,64 @@ export default function App() {
     }
   };
 
+  const handleConfirmSwapDays = () => {
+    if (pendingSwapDays) {
+      handleSwapLogic(pendingSwapDays.idx1, pendingSwapDays.idx2);
+      setPendingSwapDays(null);
+      setSwappingFromIndex(null);
+    }
+  };
+
+  const handleCancelSwapDays = () => {
+    setPendingSwapDays(null);
+    setSwappingFromIndex(null);
+  };
+
   // --- Jump to Schedule Logic ---
   const handleJumpToSchedule = (date: string, itemId: string) => {
+      // Find matching item ID (handling potential composite ids)
+      const matched = scheduleItems.find(i => i.id === itemId) 
+        || scheduleItems.find(i => itemId.startsWith(i.id))
+        || scheduleItems.find(i => i.id.includes(itemId));
+      const targetId = matched ? matched.id : itemId;
+
       setActiveTab('schedule');
       setSelectedDate(date);
+      setHighlightScheduleItemId(targetId);
+
+      const attemptScroll = (retries = 8) => {
+        const el = document.getElementById(`schedule-item-${targetId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        } else if (retries > 0) {
+          setTimeout(() => attemptScroll(retries - 1), 60);
+        }
+      };
+
+      setTimeout(() => {
+        attemptScroll();
+      }, 100);
+
+      // Auto clear highlight state after animation
+      setTimeout(() => {
+        setHighlightScheduleItemId(prev => (prev === targetId ? null : prev));
+      }, 4500);
   };
+
+  useEffect(() => {
+    if (activeTab === 'schedule' && highlightScheduleItemId) {
+      const attemptScroll = (retries = 8) => {
+        const el = document.getElementById(`schedule-item-${highlightScheduleItemId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        } else if (retries > 0) {
+          setTimeout(() => attemptScroll(retries - 1), 60);
+        }
+      };
+      const t = setTimeout(attemptScroll, 120);
+      return () => clearTimeout(t);
+    }
+  }, [activeTab, selectedDate, highlightScheduleItemId]);
 
   const handleJumpToExpense = (expenseId: string) => {
       setActiveTab('expense');
@@ -650,13 +706,29 @@ export default function App() {
                       const partIds = item.type === 'flight' ? item.flightDetails?.participants : item.type === 'stay' ? item.stayDetails?.participants : item.type === 'transport' ? (item.transitDetails?.participants || item.carRental?.participants) : (item.type === 'spot' || item.type === 'food') ? item.spotDetails?.participants : [];
                       const participantNames = getMemberNames(partIds);
                       const fruitIcon = getScheduleIcon(item.id);
+                      const isHighlighted = highlightScheduleItemId === item.id;
                       return (
-                        <div key={item.id} className="relative pl-3.5 sm:pl-4 group mb-6">
+                        <div 
+                          key={item.id} 
+                          id={`schedule-item-${item.id}`}
+                          className={`relative pl-3.5 sm:pl-4 group mb-6 transition-all duration-500 scroll-mt-24 ${
+                            isHighlighted ? 'scale-[1.02] z-20' : ''
+                          }`}
+                        >
                           <button onClick={(e) => { e.stopPropagation(); handleDeleteItemClick(item.id); }} className="absolute right-0 -top-3 bg-red-100 text-red-400 p-1.5 rounded-full opacity-0 group-hover:opacity-100 z-30 border border-red-200 shadow-sm"><X size={12} strokeWidth={3} /></button>
-                          <div className="absolute -left-[7px] top-6 z-10 w-3 h-3 rounded-full bg-white border-2 border-sage shadow-sm flex items-center justify-center">
+                          <div className={`absolute -left-[7px] top-6 z-10 w-3 h-3 rounded-full bg-white border-2 shadow-sm flex items-center justify-center transition-colors ${
+                            isHighlighted ? 'border-sage ring-4 ring-sage/30' : 'border-sage'
+                          }`}>
                               <div className="w-1 h-1 rounded-full bg-sage"></div>
                           </div>
-                          <div onClick={() => setViewingItem(item)} className="bg-white rounded-[1.75rem] shadow-hard-sm border-2 border-beige-dark overflow-hidden relative transition-all cursor-pointer hover:border-sage group-hover:-translate-y-1">
+                          <div 
+                            onClick={() => setViewingItem(item)} 
+                            className={`bg-white rounded-[1.75rem] shadow-hard-sm border-2 overflow-hidden relative transition-all cursor-pointer hover:border-sage group-hover:-translate-y-1 ${
+                              isHighlighted 
+                                ? 'border-sage ring-4 ring-sage/50 ring-offset-2 shadow-hard-sage animate-pulse' 
+                                : 'border-beige-dark'
+                            }`}
+                          >
                             <div className="p-3.5 sm:p-4">
                                 <div className="flex justify-between items-start mb-3 gap-2">
                                     <div className="flex items-start gap-2.5 flex-1 min-w-0">
@@ -887,11 +959,21 @@ export default function App() {
               <AddScheduleModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSave={handleSaveItem} initialData={editingItem} currencies={currencies} members={members} currentDate={selectedDate} />
               <ScheduleDetailModal isOpen={!!viewingItem} onClose={() => setViewingItem(null)} item={viewingItem} onEdit={() => { if(viewingItem) { setViewingItem(null); handleEditClick(viewingItem); } }} currencies={currencies} members={members} />
               <DeleteItemConfirmModal isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} onConfirm={confirmDeleteItem} title={scheduleItems.find(i => i.id === itemToDelete)?.title || '此項目'} />
-              <PotentialExpensesModal isOpen={isPotentialModalOpen} onClose={() => setIsPotentialModalOpen(false)} items={scheduleItems} currencies={currencies} members={members} />
+              <PotentialExpensesModal isOpen={isPotentialModalOpen} onClose={() => setIsPotentialModalOpen(false)} items={scheduleItems} currencies={currencies} members={members} onJumpToSchedule={handleJumpToSchedule} />
               <EditDayDetailsModal isOpen={isEditDayModalOpen} onClose={() => setIsEditDayModalOpen(false)} onConfirm={handleUpdateDayDetails} initialDate={selectedDate} initialLocation={currentLocation} initialFruit={currentFruit} />
               <DeleteDayConfirmModal isOpen={isDeleteDayModalOpen} onClose={() => setIsDeleteDayModalOpen(false)} onConfirm={confirmDeleteDay} date={selectedDate} />
               <TripSettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} currencies={currencies} onAddCurrency={addCurrency} onRemoveCurrency={removeCurrency} onDuplicate={handleOpenBackupModal} />
               <BackupConfirmModal isOpen={isBackupConfirmOpen} onClose={() => setIsBackupConfirmOpen(false)} onConfirm={executeBackupTrip} tripName={currentTripName} />
+              <SwapDaysConfirmModal 
+                isOpen={!!pendingSwapDays} 
+                onClose={handleCancelSwapDays} 
+                onConfirm={handleConfirmSwapDays} 
+                fromIndex={pendingSwapDays?.idx1 ?? null} 
+                toIndex={pendingSwapDays?.idx2 ?? null} 
+                tripDays={tripDays} 
+                scheduleItems={scheduleItems} 
+                dates={dates} 
+              />
               <PocketPlacesModal 
                 isOpen={isPocketModalOpen} 
                 onClose={() => setIsPocketModalOpen(false)} 
