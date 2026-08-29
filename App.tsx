@@ -15,7 +15,7 @@ import {
 import { BottomNav } from './components/CommonUI';
 import { 
   AddScheduleModal, CreateTripModal, DeleteConfirmModal, SearchErrorModal, DeleteItemConfirmModal, TripSettingsModal, PotentialExpensesModal, EditDayDetailsModal, DeleteDayConfirmModal, BackupConfirmModal, ScheduleDetailModal, SwapDaysConfirmModal,
-  ShareTripModal
+  ShareTripModal, MoveItemConfirmModal
 } from './components/modals';
 import { PocketPlacesModal } from './components/PocketPlacesModal';
 import { TransitLegChainView } from './components/TransitComponents';
@@ -45,6 +45,12 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [isShareTripModalOpen, setIsShareTripModalOpen] = useState(false);
+  const [pendingMoveItem, setPendingMoveItem] = useState<{
+    index: number;
+    direction: 'up' | 'down';
+    currentItem: ScheduleItem;
+    targetItem: ScheduleItem;
+  } | null>(null);
   
   const [currentTripId, setCurrentTripId] = useState<string>('');
   const [currentTripName, setCurrentTripName] = useState('');
@@ -384,8 +390,28 @@ export default function App() {
     confirmDeleteTripItem(itemToDelete, () => setItemToDelete(null));
   };
 
-  const handleMoveItem = (index: number, direction: 'up' | 'down') => {
-    handleMoveTripItem(index, direction, selectedDate);
+  const handleRequestMoveItem = (index: number, direction: 'up' | 'down') => {
+    const currentDayItems = scheduleItems.filter(i => i.date === selectedDate);
+    const currentItem = currentDayItems[index];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    const targetItem = currentDayItems[targetIndex];
+    if (!currentItem || !targetItem) return;
+    setPendingMoveItem({
+      index,
+      direction,
+      currentItem,
+      targetItem,
+    });
+  };
+
+  const handleConfirmMoveItem = () => {
+    if (!pendingMoveItem) return;
+    handleMoveTripItem(pendingMoveItem.index, pendingMoveItem.direction, selectedDate);
+    setPendingMoveItem(null);
+  };
+
+  const handleCancelMoveItem = () => {
+    setPendingMoveItem(null);
   };
 
   const openMap = (location: string) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`, '_blank');
@@ -724,7 +750,6 @@ export default function App() {
                             isHighlighted ? 'scale-[1.02] z-20' : ''
                           }`}
                         >
-                          <button onClick={(e) => { e.stopPropagation(); handleDeleteItemClick(item.id); }} className="absolute right-0 -top-3 bg-red-100 text-red-400 p-1.5 rounded-full opacity-0 group-hover:opacity-100 z-30 border border-red-200 shadow-sm"><X size={12} strokeWidth={3} /></button>
                           <div className={`absolute -left-[7px] top-6 z-10 w-3 h-3 rounded-full bg-white border-2 shadow-sm flex items-center justify-center transition-colors ${
                             isHighlighted ? 'border-sage ring-4 ring-sage/30' : 'border-sage'
                           }`}>
@@ -750,7 +775,26 @@ export default function App() {
                                             <h3 className="text-base sm:text-lg font-black text-cocoa leading-snug break-words">{item.title}</h3>
                                          </div>
                                     </div>
-                                    <div className="flex flex-col gap-1 flex-shrink-0"><button onClick={(e) => { e.stopPropagation(); handleMoveItem(index, 'up'); }} disabled={index === 0} className={`p-1 rounded-full border border-beige-dark ${index === 0 ? 'opacity-0' : 'text-gray-300 hover:bg-sage hover:text-white'}`}><ChevronUp size={12} /></button><button onClick={(e) => { e.stopPropagation(); handleMoveItem(index, 'down'); }} disabled={index === scheduleItems.filter(i => i.date === selectedDate).length - 1} className={`p-1 rounded-full border border-beige-dark ${index === scheduleItems.filter(i => i.date === selectedDate).length - 1 ? 'opacity-0' : 'text-gray-300 hover:bg-sage hover:text-white'}`}><ChevronDown size={12} /></button></div>
+                                    <div className="flex flex-col gap-1 flex-shrink-0">
+                                      <button 
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); handleRequestMoveItem(index, 'up'); }} 
+                                        disabled={index === 0} 
+                                        title="向上調換順序"
+                                        className={`p-1.5 rounded-full border border-beige-dark transition-all ${index === 0 ? 'opacity-0 pointer-events-none' : 'text-gray-400 hover:bg-sage hover:text-white active:scale-90 hover:border-sage shadow-sm'}`}
+                                      >
+                                        <ChevronUp size={13} strokeWidth={2.5} />
+                                      </button>
+                                      <button 
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); handleRequestMoveItem(index, 'down'); }} 
+                                        disabled={index === scheduleItems.filter(i => i.date === selectedDate).length - 1} 
+                                        title="向下調換順序"
+                                        className={`p-1.5 rounded-full border border-beige-dark transition-all ${index === scheduleItems.filter(i => i.date === selectedDate).length - 1 ? 'opacity-0 pointer-events-none' : 'text-gray-400 hover:bg-sage hover:text-white active:scale-90 hover:border-sage shadow-sm'}`}
+                                      >
+                                        <ChevronDown size={13} strokeWidth={2.5} />
+                                      </button>
+                                    </div>
                                 </div>
                                 <div className="flex items-center text-gray-500 text-xs sm:text-sm gap-2 font-bold bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 w-full"><MapPin size={15} className="text-sage flex-shrink-0" /><span className="break-words flex-1 leading-snug">{item.location}</span><button onClick={(e) => { e.stopPropagation(); openMap(item.location); }} className="p-1.5 bg-white rounded-lg text-cocoa hover:text-white hover:bg-sage shadow-sm border border-gray-200 transition-colors flex-shrink-0"><Navigation size={12} strokeWidth={2.5} /></button></div>
                             </div>
@@ -999,6 +1043,14 @@ export default function App() {
                 tripDays={tripDays} 
                 scheduleItems={scheduleItems} 
                 dates={dates} 
+              />
+              <MoveItemConfirmModal
+                isOpen={!!pendingMoveItem}
+                onClose={handleCancelMoveItem}
+                onConfirm={handleConfirmMoveItem}
+                direction={pendingMoveItem?.direction || 'up'}
+                currentItem={pendingMoveItem?.currentItem || null}
+                targetItem={pendingMoveItem?.targetItem || null}
               />
               <PocketPlacesModal 
                 isOpen={isPocketModalOpen} 

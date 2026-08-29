@@ -12,3 +12,4 @@ export { ScheduleDetailModal } from './ScheduleDetailModal';
 export { AddScheduleModal } from './AddScheduleModal';
 export { SwapDaysConfirmModal } from './SwapDaysConfirmModal';
 export { ShareTripModal } from './ShareTripModal';
+export { MoveItemConfirmModal } from './MoveItemConfirmModal';
