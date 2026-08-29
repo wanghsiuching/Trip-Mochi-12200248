@@ -15,15 +15,41 @@ const formatMoney = (val: number | string): string => {
 // 依景點/地點關鍵字推導合適的 Emoji
 const getSmartEmoji = (text: string, defaultEmoji: string): string => {
   if (!text) return defaultEmoji;
-  if (/山|峰|Kulm|Berg|Matterhorn|Rigi|Titlis|First|Schilthorn|Jungfrau|Gornergrat/i.test(text)) return '🏔️';
-  if (/鎮|街|城|市區|Rhein|Stein|Village|Town/i.test(text)) return '🏘️';
-  if (/教堂|宮|館|院|古蹟|塔|Bern|鐘樓|大教堂|Castle|Museum|Cathedral|Palace/i.test(text)) return '🏛️';
+  if (/山|峰|Kulm|Berg|Matterhorn|Rigi|Titlis|First|Schilthorn|Jungfrau|Gornergrat|Zermatt/i.test(text)) return '🏔️';
+  if (/小鎮|老街|中世紀|街|城|市區|Rhein|Stein|Village|Town|Old Town/i.test(text)) return '🏘️';
+  if (/教堂|宮|館|院|古蹟|塔|Bern|伯恩|鐘樓|大教堂|Castle|Museum|Cathedral|Palace/i.test(text)) return '🏛️';
   if (/湖|海|河|瀑布|Lake|See|Falls|River/i.test(text)) return '🌊';
   if (/機場|Flight|Airport|Flug/i.test(text)) return '✈️';
-  if (/火車站|車站|Station|Bahnhof|Hbf/i.test(text)) return '🚆';
-  if (/纜車|Cable/i.test(text)) return '🚡';
-  if (/遊船|渡輪|Boat|Ferry/i.test(text)) return '🚢';
+  if (/火車站|車站|Station|Bahnhof|Hbf|Train|SBB/i.test(text)) return '🚆';
+  if (/纜車|Cable|Gondola|Funicular/i.test(text)) return '🚡';
+  if (/遊船|渡輪|Boat|Ferry|Cruise/i.test(text)) return '🚢';
+  if (/公車|巴士|Bus/i.test(text)) return '🚌';
+  if (/咖啡|Cafe|Coffee/i.test(text)) return '☕';
+  if (/餐廳|美食|餐|飯|麵|館|Bar|Restaurant|Food|Grill|Fondue/i.test(text)) return '🍽️';
+  if (/飯店|酒店|民宿|Hotel|Resort|Lodge|Hostel|Airbnb|Check-in|入住/i.test(text)) return '🏨';
   return defaultEmoji;
+};
+
+// 清理與簡化路線節點名稱（去除冗贅詞彙，使路線圖一目了然）
+const cleanRouteNodeName = (raw: string): string => {
+  if (!raw) return '';
+  let name = raw.trim();
+  // 移除常見前綴
+  name = name.replace(/^(入住|前往|抵達|搭乘|返回|參觀|遊覽|漫步)\s*/g, '');
+  // 去除 "火車站"、"車站"、"Station"、"Bahnhof" 等冗贅字眼，保留地名
+  name = name.replace(/(火車站|車站|Station|Bahnhof|Hbf)$/gi, '').trim();
+  // 如果括號內有中文/德文，例如 "蘇黎世機場 (Zürich Flughafen)"，精簡取代表性地名
+  if (name.includes('(') && name.includes(')')) {
+    const match = name.match(/^(.*?)\s*\((.*?)\)$/);
+    if (match) {
+      const p1 = match[1].trim();
+      const p2 = match[2].trim();
+      // 如果前面是中文如「蘇黎世機場火車站」，經過去除「火車站」後剩「蘇黎世機場」
+      if (p1 && p1.length <= 12) return p1;
+      if (p2 && p2.length <= 16) return p2;
+    }
+  }
+  return name.trim();
 };
 
 // 提取轉乘車站清單
@@ -39,6 +65,134 @@ const extractTransitStations = (legs?: TransitLeg[]): string[] => {
     }
   });
   return stations.filter(Boolean);
+};
+
+interface RouteNode {
+  emoji: string;
+  name: string;
+}
+
+/**
+ * 智慧建立「今日路線」摘要
+ * 涵蓋起點、轉乘點、途經景點與終點，並避免相鄰重複
+ */
+const generateTodayRouteSummary = (
+  dayItems: ScheduleItem[],
+  dayIcon: string
+): string | null => {
+  const rawNodes: RouteNode[] = [];
+
+  dayItems.forEach((item) => {
+    if (item.type === 'flight') {
+      const f = item.flightDetails;
+      if (f?.departureAirport && f?.arrivalAirport) {
+        const dep = cleanRouteNodeName(f.departureAirport);
+        const arr = cleanRouteNodeName(f.arrivalAirport);
+        if (rawNodes.length === 0 && dep) {
+          rawNodes.push({ emoji: '✈️', name: dep });
+        }
+        if (arr) {
+          rawNodes.push({ emoji: '✈️', name: arr });
+        }
+      } else {
+        const name = cleanRouteNodeName(item.location || item.title || '機場');
+        rawNodes.push({ emoji: '✈️', name: name || '機場' });
+      }
+    } else if (item.type === 'transport') {
+      const isCar = !!(item.carRental && item.carRental.hasRental);
+      const defaultIcon = isCar ? '🚗' : '🚆';
+      const stations = extractTransitStations(item.transitDetails?.legs);
+
+      if (stations.length > 0) {
+        stations.forEach((st) => {
+          const cleanSt = cleanRouteNodeName(st);
+          if (cleanSt) {
+            const emoji = getSmartEmoji(st, defaultIcon);
+            rawNodes.push({ emoji, name: cleanSt });
+          }
+        });
+      } else if (isCar && (item.carRental.pickupLocation || item.carRental.returnLocation)) {
+        if (item.carRental.pickupLocation) {
+          const p = cleanRouteNodeName(item.carRental.pickupLocation);
+          if (p) rawNodes.push({ emoji: '🚗', name: p });
+        }
+        if (item.carRental.returnLocation) {
+          const r = cleanRouteNodeName(item.carRental.returnLocation);
+          if (r) rawNodes.push({ emoji: '🚗', name: r });
+        }
+      } else {
+        const rawName = item.location || item.title;
+        const name = cleanRouteNodeName(rawName);
+        if (name) {
+          const emoji = getSmartEmoji(rawName, defaultIcon);
+          rawNodes.push({ emoji, name });
+        }
+      }
+    } else if (item.type === 'stay') {
+      const rawName = item.title.replace(/^入住\s*/, '').trim() || item.location;
+      const name = cleanRouteNodeName(rawName);
+      if (name) {
+        const emoji = getSmartEmoji(rawName, '🏨');
+        rawNodes.push({ emoji, name });
+      }
+    } else if (item.type === 'food') {
+      const name = cleanRouteNodeName(item.title || item.location);
+      if (name) {
+        const emoji = getSmartEmoji(item.title, '🍽️');
+        rawNodes.push({ emoji, name });
+      }
+    } else {
+      // spot
+      const name = cleanRouteNodeName(item.title || item.location);
+      if (name) {
+        const emoji = getSmartEmoji(item.title, '📍');
+        rawNodes.push({ emoji, name });
+      }
+    }
+  });
+
+  if (rawNodes.length === 0) return null;
+
+  // 相鄰節點去重與精簡（保留具有行進脈絡的重複點，例如 A -> B -> C -> B -> D）
+  const condensedNodes: RouteNode[] = [];
+  rawNodes.forEach((node) => {
+    if (!node.name) return;
+    const last = condensedNodes[condensedNodes.length - 1];
+    if (!last) {
+      condensedNodes.push(node);
+      return;
+    }
+
+    const lastNorm = last.name.toLowerCase().trim();
+    const currNorm = node.name.toLowerCase().trim();
+
+    // 如果相鄰兩點完全相同，或彼此包含，則合併並保留較生動的 emoji
+    if (lastNorm === currNorm) {
+      if (last.emoji === '🚆' && node.emoji !== '🚆') {
+        last.emoji = node.emoji;
+      }
+      return;
+    }
+    if ((lastNorm.includes(currNorm) || currNorm.includes(lastNorm)) && (lastNorm.length < 8 || currNorm.length < 8)) {
+      if (last.emoji === '🚆' && node.emoji !== '🚆') {
+        last.emoji = node.emoji;
+      }
+      return;
+    }
+
+    condensedNodes.push(node);
+  });
+
+  if (condensedNodes.length < 2) {
+    // 只有一個節點時，若有可顯示的行程點依然呈現路線點
+    if (condensedNodes.length === 1) {
+      return `${dayIcon} 今日路線\n\n${condensedNodes[0].emoji} ${condensedNodes[0].name}`;
+    }
+    return null;
+  }
+
+  const routeLines = condensedNodes.map(n => `${n.emoji} ${n.name}`).join('\n↓\n');
+  return `${dayIcon} 今日路線\n\n${routeLines}`;
 };
 
 /**
@@ -92,7 +246,7 @@ export const formatTripAsText = ({
       dayLines.push('（今日尚無排定行程）');
       dayLines.push('');
     } else {
-      dayItems.forEach((item, itemIdx) => {
+      dayItems.forEach((item) => {
         const itemBlock: string[] = [];
         const time = item.time ? item.time.trim() : '';
 
@@ -244,54 +398,10 @@ export const formatTripAsText = ({
     }
 
     // 3. 今日路線 (Route Summary) 區塊
-    const routeNodes: { emoji: string; name: string }[] = [];
-
-    dayItems.forEach(item => {
-      if (item.type === 'flight') {
-        const dest = item.flightDetails?.arrivalAirport || item.title || '機場';
-        // 簡化站名
-        const cleanName = dest.replace(/機場|Airport|Flug/gi, '').trim() || dest;
-        routeNodes.push({ emoji: '✈️', name: cleanName });
-      } else if (item.type === 'transport') {
-        const stations = extractTransitStations(item.transitDetails?.legs);
-        if (stations.length > 0) {
-          stations.forEach(st => {
-            const cleanSt = st.replace(/火車站|車站|Station|Bahnhof/gi, '').trim() || st;
-            routeNodes.push({ emoji: '🚆', name: cleanSt });
-          });
-        } else {
-          const name = item.title || item.location || '交通';
-          routeNodes.push({ emoji: '🚆', name });
-        }
-      } else if (item.type === 'stay') {
-        const stayName = item.title.replace(/^入住\s*/, '').trim();
-        const emoji = getSmartEmoji(stayName || item.location, '🏨');
-        routeNodes.push({ emoji, name: stayName });
-      } else if (item.type === 'food') {
-        routeNodes.push({ emoji: '🍽️', name: item.title });
-      } else {
-        // spot
-        const emoji = getSmartEmoji(item.title, '📍');
-        routeNodes.push({ emoji, name: item.title });
-      }
-    });
-
-    if (routeNodes.length >= 2) {
-      // 移除相鄰重複的路線點名稱
-      const condensedRoute: string[] = [];
-      routeNodes.forEach((node, idx) => {
-        const prev = condensedRoute[condensedRoute.length - 1];
-        const currentStr = `${node.emoji} ${node.name}`;
-        if (!prev || !prev.includes(node.name)) {
-          condensedRoute.push(currentStr);
-        }
-      });
-
-      if (condensedRoute.length >= 2) {
-        dayLines.push(`${dayIcon} 今日路線\n`);
-        dayLines.push(condensedRoute.join('\n↓\n'));
-        dayLines.push(DIVIDER);
-      }
+    const routeSummary = generateTodayRouteSummary(dayItems, dayIcon);
+    if (routeSummary) {
+      dayLines.push(routeSummary);
+      dayLines.push(DIVIDER);
     }
 
     outputSections.push(dayLines.join('\n'));
