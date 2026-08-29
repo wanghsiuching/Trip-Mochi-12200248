@@ -1,18 +1,30 @@
 import React, { useState } from 'react';
-import { Settings, X, Coins, Plus, Save, Copy } from 'lucide-react';
+import { Settings, X, Coins, Plus, Save, Copy, Check, Hash } from 'lucide-react';
 import { Currency } from '../../types';
 
 export const TripSettingsModal = ({ 
-    isOpen, onClose, currencies, onAddCurrency, onRemoveCurrency, onDuplicate
+    isOpen, onClose, currencies, onAddCurrency, onRemoveCurrency, onDuplicate,
+    tripId, tripName
 }: { 
     isOpen: boolean, onClose: () => void, 
     currencies: Currency[], onAddCurrency: (c: Currency) => void, onRemoveCurrency: (code: string) => void,
-    onDuplicate?: () => void
+    onDuplicate?: () => void,
+    tripId?: string,
+    tripName?: string
 }) => {
     const [newCurrencyCode, setNewCurrencyCode] = useState('');
     const [newCurrencyRate, setNewCurrencyRate] = useState('');
+    const [copiedCode, setCopiedCode] = useState(false);
 
     if (!isOpen) return null;
+
+    const handleCopyCode = () => {
+        if (!tripId) return;
+        navigator.clipboard.writeText(tripId).then(() => {
+            setCopiedCode(true);
+            setTimeout(() => setCopiedCode(false), 2000);
+        });
+    };
 
     const handleAddCurrency = () => {
         if (newCurrencyCode && newCurrencyRate) {
@@ -31,6 +43,27 @@ export const TripSettingsModal = ({
                 </div>
 
                 <div className="overflow-y-auto custom-scroll flex-1 py-4 pr-1 space-y-6">
+                    {/* Trip Code Section */}
+                    {tripId && (
+                        <div className="bg-white border-2 border-beige-dark p-4 rounded-2xl shadow-sm">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                                        <Hash size={12} className="text-sage"/> 行程專屬代碼 (Trip Code)
+                                    </span>
+                                    <p className="text-lg font-black text-cocoa font-mono tracking-wide mt-0.5">{tripId}</p>
+                                </div>
+                                <button
+                                    onClick={handleCopyCode}
+                                    className="px-3.5 py-2 bg-sage/10 hover:bg-sage/20 text-sage font-black text-xs rounded-xl border border-sage/30 flex items-center gap-1.5 transition-all active:scale-95 shadow-xs"
+                                >
+                                    {copiedCode ? <><Check size={14} className="text-sage"/> 已複製</> : <><Copy size={14}/> 複製代碼</>}
+                                </button>
+                            </div>
+                            <p className="text-[10px] text-gray-400 mt-2">好友可在首頁輸入此代碼加入或查看此行程。</p>
+                        </div>
+                    )}
+
                     {/* Currency Section */}
                     <div>
                          <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center gap-2"><Coins size={16}/> 匯率設定 (相對於 TWD)</h4>
@@ -46,8 +79,8 @@ export const TripSettingsModal = ({
                              ))}
                          </div>
                          <div className="flex gap-2 items-center">
-                             <input value={newCurrencyCode} onChange={e => setNewCurrencyCode(e.target.value)} placeholder="幣別" className="w-24 h-11 bg-white px-3 rounded-xl text-sm font-bold outline-none border border-beige-dark focus:border-sage text-cocoa text-center"/>
-                             <input type="number" value={newCurrencyRate} onChange={e => setNewCurrencyRate(e.target.value)} placeholder="匯率" className="w-32 h-11 bg-white px-3 rounded-xl text-sm font-bold outline-none border border-beige-dark focus:border-sage text-cocoa text-center"/>
+                             <input value={newCurrencyCode} onChange={e => setNewCurrencyCode(e.target.value)} placeholder="幣別 (如 CHF)" className="w-24 h-11 bg-white px-3 rounded-xl text-sm font-bold outline-none border border-beige-dark focus:border-sage text-cocoa text-center uppercase"/>
+                             <input type="number" value={newCurrencyRate} onChange={e => setNewCurrencyRate(e.target.value)} placeholder="匯率 (如 37.5)" className="w-32 h-11 bg-white px-3 rounded-xl text-sm font-bold outline-none border border-beige-dark focus:border-sage text-cocoa text-center"/>
                              <button onClick={handleAddCurrency} disabled={!newCurrencyCode || !newCurrencyRate} className="h-11 w-11 flex-shrink-0 flex items-center justify-center bg-sage text-white rounded-xl shadow-hard-sm-sage disabled:opacity-50 hover:bg-sage-dark transition-colors"><Plus size={20}/></button>
                          </div>
                     </div>

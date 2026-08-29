@@ -1,8 +1,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Clock } from 'lucide-react';
+import { Clock, Share2, Copy, Check } from 'lucide-react';
 import { ScheduleItem, TripDate } from '../types';
 import { TimePickerField, DateTimePickerField } from './TimePickerComponents';
+import { formatTripAsText, executeShareOrCopy } from '../utils/shareTrip';
+import { ShareTripModal } from './modals/ShareTripModal';
+
+export { formatTripAsText, executeShareOrCopy };
 
 interface ScheduleViewProps {
   dates: TripDate[];
@@ -17,6 +21,7 @@ interface ScheduleViewProps {
   countdownProgress: number;
   currentDayNum: number;
   tripProgress: number;
+  tripName?: string;
 }
 
 // 2026 Mock Weather Data
@@ -36,11 +41,12 @@ const WEATHER_DATA: Record<string, {
 };
 
 export const ScheduleView: React.FC<ScheduleViewProps> = ({
-  dates, selectedDate, onSelectDate, itinerary, onSave, onDelete
+  dates, selectedDate, onSelectDate, itinerary, onSave, onDelete, tripName = '我的行程'
 }) => {
   // Modal States
   const [showModal, setShowModal] = useState(false); // Edit/Add Modal
   const [isEditing, setIsEditing] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [modalEvent, setModalEvent] = useState<ScheduleItem>({
     id: '', title: '', time: '09:00', type: 'spot', location: '', address: '', googleMapUrl: '', naverMapUrl: '', note: '', images: [], date: selectedDate.date
   });
@@ -125,9 +131,18 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
             <h2 className="text-sm font-black text-cocoa flex items-center gap-1.5">
                 <i className="fa-regular fa-calendar-check text-sage"></i> 行程日期
             </h2>
-            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isJejuDate(selectedDate.full) ? 'bg-[#FFF3E0] text-[#F39C12] border-[#FFE0B2]' : 'bg-[#E3F2FD] text-[#3498DB] border-[#BBDEFB]'}`}>
-                {isJejuDate(selectedDate.full) ? '🍊 濟州島 Jeju' : '🌊 釜山 Busan'}
-            </span>
+            <div className="flex items-center gap-2">
+                <button
+                    type="button"
+                    onClick={() => setIsShareModalOpen(true)}
+                    className="px-2.5 py-1 bg-white hover:bg-gray-50 text-sage font-black text-xs rounded-xl border border-beige-dark shadow-xs flex items-center gap-1 transition-all active:scale-95"
+                >
+                    <Share2 size={12}/> 分享行程
+                </button>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${isJejuDate(selectedDate.full) ? 'bg-[#FFF3E0] text-[#F39C12] border-[#FFE0B2]' : 'bg-[#E3F2FD] text-[#3498DB] border-[#BBDEFB]'}`}>
+                    {isJejuDate(selectedDate.full) ? '🍊 濟州島 Jeju' : '🌊 釜山 Busan'}
+                </span>
+            </div>
          </div>
          <div ref={scrollRef} className="flex space-x-2 overflow-x-auto hide-scrollbar pb-1 snap-x">
            {dates.map((date) => {
@@ -412,6 +427,16 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
             </div>
         </div>
       )}
+
+      {/* Share Trip Modal */}
+      <ShareTripModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        tripName={tripName}
+        dates={dates}
+        selectedDate={selectedDate.date}
+        scheduleItems={itinerary}
+      />
     </div>
   );
 };

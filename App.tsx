@@ -4,7 +4,7 @@ import {
   MapPin, ArrowRight, Plane, Plus, X, Copy, BookOpen, ChevronLeft, Trash2,
   ChevronUp, ChevronDown, Navigation, StickyNote, Settings, AlertCircle, 
   CalendarCheck, Coins, Edit3, Users, Luggage, Briefcase, Bed, Car, Coffee, Utensils, ShoppingBag, Fuel, Ticket, Clock,
-  Train, Camera, Compass
+  Train, Camera, Compass, Share2
 } from 'lucide-react';
 
 import { 
@@ -14,7 +14,8 @@ import {
 } from './types';
 import { BottomNav } from './components/CommonUI';
 import { 
-  AddScheduleModal, CreateTripModal, DeleteConfirmModal, SearchErrorModal, DeleteItemConfirmModal, TripSettingsModal, PotentialExpensesModal, EditDayDetailsModal, DeleteDayConfirmModal, BackupConfirmModal, ScheduleDetailModal, SwapDaysConfirmModal
+  AddScheduleModal, CreateTripModal, DeleteConfirmModal, SearchErrorModal, DeleteItemConfirmModal, TripSettingsModal, PotentialExpensesModal, EditDayDetailsModal, DeleteDayConfirmModal, BackupConfirmModal, ScheduleDetailModal, SwapDaysConfirmModal,
+  ShareTripModal
 } from './components/modals';
 import { PocketPlacesModal } from './components/PocketPlacesModal';
 import { TransitLegChainView } from './components/TransitComponents';
@@ -43,6 +44,7 @@ export default function App() {
   
   const [loading, setLoading] = useState(true);
   const [copyFeedback, setCopyFeedback] = useState(false);
+  const [isShareTripModalOpen, setIsShareTripModalOpen] = useState(false);
   
   const [currentTripId, setCurrentTripId] = useState<string>('');
   const [currentTripName, setCurrentTripName] = useState('');
@@ -344,9 +346,7 @@ export default function App() {
   };
 
   const handleShare = () => {
-    navigator.clipboard.writeText(currentTripId).then(() => {
-      setCopyFeedback(true); setTimeout(() => setCopyFeedback(false), 2000);
-    });
+    setIsShareTripModalOpen(true);
   };
 
   const handleOpenBackupModal = () => {
@@ -589,7 +589,16 @@ export default function App() {
           <div className="flex flex-col flex-1 min-w-0 pr-2">
             <button onClick={handleBackToHome} className="flex items-center gap-1 text-sm font-bold text-gray-400 mb-3"><ChevronLeft size={16} strokeWidth={3}/> 返回首頁</button>
             <h1 className="text-2xl sm:text-3xl font-black text-cocoa tracking-tight break-words leading-snug">{currentTripName}</h1>
-            <div onClick={handleShare} className="flex items-center gap-2 mt-2 cursor-pointer group flex-wrap"><span className="text-xs font-bold text-sage bg-white px-3 py-1.5 rounded-lg border-2 border-beige-dark group-hover:border-sage flex items-center gap-2 shadow-hard-sm">Code: {currentTripId} <Copy size={12} /></span>{copyFeedback && <span className="text-xs text-sage font-bold animate-pulse bg-white px-2 py-1 rounded-lg">已複製代碼！</span>}</div>
+            <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <button 
+                type="button"
+                onClick={() => setIsShareTripModalOpen(true)}
+                className="text-xs font-black text-sage bg-white hover:bg-sage/10 px-3 py-1.5 rounded-xl border-2 border-beige-dark hover:border-sage flex items-center gap-1.5 shadow-hard-sm transition-all active:scale-95 group cursor-pointer"
+                title="分享行程"
+              >
+                <Share2 size={13} strokeWidth={2.5} className="group-hover:rotate-12 transition-transform"/> 分享行程
+              </button>
+            </div>
           </div>
           <div className="flex items-center gap-3 pt-6 flex-shrink-0">
             {activeTab === 'schedule' && (
@@ -962,7 +971,24 @@ export default function App() {
               <PotentialExpensesModal isOpen={isPotentialModalOpen} onClose={() => setIsPotentialModalOpen(false)} items={scheduleItems} currencies={currencies} members={members} onJumpToSchedule={handleJumpToSchedule} />
               <EditDayDetailsModal isOpen={isEditDayModalOpen} onClose={() => setIsEditDayModalOpen(false)} onConfirm={handleUpdateDayDetails} initialDate={selectedDate} initialLocation={currentLocation} initialFruit={currentFruit} />
               <DeleteDayConfirmModal isOpen={isDeleteDayModalOpen} onClose={() => setIsDeleteDayModalOpen(false)} onConfirm={confirmDeleteDay} date={selectedDate} />
-              <TripSettingsModal isOpen={isSettingsModalOpen} onClose={() => setIsSettingsModalOpen(false)} currencies={currencies} onAddCurrency={addCurrency} onRemoveCurrency={removeCurrency} onDuplicate={handleOpenBackupModal} />
+              <TripSettingsModal 
+                isOpen={isSettingsModalOpen} 
+                onClose={() => setIsSettingsModalOpen(false)} 
+                currencies={currencies} 
+                onAddCurrency={addCurrency} 
+                onRemoveCurrency={removeCurrency} 
+                onDuplicate={handleOpenBackupModal}
+                tripId={currentTripId}
+                tripName={currentTripName}
+              />
+              <ShareTripModal
+                isOpen={isShareTripModalOpen}
+                onClose={() => setIsShareTripModalOpen(false)}
+                tripName={currentTripName}
+                dates={dates}
+                selectedDate={selectedDate}
+                scheduleItems={scheduleItems}
+              />
               <BackupConfirmModal isOpen={isBackupConfirmOpen} onClose={() => setIsBackupConfirmOpen(false)} onConfirm={executeBackupTrip} tripName={currentTripName} />
               <SwapDaysConfirmModal 
                 isOpen={!!pendingSwapDays} 
