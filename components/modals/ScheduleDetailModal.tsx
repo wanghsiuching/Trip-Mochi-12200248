@@ -271,7 +271,7 @@ export const ScheduleDetailModal = ({
                     {item.notes && (
                         <div className="bg-yellow-50/50 p-3 rounded-2xl border border-yellow-100">
                             <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-1 flex items-center gap-1"><AlignLeft size={10}/> 備註</h4>
-                            <p className="text-xs font-bold text-cocoa whitespace-pre-wrap leading-relaxed">{item.notes}</p>
+                            <p className="text-[12pt] font-medium text-cocoa whitespace-pre-wrap leading-relaxed">{item.notes}</p>
                         </div>
                     )}
 

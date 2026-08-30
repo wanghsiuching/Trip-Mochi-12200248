@@ -1059,7 +1059,7 @@ export default function App() {
                                         </div>
                                     )}
                                     {item.notes && (
-                                        <div className="flex gap-2 items-start bg-yellow-50/50 p-2 rounded-xl border border-yellow-100/50"><StickyNote size={14} className="text-yellow-400 mt-0.5" /><p className="text-xs font-bold text-gray-500 whitespace-pre-wrap">{item.notes}</p></div>
+                                        <div className="flex gap-2 items-start bg-yellow-50/50 p-2.5 rounded-xl border border-yellow-100/50"><StickyNote size={15} className="text-yellow-500 mt-0.5 flex-shrink-0" /><p className="text-[12pt] font-medium text-cocoa whitespace-pre-wrap leading-relaxed">{item.notes}</p></div>
                                     )}
                                     {participantNames && (
                                         <div className="mt-2 pt-2 border-t border-dashed border-gray-200 flex items-start gap-2"><Users size={12} className="text-gray-400 mt-0.5" /><div className="flex flex-col"><span className="text-[9px] font-black text-gray-400 uppercase">MEMBERS</span><span className="text-xs font-bold text-cocoa">{participantNames}</span></div></div>
