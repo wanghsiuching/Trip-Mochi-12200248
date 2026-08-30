@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
     MapPin, Utensils, Train, Bed, Camera, Plane, X, Navigation, 
     Clock, Luggage, Briefcase, Coffee, Ticket, AlignLeft, Users, Edit3, Car
@@ -6,12 +6,15 @@ import {
 import { ScheduleItem, Currency, Member } from '../../types';
 import { TransitLegChainView } from '../TransitComponents';
 import { MemberAvatar } from '../MemberAvatar';
+import { Lightbox } from '../Lightbox';
 
 export const ScheduleDetailModal = ({
     isOpen, onClose, item, onEdit, currencies, members
 }: {
     isOpen: boolean, onClose: () => void, item: ScheduleItem | null, onEdit: () => void, currencies: Currency[], members: Member[]
 }) => {
+    const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+
     if (!isOpen || !item) return null;
 
     let Icon = MapPin;
@@ -59,16 +62,29 @@ export const ScheduleDetailModal = ({
                     {/* Photos */}
                     {item.images && item.images.length > 0 && (
                         <div className="space-y-2">
-                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1">
-                                <Camera size={10} /> 景點相片 ({item.images.length})
+                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center justify-between">
+                                <span className="flex items-center gap-1"><Camera size={10} /> 景點相片 ({item.images.length})</span>
+                                <span className="text-[9px] text-gray-400 font-bold">點擊可放大查看</span>
                             </h4>
                             <div className="grid grid-cols-2 gap-2">
                                 {item.images.map((img, idx) => (
                                     <div 
                                         key={idx} 
-                                        className="relative aspect-video rounded-xl overflow-hidden border-2 border-beige-dark shadow-sm group"
+                                        onClick={() => setLightboxIndex(idx)}
+                                        className="relative aspect-video rounded-xl overflow-hidden border-2 border-beige-dark shadow-sm group cursor-pointer"
                                     >
-                                        <img src={img} alt={`${item.title} 相片 ${idx + 1}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" referrerPolicy="no-referrer" />
+                                        <img 
+                                            src={img} 
+                                            alt={`${item.title} 相片 ${idx + 1}`} 
+                                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
+                                            style={{ objectPosition: idx === 0 ? `center ${item.photoOffsetY ?? 50}%` : 'center center' }}
+                                            referrerPolicy="no-referrer" 
+                                        />
+                                        {idx === 0 && (
+                                            <span className="absolute bottom-1 left-1 bg-black/60 backdrop-blur-xs text-white text-[9px] font-bold px-1.5 py-0.5 rounded">
+                                                卡片主圖
+                                            </span>
+                                        )}
                                     </div>
                                 ))}
                             </div>
@@ -302,6 +318,14 @@ export const ScheduleDetailModal = ({
                     </button>
                 </div>
             </div>
+
+            {lightboxIndex !== null && item.images && (
+                <Lightbox 
+                    images={item.images}
+                    initialIndex={lightboxIndex}
+                    onClose={() => setLightboxIndex(null)}
+                />
+            )}
         </div>
     );
 };

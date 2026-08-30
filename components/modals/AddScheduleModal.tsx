@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Camera, Utensils, Train, Bed, Plane, X, Navigation, 
   ExternalLink, Clock, DollarSign, Fuel, Plus, AlignLeft, Car, Ticket, Coffee,
-  Image as ImageIcon, Upload, Trash2, Loader2
+  Image as ImageIcon, Upload, Trash2, Loader2, ArrowLeft, ArrowRight, Star, Move, Check
 } from 'lucide-react';
 import { ItemType, ScheduleItem, Currency, Member, ExpenseItem, TransitLeg, TransitFareDetails } from '../../types';
 import { TransitLegEditor } from '../TransitComponents';
@@ -76,6 +76,8 @@ export const AddScheduleModal = ({
   const [gpsInput, setGpsInput] = useState('');
   const [notes, setNotes] = useState('');
   const [images, setImages] = useState<string[]>([]);
+  const [photoPlacement, setPhotoPlacement] = useState<'top' | 'middle' | 'bottom'>('middle');
+  const [photoOffsetY, setPhotoOffsetY] = useState<number>(50);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -175,6 +177,8 @@ export const AddScheduleModal = ({
         setLocation(initialData.location);
         setNotes(initialData.notes || '');
         setImages(initialData.images || []);
+        setPhotoPlacement(initialData.photoPlacement || 'middle');
+        setPhotoOffsetY(typeof initialData.photoOffsetY === 'number' ? initialData.photoOffsetY : 50);
         if (initialData.gps) setGpsInput(`${initialData.gps.lat}, ${initialData.gps.lng}`);
         else setGpsInput('');
 
@@ -353,6 +357,8 @@ export const AddScheduleModal = ({
         setHasRental(false); setRentalCompany(''); setCarModel(''); setPickupDate(currentDate || ''); setPickupTime('09:00'); setReturnDate(currentDate || ''); setReturnTime('18:00'); setRentalCost(''); setRentalCurrency('TWD'); setRentalHasServiceFee(false); setRentalServiceFeePercentage(''); setEstimatedFuelCost(''); setFuelCurrency('TWD'); setRentalExpenses([]); setRentalParticipants(members.map(m => m.id)); setIsRentalPotential(false); setExpenseToDelete(null);
         setHasTicket(false); setTicketCost(''); setSelectedCurrency('TWD'); setHasServiceFee(false); setServiceFeePercentage(''); setParticipantIds(members.map(m => m.id)); setIsPotential(false);
         setImages([]);
+        setPhotoPlacement('middle');
+        setPhotoOffsetY(50);
       }
     }
   }, [isOpen, initialData, members, currentDate]);
@@ -392,6 +398,28 @@ export const AddScheduleModal = ({
     setImages(prev => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
+  const handleMoveImage = (fromIndex: number, direction: 'left' | 'right') => {
+    const toIndex = direction === 'left' ? fromIndex - 1 : fromIndex + 1;
+    if (toIndex < 0 || toIndex >= images.length) return;
+    setImages(prev => {
+      const next = [...prev];
+      const temp = next[fromIndex];
+      next[fromIndex] = next[toIndex];
+      next[toIndex] = temp;
+      return next;
+    });
+  };
+
+  const handleSetMainImage = (index: number) => {
+    if (index <= 0 || index >= images.length) return;
+    setImages(prev => {
+      const next = [...prev];
+      const [selected] = next.splice(index, 1);
+      next.unshift(selected);
+      return next;
+    });
+  };
+
   // Rental Expense Helpers
   const addRentalExpense = () => setRentalExpenses([...rentalExpenses, { id: Date.now().toString(), name: '', amount: '', currency: 'TWD', hasServiceFee: false, serviceFeePercentage: '' }]);
   const updateRentalExpense = (id: string, field: keyof ExpenseItem, value: any) => setRentalExpenses(prev => prev.map(item => item.id === id ? { ...item, [field]: value } : item));
@@ -426,7 +454,9 @@ export const AddScheduleModal = ({
       type: selectedType, 
       location: finalLocation, 
       notes,
-      images: images.length > 0 ? images : undefined
+      images: images.length > 0 ? images : undefined,
+      photoPlacement: images.length > 0 ? photoPlacement : undefined,
+      photoOffsetY: images.length > 0 ? photoOffsetY : undefined,
     };
     const gpsParts = gpsInput.split(/[,，\s]+/).filter(Boolean);
     if (gpsParts.length >= 2) itemData.gps = { lat: gpsParts[0], lng: gpsParts[1] };
@@ -1015,7 +1045,7 @@ export const AddScheduleModal = ({
              )}
 
              {/* Photo Upload Section */}
-             <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm space-y-3">
+             <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm space-y-4">
                 <div className="flex items-center justify-between">
                    <label className="text-xs font-black text-cocoa flex items-center gap-1.5">
                       <Camera size={14} className="text-sage" />
@@ -1023,7 +1053,7 @@ export const AddScheduleModal = ({
                    </label>
                    {images.length > 0 && (
                       <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-                         已選 {images.length} 張（首張將作為卡片大圖圖式）
+                         已選 {images.length} 張相片
                       </span>
                    )}
                 </div>
@@ -1038,23 +1068,64 @@ export const AddScheduleModal = ({
                    id="schedule-photo-upload"
                 />
 
-                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                {/* Uploaded Images List with Reorder Controls */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                    {images.map((img, idx) => (
-                      <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border-2 border-beige-dark bg-gray-50 shadow-xs">
-                         <img src={img} alt={`相片 ${idx + 1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                         {idx === 0 && (
-                            <span className="absolute top-1 left-1 bg-sage text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm">
-                               卡片主圖
-                            </span>
-                         )}
-                         <button
-                            type="button"
-                            onClick={() => handleRemoveImage(idx)}
-                            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-red-500 transition-colors shadow-sm"
-                            title="刪除相片"
-                         >
-                            <X size={12} strokeWidth={2.5} />
-                         </button>
+                      <div key={idx} className="relative group rounded-xl overflow-hidden border-2 border-beige-dark bg-gray-50 shadow-xs flex flex-col">
+                         <div className="relative aspect-video w-full overflow-hidden bg-black/5">
+                            <img 
+                               src={img} 
+                               alt={`相片 ${idx + 1}`} 
+                               className="w-full h-full object-cover"
+                               style={{ objectPosition: idx === 0 ? `center ${photoOffsetY}%` : 'center center' }}
+                               referrerPolicy="no-referrer" 
+                            />
+                            {idx === 0 ? (
+                               <span className="absolute top-1 left-1 bg-sage text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm flex items-center gap-0.5">
+                                  <Star size={9} fill="currentColor" /> 卡片主圖
+                               </span>
+                            ) : (
+                               <button
+                                  type="button"
+                                  onClick={() => handleSetMainImage(idx)}
+                                  className="absolute top-1 left-1 bg-black/60 hover:bg-sage text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm transition-colors flex items-center gap-0.5"
+                                  title="設為首張主圖"
+                               >
+                                  <Star size={9} /> 設為主圖
+                               </button>
+                            )}
+                            <button
+                               type="button"
+                               onClick={() => handleRemoveImage(idx)}
+                               className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-red-500 transition-colors shadow-sm"
+                               title="刪除相片"
+                            >
+                               <X size={11} strokeWidth={2.5} />
+                            </button>
+                         </div>
+                         
+                         {/* Order controls */}
+                         <div className="flex items-center justify-between p-1 bg-white border-t border-beige-dark text-[10px] text-gray-500">
+                            <button
+                               type="button"
+                               disabled={idx === 0}
+                               onClick={() => handleMoveImage(idx, 'left')}
+                               className={`px-2 py-0.5 rounded flex items-center gap-0.5 font-bold transition-colors ${idx === 0 ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-sage/10 text-cocoa hover:text-sage'}`}
+                               title="往前移"
+                            >
+                               <ArrowLeft size={11} /> 往左
+                            </button>
+                            <span className="font-mono text-[9px] font-bold text-gray-400">#{idx + 1}</span>
+                            <button
+                               type="button"
+                               disabled={idx === images.length - 1}
+                               onClick={() => handleMoveImage(idx, 'right')}
+                               className={`px-2 py-0.5 rounded flex items-center gap-0.5 font-bold transition-colors ${idx === images.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'hover:bg-sage/10 text-cocoa hover:text-sage'}`}
+                               title="往後移"
+                            >
+                               往右 <ArrowRight size={11} />
+                            </button>
+                         </div>
                       </div>
                    ))}
 
@@ -1062,7 +1133,7 @@ export const AddScheduleModal = ({
                       type="button"
                       disabled={isUploadingImage}
                       onClick={() => fileInputRef.current?.click()}
-                      className={`aspect-square rounded-xl border-2 border-dashed border-sage/60 hover:border-sage bg-sage/5 hover:bg-sage/10 flex flex-col items-center justify-center gap-1 text-sage transition-all ${isUploadingImage ? 'opacity-60 cursor-wait' : 'cursor-pointer active:scale-95'}`}
+                      className={`min-h-[90px] rounded-xl border-2 border-dashed border-sage/60 hover:border-sage bg-sage/5 hover:bg-sage/10 flex flex-col items-center justify-center gap-1 text-sage transition-all ${isUploadingImage ? 'opacity-60 cursor-wait' : 'cursor-pointer active:scale-95'}`}
                    >
                       {isUploadingImage ? (
                          <>
@@ -1077,9 +1148,136 @@ export const AddScheduleModal = ({
                       )}
                    </button>
                 </div>
-                <p className="text-[11px] font-bold text-gray-400 leading-snug">
-                   💡 上傳相片後，首張照片將作為卡片大圖顯示在行程卡片虛線下方。
-                </p>
+
+                {images.length > 0 && (
+                   <div className="pt-3 border-t border-beige-dark space-y-3.5">
+                      {/* Placement Selector */}
+                      <div className="space-y-1.5">
+                         <label className="text-[11px] font-black text-cocoa flex items-center justify-between">
+                            <span>卡片顯示位置</span>
+                            <span className="text-[10px] text-gray-400 font-bold">決定照片出現在卡片的哪一區</span>
+                         </label>
+                         <div className="grid grid-cols-3 gap-2">
+                            <button
+                               type="button"
+                               onClick={() => setPhotoPlacement('top')}
+                               className={`p-2.5 rounded-xl border-2 text-left transition-all ${
+                                  photoPlacement === 'top'
+                                     ? 'border-sage bg-sage/10 text-sage shadow-xs'
+                                     : 'border-beige-dark bg-gray-50 text-gray-600 hover:border-sage/50'
+                               }`}
+                            >
+                               <div className="text-xs font-black flex items-center justify-between mb-0.5">
+                                  <span>頂部封面</span>
+                                  {photoPlacement === 'top' && <Check size={12} strokeWidth={3} className="text-sage" />}
+                               </div>
+                               <p className="text-[9px] text-gray-400 font-bold leading-tight">置於卡片最上方（時間/標題之上）</p>
+                            </button>
+
+                            <button
+                               type="button"
+                               onClick={() => setPhotoPlacement('middle')}
+                               className={`p-2.5 rounded-xl border-2 text-left transition-all ${
+                                  photoPlacement === 'middle'
+                                     ? 'border-sage bg-sage/10 text-sage shadow-xs'
+                                     : 'border-beige-dark bg-gray-50 text-gray-600 hover:border-sage/50'
+                               }`}
+                            >
+                               <div className="text-xs font-black flex items-center justify-between mb-0.5">
+                                  <span>虛線下方</span>
+                                  {photoPlacement === 'middle' && <Check size={12} strokeWidth={3} className="text-sage" />}
+                               </div>
+                               <p className="text-[9px] text-gray-400 font-bold leading-tight">置於卡片虛線切口下方（預設）</p>
+                            </button>
+
+                            <button
+                               type="button"
+                               onClick={() => setPhotoPlacement('bottom')}
+                               className={`p-2.5 rounded-xl border-2 text-left transition-all ${
+                                  photoPlacement === 'bottom'
+                                     ? 'border-sage bg-sage/10 text-sage shadow-xs'
+                                     : 'border-beige-dark bg-gray-50 text-gray-600 hover:border-sage/50'
+                               }`}
+                            >
+                               <div className="text-xs font-black flex items-center justify-between mb-0.5">
+                                  <span>卡片最底</span>
+                                  {photoPlacement === 'bottom' && <Check size={12} strokeWidth={3} className="text-sage" />}
+                               </div>
+                               <p className="text-[9px] text-gray-400 font-bold leading-tight">置於卡片最底部（備註下方）</p>
+                            </button>
+                         </div>
+                      </div>
+
+                      {/* Photo Vertical Position / Focal Offset Slider */}
+                      <div className="bg-sage/5 p-3 rounded-xl border border-sage/20 space-y-2.5">
+                         <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-black text-cocoa flex items-center gap-1.5">
+                               <Move size={12} className="text-sage" />
+                               <span>上下移動照片顯示視野 (焦點對齊)</span>
+                            </label>
+                            <span className="font-mono text-xs font-black text-sage bg-white px-2 py-0.5 rounded-md border border-sage/30 shadow-2xs">
+                               {photoOffsetY}% ({photoOffsetY <= 20 ? '靠頂' : photoOffsetY <= 40 ? '偏上' : photoOffsetY <= 60 ? '置中' : photoOffsetY <= 80 ? '偏下' : '靠底'})
+                            </span>
+                         </div>
+
+                         {/* Live Preview Box */}
+                         <div className="relative w-full h-32 rounded-xl overflow-hidden border-2 border-sage/40 bg-gray-100 shadow-inner">
+                            <img 
+                               src={images[0]} 
+                               alt="視野預覽" 
+                               className="w-full h-full object-cover transition-[object-position] duration-150"
+                               style={{ objectPosition: `center ${photoOffsetY}%` }}
+                               referrerPolicy="no-referrer"
+                            />
+                            <div className="absolute top-1.5 left-1.5 bg-black/60 backdrop-blur-xs text-white text-[9px] font-black px-2 py-0.5 rounded shadow-sm">
+                               主圖即時視野預覽
+                            </div>
+                         </div>
+
+                         {/* Slider */}
+                         <div className="space-y-1">
+                            <div className="flex justify-between text-[10px] font-bold text-gray-400 px-1">
+                               <span>⬆️ 顯示頂部 (0%)</span>
+                               <span>居中 (50%)</span>
+                               <span>⬇️ 顯示底部 (100%)</span>
+                            </div>
+                            <input 
+                               type="range"
+                               min="0"
+                               max="100"
+                               step="1"
+                               value={photoOffsetY}
+                               onChange={(e) => setPhotoOffsetY(Number(e.target.value))}
+                               className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-sage"
+                            />
+                         </div>
+
+                         {/* Quick Presets */}
+                         <div className="flex items-center justify-between gap-1 pt-1">
+                            {[
+                               { label: '頂端 0%', val: 0 },
+                               { label: '偏上 25%', val: 25 },
+                               { label: '置中 50%', val: 50 },
+                               { label: '偏下 75%', val: 75 },
+                               { label: '底端 100%', val: 100 },
+                            ].map((preset) => (
+                               <button
+                                  key={preset.val}
+                                  type="button"
+                                  onClick={() => setPhotoOffsetY(preset.val)}
+                                  className={`flex-1 py-1 rounded text-[10px] font-bold transition-all border ${
+                                     photoOffsetY === preset.val
+                                        ? 'bg-sage text-white border-sage shadow-2xs'
+                                        : 'bg-white text-gray-600 border-beige-dark hover:border-sage'
+                                  }`}
+                               >
+                                  {preset.label}
+                               </button>
+                            ))}
+                         </div>
+                      </div>
+                   </div>
+                )}
              </div>
 
              <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm">

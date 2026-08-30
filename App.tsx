@@ -765,6 +765,37 @@ export default function App() {
                                 : 'border-beige-dark'
                             }`}
                           >
+                            {/* 卡片頂部封面橫幅 (Top Cover Banner) */}
+                            {item.images && item.images.length > 0 && item.photoPlacement === 'top' && (
+                                <div 
+                                    className="relative w-full h-44 sm:h-56 overflow-hidden border-b-2 border-beige-dark group/photo cursor-pointer bg-gray-100"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setLightboxState({ images: item.images!, index: 0 });
+                                    }}
+                                >
+                                    <img 
+                                        src={item.images[0]} 
+                                        alt={item.title}
+                                        className="w-full h-full object-cover transition-transform duration-500 group-hover/photo:scale-105"
+                                        style={{ objectPosition: `center ${item.photoOffsetY ?? 50}%` }}
+                                        referrerPolicy="no-referrer"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-end justify-between p-3 text-white">
+                                        <span className="text-xs font-black drop-shadow-md">點擊查看大圖</span>
+                                        <span className="text-[11px] font-bold bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full drop-shadow-md flex items-center gap-1">
+                                            <Camera size={12} /> {item.images.length > 1 ? `${item.images.length} 張相片` : '相片'}
+                                        </span>
+                                    </div>
+                                    {item.images.length > 1 && (
+                                        <div className="absolute bottom-2.5 right-2.5 bg-cocoa/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm flex items-center gap-1 border border-white/20">
+                                            <Camera size={11} />
+                                            <span>1/{item.images.length}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             <div className="p-3.5 sm:p-4">
                                 <div className="flex justify-between items-start mb-3 gap-2">
                                     <div className="flex items-start gap-2.5 flex-1 min-w-0">
@@ -804,7 +835,7 @@ export default function App() {
                             <div className="bg-[#FAF9F6] p-3.5 sm:p-4">
                                 <div className="space-y-3">
                                     {/* 景點 / 行程相片大圖圖式（顯示在虛線下方） */}
-                                    {item.images && item.images.length > 0 && (
+                                    {item.images && item.images.length > 0 && (!item.photoPlacement || item.photoPlacement === 'middle') && (
                                         <div 
                                             className="relative w-full rounded-2xl overflow-hidden border-2 border-beige-dark shadow-sm group/photo cursor-pointer bg-gray-100"
                                             onClick={(e) => {
@@ -816,6 +847,7 @@ export default function App() {
                                                 src={item.images[0]} 
                                                 alt={item.title}
                                                 className="w-full h-44 sm:h-56 object-cover transition-transform duration-500 group-hover/photo:scale-105"
+                                                style={{ objectPosition: `center ${item.photoOffsetY ?? 50}%` }}
                                                 referrerPolicy="no-referrer"
                                             />
                                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-end justify-between p-3 text-white">
@@ -1031,6 +1063,37 @@ export default function App() {
                                     )}
                                     {participantNames && (
                                         <div className="mt-2 pt-2 border-t border-dashed border-gray-200 flex items-start gap-2"><Users size={12} className="text-gray-400 mt-0.5" /><div className="flex flex-col"><span className="text-[9px] font-black text-gray-400 uppercase">MEMBERS</span><span className="text-xs font-bold text-cocoa">{participantNames}</span></div></div>
+                                    )}
+
+                                    {/* 景點 / 行程相片大圖圖式（顯示在卡片最底部） */}
+                                    {item.images && item.images.length > 0 && item.photoPlacement === 'bottom' && (
+                                        <div 
+                                            className="relative w-full rounded-2xl overflow-hidden border-2 border-beige-dark shadow-sm group/photo cursor-pointer bg-gray-100 mt-2"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setLightboxState({ images: item.images!, index: 0 });
+                                            }}
+                                        >
+                                            <img 
+                                                src={item.images[0]} 
+                                                alt={item.title}
+                                                className="w-full h-44 sm:h-56 object-cover transition-transform duration-500 group-hover/photo:scale-105"
+                                                style={{ objectPosition: `center ${item.photoOffsetY ?? 50}%` }}
+                                                referrerPolicy="no-referrer"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-end justify-between p-3 text-white">
+                                                <span className="text-xs font-black drop-shadow-md">點擊查看大圖</span>
+                                                <span className="text-[11px] font-bold bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full drop-shadow-md flex items-center gap-1">
+                                                    <Camera size={12} /> {item.images.length > 1 ? `${item.images.length} 張相片` : '相片'}
+                                                </span>
+                                            </div>
+                                            {item.images.length > 1 && (
+                                                <div className="absolute bottom-2.5 right-2.5 bg-cocoa/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm flex items-center gap-1 border border-white/20">
+                                                    <Camera size={11} />
+                                                    <span>1/{item.images.length}</span>
+                                                </div>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             </div>

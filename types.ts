@@ -191,6 +191,8 @@ export interface ScheduleItem {
   naverMapUrl?: string;
   note?: string;
   images?: string[];
+  photoPlacement?: 'top' | 'middle' | 'bottom';
+  photoOffsetY?: number;
 }
 
 export interface PocketItem {
