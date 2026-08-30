@@ -645,11 +645,11 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                   {/* Notes Box */}
                   {item.notes && (
                     <div className="bg-amber-50/70 p-3.5 rounded-2xl border border-amber-200/70">
-                      <div className="flex items-center gap-1.5 text-sm font-black text-amber-800 mb-1.5">
-                        <StickyNote size={15} className="text-amber-600 flex-shrink-0" />
+                      <div className="flex items-center gap-1.5 text-xs font-black text-amber-800 mb-1.5">
+                        <StickyNote size={14} className="text-amber-600 flex-shrink-0" />
                         <span>備註:</span>
                       </div>
-                      <div className="text-[12pt] font-medium text-amber-950 whitespace-pre-wrap leading-relaxed">
+                      <div className="text-[11pt] font-medium text-amber-950 whitespace-pre-wrap leading-relaxed">
                         {item.notes}
                       </div>
                     </div>
@@ -1010,7 +1010,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                   value={formData.notes}
                   onChange={e => setFormData({ ...formData, notes: e.target.value })}
                   placeholder="例：推薦必吃必買品項、注意事項、營業時間、心得等..."
-                  className="w-full bg-gray-50 p-3.5 rounded-xl border border-gray-200 focus:border-sage outline-none font-medium text-[12pt] text-cocoa min-h-[140px] leading-relaxed resize-y"
+                  className="w-full bg-gray-50 p-3.5 rounded-xl border border-gray-200 focus:border-sage outline-none font-medium text-[11pt] text-cocoa min-h-[140px] leading-relaxed resize-y"
                 />
               </div>
 
