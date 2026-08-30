@@ -17,6 +17,7 @@ import {
   AddScheduleModal, CreateTripModal, DeleteConfirmModal, SearchErrorModal, DeleteItemConfirmModal, TripSettingsModal, PotentialExpensesModal, EditDayDetailsModal, DeleteDayConfirmModal, BackupConfirmModal, ScheduleDetailModal, SwapDaysConfirmModal,
   ShareTripModal, MoveItemConfirmModal
 } from './components/modals';
+import { Lightbox } from './components/Lightbox';
 import { PocketPlacesModal } from './components/PocketPlacesModal';
 import { TransitLegChainView } from './components/TransitComponents';
 import { BookingsView } from './components/BookingsView';
@@ -51,6 +52,7 @@ export default function App() {
     currentItem: ScheduleItem;
     targetItem: ScheduleItem;
   } | null>(null);
+  const [lightboxState, setLightboxState] = useState<{ images: string[]; index: number } | null>(null);
   
   const [currentTripId, setCurrentTripId] = useState<string>('');
   const [currentTripName, setCurrentTripName] = useState('');
@@ -801,6 +803,36 @@ export default function App() {
                             <div className="relative w-full h-0 border-t-2 border-dashed border-beige-dark flex justify-between items-center"><div className="absolute -left-3 -top-3 w-6 h-6 bg-beige rounded-full border-r-2 border-beige-dark"></div><div className="absolute -right-3 -top-3 w-6 h-6 bg-beige rounded-full border-l-2 border-beige-dark"></div></div>
                             <div className="bg-[#FAF9F6] p-3.5 sm:p-4">
                                 <div className="space-y-3">
+                                    {/* 景點 / 行程相片大圖圖式（顯示在虛線下方） */}
+                                    {item.images && item.images.length > 0 && (
+                                        <div 
+                                            className="relative w-full rounded-2xl overflow-hidden border-2 border-beige-dark shadow-sm group/photo cursor-pointer bg-gray-100"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setLightboxState({ images: item.images!, index: 0 });
+                                            }}
+                                        >
+                                            <img 
+                                                src={item.images[0]} 
+                                                alt={item.title}
+                                                className="w-full h-44 sm:h-56 object-cover transition-transform duration-500 group-hover/photo:scale-105"
+                                                referrerPolicy="no-referrer"
+                                            />
+                                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-end justify-between p-3 text-white">
+                                                <span className="text-xs font-black drop-shadow-md">點擊查看大圖</span>
+                                                <span className="text-[11px] font-bold bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full drop-shadow-md flex items-center gap-1">
+                                                    <Camera size={12} /> {item.images.length > 1 ? `${item.images.length} 張相片` : '相片'}
+                                                </span>
+                                            </div>
+                                            {item.images.length > 1 && (
+                                                <div className="absolute bottom-2.5 right-2.5 bg-cocoa/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm flex items-center gap-1 border border-white/20">
+                                                    <Camera size={11} />
+                                                    <span>1/{item.images.length}</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+
                                     {item.type === 'flight' && item.flightDetails && (
                                         <div className="bg-gradient-to-br from-cyan-50/80 via-sky-50/40 to-blue-50/50 p-3 rounded-2xl border border-cyan-200/80 space-y-2.5">
                                             {/* Header: Airline & Flight Code */}
@@ -1085,6 +1117,13 @@ export default function App() {
           {activeTab === 'members' && (<MembersView members={members} scheduleItems={scheduleItems} expenses={expenses} currencies={currencies} onAdd={handleAddMember} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} onJumpToSchedule={handleJumpToSchedule} onJumpToExpense={handleJumpToExpense} />)}
         </main>
         <BottomNav activeTab={activeTab} setTab={setActiveTab} />
+        {lightboxState && (
+          <Lightbox
+            images={lightboxState.images}
+            initialIndex={lightboxState.index}
+            onClose={() => setLightboxState(null)}
+          />
+        )}
       </div>
     </div>
   );

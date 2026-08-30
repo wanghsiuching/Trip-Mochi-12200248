@@ -56,6 +56,25 @@ export const ScheduleDetailModal = ({
                         </button>
                     </div>
 
+                    {/* Photos */}
+                    {item.images && item.images.length > 0 && (
+                        <div className="space-y-2">
+                            <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                                <Camera size={10} /> 景點相片 ({item.images.length})
+                            </h4>
+                            <div className="grid grid-cols-2 gap-2">
+                                {item.images.map((img, idx) => (
+                                    <div 
+                                        key={idx} 
+                                        className="relative aspect-video rounded-xl overflow-hidden border-2 border-beige-dark shadow-sm group"
+                                    >
+                                        <img src={img} alt={`${item.title} 相片 ${idx + 1}`} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" referrerPolicy="no-referrer" />
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Flight Details */}
                     {item.type === 'flight' && item.flightDetails && (
                         <div className="bg-gradient-to-br from-cyan-50/80 via-sky-50/40 to-blue-50/50 p-4 rounded-2xl border border-cyan-200/80 space-y-3">

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Camera, Utensils, Train, Bed, Plane, X, Navigation, 
-  ExternalLink, Clock, DollarSign, Fuel, Plus, AlignLeft, Car, Ticket, Coffee 
+  ExternalLink, Clock, DollarSign, Fuel, Plus, AlignLeft, Car, Ticket, Coffee,
+  Image as ImageIcon, Upload, Trash2, Loader2
 } from 'lucide-react';
 import { ItemType, ScheduleItem, Currency, Member, ExpenseItem, TransitLeg, TransitFareDetails } from '../../types';
 import { TransitLegEditor } from '../TransitComponents';
@@ -9,6 +10,7 @@ import { DateTimePickerField } from '../TimePickerComponents';
 import { ToggleSwitch } from './ToggleSwitch';
 import { DeleteItemConfirmModal } from './DeleteItemConfirmModal';
 import { getExchangeRate, POPULAR_CURRENCIES } from '../../utils/currency';
+import { compressImageToBase64 } from '../../utils/imageService';
 
 const CuteButton = ({ checked, onChange, icon: Icon, label, activeColor = 'bg-orange-100 text-orange-500 border-orange-200' }: any) => (
     <button
@@ -73,6 +75,9 @@ export const AddScheduleModal = ({
   const [location, setLocation] = useState('');
   const [gpsInput, setGpsInput] = useState('');
   const [notes, setNotes] = useState('');
+  const [images, setImages] = useState<string[]>([]);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Flight Fields
   const [flightAirline, setFlightAirline] = useState('');
@@ -169,6 +174,7 @@ export const AddScheduleModal = ({
         setTime(initialData.time || '09:00');
         setLocation(initialData.location);
         setNotes(initialData.notes || '');
+        setImages(initialData.images || []);
         if (initialData.gps) setGpsInput(`${initialData.gps.lat}, ${initialData.gps.lng}`);
         else setGpsInput('');
 
@@ -346,6 +352,7 @@ export const AddScheduleModal = ({
         setIsTransitPotential(false);
         setHasRental(false); setRentalCompany(''); setCarModel(''); setPickupDate(currentDate || ''); setPickupTime('09:00'); setReturnDate(currentDate || ''); setReturnTime('18:00'); setRentalCost(''); setRentalCurrency('TWD'); setRentalHasServiceFee(false); setRentalServiceFeePercentage(''); setEstimatedFuelCost(''); setFuelCurrency('TWD'); setRentalExpenses([]); setRentalParticipants(members.map(m => m.id)); setIsRentalPotential(false); setExpenseToDelete(null);
         setHasTicket(false); setTicketCost(''); setSelectedCurrency('TWD'); setHasServiceFee(false); setServiceFeePercentage(''); setParticipantIds(members.map(m => m.id)); setIsPotential(false);
+        setImages([]);
       }
     }
   }, [isOpen, initialData, members, currentDate]);
@@ -358,6 +365,31 @@ export const AddScheduleModal = ({
   // Helper for opening maps
   const openExternalMap = (query: string) => {
       window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`, '_blank');
+  };
+
+  // Image Upload Handlers
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setIsUploadingImage(true);
+    try {
+      const newImages: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const base64 = await compressImageToBase64(files[i]);
+        newImages.push(base64);
+      }
+      setImages(prev => [...prev, ...newImages]);
+    } catch (err) {
+      console.error('圖片處理失敗', err);
+      alert('圖片處理失敗，請重試');
+    } finally {
+      setIsUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveImage = (indexToRemove: number) => {
+    setImages(prev => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
   // Rental Expense Helpers
@@ -387,7 +419,15 @@ export const AddScheduleModal = ({
 
     const finalDate = itemDate || (initialData ? initialData.date : currentDate);
     const finalTime = time || '09:00';
-    const itemData: Omit<ScheduleItem, 'id'> = { date: finalDate, time: finalTime, title: finalTitle, type: selectedType, location: finalLocation, notes };
+    const itemData: Omit<ScheduleItem, 'id'> = { 
+      date: finalDate, 
+      time: finalTime, 
+      title: finalTitle, 
+      type: selectedType, 
+      location: finalLocation, 
+      notes,
+      images: images.length > 0 ? images : undefined
+    };
     const gpsParts = gpsInput.split(/[,，\s]+/).filter(Boolean);
     if (gpsParts.length >= 2) itemData.gps = { lat: gpsParts[0], lng: gpsParts[1] };
 
@@ -973,6 +1013,74 @@ export const AddScheduleModal = ({
                  )}
                </div>
              )}
+
+             {/* Photo Upload Section */}
+             <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                   <label className="text-xs font-black text-cocoa flex items-center gap-1.5">
+                      <Camera size={14} className="text-sage" />
+                      <span>相片 / 景點圖式</span>
+                   </label>
+                   {images.length > 0 && (
+                      <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
+                         已選 {images.length} 張（首張將作為卡片大圖圖式）
+                      </span>
+                   )}
+                </div>
+
+                <input
+                   ref={fileInputRef}
+                   type="file"
+                   accept="image/*"
+                   multiple
+                   onChange={handleImageUpload}
+                   className="hidden"
+                   id="schedule-photo-upload"
+                />
+
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                   {images.map((img, idx) => (
+                      <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border-2 border-beige-dark bg-gray-50 shadow-xs">
+                         <img src={img} alt={`相片 ${idx + 1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                         {idx === 0 && (
+                            <span className="absolute top-1 left-1 bg-sage text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm">
+                               卡片主圖
+                            </span>
+                         )}
+                         <button
+                            type="button"
+                            onClick={() => handleRemoveImage(idx)}
+                            className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-red-500 transition-colors shadow-sm"
+                            title="刪除相片"
+                         >
+                            <X size={12} strokeWidth={2.5} />
+                         </button>
+                      </div>
+                   ))}
+
+                   <button
+                      type="button"
+                      disabled={isUploadingImage}
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`aspect-square rounded-xl border-2 border-dashed border-sage/60 hover:border-sage bg-sage/5 hover:bg-sage/10 flex flex-col items-center justify-center gap-1 text-sage transition-all ${isUploadingImage ? 'opacity-60 cursor-wait' : 'cursor-pointer active:scale-95'}`}
+                   >
+                      {isUploadingImage ? (
+                         <>
+                            <Loader2 size={20} className="animate-spin text-sage" />
+                            <span className="text-[10px] font-black">處理中...</span>
+                         </>
+                      ) : (
+                         <>
+                            <Upload size={20} />
+                            <span className="text-[10px] font-black">{images.length === 0 ? '上傳相片' : '加更多相片'}</span>
+                         </>
+                      )}
+                   </button>
+                </div>
+                <p className="text-[11px] font-bold text-gray-400 leading-snug">
+                   💡 上傳相片後，首張照片將作為卡片大圖顯示在行程卡片虛線下方。
+                </p>
+             </div>
 
              <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm">
                 <label className="text-xs font-bold text-gray-400 flex items-center gap-1 mb-1"><AlignLeft size={12}/> 備註</label>
