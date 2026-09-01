@@ -1,12 +1,11 @@
 /**
- * Advanced Multi-step Downsampling & Psycho-Visual Image Compression Engine.
+ * Fast, pure client-side image compression to lightweight WebP/JPEG Base64.
  * 
- * - Visual Quality: Near-lossless with crisp edges, text retention, and vibrant color fidelity.
- * - Resolution: Up to 1200px (Full HD / Retina 2x preview support for cards and detail lightbox).
- * - Multi-Step Downsampling: Stepped canvas scaling prevents aliasing, blurriness, and moire artifacts.
- * - Format: Next-gen WebP with adaptive quality (0.78 - 0.82) + fallback to optimized JPEG.
- * - Performance: High speed, non-blocking client-side processing.
- * - Size: Drastically reduced from 5MB+ down to ~40KB-75KB (98% reduction without visible artifacting).
+ * - Max dimension: 640px (crisp on mobile retina screens, optimal for travel cards & preview)
+ * - Format: Prefer WebP with automatic fallback to JPEG
+ * - Zero external storage / Firebase Storage dependency
+ * - 100% saved directly in Firestore database as Base64 strings
+ * - Instant processing (<100ms per image)
  */
 
 const isHeicFile = (file: File): boolean => {
@@ -20,74 +19,6 @@ const isHeicFile = (file: File): boolean => {
   );
 };
 
-/**
- * Multi-step stepped downsampling to achieve sharp, artifact-free image reduction.
- * Halves dimensions incrementally until approaching target size.
- */
-const renderSteppedCanvas = (
-  sourceImg: CanvasImageSource,
-  sourceWidth: number,
-  sourceHeight: number,
-  targetWidth: number,
-  targetHeight: number
-): HTMLCanvasElement => {
-  let currentWidth = sourceWidth;
-  let currentHeight = sourceHeight;
-
-  let currentCanvas = document.createElement('canvas');
-  currentCanvas.width = currentWidth;
-  currentCanvas.height = currentHeight;
-  let currentCtx = currentCanvas.getContext('2d', { alpha: false });
-  if (currentCtx) {
-    currentCtx.fillStyle = '#FFFFFF';
-    currentCtx.fillRect(0, 0, currentWidth, currentHeight);
-    currentCtx.imageSmoothingEnabled = true;
-    currentCtx.imageSmoothingQuality = 'high';
-    currentCtx.drawImage(sourceImg, 0, 0, currentWidth, currentHeight);
-  }
-
-  // Step down by half iteratively for ultra-smooth sampling
-  while (currentWidth * 0.5 > targetWidth && currentHeight * 0.5 > targetHeight) {
-    const nextWidth = Math.round(currentWidth * 0.5);
-    const nextHeight = Math.round(currentHeight * 0.5);
-
-    const nextCanvas = document.createElement('canvas');
-    nextCanvas.width = nextWidth;
-    nextCanvas.height = nextHeight;
-    const nextCtx = nextCanvas.getContext('2d', { alpha: false });
-
-    if (nextCtx) {
-      nextCtx.fillStyle = '#FFFFFF';
-      nextCtx.fillRect(0, 0, nextWidth, nextHeight);
-      nextCtx.imageSmoothingEnabled = true;
-      nextCtx.imageSmoothingQuality = 'high';
-      nextCtx.drawImage(currentCanvas, 0, 0, currentWidth, currentHeight, 0, 0, nextWidth, nextHeight);
-    }
-
-    currentCanvas = nextCanvas;
-    currentWidth = nextWidth;
-    currentHeight = nextHeight;
-  }
-
-  // Final resize to exact target dimensions
-  if (currentWidth !== targetWidth || currentHeight !== targetHeight) {
-    const finalCanvas = document.createElement('canvas');
-    finalCanvas.width = targetWidth;
-    finalCanvas.height = targetHeight;
-    const finalCtx = finalCanvas.getContext('2d', { alpha: false });
-    if (finalCtx) {
-      finalCtx.fillStyle = '#FFFFFF';
-      finalCtx.fillRect(0, 0, targetWidth, targetHeight);
-      finalCtx.imageSmoothingEnabled = true;
-      finalCtx.imageSmoothingQuality = 'high';
-      finalCtx.drawImage(currentCanvas, 0, 0, currentWidth, currentHeight, 0, 0, targetWidth, targetHeight);
-    }
-    return finalCanvas;
-  }
-
-  return currentCanvas;
-};
-
 export const compressImageToBase64 = async (rawFile: File): Promise<string> => {
   if (!rawFile) {
     throw new Error('未選擇檔案');
@@ -95,7 +26,7 @@ export const compressImageToBase64 = async (rawFile: File): Promise<string> => {
 
   let fileOrBlob: Blob | File = rawFile;
 
-  // Handle HEIC/HEIF files if uploaded from iPhone
+  // Handle HEIC if needed
   if (isHeicFile(rawFile)) {
     try {
       const heic2anyModule = await import('heic2any');
@@ -103,7 +34,7 @@ export const compressImageToBase64 = async (rawFile: File): Promise<string> => {
       const converted = await heic2any({
         blob: rawFile,
         toType: 'image/jpeg',
-        quality: 0.85,
+        quality: 0.65,
       });
       fileOrBlob = Array.isArray(converted) ? converted[0] : converted;
     } catch (e) {
@@ -127,7 +58,7 @@ export const compressImageToBase64 = async (rawFile: File): Promise<string> => {
 
       const img = new Image();
       img.onerror = () => {
-        if (rawDataUrl.startsWith('data:image/') && rawDataUrl.length < 100000) {
+        if (rawDataUrl.startsWith('data:image/') && rawDataUrl.length < 50000) {
           resolve(rawDataUrl);
         } else {
           reject(new Error('此圖片格式無法解析，請嘗試使用 JPG / PNG 格式'));
@@ -136,66 +67,68 @@ export const compressImageToBase64 = async (rawFile: File): Promise<string> => {
 
       img.onload = () => {
         try {
-          const originalWidth = img.naturalWidth || img.width || 1200;
-          const originalHeight = img.naturalHeight || img.height || 900;
+          const maxDimension = 640;
+          let width = img.naturalWidth || img.width || 640;
+          let height = img.naturalHeight || img.height || 480;
 
-          // Max resolution boundary: 1200px (Crisp on Retina mobile and 2K screens)
-          const MAX_DIMENSION = 1200;
-          let targetWidth = originalWidth;
-          let targetHeight = originalHeight;
-
-          if (originalWidth > originalHeight) {
-            if (originalWidth > MAX_DIMENSION) {
-              targetHeight = Math.round((originalHeight * MAX_DIMENSION) / originalWidth);
-              targetWidth = MAX_DIMENSION;
+          if (width > height) {
+            if (width > maxDimension) {
+              height = Math.round((height * maxDimension) / width);
+              width = maxDimension;
             }
           } else {
-            if (originalHeight > MAX_DIMENSION) {
-              targetWidth = Math.round((originalWidth * MAX_DIMENSION) / originalHeight);
-              targetHeight = MAX_DIMENSION;
+            if (height > maxDimension) {
+              width = Math.round((width * maxDimension) / height);
+              height = maxDimension;
             }
           }
 
-          // Use Stepped Downsampling for sharp results
-          const processedCanvas = renderSteppedCanvas(
-            img,
-            originalWidth,
-            originalHeight,
-            Math.max(1, targetWidth),
-            Math.max(1, targetHeight)
-          );
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, width);
+          canvas.height = Math.max(1, height);
+          const ctx = canvas.getContext('2d', { alpha: false });
 
-          // WebP Psycho-visual balance test (0.80 provides visually near-lossless results)
-          let outputBase64 = '';
-          let isWebp = false;
+          if (!ctx) {
+            resolve(rawDataUrl);
+            return;
+          }
 
+          // Fill white background for transparent PNGs
+          ctx.fillStyle = '#FFFFFF';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'medium';
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+          // Prefer WebP format; fallback to JPEG if browser does not support WebP canvas encoding
+          let isWebpSupported = false;
+          let compressed = '';
           try {
-            const candidateWebp = processedCanvas.toDataURL('image/webp', 0.80);
-            if (candidateWebp.startsWith('data:image/webp')) {
-              outputBase64 = candidateWebp;
-              isWebp = true;
+            const webpCandidate = canvas.toDataURL('image/webp', 0.6);
+            if (webpCandidate.startsWith('data:image/webp')) {
+              compressed = webpCandidate;
+              isWebpSupported = true;
             }
           } catch {
-            isWebp = false;
+            isWebpSupported = false;
           }
 
-          // Fallback to JPEG with high-fidelity 0.78 quality
-          if (!outputBase64) {
-            outputBase64 = processedCanvas.toDataURL('image/jpeg', 0.78);
+          if (!compressed) {
+            compressed = canvas.toDataURL('image/jpeg', 0.55);
           }
 
-          // Safety guard: if extremely dense photo exceeds 180KB, fine-tune slightly
-          if (outputBase64.length > 180000) {
-            if (isWebp) {
-              outputBase64 = processedCanvas.toDataURL('image/webp', 0.72);
+          // If still large (>35KB), apply secondary compression
+          if (compressed.length > 35000) {
+            if (isWebpSupported) {
+              compressed = canvas.toDataURL('image/webp', 0.4);
             } else {
-              outputBase64 = processedCanvas.toDataURL('image/jpeg', 0.70);
+              compressed = canvas.toDataURL('image/jpeg', 0.4);
             }
           }
 
-          resolve(outputBase64);
+          resolve(compressed);
         } catch (canvasErr) {
-          console.warn('Stepped compression fallback to raw data:', canvasErr);
+          console.warn('Canvas compression fallback to raw data:', canvasErr);
           resolve(rawDataUrl);
         }
       };
@@ -206,4 +139,3 @@ export const compressImageToBase64 = async (rawFile: File): Promise<string> => {
     reader.readAsDataURL(fileOrBlob);
   });
 };
-

@@ -281,14 +281,8 @@ export default function App() {
       if (!currentTripId) return;
       const unsubscribe = subscribeToTrip(currentTripId, (data) => {
           setTripDays(data.tripDays || []);
-          setSelectedDate(prev => {
-            const days = data.tripDays || [];
-            if (days.length === 0) return '';
-            if (!prev || !days.some((d: TripDay) => d.date === prev)) {
-              return days[0].date;
-            }
-            return prev;
-          });
+          if (!selectedDate && data.tripDays?.length > 0) setSelectedDate(data.tripDays[0].date);
+          else if (data.tripDays?.length > 0 && !data.tripDays.find((d: TripDay) => d.date === selectedDate)) setSelectedDate(data.tripDays[0].date);
           setScheduleItems(data.scheduleItems || []);
           setBookingFlights(data.flights || []);
           setBookingAccommodations(data.accommodations || []);
@@ -311,7 +305,7 @@ export default function App() {
           setLoading(false);
       });
       return () => unsubscribe();
-  }, [currentTripId]);
+  }, [currentTripId, selectedDate]);
 
   useEffect(() => {
       if (savedTrips.length > 0) localStorage.setItem('trip_mochi_index', JSON.stringify(savedTrips));
