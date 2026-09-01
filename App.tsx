@@ -1103,62 +1103,7 @@ export default function App() {
                     })}
                   </div>
                </div>
-              <button onClick={() => { setEditingItem(null); setIsAddModalOpen(true); }} className="fixed bottom-24 right-5 bg-cocoa text-white shadow-hard-sage active:translate-y-1 active:shadow-none z-30 flex items-center gap-2 px-4 py-3 rounded-[2rem] border-2 border-cocoa"><Plus size={20} strokeWidth={3} /><span className="font-bold tracking-widest text-base">新增</span></button>
-              <AddScheduleModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSave={handleSaveItem} initialData={editingItem} currencies={currencies} members={members} currentDate={selectedDate} />
-              <ScheduleDetailModal isOpen={!!viewingItem} onClose={() => setViewingItem(null)} item={viewingItem} onEdit={() => { if(viewingItem) { setViewingItem(null); handleEditClick(viewingItem); } }} currencies={currencies} members={members} />
-              <DeleteItemConfirmModal isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} onConfirm={confirmDeleteItem} title={scheduleItems.find(i => i.id === itemToDelete)?.title || '此項目'} />
-              <PotentialExpensesModal isOpen={isPotentialModalOpen} onClose={() => setIsPotentialModalOpen(false)} items={scheduleItems} currencies={currencies} members={members} onJumpToSchedule={handleJumpToSchedule} />
-              <EditDayDetailsModal isOpen={isEditDayModalOpen} onClose={() => setIsEditDayModalOpen(false)} onConfirm={handleUpdateDayDetails} initialDate={selectedDate} initialLocation={currentLocation} initialFruit={currentFruit} />
-              <DeleteDayConfirmModal isOpen={isDeleteDayModalOpen} onClose={() => setIsDeleteDayModalOpen(false)} onConfirm={confirmDeleteDay} date={selectedDate} />
-              <TripSettingsModal 
-                isOpen={isSettingsModalOpen} 
-                onClose={() => setIsSettingsModalOpen(false)} 
-                currencies={currencies} 
-                onAddCurrency={addCurrency} 
-                onRemoveCurrency={removeCurrency} 
-                onDuplicate={handleOpenBackupModal}
-                tripId={currentTripId}
-                tripName={currentTripName}
-              />
-              <ShareTripModal
-                isOpen={isShareTripModalOpen}
-                onClose={() => setIsShareTripModalOpen(false)}
-                tripName={currentTripName}
-                dates={dates}
-                selectedDate={selectedDate}
-                scheduleItems={scheduleItems}
-              />
-              <BackupConfirmModal isOpen={isBackupConfirmOpen} onClose={() => setIsBackupConfirmOpen(false)} onConfirm={executeBackupTrip} tripName={currentTripName} />
-              <SwapDaysConfirmModal 
-                isOpen={!!pendingSwapDays} 
-                onClose={handleCancelSwapDays} 
-                onConfirm={handleConfirmSwapDays} 
-                fromIndex={pendingSwapDays?.idx1 ?? null} 
-                toIndex={pendingSwapDays?.idx2 ?? null} 
-                tripDays={tripDays} 
-                scheduleItems={scheduleItems} 
-                dates={dates} 
-              />
-              <MoveItemConfirmModal
-                isOpen={!!pendingMoveItem}
-                onClose={handleCancelMoveItem}
-                onConfirm={handleConfirmMoveItem}
-                direction={pendingMoveItem?.direction || 'up'}
-                currentItem={pendingMoveItem?.currentItem || null}
-                targetItem={pendingMoveItem?.targetItem || null}
-              />
-              <PocketPlacesModal 
-                isOpen={isPocketModalOpen} 
-                onClose={() => setIsPocketModalOpen(false)} 
-                initialTab={pocketInitialTab}
-                tripId={currentTripId}
-                pocketItems={pocketItems}
-                tripDays={tripDays}
-                onAddItem={handleAddPocketItem}
-                onUpdateItem={handleUpdatePocketItem}
-                onDeleteItem={handleDeletePocketItem}
-                onAddToSchedule={handleAddToScheduleFromPocket}
-              />
+               <button onClick={() => { setEditingItem(null); setIsAddModalOpen(true); }} className="fixed bottom-24 right-5 bg-cocoa text-white shadow-hard-sage active:translate-y-1 active:shadow-none z-30 flex items-center gap-2 px-4 py-3 rounded-[2rem] border-2 border-cocoa"><Plus size={20} strokeWidth={3} /><span className="font-bold tracking-widest text-base">新增</span></button>
             </div>
           )}
           {activeTab === 'bookings' && (<BookingsView flights={bookingFlights} accommodations={bookingAccommodations} carRentals={bookingCarRentals} tickets={bookingTickets} currencies={currencies} members={members} onAddFlight={handleAddFlight} onUpdateFlight={handleUpdateFlight} onDeleteFlight={handleDeleteFlight} onAddAccommodation={(a) => addTripItem(currentTripId, 'accommodations', a)} onUpdateAccommodation={(a) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.map(x => x.id === a.id ? a : x))} onDeleteAccommodation={(id) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.filter(x => x.id !== id))} onAddCar={handleAddCar} onUpdateCar={handleUpdateCar} onDeleteCar={handleDeleteCar} onAddTicket={(t) => addTripItem(currentTripId, 'tickets', t)} onUpdateTicket={(t) => updateTripField(currentTripId, 'tickets', bookingTickets.map(x => x.id === t.id ? t : x))} onDeleteTicket={(id) => updateTripField(currentTripId, 'tickets', bookingTickets.filter(x => x.id !== id))} />)}
@@ -1179,6 +1124,63 @@ export default function App() {
           )}
           {activeTab === 'members' && (<MembersView members={members} scheduleItems={scheduleItems} expenses={expenses} currencies={currencies} onAdd={handleAddMember} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} onJumpToSchedule={handleJumpToSchedule} onJumpToExpense={handleJumpToExpense} />)}
         </main>
+        
+        {/* Global Trip Modals (Available across all tabs) */}
+        <AddScheduleModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSave={handleSaveItem} initialData={editingItem} currencies={currencies} members={members} currentDate={selectedDate} />
+        <ScheduleDetailModal isOpen={!!viewingItem} onClose={() => setViewingItem(null)} item={viewingItem} onEdit={() => { if(viewingItem) { setViewingItem(null); handleEditClick(viewingItem); } }} currencies={currencies} members={members} />
+        <DeleteItemConfirmModal isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} onConfirm={confirmDeleteItem} title={scheduleItems.find(i => i.id === itemToDelete)?.title || '此項目'} />
+        <PotentialExpensesModal isOpen={isPotentialModalOpen} onClose={() => setIsPotentialModalOpen(false)} items={scheduleItems} currencies={currencies} members={members} onJumpToSchedule={handleJumpToSchedule} />
+        <EditDayDetailsModal isOpen={isEditDayModalOpen} onClose={() => setIsEditDayModalOpen(false)} onConfirm={handleUpdateDayDetails} initialDate={selectedDate} initialLocation={currentLocation} initialFruit={currentFruit} />
+        <DeleteDayConfirmModal isOpen={isDeleteDayModalOpen} onClose={() => setIsDeleteDayModalOpen(false)} onConfirm={confirmDeleteDay} date={selectedDate} />
+        <TripSettingsModal 
+          isOpen={isSettingsModalOpen} 
+          onClose={() => setIsSettingsModalOpen(false)} 
+          currencies={currencies} 
+          onAddCurrency={addCurrency} 
+          onRemoveCurrency={removeCurrency} 
+          onDuplicate={handleOpenBackupModal}
+          tripId={currentTripId}
+          tripName={currentTripName}
+        />
+        <ShareTripModal
+          isOpen={isShareTripModalOpen}
+          onClose={() => setIsShareTripModalOpen(false)}
+          tripName={currentTripName}
+          dates={dates}
+          selectedDate={selectedDate}
+          scheduleItems={scheduleItems}
+        />
+        <BackupConfirmModal isOpen={isBackupConfirmOpen} onClose={() => setIsBackupConfirmOpen(false)} onConfirm={executeBackupTrip} tripName={currentTripName} />
+        <SwapDaysConfirmModal 
+          isOpen={!!pendingSwapDays} 
+          onClose={handleCancelSwapDays} 
+          onConfirm={handleConfirmSwapDays} 
+          fromIndex={pendingSwapDays?.idx1 ?? null} 
+          toIndex={pendingSwapDays?.idx2 ?? null} 
+          tripDays={tripDays} 
+          scheduleItems={scheduleItems} 
+          dates={dates} 
+        />
+        <MoveItemConfirmModal
+          isOpen={!!pendingMoveItem}
+          onClose={handleCancelMoveItem}
+          onConfirm={handleConfirmMoveItem}
+          direction={pendingMoveItem?.direction || 'up'}
+          currentItem={pendingMoveItem?.currentItem || null}
+          targetItem={pendingMoveItem?.targetItem || null}
+        />
+        <PocketPlacesModal 
+          isOpen={isPocketModalOpen} 
+          onClose={() => setIsPocketModalOpen(false)} 
+          initialTab={pocketInitialTab}
+          tripId={currentTripId}
+          pocketItems={pocketItems}
+          tripDays={tripDays}
+          onAddItem={handleAddPocketItem}
+          onUpdateItem={handleUpdatePocketItem}
+          onDeleteItem={handleDeletePocketItem}
+          onAddToSchedule={handleAddToScheduleFromPocket}
+        />
         <BottomNav activeTab={activeTab} setTab={setActiveTab} />
         {lightboxState && (
           <Lightbox
