@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { TripDay, ScheduleItem } from '../types';
-import { addTripItem, updateTripField } from '../services/tripService';
+import { addTripItem, updateTripField, saveScheduleItem, deleteScheduleItem } from '../services/tripService';
 
 export const useTripData = (currentTripId: string) => {
   const [tripDays, setTripDays] = useState<TripDay[]>([]);
@@ -12,25 +12,22 @@ export const useTripData = (currentTripId: string) => {
     onSaved?: () => void
   ) => {
     if (editingItem) {
-      updateTripField(
-        currentTripId, 
-        'scheduleItems', 
-        scheduleItems.map(item => item.id === editingItem.id ? { ...itemData, id: item.id } : item)
-      );
+      saveScheduleItem(currentTripId, { ...itemData, id: editingItem.id });
       if (onSaved) onSaved();
     } else {
-      addTripItem(currentTripId, 'scheduleItems', { ...itemData, id: Date.now().toString() });
+      const newId = Date.now().toString();
+      addTripItem(currentTripId, 'scheduleItems', { 
+        ...itemData, 
+        id: newId,
+        orderIndex: scheduleItems.length 
+      });
       if (onSaved) onSaved();
     }
   };
 
   const confirmDeleteItem = (itemToDelete: string | null, onDeleted?: () => void) => {
     if (itemToDelete) {
-      updateTripField(
-        currentTripId, 
-        'scheduleItems', 
-        scheduleItems.filter(item => item.id !== itemToDelete)
-      );
+      deleteScheduleItem(currentTripId, itemToDelete);
       if (onDeleted) onDeleted();
     }
   };

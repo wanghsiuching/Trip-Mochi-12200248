@@ -10,7 +10,7 @@ import {
   arrayUnion, 
   Timestamp 
 } from 'firebase/firestore';
-import { PocketItem, Journal } from '../types';
+import { PocketItem, Journal, ScheduleItem } from '../types';
 
 /**
  * Utility to recursively remove undefined properties from an object.
@@ -155,6 +155,17 @@ export const duplicateTrip = async (originalTripId: string): Promise<string> => 
     } catch (subErr) {
       console.warn("Failed to copy subcollection journals:", subErr);
     }
+
+    // Also copy subcollection scheduleItems if any
+    try {
+      const scheduleCol = collection(db, 'trips', originalTripId, 'scheduleItems');
+      const scheduleSnap = await getDocs(scheduleCol);
+      for (const scheduleDoc of scheduleSnap.docs) {
+        await setDoc(doc(db, 'trips', newCode, 'scheduleItems', scheduleDoc.id), scheduleDoc.data());
+      }
+    } catch (subErr) {
+      console.warn("Failed to copy subcollection scheduleItems:", subErr);
+    }
     
     return newCode;
   } catch (error) {
@@ -199,6 +210,25 @@ export const joinTripByCode = async (code: string): Promise<any> => {
       }
     } catch (e) {
       console.warn("Subcollection read fallback (journal):", e);
+    }
+
+    // Fetch schedule items from subcollection
+    try {
+      const scheduleCol = collection(db, 'trips', cleanCode, 'scheduleItems');
+      const scheduleSnap = await getDocs(scheduleCol);
+      if (!scheduleSnap.empty) {
+        const items = scheduleSnap.docs.map(d => d.data() as ScheduleItem);
+        items.sort((a, b) => {
+          if (a.orderIndex !== undefined && b.orderIndex !== undefined) {
+            return a.orderIndex - b.orderIndex;
+          }
+          if (a.date !== b.date) return (a.date || '').localeCompare(b.date || '');
+          return (a.time || '').localeCompare(b.time || '');
+        });
+        data.scheduleItems = items;
+      }
+    } catch (e) {
+      console.warn("Subcollection read fallback (schedule):", e);
     }
 
     return data;
@@ -267,23 +297,57 @@ export const deleteJournalItem = async (tripId: string, journalId: number | stri
 };
 
 /**
+ * Saves a single schedule item into subcollection (prevents 1MB root doc limit for photos)
+ */
+export const saveScheduleItem = async (tripId: string, item: ScheduleItem): Promise<void> => {
+  try {
+    if (!tripId || !item || !item.id) return;
+    const cleaned = cleanData(item);
+    const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(item.id));
+    await setDoc(itemRef, cleaned, { merge: true });
+  } catch (err) {
+    console.error("Failed to save schedule item to subcollection:", err);
+    throw err;
+  }
+};
+
+/**
+ * Deletes a single schedule item from subcollection
+ */
+export const deleteScheduleItem = async (tripId: string, itemId: string): Promise<void> => {
+  try {
+    if (!tripId || !itemId) return;
+    const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(itemId));
+    await deleteDoc(itemRef);
+  } catch (err) {
+    console.error("Failed to delete schedule item from subcollection:", err);
+    throw err;
+  }
+};
+
+/**
  * Subscribes to real-time updates for a specific trip.
- * Automatically synchronizes subcollections `pocketItems` and `journals` to avoid 1MB document limit.
+ * Automatically synchronizes subcollections `scheduleItems`, `pocketItems`, and `journals` to avoid 1MB document limit.
  */
 export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) => {
   try {
     const tripRef = doc(db, 'trips', tripId);
     const pocketColRef = collection(db, 'trips', tripId, 'pocketItems');
     const journalColRef = collection(db, 'trips', tripId, 'journals');
+    const scheduleColRef = collection(db, 'trips', tripId, 'scheduleItems');
     
     let currentTripData: any = null;
     let subcollectionPocketItems: PocketItem[] = [];
     let subcollectionJournals: Journal[] = [];
+    let subcollectionScheduleItems: ScheduleItem[] = [];
 
     const notifyCombined = () => {
       if (!currentTripData) return;
       const combined = {
         ...currentTripData,
+        scheduleItems: subcollectionScheduleItems.length > 0 
+          ? subcollectionScheduleItems 
+          : (currentTripData.scheduleItems || []),
         pocketItems: subcollectionPocketItems.length > 0 
           ? subcollectionPocketItems 
           : (currentTripData.pocketItems || []),
@@ -299,6 +363,24 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
       if (docSnap.exists()) {
         const rawData = docSnap.data();
         currentTripData = rawData;
+
+        // Auto-Migration & Document Slimming for scheduleItems:
+        if (Array.isArray(rawData.scheduleItems) && rawData.scheduleItems.length > 0) {
+          try {
+            for (let i = 0; i < rawData.scheduleItems.length; i++) {
+              const item = rawData.scheduleItems[i];
+              if (item && item.id) {
+                const itemWithOrder = { ...item, orderIndex: item.orderIndex ?? i };
+                await setDoc(doc(db, 'trips', tripId, 'scheduleItems', String(item.id)), cleanData(itemWithOrder), { merge: true });
+              }
+            }
+            // Clear scheduleItems from root doc to release 1MB space immediately
+            await setDoc(tripRef, { scheduleItems: [] }, { merge: true });
+            currentTripData.scheduleItems = [];
+          } catch (migrateErr) {
+            console.warn("Migration/slimming of scheduleItems:", migrateErr);
+          }
+        }
 
         // Auto-Migration & Document Slimming for pocketItems:
         if (Array.isArray(rawData.pocketItems) && rawData.pocketItems.length > 0) {
@@ -336,7 +418,22 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
       console.error("Real-time sync error (trip doc):", error);
     });
 
-    // 2. Subscribe to pocketItems subcollection
+    // 2. Subscribe to scheduleItems subcollection
+    const unsubSchedule = onSnapshot(scheduleColRef, (colSnap) => {
+      subcollectionScheduleItems = colSnap.docs.map(d => d.data() as ScheduleItem);
+      subcollectionScheduleItems.sort((a, b) => {
+        if (a.orderIndex !== undefined && b.orderIndex !== undefined) {
+          return a.orderIndex - b.orderIndex;
+        }
+        if (a.date !== b.date) return (a.date || '').localeCompare(b.date || '');
+        return (a.time || '').localeCompare(b.time || '');
+      });
+      notifyCombined();
+    }, (error) => {
+      console.error("Real-time sync error (schedule subcollection):", error);
+    });
+
+    // 3. Subscribe to pocketItems subcollection
     const unsubPocket = onSnapshot(pocketColRef, (colSnap) => {
       subcollectionPocketItems = colSnap.docs.map(d => d.data() as PocketItem);
       subcollectionPocketItems.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -345,7 +442,7 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
       console.error("Real-time sync error (pocket subcollection):", error);
     });
 
-    // 3. Subscribe to journals subcollection
+    // 4. Subscribe to journals subcollection
     const unsubJournal = onSnapshot(journalColRef, (colSnap) => {
       subcollectionJournals = colSnap.docs.map(d => d.data() as Journal);
       subcollectionJournals.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -356,6 +453,7 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
 
     return () => {
       unsubTrip();
+      unsubSchedule();
       unsubPocket();
       unsubJournal();
     };
@@ -370,6 +468,10 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
  */
 export const addTripItem = async (tripId: string, collectionName: string, item: any): Promise<void> => {
   try {
+    if (collectionName === 'scheduleItems') {
+      await saveScheduleItem(tripId, item);
+      return;
+    }
     if (collectionName === 'pocketItems') {
       await savePocketItem(tripId, item);
       return;
@@ -395,6 +497,35 @@ export const addTripItem = async (tripId: string, collectionName: string, item: 
  */
 export const updateTripField = async (tripId: string, field: string, value: any): Promise<void> => {
   try {
+    // If updating scheduleItems, store them in the subcollection to prevent 1MB document explosion
+    if (field === 'scheduleItems' && Array.isArray(value)) {
+      const scheduleColRef = collection(db, 'trips', tripId, 'scheduleItems');
+      const existingSnap = await getDocs(scheduleColRef);
+      const newIds = new Set(value.map(s => String(s.id)));
+
+      // Delete items no longer present
+      for (const existingDoc of existingSnap.docs) {
+        if (!newIds.has(existingDoc.id)) {
+          await deleteDoc(existingDoc.ref);
+        }
+      }
+
+      // Save each item with its array index preserved in orderIndex
+      for (let i = 0; i < value.length; i++) {
+        const item = value[i];
+        if (item && item.id) {
+          const itemWithOrder = { ...item, orderIndex: i };
+          const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(item.id));
+          await setDoc(itemRef, cleanData(itemWithOrder), { merge: true });
+        }
+      }
+
+      // Keep root document slim
+      const tripRef = doc(db, 'trips', tripId);
+      await setDoc(tripRef, { scheduleItems: [] }, { merge: true });
+      return;
+    }
+
     // If updating pocketItems, store them in the subcollection to prevent 1MB document explosion
     if (field === 'pocketItems' && Array.isArray(value)) {
       const pocketColRef = collection(db, 'trips', tripId, 'pocketItems');

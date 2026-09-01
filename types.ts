@@ -193,6 +193,7 @@ export interface ScheduleItem {
   images?: string[];
   photoPlacement?: 'top' | 'middle' | 'bottom';
   photoOffsetY?: number;
+  orderIndex?: number;
 }
 
 export interface PocketItem {
