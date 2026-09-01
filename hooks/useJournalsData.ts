@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Journal } from '../types';
-import { addTripItem, updateTripField, deleteJournalItem } from '../services/tripService';
+import { addTripItem, updateTripField } from '../services/tripService';
 
 export const useJournalsData = (currentTripId: string) => {
   const [journals, setJournals] = useState<Journal[]>([]);
@@ -14,7 +14,6 @@ export const useJournalsData = (currentTripId: string) => {
   };
 
   const handleDeleteJournal = (id: number) => {
-    deleteJournalItem(currentTripId, id).catch(() => {});
     updateTripField(currentTripId, 'journals', journals.filter(j => j.id !== id));
   };
 
