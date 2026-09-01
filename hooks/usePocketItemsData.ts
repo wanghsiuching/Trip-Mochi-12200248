@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { PocketItem, ScheduleItem, Member } from '../types';
-import { addTripItem, updateTripField } from '../services/tripService';
+import { addTripItem, updateTripField, deletePocketItem } from '../services/tripService';
 
 export const usePocketItemsData = (currentTripId: string) => {
   const [pocketItems, setPocketItems] = useState<PocketItem[]>([]);
@@ -31,6 +31,7 @@ export const usePocketItemsData = (currentTripId: string) => {
   };
 
   const handleDeletePocketItem = (id: string) => {
+    deletePocketItem(currentTripId, id).catch(() => {});
     setPocketItems(prev => {
       const next = prev.filter(p => p.id !== id);
       updateTripField(currentTripId, 'pocketItems', next).catch(err => {
