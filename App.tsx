@@ -307,7 +307,7 @@ export default function App() {
           setCurrencies(data.currencies || []);
           setMembers(data.members || []);
           setPocketItems(data.pocketItems || []);
-          setCurrentTripName(data.name || '未命名行程');
+          setCurrentTripName(data.name || data.tripName || '未命名行程');
           setLoading(false);
       });
       return () => unsubscribe();
@@ -334,8 +334,9 @@ export default function App() {
     const cleanId = inputDetail.trim().toUpperCase();
     try {
         const tripData = await joinTripByCode(cleanId);
-        setSavedTrips(prev => [{ id: cleanId, name: tripData.name, date: new Date().toISOString().split('T')[0] }, ...prev.filter(t => t.id !== cleanId)]);
-        openTrip(cleanId, tripData.name);
+        const name = tripData.name || tripData.tripName || '未命名行程';
+        setSavedTrips(prev => [{ id: cleanId, name, date: new Date().toISOString().split('T')[0] }, ...prev.filter(t => t.id !== cleanId)]);
+        openTrip(cleanId, name);
     } catch (e) { setSearchError('找不到此行程碼'); } finally { setIsSearching(false); }
   };
 

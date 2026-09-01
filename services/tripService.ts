@@ -453,49 +453,97 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
       if (docSnap.exists()) {
         const data = docSnap.data();
 
-        // On first load, if root doc has no scheduleItems, check subcollection once for legacy recovery
+        // On first load, check if any subcollection items need to be merged into root doc (lossless recovery)
         if (isInitialLoad) {
           isInitialLoad = false;
           let needsUpdate = false;
           const patch: Record<string, any> = {};
 
-          if (!Array.isArray(data.scheduleItems) || data.scheduleItems.length === 0) {
-            try {
-              const snap = await getDocs(collection(db, 'trips', tripId, 'scheduleItems'));
-              if (!snap.empty) {
-                data.scheduleItems = snap.docs.map(d => d.data() as ScheduleItem);
-                patch.scheduleItems = cleanData(data.scheduleItems);
+          try {
+            const scheduleMap = new Map<string, ScheduleItem>();
+            if (Array.isArray(data.scheduleItems)) {
+              for (const s of data.scheduleItems) {
+                if (s && s.id) scheduleMap.set(String(s.id), s);
+              }
+            }
+            const snap = await getDocs(collection(db, 'trips', tripId, 'scheduleItems'));
+            for (const d of snap.docs) {
+              const s = d.data() as ScheduleItem;
+              if (s && s.id && !scheduleMap.has(String(s.id))) {
+                scheduleMap.set(String(s.id), s);
                 needsUpdate = true;
               }
-            } catch (e) {
-              console.warn("Legacy recovery failed (schedule):", e);
             }
+            if (needsUpdate) {
+              const merged = Array.from(scheduleMap.values());
+              merged.sort((a, b) => {
+                const dateA = a.date || '';
+                const dateB = b.date || '';
+                if (dateA !== dateB) return dateA.localeCompare(dateB);
+                const timeA = a.time || '';
+                const timeB = b.time || '';
+                if (timeA !== timeB) return timeA.localeCompare(timeB);
+                return (a.orderIndex ?? 0) - (b.orderIndex ?? 0);
+              });
+              data.scheduleItems = merged;
+              patch.scheduleItems = cleanData(merged);
+            }
+          } catch (e) {
+            console.warn("Legacy recovery failed (schedule):", e);
           }
 
-          if (!Array.isArray(data.pocketItems) || data.pocketItems.length === 0) {
-            try {
-              const snap = await getDocs(collection(db, 'trips', tripId, 'pocketItems'));
-              if (!snap.empty) {
-                data.pocketItems = snap.docs.map(d => d.data() as PocketItem);
-                patch.pocketItems = cleanData(data.pocketItems);
-                needsUpdate = true;
+          try {
+            const pocketMap = new Map<string, PocketItem>();
+            if (Array.isArray(data.pocketItems)) {
+              for (const p of data.pocketItems) {
+                if (p && p.id) pocketMap.set(String(p.id), p);
               }
-            } catch (e) {
-              console.warn("Legacy recovery failed (pocket):", e);
             }
+            const snap = await getDocs(collection(db, 'trips', tripId, 'pocketItems'));
+            let pocketAdded = false;
+            for (const d of snap.docs) {
+              const p = d.data() as PocketItem;
+              if (p && p.id && !pocketMap.has(String(p.id))) {
+                pocketMap.set(String(p.id), p);
+                pocketAdded = true;
+              }
+            }
+            if (pocketAdded) {
+              const merged = Array.from(pocketMap.values());
+              merged.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+              data.pocketItems = merged;
+              patch.pocketItems = cleanData(merged);
+              needsUpdate = true;
+            }
+          } catch (e) {
+            console.warn("Legacy recovery failed (pocket):", e);
           }
 
-          if (!Array.isArray(data.journals) || data.journals.length === 0) {
-            try {
-              const snap = await getDocs(collection(db, 'trips', tripId, 'journals'));
-              if (!snap.empty) {
-                data.journals = snap.docs.map(d => d.data() as Journal);
-                patch.journals = cleanData(data.journals);
-                needsUpdate = true;
+          try {
+            const journalMap = new Map<string, Journal>();
+            if (Array.isArray(data.journals)) {
+              for (const j of data.journals) {
+                if (j && j.id) journalMap.set(String(j.id), j);
               }
-            } catch (e) {
-              console.warn("Legacy recovery failed (journal):", e);
             }
+            const snap = await getDocs(collection(db, 'trips', tripId, 'journals'));
+            let journalAdded = false;
+            for (const d of snap.docs) {
+              const j = d.data() as Journal;
+              if (j && j.id && !journalMap.has(String(j.id))) {
+                journalMap.set(String(j.id), j);
+                journalAdded = true;
+              }
+            }
+            if (journalAdded) {
+              const merged = Array.from(journalMap.values());
+              merged.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+              data.journals = merged;
+              patch.journals = cleanData(merged);
+              needsUpdate = true;
+            }
+          } catch (e) {
+            console.warn("Legacy recovery failed (journal):", e);
           }
 
           if (needsUpdate) {
