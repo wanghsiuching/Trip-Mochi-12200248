@@ -454,7 +454,7 @@ export const AddScheduleModal = ({
       type: selectedType, 
       location: finalLocation, 
       notes,
-      images: images.length > 0 ? images : undefined,
+      images: images,
       photoPlacement: images.length > 0 ? photoPlacement : undefined,
       photoOffsetY: images.length > 0 ? photoOffsetY : undefined,
     };
@@ -1096,11 +1096,15 @@ export const AddScheduleModal = ({
                             )}
                             <button
                                type="button"
-                               onClick={() => handleRemoveImage(idx)}
-                               className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-red-500 transition-colors shadow-sm"
+                               onClick={(e) => {
+                                 e.preventDefault();
+                                 e.stopPropagation();
+                                 handleRemoveImage(idx);
+                               }}
+                               className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 hover:bg-red-500 text-white flex items-center justify-center transition-colors shadow-md z-10 cursor-pointer"
                                title="刪除相片"
                             >
-                               <X size={11} strokeWidth={2.5} />
+                               <X size={13} strokeWidth={2.5} />
                             </button>
                          </div>
                          

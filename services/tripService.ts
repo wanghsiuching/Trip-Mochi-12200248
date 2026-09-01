@@ -203,7 +203,14 @@ export const joinTripByCode = async (code: string): Promise<any> => {
       const pocketSnap = await getDocs(pocketCol);
       for (const d of pocketSnap.docs) {
         const p = d.data() as PocketItem;
-        if (p && p.id) pocketMap.set(String(p.id), { ...(pocketMap.get(String(p.id)) || {}), ...p });
+        if (p && p.id) {
+          const existing = pocketMap.get(String(p.id));
+          pocketMap.set(String(p.id), {
+            ...(existing || {}),
+            ...p,
+            images: Array.isArray(p.images) ? p.images : (Array.isArray(existing?.images) ? existing.images : [])
+          });
+        }
       }
       const mergedPockets = Array.from(pocketMap.values());
       mergedPockets.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -224,7 +231,14 @@ export const joinTripByCode = async (code: string): Promise<any> => {
       const journalSnap = await getDocs(journalCol);
       for (const d of journalSnap.docs) {
         const j = d.data() as Journal;
-        if (j && j.id) journalMap.set(String(j.id), { ...(journalMap.get(String(j.id)) || {}), ...j });
+        if (j && j.id) {
+          const existing = journalMap.get(String(j.id));
+          journalMap.set(String(j.id), {
+            ...(existing || {}),
+            ...j,
+            photos: Array.isArray(j.photos) ? j.photos : (Array.isArray(existing?.photos) ? existing.photos : [])
+          });
+        }
       }
       const mergedJournals = Array.from(journalMap.values());
       mergedJournals.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -245,7 +259,14 @@ export const joinTripByCode = async (code: string): Promise<any> => {
       const scheduleSnap = await getDocs(scheduleCol);
       for (const d of scheduleSnap.docs) {
         const s = d.data() as ScheduleItem;
-        if (s && s.id) scheduleMap.set(String(s.id), { ...(scheduleMap.get(String(s.id)) || {}), ...s });
+        if (s && s.id) {
+          const existing = scheduleMap.get(String(s.id));
+          scheduleMap.set(String(s.id), {
+            ...(existing || {}),
+            ...s,
+            images: Array.isArray(s.images) ? s.images : (Array.isArray(existing?.images) ? existing.images : [])
+          });
+        }
       }
       const mergedSchedule = Array.from(scheduleMap.values());
       mergedSchedule.sort((a, b) => {
@@ -275,9 +296,28 @@ export const joinTripByCode = async (code: string): Promise<any> => {
 export const savePocketItem = async (tripId: string, item: PocketItem): Promise<void> => {
   try {
     if (!tripId || !item || !item.id) return;
-    const cleaned = cleanData(item);
+    const itemWithImages = {
+      ...item,
+      images: Array.isArray(item.images) ? item.images : []
+    };
+    const cleaned = cleanData(itemWithImages);
     const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(item.id));
-    await setDoc(itemRef, cleaned, { merge: true });
+    await setDoc(itemRef, cleaned);
+
+    // Also keep root doc pocketItems updated if present
+    const tripRef = doc(db, 'trips', tripId);
+    const snap = await getDoc(tripRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (Array.isArray(data.pocketItems)) {
+        const currentItems: PocketItem[] = [...data.pocketItems];
+        const existingIdx = currentItems.findIndex(p => String(p.id) === String(item.id));
+        if (existingIdx >= 0) {
+          currentItems[existingIdx] = cleaned;
+          await setDoc(tripRef, { pocketItems: cleanData(currentItems) }, { merge: true });
+        }
+      }
+    }
   } catch (err) {
     console.error("Failed to save pocket item to subcollection:", err);
     throw err;
@@ -314,9 +354,28 @@ export const deletePocketItem = async (tripId: string, itemId: string): Promise<
 export const saveJournalItem = async (tripId: string, journal: Journal): Promise<void> => {
   try {
     if (!tripId || !journal || !journal.id) return;
-    const cleaned = cleanData(journal);
+    const itemWithPhotos = {
+      ...journal,
+      photos: Array.isArray(journal.photos) ? journal.photos : []
+    };
+    const cleaned = cleanData(itemWithPhotos);
     const itemRef = doc(db, 'trips', tripId, 'journals', String(journal.id));
-    await setDoc(itemRef, cleaned, { merge: true });
+    await setDoc(itemRef, cleaned);
+
+    // Also keep root doc journals updated if present
+    const tripRef = doc(db, 'trips', tripId);
+    const snap = await getDoc(tripRef);
+    if (snap.exists()) {
+      const data = snap.data();
+      if (Array.isArray(data.journals)) {
+        const currentItems: Journal[] = [...data.journals];
+        const existingIdx = currentItems.findIndex(j => String(j.id) === String(journal.id));
+        if (existingIdx >= 0) {
+          currentItems[existingIdx] = cleaned;
+          await setDoc(tripRef, { journals: cleanData(currentItems) }, { merge: true });
+        }
+      }
+    }
   } catch (err) {
     console.error("Failed to save journal item to subcollection:", err);
     throw err;
@@ -353,11 +412,15 @@ export const deleteJournalItem = async (tripId: string, journalId: number | stri
 export const saveScheduleItem = async (tripId: string, item: ScheduleItem): Promise<void> => {
   try {
     if (!tripId || !item || !item.id) return;
-    const cleaned = cleanData(item);
+    const itemWithImages = {
+      ...item,
+      images: Array.isArray(item.images) ? item.images : []
+    };
+    const cleaned = cleanData(itemWithImages);
     
-    // 1. Save to subcollection
+    // 1. Save to subcollection (authoritative full replacement)
     const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(item.id));
-    await setDoc(itemRef, cleaned, { merge: true });
+    await setDoc(itemRef, cleaned);
 
     // 2. Also keep root doc scheduleItems updated
     const tripRef = doc(db, 'trips', tripId);
@@ -435,7 +498,11 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
       for (const s of subcollectionScheduleItems) {
         if (s && s.id) {
           const existing = scheduleMap.get(String(s.id));
-          scheduleMap.set(String(s.id), { ...(existing || {}), ...s });
+          scheduleMap.set(String(s.id), {
+            ...(existing || {}),
+            ...s,
+            images: Array.isArray(s.images) ? s.images : (Array.isArray(existing?.images) ? existing.images : [])
+          });
         }
       }
       const combinedSchedule = Array.from(scheduleMap.values());
@@ -459,7 +526,11 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
       for (const p of subcollectionPocketItems) {
         if (p && p.id) {
           const existing = pocketMap.get(String(p.id));
-          pocketMap.set(String(p.id), { ...(existing || {}), ...p });
+          pocketMap.set(String(p.id), {
+            ...(existing || {}),
+            ...p,
+            images: Array.isArray(p.images) ? p.images : (Array.isArray(existing?.images) ? existing.images : [])
+          });
         }
       }
       const combinedPocket = Array.from(pocketMap.values());
@@ -475,7 +546,11 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
       for (const j of subcollectionJournals) {
         if (j && j.id) {
           const existing = journalMap.get(String(j.id));
-          journalMap.set(String(j.id), { ...(existing || {}), ...j });
+          journalMap.set(String(j.id), {
+            ...(existing || {}),
+            ...j,
+            photos: Array.isArray(j.photos) ? j.photos : (Array.isArray(existing?.photos) ? existing.photos : [])
+          });
         }
       }
       const combinedJournals = Array.from(journalMap.values());
