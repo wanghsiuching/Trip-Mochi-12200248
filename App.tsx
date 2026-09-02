@@ -1131,7 +1131,7 @@ export default function App() {
         </main>
         
         {/* Global Trip Modals (Available across all tabs) */}
-        <AddScheduleModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSave={handleSaveItem} initialData={editingItem} currencies={currencies} members={members} currentDate={selectedDate} />
+        <AddScheduleModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSave={handleSaveItem} initialData={editingItem} currencies={currencies} members={members} currentDate={selectedDate} tripId={currentTripId} />
         <ScheduleDetailModal isOpen={!!viewingItem} onClose={() => setViewingItem(null)} item={viewingItem} onEdit={() => { if(viewingItem) { setViewingItem(null); handleEditClick(viewingItem); } }} currencies={currencies} members={members} />
         <DeleteItemConfirmModal isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} onConfirm={confirmDeleteItem} title={scheduleItems.find(i => i.id === itemToDelete)?.title || '此項目'} />
         <PotentialExpensesModal isOpen={isPotentialModalOpen} onClose={() => setIsPotentialModalOpen(false)} items={scheduleItems} currencies={currencies} members={members} onJumpToSchedule={handleJumpToSchedule} />

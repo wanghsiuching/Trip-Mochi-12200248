@@ -12,6 +12,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { PocketItem, Journal, ScheduleItem } from '../types';
+import { compressBase64IfNeeded } from '../utils/imageService';
 
 /**
  * Utility to recursively remove undefined properties from an object.
@@ -265,9 +266,42 @@ export const joinTripByCode = async (code: string): Promise<any> => {
 export const saveScheduleItem = async (tripId: string, item: ScheduleItem): Promise<void> => {
   try {
     if (!tripId || !item || !item.id) return;
+    
+    // Proactive safety: Re-compress any oversized Base64 images (>58KB) before saving
+    if (Array.isArray(item.images) && item.images.length > 0) {
+      const sanitizedImages: string[] = [];
+      for (const img of item.images) {
+        if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 58000) {
+          const compressed = await compressBase64IfNeeded(img, 750, 52000);
+          sanitizedImages.push(compressed);
+        } else {
+          sanitizedImages.push(img);
+        }
+      }
+      item = { ...item, images: sanitizedImages };
+    }
+
     const cleaned = cleanData(item);
     const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(item.id));
-    await setDoc(itemRef, cleaned);
+    
+    try {
+      await setDoc(itemRef, cleaned);
+    } catch (setErr: any) {
+      // Automatic recovery if Firestore throws maximum document size exceeded error
+      if (setErr?.message?.includes('size') || setErr?.message?.includes('1,048,576') || setErr?.code === 'resource-exhausted') {
+        console.warn("Firestore size exceeded, applying emergency image compression...", setErr);
+        if (Array.isArray(cleaned.images)) {
+          cleaned.images = await Promise.all(
+            cleaned.images.map((img: string) => compressBase64IfNeeded(img, 600, 42000))
+          );
+          await setDoc(itemRef, cleaned);
+        } else {
+          throw setErr;
+        }
+      } else {
+        throw setErr;
+      }
+    }
 
     // Clean up stale copy in root doc so it doesn't overwrite with outdated photos
     try {
@@ -326,6 +360,11 @@ export const deleteScheduleItem = async (tripId: string, itemId: string): Promis
 export const savePocketItem = async (tripId: string, item: PocketItem): Promise<void> => {
   try {
     if (!tripId || !item || !item.id) return;
+
+    if (item.image && typeof item.image === 'string' && item.image.startsWith('data:image/') && item.image.length > 58000) {
+      item = { ...item, image: await compressBase64IfNeeded(item.image, 750, 52000) };
+    }
+
     const cleaned = cleanData(item);
     const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(item.id));
     await setDoc(itemRef, cleaned);
@@ -387,6 +426,19 @@ export const deletePocketItem = async (tripId: string, itemId: string): Promise<
 export const saveJournalItem = async (tripId: string, journal: Journal): Promise<void> => {
   try {
     if (!tripId || !journal || !journal.id) return;
+
+    if (Array.isArray(journal.images) && journal.images.length > 0) {
+      const sanitizedImages: string[] = [];
+      for (const img of journal.images) {
+        if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 58000) {
+          sanitizedImages.push(await compressBase64IfNeeded(img, 750, 52000));
+        } else {
+          sanitizedImages.push(img);
+        }
+      }
+      journal = { ...journal, images: sanitizedImages };
+    }
+
     const cleaned = cleanData(journal);
     const itemRef = doc(db, 'trips', tripId, 'journals', String(journal.id));
     await setDoc(itemRef, cleaned);

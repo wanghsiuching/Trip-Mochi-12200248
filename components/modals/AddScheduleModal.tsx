@@ -10,7 +10,7 @@ import { DateTimePickerField } from '../TimePickerComponents';
 import { ToggleSwitch } from './ToggleSwitch';
 import { DeleteItemConfirmModal } from './DeleteItemConfirmModal';
 import { getExchangeRate, POPULAR_CURRENCIES } from '../../utils/currency';
-import { compressImageToBase64 } from '../../utils/imageService';
+import { compressImageToBase64, uploadOrCompressImage } from '../../utils/imageService';
 
 const CuteButton = ({ checked, onChange, icon: Icon, label, activeColor = 'bg-orange-100 text-orange-500 border-orange-200' }: any) => (
     <button
@@ -55,7 +55,8 @@ export const AddScheduleModal = ({
   initialData,
   currencies = [],
   members = [],
-  currentDate
+  currentDate,
+  tripId
 }: { 
   isOpen: boolean, 
   onClose: () => void, 
@@ -63,7 +64,8 @@ export const AddScheduleModal = ({
   initialData?: ScheduleItem | null,
   currencies?: Currency[],
   members?: Member[],
-  currentDate: string
+  currentDate: string,
+  tripId?: string
 }) => {
   const [step, setStep] = useState<'category' | 'details'>('category');
   const [selectedType, setSelectedType] = useState<ItemType>('spot');
@@ -79,6 +81,7 @@ export const AddScheduleModal = ({
   const [photoPlacement, setPhotoPlacement] = useState<'top' | 'middle' | 'bottom'>('middle');
   const [photoOffsetY, setPhotoOffsetY] = useState<number>(50);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadProgressText, setUploadProgressText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Flight Fields
@@ -378,11 +381,13 @@ export const AddScheduleModal = ({
     const files = e.target.files;
     if (!files || files.length === 0) return;
     setIsUploadingImage(true);
+    setUploadProgressText(`1/${files.length}`);
     try {
       const newImages: string[] = [];
       for (let i = 0; i < files.length; i++) {
-        const base64 = await compressImageToBase64(files[i]);
-        newImages.push(base64);
+        setUploadProgressText(`${i + 1}/${files.length}`);
+        const compressedOrUrl = await uploadOrCompressImage(files[i], tripId);
+        newImages.push(compressedOrUrl);
       }
       setImages(prev => [...prev, ...newImages]);
     } catch (err) {
@@ -390,6 +395,7 @@ export const AddScheduleModal = ({
       alert('圖片處理失敗，請重試');
     } finally {
       setIsUploadingImage(false);
+      setUploadProgressText('');
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -1138,7 +1144,7 @@ export const AddScheduleModal = ({
                       {isUploadingImage ? (
                          <>
                             <Loader2 size={20} className="animate-spin text-sage" />
-                            <span className="text-[10px] font-black">處理中...</span>
+                            <span className="text-[10px] font-black">{uploadProgressText ? `處理中 (${uploadProgressText})` : '處理中...'}</span>
                          </>
                       ) : (
                          <>
