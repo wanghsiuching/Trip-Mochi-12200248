@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { PocketItem, ScheduleItem, Member } from '../types';
-import { addTripItem, updateTripField } from '../services/tripService';
+import { savePocketItem, deletePocketItem, saveScheduleItem } from '../services/tripService';
 
 export const usePocketItemsData = (currentTripId: string) => {
   const [pocketItems, setPocketItems] = useState<PocketItem[]>([]);
@@ -11,32 +11,23 @@ export const usePocketItemsData = (currentTripId: string) => {
       id: Date.now().toString(),
       createdAt: Date.now(),
     };
-    setPocketItems(prev => {
-      const next = [...prev, newItem];
-      updateTripField(currentTripId, 'pocketItems', next).catch(err => {
-        console.error('Failed to add pocket item:', err);
-      });
-      return next;
+    setPocketItems(prev => [newItem, ...prev.filter(p => p.id !== newItem.id)]);
+    savePocketItem(currentTripId, newItem).catch(err => {
+      console.error('Failed to add pocket item:', err);
     });
   };
 
   const handleUpdatePocketItem = (updated: PocketItem) => {
-    setPocketItems(prev => {
-      const next = prev.map(p => p.id === updated.id ? updated : p);
-      updateTripField(currentTripId, 'pocketItems', next).catch(err => {
-        console.error('Failed to update pocket item:', err);
-      });
-      return next;
+    setPocketItems(prev => prev.map(p => p.id === updated.id ? updated : p));
+    savePocketItem(currentTripId, updated).catch(err => {
+      console.error('Failed to update pocket item:', err);
     });
   };
 
   const handleDeletePocketItem = (id: string) => {
-    setPocketItems(prev => {
-      const next = prev.filter(p => p.id !== id);
-      updateTripField(currentTripId, 'pocketItems', next).catch(err => {
-        console.error('Failed to delete pocket item:', err);
-      });
-      return next;
+    setPocketItems(prev => prev.filter(p => p.id !== id));
+    deletePocketItem(currentTripId, id).catch(err => {
+      console.error('Failed to delete pocket item:', err);
     });
   };
 
@@ -47,7 +38,8 @@ export const usePocketItemsData = (currentTripId: string) => {
     fallbackDate: string = '', 
     members: Member[] = []
   ) => {
-    const newScheduleItem: Omit<ScheduleItem, 'id'> = {
+    const newScheduleItem: ScheduleItem = {
+      id: Date.now().toString(),
       date: targetDate || fallbackDate,
       time: time || '12:00',
       title: item.title,
@@ -62,13 +54,14 @@ export const usePocketItemsData = (currentTripId: string) => {
         isPotential: false,
       },
     };
-    addTripItem(currentTripId, 'scheduleItems', { ...newScheduleItem, id: Date.now().toString() });
-    setPocketItems(prev => {
-      const next = prev.map(p => p.id === item.id ? { ...p, assignedDate: targetDate } : p);
-      updateTripField(currentTripId, 'pocketItems', next).catch(err => {
-        console.error('Failed to update assignedDate in pocket:', err);
-      });
-      return next;
+    saveScheduleItem(currentTripId, newScheduleItem).catch(err => {
+      console.error('Failed to add schedule item from pocket:', err);
+    });
+
+    const updatedPocket: PocketItem = { ...item, assignedDate: targetDate };
+    setPocketItems(prev => prev.map(p => p.id === item.id ? updatedPocket : p));
+    savePocketItem(currentTripId, updatedPocket).catch(err => {
+      console.error('Failed to update assignedDate in pocket:', err);
     });
   };
 

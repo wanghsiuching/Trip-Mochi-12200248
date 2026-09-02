@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { TripDay, ScheduleItem } from '../types';
-import { addTripItem, updateTripField } from '../services/tripService';
+import { saveScheduleItem, deleteScheduleItem, updateTripField } from '../services/tripService';
 
 export const useTripData = (currentTripId: string) => {
   const [tripDays, setTripDays] = useState<TripDay[]>([]);
@@ -12,26 +12,29 @@ export const useTripData = (currentTripId: string) => {
     onSaved?: () => void
   ) => {
     if (editingItem) {
-      updateTripField(
-        currentTripId, 
-        'scheduleItems', 
-        scheduleItems.map(item => item.id === editingItem.id ? { ...itemData, id: item.id } : item)
-      );
+      const fullItem: ScheduleItem = { ...itemData, id: editingItem.id };
+      setScheduleItems(prev => prev.map(item => item.id === editingItem.id ? fullItem : item));
       if (onSaved) onSaved();
+      saveScheduleItem(currentTripId, fullItem).catch(err => {
+        console.error("Failed to save edited schedule item:", err);
+      });
     } else {
-      addTripItem(currentTripId, 'scheduleItems', { ...itemData, id: Date.now().toString() });
+      const newItem: ScheduleItem = { ...itemData, id: Date.now().toString() };
+      setScheduleItems(prev => [...prev, newItem]);
       if (onSaved) onSaved();
+      saveScheduleItem(currentTripId, newItem).catch(err => {
+        console.error("Failed to save new schedule item:", err);
+      });
     }
   };
 
   const confirmDeleteItem = (itemToDelete: string | null, onDeleted?: () => void) => {
     if (itemToDelete) {
-      updateTripField(
-        currentTripId, 
-        'scheduleItems', 
-        scheduleItems.filter(item => item.id !== itemToDelete)
-      );
+      setScheduleItems(prev => prev.filter(item => item.id !== itemToDelete));
       if (onDeleted) onDeleted();
+      deleteScheduleItem(currentTripId, itemToDelete).catch(err => {
+        console.error("Failed to delete schedule item:", err);
+      });
     }
   };
 
@@ -48,7 +51,10 @@ export const useTripData = (currentTripId: string) => {
     const idxB = newArr.findIndex(i => i.id === itemBId);
     if (idxA > -1 && idxB > -1) {
       [newArr[idxA], newArr[idxB]] = [newArr[idxB], newArr[idxA]];
-      updateTripField(currentTripId, 'scheduleItems', newArr);
+      setScheduleItems(newArr);
+      updateTripField(currentTripId, 'scheduleItems', newArr).catch(err => {
+        console.error("Failed to reorder items:", err);
+      });
     }
   };
 
@@ -65,10 +71,12 @@ export const useTripData = (currentTripId: string) => {
       return;
     }
     
-    updateTripField(currentTripId, 'tripDays', [
+    const newDays = [
       ...tripDays, 
       { date: dateStr, location: latestDay.location, fruit: latestDay.fruit }
-    ]);
+    ];
+    setTripDays(newDays);
+    updateTripField(currentTripId, 'tripDays', newDays).catch(err => console.error(err));
   };
 
   const confirmDeleteDay = (
@@ -77,13 +85,16 @@ export const useTripData = (currentTripId: string) => {
   ) => {
     if (tripDays.length > 1) {
       const newDays = tripDays.filter(d => d.date !== selectedDate);
-      updateTripField(currentTripId, 'tripDays', newDays);
-      updateTripField(currentTripId, 'scheduleItems', scheduleItems.filter(item => item.date !== selectedDate));
+      const newSchedule = scheduleItems.filter(item => item.date !== selectedDate);
+      setTripDays(newDays);
+      setScheduleItems(newSchedule);
       if (onDeleted) {
         if (!newDays.find(d => d.date === selectedDate)) {
           onDeleted(newDays[0].date);
         }
       }
+      updateTripField(currentTripId, 'tripDays', newDays).catch(err => console.error(err));
+      updateTripField(currentTripId, 'scheduleItems', newSchedule).catch(err => console.error(err));
     }
   };
 
@@ -98,17 +109,13 @@ export const useTripData = (currentTripId: string) => {
       alert('日期重複：' + newDate + ' 已存在於行程中！');
       return;
     }
-    updateTripField(
-      currentTripId, 
-      'tripDays', 
-      tripDays.map(d => d.date === selectedDate ? { date: newDate, location: newLoc, fruit: newFruit } : d)
-    ); 
-    updateTripField(
-      currentTripId, 
-      'scheduleItems', 
-      scheduleItems.map(item => item.date === selectedDate ? { ...item, date: newDate } : item)
-    ); 
+    const newDays = tripDays.map(d => d.date === selectedDate ? { date: newDate, location: newLoc, fruit: newFruit } : d);
+    const newSchedule = scheduleItems.map(item => item.date === selectedDate ? { ...item, date: newDate } : item);
+    setTripDays(newDays);
+    setScheduleItems(newSchedule);
     if (onUpdated) onUpdated();
+    updateTripField(currentTripId, 'tripDays', newDays).catch(err => console.error(err));
+    updateTripField(currentTripId, 'scheduleItems', newSchedule).catch(err => console.error(err));
   };
 
   const handleSwapLogic = (
@@ -136,12 +143,17 @@ export const useTripData = (currentTripId: string) => {
       return item;
     });
 
-    updateTripField(currentTripId, 'tripDays', newTripDays);
-    updateTripField(currentTripId, 'scheduleItems', updatedScheduleItems);
+    // Instant optimistic update (0ms latency for user)
+    setTripDays(newTripDays);
+    setScheduleItems(updatedScheduleItems);
     
     if (onSwapped) onSwapped(date2);
 
     if (window.navigator.vibrate) window.navigator.vibrate([30, 50, 30]);
+
+    // Atomic fast background update via writeBatch
+    updateTripField(currentTripId, 'tripDays', newTripDays).catch(err => console.error(err));
+    updateTripField(currentTripId, 'scheduleItems', updatedScheduleItems).catch(err => console.error(err));
   };
 
   return {

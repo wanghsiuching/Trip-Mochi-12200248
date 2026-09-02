@@ -8,7 +8,8 @@ import {
   getDocs,
   onSnapshot, 
   arrayUnion, 
-  Timestamp 
+  Timestamp,
+  writeBatch
 } from 'firebase/firestore';
 import { PocketItem, Journal, ScheduleItem } from '../types';
 
@@ -334,77 +335,44 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
     
     let currentTripData: any = null;
     let subcollectionScheduleItems: ScheduleItem[] = [];
+    let hasScheduleSubcollectionLoaded = false;
     let subcollectionPocketItems: PocketItem[] = [];
+    let hasPocketSubcollectionLoaded = false;
     let subcollectionJournals: Journal[] = [];
+    let hasJournalSubcollectionLoaded = false;
 
     const notifyCombined = () => {
       if (!currentTripData) return;
+
+      // Safe fallback: prioritize subcollection if loaded, otherwise fallback to legacy root arrays
+      let finalSchedule = subcollectionScheduleItems;
+      if (hasScheduleSubcollectionLoaded && subcollectionScheduleItems.length === 0 && Array.isArray(currentTripData.scheduleItems) && currentTripData.scheduleItems.length > 0) {
+        finalSchedule = currentTripData.scheduleItems;
+      }
+
+      let finalPocket = subcollectionPocketItems;
+      if (hasPocketSubcollectionLoaded && subcollectionPocketItems.length === 0 && Array.isArray(currentTripData.pocketItems) && currentTripData.pocketItems.length > 0) {
+        finalPocket = currentTripData.pocketItems;
+      }
+
+      let finalJournals = subcollectionJournals;
+      if (hasJournalSubcollectionLoaded && subcollectionJournals.length === 0 && Array.isArray(currentTripData.journals) && currentTripData.journals.length > 0) {
+        finalJournals = currentTripData.journals;
+      }
+
       const combined = {
         ...currentTripData,
-        scheduleItems: subcollectionScheduleItems.length > 0 
-          ? subcollectionScheduleItems 
-          : (currentTripData.scheduleItems || []),
-        pocketItems: subcollectionPocketItems.length > 0 
-          ? subcollectionPocketItems 
-          : (currentTripData.pocketItems || []),
-        journals: subcollectionJournals.length > 0
-          ? subcollectionJournals
-          : (currentTripData.journals || [])
+        scheduleItems: finalSchedule,
+        pocketItems: finalPocket,
+        journals: finalJournals
       };
       onUpdate(combined);
     };
 
     // 1. Subscribe to main trip document
-    const unsubTrip = onSnapshot(tripRef, async (docSnap) => {
+    const unsubTrip = onSnapshot(tripRef, (docSnap) => {
       if (docSnap.exists()) {
-        const rawData = docSnap.data();
-        currentTripData = rawData;
-
-        // Auto-Migration & Document Slimming for scheduleItems:
-        if (Array.isArray(rawData.scheduleItems) && rawData.scheduleItems.length > 0) {
-          try {
-            for (const item of rawData.scheduleItems) {
-              if (item && item.id) {
-                await setDoc(doc(db, 'trips', tripId, 'scheduleItems', String(item.id)), cleanData(item));
-              }
-            }
-            await setDoc(tripRef, { scheduleItems: [] }, { merge: true });
-            currentTripData.scheduleItems = [];
-          } catch (migrateErr) {
-            console.warn("Migration/slimming of scheduleItems:", migrateErr);
-          }
-        }
-
-        // Auto-Migration & Document Slimming for pocketItems:
-        if (Array.isArray(rawData.pocketItems) && rawData.pocketItems.length > 0) {
-          try {
-            for (const item of rawData.pocketItems) {
-              if (item && item.id) {
-                await setDoc(doc(db, 'trips', tripId, 'pocketItems', String(item.id)), cleanData(item));
-              }
-            }
-            await setDoc(tripRef, { pocketItems: [] }, { merge: true });
-            currentTripData.pocketItems = [];
-          } catch (migrateErr) {
-            console.warn("Migration/slimming of pocketItems:", migrateErr);
-          }
-        }
-
-        // Auto-Migration & Document Slimming for journals:
-        if (Array.isArray(rawData.journals) && rawData.journals.length > 0) {
-          try {
-            for (const j of rawData.journals) {
-              if (j && j.id) {
-                await setDoc(doc(db, 'trips', tripId, 'journals', String(j.id)), cleanData(j));
-              }
-            }
-            await setDoc(tripRef, { journals: [] }, { merge: true });
-            currentTripData.journals = [];
-          } catch (migrateErr) {
-            console.warn("Migration/slimming of journals:", migrateErr);
-          }
-        }
-
+        currentTripData = docSnap.data();
         notifyCombined();
       }
     }, (error) => {
@@ -413,6 +381,7 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
 
     // 2. Subscribe to scheduleItems subcollection
     const unsubSchedule = onSnapshot(scheduleColRef, (colSnap) => {
+      hasScheduleSubcollectionLoaded = true;
       subcollectionScheduleItems = colSnap.docs.map(d => d.data() as ScheduleItem);
       notifyCombined();
     }, (error) => {
@@ -421,6 +390,7 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
 
     // 3. Subscribe to pocketItems subcollection
     const unsubPocket = onSnapshot(pocketColRef, (colSnap) => {
+      hasPocketSubcollectionLoaded = true;
       subcollectionPocketItems = colSnap.docs.map(d => d.data() as PocketItem);
       subcollectionPocketItems.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       notifyCombined();
@@ -430,6 +400,7 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
 
     // 4. Subscribe to journals subcollection
     const unsubJournal = onSnapshot(journalColRef, (colSnap) => {
+      hasJournalSubcollectionLoaded = true;
       subcollectionJournals = colSnap.docs.map(d => d.data() as Journal);
       subcollectionJournals.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
       notifyCombined();
@@ -479,76 +450,90 @@ export const addTripItem = async (tripId: string, collectionName: string, item: 
 };
 
 /**
- * Updates a specific field or replaces a full list in the trip document.
+ * Updates a specific field or replaces a full list in the trip document with ultra-fast writeBatch.
  */
 export const updateTripField = async (tripId: string, field: string, value: any): Promise<void> => {
   try {
-    // If updating scheduleItems, store them in the subcollection to prevent 1MB document explosion
+    if (!tripId) return;
+
+    // If updating scheduleItems, store them in the subcollection using atomic writeBatch
     if (field === 'scheduleItems' && Array.isArray(value)) {
       const scheduleColRef = collection(db, 'trips', tripId, 'scheduleItems');
       const existingSnap = await getDocs(scheduleColRef);
       const newIds = new Set(value.map(s => String(s.id)));
 
+      const batch = writeBatch(db);
+
       for (const existingDoc of existingSnap.docs) {
         if (!newIds.has(existingDoc.id)) {
-          await deleteDoc(existingDoc.ref);
+          batch.delete(existingDoc.ref);
         }
       }
 
       for (const item of value) {
         if (item && item.id) {
           const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(item.id));
-          await setDoc(itemRef, cleanData(item));
+          batch.set(itemRef, cleanData(item));
         }
       }
+
+      await batch.commit();
 
       const tripRef = doc(db, 'trips', tripId);
       await setDoc(tripRef, { scheduleItems: [] }, { merge: true });
       return;
     }
 
-    // If updating pocketItems, store them in the subcollection to prevent 1MB document explosion
+    // If updating pocketItems, store them in the subcollection using atomic writeBatch
     if (field === 'pocketItems' && Array.isArray(value)) {
       const pocketColRef = collection(db, 'trips', tripId, 'pocketItems');
       const existingSnap = await getDocs(pocketColRef);
       const newIds = new Set(value.map(p => String(p.id)));
 
+      const batch = writeBatch(db);
+
       for (const existingDoc of existingSnap.docs) {
         if (!newIds.has(existingDoc.id)) {
-          await deleteDoc(existingDoc.ref);
+          batch.delete(existingDoc.ref);
         }
       }
 
       for (const item of value) {
         if (item && item.id) {
           const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(item.id));
-          await setDoc(itemRef, cleanData(item));
+          batch.set(itemRef, cleanData(item));
         }
       }
+
+      await batch.commit();
 
       const tripRef = doc(db, 'trips', tripId);
       await setDoc(tripRef, { pocketItems: [] }, { merge: true });
       return;
     }
 
-    // If updating journals, store them in the subcollection to prevent 1MB document explosion
+    // If updating journals, store them in the subcollection using atomic writeBatch
     if (field === 'journals' && Array.isArray(value)) {
       const journalColRef = collection(db, 'trips', tripId, 'journals');
       const existingSnap = await getDocs(journalColRef);
       const newIds = new Set(value.map(j => String(j.id)));
 
+      const batch = writeBatch(db);
+
       for (const existingDoc of existingSnap.docs) {
         if (!newIds.has(existingDoc.id)) {
-          await deleteDoc(existingDoc.ref);
+          batch.delete(existingDoc.ref);
         }
       }
 
       for (const item of value) {
         if (item && item.id) {
           const itemRef = doc(db, 'trips', tripId, 'journals', String(item.id));
-          await setDoc(itemRef, cleanData(item));
+          batch.set(itemRef, cleanData(item));
         }
       }
+
+      await batch.commit();
 
       const tripRef = doc(db, 'trips', tripId);
       await setDoc(tripRef, { journals: [] }, { merge: true });
