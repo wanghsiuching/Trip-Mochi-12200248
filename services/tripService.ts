@@ -195,38 +195,62 @@ export const joinTripByCode = async (code: string): Promise<any> => {
 
     const data = snap.data();
 
-    // Fetch schedule items from subcollection
+    // Fetch schedule items from subcollection and merge
+    const scheduleMap = new Map<string, ScheduleItem>();
+    if (Array.isArray(data.scheduleItems)) {
+      for (const item of data.scheduleItems) {
+        if (item && item.id) scheduleMap.set(String(item.id), item);
+      }
+    }
     try {
       const scheduleCol = collection(db, 'trips', cleanCode, 'scheduleItems');
       const scheduleSnap = await getDocs(scheduleCol);
-      if (!scheduleSnap.empty) {
-        data.scheduleItems = scheduleSnap.docs.map(d => d.data() as ScheduleItem);
+      for (const d of scheduleSnap.docs) {
+        const item = d.data() as ScheduleItem;
+        if (item && item.id) scheduleMap.set(String(item.id), item);
       }
     } catch (e) {
       console.warn("Subcollection read fallback (schedule):", e);
     }
+    data.scheduleItems = Array.from(scheduleMap.values());
 
-    // Fetch pocket items from subcollection
+    // Fetch pocket items from subcollection and merge
+    const pocketMap = new Map<string, PocketItem>();
+    if (Array.isArray(data.pocketItems)) {
+      for (const item of data.pocketItems) {
+        if (item && item.id) pocketMap.set(String(item.id), item);
+      }
+    }
     try {
       const pocketCol = collection(db, 'trips', cleanCode, 'pocketItems');
       const pocketSnap = await getDocs(pocketCol);
-      if (!pocketSnap.empty) {
-        data.pocketItems = pocketSnap.docs.map(d => d.data() as PocketItem);
+      for (const d of pocketSnap.docs) {
+        const item = d.data() as PocketItem;
+        if (item && item.id) pocketMap.set(String(item.id), item);
       }
     } catch (e) {
       console.warn("Subcollection read fallback (pocket):", e);
     }
+    data.pocketItems = Array.from(pocketMap.values());
 
-    // Fetch journals from subcollection
+    // Fetch journals from subcollection and merge
+    const journalMap = new Map<string, Journal>();
+    if (Array.isArray(data.journals)) {
+      for (const item of data.journals) {
+        if (item && item.id) journalMap.set(String(item.id), item);
+      }
+    }
     try {
       const journalCol = collection(db, 'trips', cleanCode, 'journals');
       const journalSnap = await getDocs(journalCol);
-      if (!journalSnap.empty) {
-        data.journals = journalSnap.docs.map(d => d.data() as Journal);
+      for (const d of journalSnap.docs) {
+        const item = d.data() as Journal;
+        if (item && item.id) journalMap.set(String(item.id), item);
       }
     } catch (e) {
       console.warn("Subcollection read fallback (journal):", e);
     }
+    data.journals = Array.from(journalMap.values());
 
     return data;
   } catch (error: any) {
@@ -244,6 +268,22 @@ export const saveScheduleItem = async (tripId: string, item: ScheduleItem): Prom
     const cleaned = cleanData(item);
     const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(item.id));
     await setDoc(itemRef, cleaned);
+
+    // Clean up stale copy in root doc so it doesn't overwrite with outdated photos
+    try {
+      const tripRef = doc(db, 'trips', tripId);
+      const snap = await getDoc(tripRef);
+      if (snap.exists()) {
+        const rootData = snap.data();
+        if (Array.isArray(rootData.scheduleItems) && rootData.scheduleItems.some((i: any) => String(i.id) === String(item.id))) {
+          await setDoc(tripRef, {
+            scheduleItems: rootData.scheduleItems.filter((i: any) => String(i.id) !== String(item.id))
+          }, { merge: true });
+        }
+      }
+    } catch (cleanErr) {
+      console.warn("Non-fatal root doc schedule item cleanup:", cleanErr);
+    }
   } catch (err) {
     console.error("Failed to save schedule item to subcollection:", err);
     throw err;
@@ -258,6 +298,22 @@ export const deleteScheduleItem = async (tripId: string, itemId: string): Promis
     if (!tripId || !itemId) return;
     const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(itemId));
     await deleteDoc(itemRef);
+
+    // Also remove from root doc if present
+    try {
+      const tripRef = doc(db, 'trips', tripId);
+      const snap = await getDoc(tripRef);
+      if (snap.exists()) {
+        const rootData = snap.data();
+        if (Array.isArray(rootData.scheduleItems) && rootData.scheduleItems.some((i: any) => String(i.id) === String(itemId))) {
+          await setDoc(tripRef, {
+            scheduleItems: rootData.scheduleItems.filter((i: any) => String(i.id) !== String(itemId))
+          }, { merge: true });
+        }
+      }
+    } catch (cleanErr) {
+      console.warn("Non-fatal root doc schedule item delete cleanup:", cleanErr);
+    }
   } catch (err) {
     console.error("Failed to delete schedule item from subcollection:", err);
     throw err;
@@ -273,6 +329,22 @@ export const savePocketItem = async (tripId: string, item: PocketItem): Promise<
     const cleaned = cleanData(item);
     const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(item.id));
     await setDoc(itemRef, cleaned);
+
+    // Clean up stale copy in root doc
+    try {
+      const tripRef = doc(db, 'trips', tripId);
+      const snap = await getDoc(tripRef);
+      if (snap.exists()) {
+        const rootData = snap.data();
+        if (Array.isArray(rootData.pocketItems) && rootData.pocketItems.some((i: any) => String(i.id) === String(item.id))) {
+          await setDoc(tripRef, {
+            pocketItems: rootData.pocketItems.filter((i: any) => String(i.id) !== String(item.id))
+          }, { merge: true });
+        }
+      }
+    } catch (cleanErr) {
+      console.warn("Non-fatal root doc pocket item cleanup:", cleanErr);
+    }
   } catch (err) {
     console.error("Failed to save pocket item to subcollection:", err);
     throw err;
@@ -287,6 +359,22 @@ export const deletePocketItem = async (tripId: string, itemId: string): Promise<
     if (!tripId || !itemId) return;
     const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(itemId));
     await deleteDoc(itemRef);
+
+    // Also remove from root doc if present
+    try {
+      const tripRef = doc(db, 'trips', tripId);
+      const snap = await getDoc(tripRef);
+      if (snap.exists()) {
+        const rootData = snap.data();
+        if (Array.isArray(rootData.pocketItems) && rootData.pocketItems.some((i: any) => String(i.id) === String(itemId))) {
+          await setDoc(tripRef, {
+            pocketItems: rootData.pocketItems.filter((i: any) => String(i.id) !== String(itemId))
+          }, { merge: true });
+        }
+      }
+    } catch (cleanErr) {
+      console.warn("Non-fatal root doc pocket item delete cleanup:", cleanErr);
+    }
   } catch (err) {
     console.error("Failed to delete pocket item from subcollection:", err);
     throw err;
@@ -302,6 +390,22 @@ export const saveJournalItem = async (tripId: string, journal: Journal): Promise
     const cleaned = cleanData(journal);
     const itemRef = doc(db, 'trips', tripId, 'journals', String(journal.id));
     await setDoc(itemRef, cleaned);
+
+    // Clean up stale copy in root doc
+    try {
+      const tripRef = doc(db, 'trips', tripId);
+      const snap = await getDoc(tripRef);
+      if (snap.exists()) {
+        const rootData = snap.data();
+        if (Array.isArray(rootData.journals) && rootData.journals.some((i: any) => String(i.id) === String(journal.id))) {
+          await setDoc(tripRef, {
+            journals: rootData.journals.filter((i: any) => String(i.id) !== String(journal.id))
+          }, { merge: true });
+        }
+      }
+    } catch (cleanErr) {
+      console.warn("Non-fatal root doc journal item cleanup:", cleanErr);
+    }
   } catch (err) {
     console.error("Failed to save journal item to subcollection:", err);
     throw err;
@@ -316,6 +420,22 @@ export const deleteJournalItem = async (tripId: string, journalId: number | stri
     if (!tripId || !journalId) return;
     const itemRef = doc(db, 'trips', tripId, 'journals', String(journalId));
     await deleteDoc(itemRef);
+
+    // Also remove from root doc if present
+    try {
+      const tripRef = doc(db, 'trips', tripId);
+      const snap = await getDoc(tripRef);
+      if (snap.exists()) {
+        const rootData = snap.data();
+        if (Array.isArray(rootData.journals) && rootData.journals.some((i: any) => String(i.id) === String(journalId))) {
+          await setDoc(tripRef, {
+            journals: rootData.journals.filter((i: any) => String(i.id) !== String(journalId))
+          }, { merge: true });
+        }
+      }
+    } catch (cleanErr) {
+      console.warn("Non-fatal root doc journal item delete cleanup:", cleanErr);
+    }
   } catch (err) {
     console.error("Failed to delete journal item from subcollection:", err);
     throw err;
@@ -335,30 +455,61 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
     
     let currentTripData: any = null;
     let subcollectionScheduleItems: ScheduleItem[] = [];
-    let hasScheduleSubcollectionLoaded = false;
     let subcollectionPocketItems: PocketItem[] = [];
-    let hasPocketSubcollectionLoaded = false;
     let subcollectionJournals: Journal[] = [];
-    let hasJournalSubcollectionLoaded = false;
 
     const notifyCombined = () => {
       if (!currentTripData) return;
 
-      // Safe fallback: prioritize subcollection if loaded, otherwise fallback to legacy root arrays
-      let finalSchedule = subcollectionScheduleItems;
-      if (hasScheduleSubcollectionLoaded && subcollectionScheduleItems.length === 0 && Array.isArray(currentTripData.scheduleItems) && currentTripData.scheduleItems.length > 0) {
-        finalSchedule = currentTripData.scheduleItems;
+      // 1. Merge schedule items: Subcollection takes precedence over legacy root array
+      const scheduleMap = new Map<string, ScheduleItem>();
+      if (Array.isArray(currentTripData.scheduleItems)) {
+        for (const item of currentTripData.scheduleItems) {
+          if (item && item.id) {
+            scheduleMap.set(String(item.id), item);
+          }
+        }
       }
+      for (const item of subcollectionScheduleItems) {
+        if (item && item.id) {
+          scheduleMap.set(String(item.id), item);
+        }
+      }
+      const finalSchedule = Array.from(scheduleMap.values());
 
-      let finalPocket = subcollectionPocketItems;
-      if (hasPocketSubcollectionLoaded && subcollectionPocketItems.length === 0 && Array.isArray(currentTripData.pocketItems) && currentTripData.pocketItems.length > 0) {
-        finalPocket = currentTripData.pocketItems;
+      // 2. Merge pocket items: Subcollection takes precedence
+      const pocketMap = new Map<string, PocketItem>();
+      if (Array.isArray(currentTripData.pocketItems)) {
+        for (const item of currentTripData.pocketItems) {
+          if (item && item.id) {
+            pocketMap.set(String(item.id), item);
+          }
+        }
       }
+      for (const item of subcollectionPocketItems) {
+        if (item && item.id) {
+          pocketMap.set(String(item.id), item);
+        }
+      }
+      const finalPocket = Array.from(pocketMap.values());
+      finalPocket.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
-      let finalJournals = subcollectionJournals;
-      if (hasJournalSubcollectionLoaded && subcollectionJournals.length === 0 && Array.isArray(currentTripData.journals) && currentTripData.journals.length > 0) {
-        finalJournals = currentTripData.journals;
+      // 3. Merge journals: Subcollection takes precedence
+      const journalMap = new Map<string, Journal>();
+      if (Array.isArray(currentTripData.journals)) {
+        for (const item of currentTripData.journals) {
+          if (item && item.id) {
+            journalMap.set(String(item.id), item);
+          }
+        }
       }
+      for (const item of subcollectionJournals) {
+        if (item && item.id) {
+          journalMap.set(String(item.id), item);
+        }
+      }
+      const finalJournals = Array.from(journalMap.values());
+      finalJournals.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
       const combined = {
         ...currentTripData,
@@ -381,7 +532,6 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
 
     // 2. Subscribe to scheduleItems subcollection
     const unsubSchedule = onSnapshot(scheduleColRef, (colSnap) => {
-      hasScheduleSubcollectionLoaded = true;
       subcollectionScheduleItems = colSnap.docs.map(d => d.data() as ScheduleItem);
       notifyCombined();
     }, (error) => {
@@ -390,9 +540,7 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
 
     // 3. Subscribe to pocketItems subcollection
     const unsubPocket = onSnapshot(pocketColRef, (colSnap) => {
-      hasPocketSubcollectionLoaded = true;
       subcollectionPocketItems = colSnap.docs.map(d => d.data() as PocketItem);
-      subcollectionPocketItems.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
       notifyCombined();
     }, (error) => {
       console.error("Real-time sync error (pocket subcollection):", error);
@@ -400,9 +548,7 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
 
     // 4. Subscribe to journals subcollection
     const unsubJournal = onSnapshot(journalColRef, (colSnap) => {
-      hasJournalSubcollectionLoaded = true;
       subcollectionJournals = colSnap.docs.map(d => d.data() as Journal);
-      subcollectionJournals.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
       notifyCombined();
     }, (error) => {
       console.error("Real-time sync error (journal subcollection):", error);
