@@ -3,7 +3,7 @@ import { PenTool, Trash2, X, Feather, Send, Check, AlertCircle, Camera, Image as
 import { Journal, Member, Comment } from '../types';
 import { DateTimePickerField } from './TimePickerComponents';
 import { MemberAvatar } from './MemberAvatar';
-import { compressImageToBase64 } from '../utils/imageService';
+import { compressImageToBase64, uploadOrCompressImage } from '../utils/imageService';
 import { Lightbox } from './Lightbox';
 
 interface FormImageItem {
@@ -20,9 +20,10 @@ interface JournalViewProps {
   onAdd: (journal: Journal) => void;
   onUpdate: (journal: Journal) => void;
   onDelete: (id: number) => void;
+  tripId?: string;
 }
 
-export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onAdd, onUpdate, onDelete }) => {
+export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onAdd, onUpdate, onDelete, tripId }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingJournal, setEditingJournal] = useState<Journal | null>(null);
   
@@ -119,17 +120,17 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
       fileInputRef.current.value = '';
     }
 
-    // 2. Compress each file to lightweight JPEG Base64
+    // 2. Compress each file using Stepped Downsampling and Psycho-Visual WebP Engine
     const compressionPromises = filesToUpload.map(async (file, idx) => {
       const targetItem = newItems[idx];
       try {
-        const compressedBase64 = await compressImageToBase64(file);
+        const compressedOrUrl = await uploadOrCompressImage(file, tripId);
 
-        if (compressedBase64 && compressedBase64.startsWith('data:image/')) {
+        if (compressedOrUrl && (compressedOrUrl.startsWith('data:image/') || compressedOrUrl.startsWith('http'))) {
           setFormImages(prev =>
             prev.map(item =>
               item.id === targetItem.id
-                ? { ...item, url: compressedBase64, progress: 100, isReady: true, error: undefined }
+                ? { ...item, url: compressedOrUrl, progress: 100, isReady: true, error: undefined }
                 : item
             )
           );

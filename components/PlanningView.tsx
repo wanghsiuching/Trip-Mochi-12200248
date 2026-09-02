@@ -22,6 +22,7 @@ interface PlanningViewProps {
   onAddDocument?: (doc: Omit<TravelDocument, 'id' | 'createdAt'>) => void;
   onUpdateDocument?: (id: string | number, updates: Partial<TravelDocument>) => void;
   onDeleteDocument?: (id: string | number) => void;
+  tripId?: string;
 }
 
 export const PlanningView: React.FC<PlanningViewProps> = ({ 
@@ -34,6 +35,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   onAddDocument,
   onUpdateDocument,
   onDeleteDocument,
+  tripId,
 }) => {
   const [currentList, setCurrentList] = useState<'todo' | 'packing' | 'wish' | 'documents'>('todo');
   const [newItem, setNewItem] = useState('');
@@ -262,6 +264,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
             <DocumentsView 
               documents={lists.documents || []}
               members={members}
+              tripId={tripId}
               onAddDocument={onAddDocument || (() => {})}
               onUpdateDocument={onUpdateDocument || (() => {})}
               onDeleteDocument={onDeleteDocument || (() => {})}

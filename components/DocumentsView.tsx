@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import { TravelDocument, DocumentCategory, Member } from '../types';
 import { MemberAvatar } from './MemberAvatar';
-import { compressImageToBase64 } from '../utils/imageService';
+import { compressImageToBase64, uploadOrCompressImage } from '../utils/imageService';
 import { Lightbox } from './Lightbox';
 
 interface DocumentsViewProps {
@@ -40,6 +40,9 @@ interface DocumentsViewProps {
   onAddDocument: (doc: Omit<TravelDocument, 'id' | 'createdAt'>) => void;
   onUpdateDocument: (id: string | number, updates: Partial<TravelDocument>) => void;
   onDeleteDocument: (id: string | number) => void;
+  activeMemberFilter?: string[];
+  onToggleMemberFilter?: (name: string) => void;
+  tripId?: string;
 }
 
 export const ACTIVE_DOCUMENT_CATEGORIES: DocumentCategory[] = [
@@ -203,6 +206,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
   onDeleteDocument,
   activeMemberFilter,
   onToggleMemberFilter,
+  tripId,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<DocumentCategory | 'all'>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -501,6 +505,7 @@ export const DocumentsView: React.FC<DocumentsViewProps> = ({
           isOpen={isAddModalOpen}
           initialData={editingDoc}
           members={members}
+          tripId={tripId}
           onClose={() => {
             setIsAddModalOpen(false);
             setEditingDoc(null);
@@ -557,6 +562,7 @@ interface DocumentModalProps {
   members: Member[];
   onClose: () => void;
   onSave: (doc: Omit<TravelDocument, 'id' | 'createdAt'>) => void;
+  tripId?: string;
 }
 
 const DocumentModal: React.FC<DocumentModalProps> = ({
@@ -565,6 +571,7 @@ const DocumentModal: React.FC<DocumentModalProps> = ({
   members,
   onClose,
   onSave,
+  tripId,
 }) => {
   const [category, setCategory] = useState<DocumentCategory>(initialData?.category || 'passport');
   const [title, setTitle] = useState(initialData?.title || CATEGORY_CONFIG.passport.defaultTitle);
@@ -590,13 +597,13 @@ const DocumentModal: React.FC<DocumentModalProps> = ({
 
     setIsCompressing(true);
     try {
-      const newBase64List: string[] = [];
+      const newImagesList: string[] = [];
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const compressed = await compressImageToBase64(file);
-        newBase64List.push(compressed);
+        const compressedOrUrl = await uploadOrCompressImage(file, tripId);
+        newImagesList.push(compressedOrUrl);
       }
-      setImages((prev) => [...prev, ...newBase64List]);
+      setImages((prev) => [...prev, ...newImagesList]);
     } catch (err) {
       console.error('Image compression failed:', err);
       alert('圖片處理失敗，請嘗試其他格式');

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import { PocketItem, TripDay } from '../types';
 import { Lightbox } from './Lightbox';
-import { compressImageToBase64 } from '../utils/imageService';
+import { compressImageToBase64, uploadOrCompressImage } from '../utils/imageService';
 
 interface FormImageItem {
   id: string;
@@ -188,17 +188,17 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
       fileInputRef.current.value = '';
     }
 
-    // 2. Compress each file directly to Base64 in browser memory (instant & zero external server dependency)
+    // 2. Compress each file directly using Stepped Downsampling and Psycho-Visual WebP Engine
     const compressionPromises = filesToUpload.map(async (file, idx) => {
       const targetItem = newItems[idx];
       try {
-        const compressedBase64 = await compressImageToBase64(file);
+        const compressedOrUrl = await uploadOrCompressImage(file, tripId);
 
-        if (compressedBase64 && compressedBase64.startsWith('data:image/')) {
+        if (compressedOrUrl && (compressedOrUrl.startsWith('data:image/') || compressedOrUrl.startsWith('http'))) {
           setFormImages(prev =>
             prev.map(item =>
               item.id === targetItem.id
-                ? { ...item, url: compressedBase64, progress: 100, isReady: true, error: undefined }
+                ? { ...item, url: compressedOrUrl, progress: 100, isReady: true, error: undefined }
                 : item
             )
           );
