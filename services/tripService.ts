@@ -8,11 +8,67 @@ import {
   getDocs,
   onSnapshot, 
   arrayUnion, 
+  arrayRemove,
   Timestamp,
   writeBatch
 } from 'firebase/firestore';
 import { PocketItem, Journal, ScheduleItem } from '../types';
 import { compressBase64IfNeeded } from '../utils/imageService';
+
+/**
+ * Sorts schedule items reliably based on:
+ * 1. Root trip document `scheduleOrder` (ordered array of item IDs)
+ * 2. Item-level `order` property (numeric position)
+ * 3. Fallback to `time` (chronological) and deterministic ID
+ */
+export const sortScheduleItems = (items: ScheduleItem[], scheduleOrder?: string[]): ScheduleItem[] => {
+  if (!Array.isArray(items) || items.length <= 1) return items || [];
+
+  // 1. If explicit scheduleOrder array exists from root doc, strictly adhere to it
+  if (Array.isArray(scheduleOrder) && scheduleOrder.length > 0) {
+    const orderMap = new Map<string, number>();
+    scheduleOrder.forEach((id, idx) => orderMap.set(String(id), idx));
+
+    return [...items].sort((a, b) => {
+      const hasA = orderMap.has(String(a.id));
+      const hasB = orderMap.has(String(b.id));
+      if (hasA && hasB) {
+        return orderMap.get(String(a.id))! - orderMap.get(String(b.id))!;
+      }
+      if (hasA && !hasB) return -1;
+      if (!hasA && hasB) return 1;
+
+      const orderA = typeof a.order === 'number' ? a.order : 999999;
+      const orderB = typeof b.order === 'number' ? b.order : 999999;
+      if (orderA !== orderB) return orderA - orderB;
+
+      const timeComp = (a.time || '').localeCompare(b.time || '');
+      if (timeComp !== 0) return timeComp;
+      return String(a.id).localeCompare(String(b.id));
+    });
+  }
+
+  // 2. Check if items have explicit order property
+  const hasExplicitOrder = items.some(i => typeof i.order === 'number');
+  if (hasExplicitOrder) {
+    return [...items].sort((a, b) => {
+      const orderA = typeof a.order === 'number' ? a.order : 999999;
+      const orderB = typeof b.order === 'number' ? b.order : 999999;
+      if (orderA !== orderB) return orderA - orderB;
+
+      const timeComp = (a.time || '').localeCompare(b.time || '');
+      if (timeComp !== 0) return timeComp;
+      return String(a.id).localeCompare(String(b.id));
+    });
+  }
+
+  // 3. Fallback for legacy trips without explicit ordering: chronological by time
+  return [...items].sort((a, b) => {
+    const timeComp = (a.time || '').localeCompare(b.time || '');
+    if (timeComp !== 0) return timeComp;
+    return String(a.id).localeCompare(String(b.id));
+  });
+};
 
 /**
  * Utility to recursively remove undefined properties from an object.
@@ -213,7 +269,8 @@ export const joinTripByCode = async (code: string): Promise<any> => {
     } catch (e) {
       console.warn("Subcollection read fallback (schedule):", e);
     }
-    data.scheduleItems = Array.from(scheduleMap.values());
+    const rawSchedule = Array.from(scheduleMap.values());
+    data.scheduleItems = sortScheduleItems(rawSchedule, data.scheduleOrder);
 
     // Fetch pocket items from subcollection and merge
     const pocketMap = new Map<string, PocketItem>();
@@ -303,17 +360,19 @@ export const saveScheduleItem = async (tripId: string, item: ScheduleItem): Prom
       }
     }
 
-    // Clean up stale copy in root doc so it doesn't overwrite with outdated photos
+    // Clean up stale copy in root doc so it doesn't overwrite with outdated photos, and ensure scheduleOrder includes item.id
     try {
       const tripRef = doc(db, 'trips', tripId);
       const snap = await getDoc(tripRef);
       if (snap.exists()) {
         const rootData = snap.data();
+        const updates: any = {
+          scheduleOrder: arrayUnion(String(item.id))
+        };
         if (Array.isArray(rootData.scheduleItems) && rootData.scheduleItems.some((i: any) => String(i.id) === String(item.id))) {
-          await setDoc(tripRef, {
-            scheduleItems: rootData.scheduleItems.filter((i: any) => String(i.id) !== String(item.id))
-          }, { merge: true });
+          updates.scheduleItems = rootData.scheduleItems.filter((i: any) => String(i.id) !== String(item.id));
         }
+        await setDoc(tripRef, updates, { merge: true });
       }
     } catch (cleanErr) {
       console.warn("Non-fatal root doc schedule item cleanup:", cleanErr);
@@ -333,17 +392,19 @@ export const deleteScheduleItem = async (tripId: string, itemId: string): Promis
     const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(itemId));
     await deleteDoc(itemRef);
 
-    // Also remove from root doc if present
+    // Also remove from root doc if present, and update scheduleOrder
     try {
       const tripRef = doc(db, 'trips', tripId);
       const snap = await getDoc(tripRef);
       if (snap.exists()) {
         const rootData = snap.data();
+        const updates: any = {
+          scheduleOrder: arrayRemove(String(itemId))
+        };
         if (Array.isArray(rootData.scheduleItems) && rootData.scheduleItems.some((i: any) => String(i.id) === String(itemId))) {
-          await setDoc(tripRef, {
-            scheduleItems: rootData.scheduleItems.filter((i: any) => String(i.id) !== String(itemId))
-          }, { merge: true });
+          updates.scheduleItems = rootData.scheduleItems.filter((i: any) => String(i.id) !== String(itemId));
         }
+        await setDoc(tripRef, updates, { merge: true });
       }
     } catch (cleanErr) {
       console.warn("Non-fatal root doc schedule item delete cleanup:", cleanErr);
@@ -527,7 +588,8 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
           scheduleMap.set(String(item.id), item);
         }
       }
-      const finalSchedule = Array.from(scheduleMap.values());
+      const rawSchedule = Array.from(scheduleMap.values());
+      const finalSchedule = sortScheduleItems(rawSchedule, currentTripData.scheduleOrder);
 
       // 2. Merge pocket items: Subcollection takes precedence
       const pocketMap = new Map<string, PocketItem>();
@@ -668,17 +730,26 @@ export const updateTripField = async (tripId: string, field: string, value: any)
         }
       }
 
-      for (const item of value) {
+      for (let idx = 0; idx < value.length; idx++) {
+        const item = value[idx];
         if (item && item.id) {
           const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(item.id));
-          batch.set(itemRef, cleanData(item));
+          const itemWithOrder = {
+            ...item,
+            order: item.order !== undefined ? item.order : idx
+          };
+          batch.set(itemRef, cleanData(itemWithOrder));
         }
       }
 
       await batch.commit();
 
       const tripRef = doc(db, 'trips', tripId);
-      await setDoc(tripRef, { scheduleItems: [] }, { merge: true });
+      const orderIds = value.map(i => String(i.id));
+      await setDoc(tripRef, { 
+        scheduleItems: [],
+        scheduleOrder: orderIds 
+      }, { merge: true });
       return;
     }
 

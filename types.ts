@@ -166,6 +166,7 @@ export interface SpotDetails {
 
 export interface ScheduleItem {
   id: string;
+  order?: number; // 順序編號 (保證自訂調換順序後持久化存儲)
   date: string; 
   time: string;
   title: string;

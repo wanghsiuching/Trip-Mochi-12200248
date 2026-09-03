@@ -53,6 +53,7 @@ export const usePocketItemsData = (currentTripId: string) => {
         participants: members.map(m => m.id),
         isPotential: false,
       },
+      order: Date.now(),
     };
     saveScheduleItem(currentTripId, newScheduleItem).catch(err => {
       console.error('Failed to add schedule item from pocket:', err);

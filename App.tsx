@@ -414,6 +414,11 @@ export default function App() {
   const handleConfirmMoveItem = () => {
     if (!pendingMoveItem) return;
     handleMoveTripItem(pendingMoveItem.index, pendingMoveItem.direction, selectedDate);
+    if (window.navigator?.vibrate) {
+      try {
+        window.navigator.vibrate([30, 40]);
+      } catch (e) {}
+    }
     setPendingMoveItem(null);
   };
 
