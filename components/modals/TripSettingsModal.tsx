@@ -1,22 +1,69 @@
 import React, { useState } from 'react';
-import { Settings, X, Coins, Plus, Save, Copy, Check, Hash } from 'lucide-react';
-import { Currency } from '../../types';
+import { Settings, X, Coins, Plus, Save, Copy, Check, Hash, FileText, Eye, Printer, Download } from 'lucide-react';
+import { 
+  Currency, 
+  TripDay, 
+  ScheduleItem, 
+  BookingFlight, 
+  BookingAccommodation, 
+  BookingCarRental, 
+  BookingTicket, 
+  Expense, 
+  Member 
+} from '../../types';
+import { ExportPdfModal } from './ExportPdfModal';
+import { printTripToPdf, downloadOfflineTripHtml, TripExportData } from '../../utils/pdfExport';
 
 export const TripSettingsModal = ({ 
     isOpen, onClose, currencies, onAddCurrency, onRemoveCurrency, onDuplicate,
-    tripId, tripName
+    tripId, tripName,
+    tripDays = [],
+    scheduleItems = [],
+    bookingFlights = [],
+    bookingAccommodations = [],
+    bookingCarRentals = [],
+    bookingTickets = [],
+    expenses = [],
+    members = []
 }: { 
-    isOpen: boolean, onClose: () => void, 
-    currencies: Currency[], onAddCurrency: (c: Currency) => void, onRemoveCurrency: (code: string) => void,
-    onDuplicate?: () => void,
-    tripId?: string,
-    tripName?: string
+    isOpen: boolean;
+    onClose: () => void;
+    currencies: Currency[];
+    onAddCurrency: (c: Currency) => void;
+    onRemoveCurrency: (code: string) => void;
+    onDuplicate?: () => void;
+    tripId?: string;
+    tripName?: string;
+    tripDays?: TripDay[];
+    scheduleItems?: ScheduleItem[];
+    bookingFlights?: BookingFlight[];
+    bookingAccommodations?: BookingAccommodation[];
+    bookingCarRentals?: BookingCarRental[];
+    bookingTickets?: BookingTicket[];
+    expenses?: Expense[];
+    members?: Member[];
 }) => {
     const [newCurrencyCode, setNewCurrencyCode] = useState('');
     const [newCurrencyRate, setNewCurrencyRate] = useState('');
     const [copiedCode, setCopiedCode] = useState(false);
+    const [isExportPdfOpen, setIsExportPdfOpen] = useState(false);
+    const [isDirectPrinting, setIsDirectPrinting] = useState(false);
 
     if (!isOpen) return null;
+
+    const exportData: TripExportData = {
+      tripId: tripId || '',
+      tripName: tripName || '旅行行程手帳',
+      tripDays,
+      scheduleItems,
+      bookingFlights,
+      bookingAccommodations,
+      bookingCarRentals,
+      bookingTickets,
+      expenses,
+      members,
+      currencies
+    };
 
     const handleCopyCode = () => {
         if (!tripId) return;
@@ -34,7 +81,14 @@ export const TripSettingsModal = ({
         }
     };
 
+    const handleDirectPrint = async () => {
+        setIsDirectPrinting(true);
+        await printTripToPdf(exportData);
+        setTimeout(() => setIsDirectPrinting(false), 1000);
+    };
+
     return (
+      <>
         <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={onClose}>
             <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-lg sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
@@ -63,6 +117,42 @@ export const TripSettingsModal = ({
                             <p className="text-[10px] text-gray-400 mt-2">好友可在首頁輸入此代碼加入或查看此行程。</p>
                         </div>
                     )}
+
+                    {/* PDF Export Section */}
+                    <div className="bg-gradient-to-br from-white to-[#F6F4ED] border-2 border-sage/40 p-4 rounded-2xl shadow-sm relative overflow-hidden">
+                        <div className="flex items-start gap-3">
+                            <div className="w-11 h-11 rounded-2xl bg-sage text-white flex items-center justify-center font-bold shadow-sm flex-shrink-0 mt-0.5">
+                                <FileText size={22} />
+                            </div>
+                            <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                    <h4 className="text-base font-black text-cocoa">匯出行程手帳 (PDF)</h4>
+                                    <span className="text-[10px] bg-sage text-white font-black px-2 py-0.5 rounded-full">離線列印</span>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                                    自動彙整<strong>每日排程、機票住宿訂單、花費概覽</strong>，轉化為日系手帳風格 A4 離線檔案。
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="mt-3.5 grid grid-cols-2 gap-2">
+                            <button
+                                onClick={() => setIsExportPdfOpen(true)}
+                                className="py-3 px-2.5 bg-white text-cocoa border-2 border-beige-dark hover:border-sage font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-xs transition-all active:scale-95"
+                            >
+                                <Eye size={15} className="text-sage" />
+                                <span>預覽手帳版型</span>
+                            </button>
+                            <button
+                                onClick={handleDirectPrint}
+                                disabled={isDirectPrinting}
+                                className="py-3 px-2.5 bg-sage text-white font-black rounded-xl text-xs hover:bg-sage-dark flex items-center justify-center gap-1.5 shadow-hard-sm-sage transition-all active:scale-95 disabled:opacity-50"
+                            >
+                                <Printer size={15} />
+                                <span>{isDirectPrinting ? '開啟列印中...' : '列印 / 存為 PDF'}</span>
+                            </button>
+                        </div>
+                    </div>
 
                     {/* Currency Section */}
                     <div>
@@ -108,5 +198,14 @@ export const TripSettingsModal = ({
                 </div>
             </div>
         </div>
+
+        {/* 匯出 PDF 預覽彈窗 */}
+        <ExportPdfModal 
+          isOpen={isExportPdfOpen}
+          onClose={() => setIsExportPdfOpen(false)}
+          data={exportData}
+        />
+      </>
     );
 };
+

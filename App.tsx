@@ -1152,6 +1152,14 @@ export default function App() {
           onDuplicate={handleOpenBackupModal}
           tripId={currentTripId}
           tripName={currentTripName}
+          tripDays={tripDays}
+          scheduleItems={scheduleItems}
+          bookingFlights={bookingFlights}
+          bookingAccommodations={bookingAccommodations}
+          bookingCarRentals={bookingCarRentals}
+          bookingTickets={bookingTickets}
+          expenses={expenses}
+          members={members}
         />
         <ShareTripModal
           isOpen={isShareTripModalOpen}

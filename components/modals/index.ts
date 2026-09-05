@@ -13,3 +13,4 @@ export { AddScheduleModal } from './AddScheduleModal';
 export { SwapDaysConfirmModal } from './SwapDaysConfirmModal';
 export { ShareTripModal } from './ShareTripModal';
 export { MoveItemConfirmModal } from './MoveItemConfirmModal';
+export { ExportPdfModal } from './ExportPdfModal';
