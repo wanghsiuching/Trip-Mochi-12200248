@@ -10,6 +10,10 @@ import {
   Member 
 } from '../types';
 import { getExchangeRate } from './currency';
+import { getMemberAvatarSrc } from '../constants/avatars';
+import { getTransitEffectiveFare } from '../components/TransitComponents';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export interface TripExportData {
   tripId: string;
@@ -389,6 +393,317 @@ export const generateTripPdfHtml = (data: TripExportData): string => {
         <div class="categories-list">
           ${categoryBarsHtml}
         </div>
+      </div>
+    </div>
+  `;
+
+  // 8.5. 生成成員詳細資料之行程分攤明細 (對齊 MembersView 的 calculateMemberCosts)
+  const toTWD = (amount: number, currency: string) => {
+    if (currency === 'TWD') return amount;
+    const rate = (currencies || []).find(c => c.code === currency)?.rate || 1;
+    return amount * rate;
+  };
+
+  const effectiveMembers = (members && members.length > 0)
+    ? members
+    : [{ id: 'default', name: '我', avatar: null, fruit: '👤' }];
+
+  interface MemberScheduleCostItem {
+    id: string;
+    date: string;
+    title: string;
+    amount: number;
+    type: string;
+    typeBadgeColor: string;
+    typeEmoji: string;
+  }
+
+  interface MemberScheduleData {
+    member: Member;
+    totalPotential: number;
+    breakdown: MemberScheduleCostItem[];
+  }
+
+  const memberCostMap = new Map<string, MemberScheduleData>();
+
+  effectiveMembers.forEach(member => {
+    let totalPotential = 0;
+    const breakdown: MemberScheduleCostItem[] = [];
+
+    const processItemCost = (
+      id: string,
+      date: string,
+      title: string,
+      type: string,
+      cost: number,
+      currency: string,
+      hasFee: boolean,
+      feePct: number,
+      participants: string[] = []
+    ) => {
+      const base = Number(cost) || 0;
+      if (base <= 0) return;
+
+      const effectiveParticipants = (participants && participants.length > 0)
+        ? participants
+        : effectiveMembers.map(m => m.id);
+
+      const isParticipant = effectiveParticipants.includes(member.id) ||
+        (member.name && effectiveParticipants.includes(member.name));
+
+      if (isParticipant) {
+        const fee = hasFee ? base * (Number(feePct) || 0) / 100 : 0;
+        const total = base + fee;
+        if (total <= 0) return;
+        const perPerson = total;
+        const twdAmount = toTWD(perPerson, currency);
+
+        totalPotential += twdAmount;
+        if (twdAmount > 0 && Math.round(twdAmount) > 0) {
+          let typeEmoji = '📌';
+          let typeBadgeColor = '#6B7280';
+          if (type === '機票') {
+            typeEmoji = '✈️';
+            typeBadgeColor = '#2563EB';
+          } else if (type === '住宿') {
+            typeEmoji = '🏨';
+            typeBadgeColor = '#7C3AED';
+          } else if (type === '交通') {
+            typeEmoji = '🚆';
+            typeBadgeColor = '#0D9488';
+          } else if (type === '門票') {
+            typeEmoji = '🎫';
+            typeBadgeColor = '#E11D48';
+          } else if (type === '餐飲') {
+            typeEmoji = '🍽️';
+            typeBadgeColor = '#D97706';
+          }
+
+          breakdown.push({
+            id,
+            date: date || '未排期',
+            title,
+            amount: Math.round(twdAmount),
+            type,
+            typeBadgeColor,
+            typeEmoji
+          });
+        }
+      }
+    };
+
+    scheduleItems.forEach(item => {
+      if (item.type === 'flight' && item.flightDetails) {
+        processItemCost(
+          item.id,
+          item.date,
+          item.title || '航班',
+          '機票',
+          Number(item.flightDetails.cost) || 0,
+          item.flightDetails.currency || 'TWD',
+          item.flightDetails.hasServiceFee || false,
+          Number(item.flightDetails.serviceFeePercentage) || 0,
+          item.flightDetails.participants || []
+        );
+      }
+      if (item.type === 'stay' && item.stayDetails) {
+        processItemCost(
+          item.id,
+          item.date,
+          item.title || '住宿',
+          '住宿',
+          Number(item.stayDetails.cost) || 0,
+          item.stayDetails.currency || 'TWD',
+          item.stayDetails.hasServiceFee || false,
+          Number(item.stayDetails.serviceFeePercentage) || 0,
+          item.stayDetails.participants || []
+        );
+      }
+      if (item.type === 'transport') {
+        if (item.transitDetails) {
+          const { mainAmount, mainCurrency, extraItems } = getTransitEffectiveFare(item.transitDetails.fare);
+          const participants = (item.transitDetails.participants && item.transitDetails.participants.length > 0)
+            ? item.transitDetails.participants
+            : effectiveMembers.map(m => m.id);
+
+          if (mainAmount > 0) {
+            processItemCost(
+              item.id,
+              item.date,
+              `${item.title} (大眾交通)`,
+              '交通',
+              mainAmount,
+              mainCurrency,
+              item.transitDetails.fare?.hasServiceFee || false,
+              Number(item.transitDetails.fare?.serviceFeePercentage) || 0,
+              participants
+            );
+          }
+          if (Array.isArray(extraItems) && extraItems.length > 0) {
+            extraItems.forEach(extraItem => {
+              if (extraItem.amount > 0) {
+                processItemCost(
+                  item.id,
+                  item.date,
+                  `${item.title} (${extraItem.name})`,
+                  '交通',
+                  extraItem.amount,
+                  extraItem.currency,
+                  extraItem.hasServiceFee || false,
+                  Number(extraItem.serviceFeePercentage) || 0,
+                  participants
+                );
+              }
+            });
+          }
+        } else if (item.carRental && item.carRental.hasRental) {
+          processItemCost(
+            item.id,
+            item.date,
+            `${item.title} (租車)`,
+            '交通',
+            Number(item.carRental.rentalCost) || 0,
+            item.carRental.rentalCurrency || 'TWD',
+            item.carRental.hasServiceFee || false,
+            Number(item.carRental.serviceFeePercentage) || 0,
+            item.carRental.participants || []
+          );
+        }
+      }
+      if ((item.type === 'spot' || item.type === 'food') && item.spotDetails?.hasTicket) {
+        processItemCost(
+          item.id,
+          item.date,
+          item.title || (item.type === 'food' ? '餐飲' : '景點'),
+          item.type === 'food' ? '餐飲' : '門票',
+          Number(item.spotDetails.ticketCost) || 0,
+          item.spotDetails.currency || 'TWD',
+          item.spotDetails.hasServiceFee || false,
+          Number(item.spotDetails.serviceFeePercentage) || 0,
+          item.spotDetails.participants || []
+        );
+      }
+    });
+
+    memberCostMap.set(member.id, {
+      member,
+      totalPotential: Math.round(totalPotential),
+      breakdown
+    });
+  });
+
+  const totalTripPotential = effectiveMembers.reduce((sum, m) => sum + (memberCostMap.get(m.id)?.totalPotential || 0), 0);
+
+  // 1. 生成全員預計分攤總覽卡片
+  const memberOverviewCardsHtml = effectiveMembers.map(member => {
+    const data = memberCostMap.get(member.id)!;
+    const avatarSrc = getMemberAvatarSrc(member.avatar, member.name, member.id);
+    return `
+      <div class="member-overview-card">
+        <img src="${avatarSrc}" class="member-overview-avatar" alt="${escapeHtml(member.name)}" />
+        <span class="member-overview-name">${escapeHtml(member.name)}</span>
+        <span class="member-overview-total">NT$ ${formatNumber(data.totalPotential)}</span>
+        <span class="member-overview-count">${data.breakdown.length} 項行程分攤</span>
+      </div>
+    `;
+  }).join('');
+
+  // 2. 生成各成員詳細行程分攤明細清冊
+  const memberBreakdownSectionsHtml = effectiveMembers.map(member => {
+    const data = memberCostMap.get(member.id)!;
+    const avatarSrc = getMemberAvatarSrc(member.avatar, member.name, member.id);
+
+    let contentHtml = '';
+    if (data.breakdown.length === 0) {
+      contentHtml = `
+        <div class="empty-breakdown-box">
+          <span>☕ 尚未加入任何分攤行程</span>
+        </div>
+      `;
+    } else {
+      const rowsHtml = data.breakdown.map(item => `
+        <tr>
+          <td class="td-date">${escapeHtml(item.date)}</td>
+          <td>
+            <span class="type-badge" style="background-color: ${item.typeBadgeColor}15; color: ${item.typeBadgeColor}; border: 1px solid ${item.typeBadgeColor}40;">
+              ${item.typeEmoji} ${escapeHtml(item.type)}
+            </span>
+          </td>
+          <td class="item-title-bold">${escapeHtml(item.title)}</td>
+          <td class="amount-col font-mono font-bold text-cocoa">NT$ ${formatNumber(item.amount)}</td>
+        </tr>
+      `).join('');
+
+      contentHtml = `
+        <table class="member-items-table">
+          <thead>
+            <tr>
+              <th style="width: 16%;">日期</th>
+              <th style="width: 16%;">類別</th>
+              <th>行程項目名稱</th>
+              <th style="width: 25%; text-align: right;">個人分攤金額</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3" class="footer-total-label">預計分攤總計 (TWD)</td>
+              <td class="footer-total-amount">NT$ ${formatNumber(data.totalPotential)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      `;
+    }
+
+    return `
+      <div class="member-breakdown-card">
+        <div class="member-breakdown-header">
+          <div class="member-detail-profile">
+            <img src="${avatarSrc}" class="member-detail-avatar" alt="${escapeHtml(member.name)}" />
+            <div>
+              <div class="member-name-row">
+                <span class="member-detail-name">${escapeHtml(member.name)}</span>
+                <span class="member-detail-tag">行程分攤明細</span>
+              </div>
+              <span class="member-detail-sub">${data.breakdown.length} 項分攤行程</span>
+            </div>
+          </div>
+          <div class="member-total-box">
+            <span class="total-label">預計支出總計 (TWD)</span>
+            <span class="total-amount">NT$ ${formatNumber(data.totalPotential)}</span>
+          </div>
+        </div>
+        ${contentHtml}
+      </div>
+    `;
+  }).join('');
+
+  const splitSettlementHtml = `
+    <div class="section-card page-break-before">
+      <div class="section-header">
+        <span class="section-icon">👥</span>
+        <h3 class="section-title">行程分攤明細 (成員詳細資料)</h3>
+        <span class="badge-count">${effectiveMembers.length} 位成員</span>
+      </div>
+      <p class="section-intro">
+        對齊「成員詳細資料」之行程分攤明細，彙整每位成員於機票、住宿、大眾交通、租車與門票等行程之預計分攤支出與明細清冊。
+      </p>
+
+      <!-- 1. 成員預計分攤總覽 -->
+      <div class="split-section-subtitle">
+        <span>成員預計分攤總覽</span>
+        <span class="total-badge-pill">全員分攤總額：NT$ ${formatNumber(totalTripPotential)}</span>
+      </div>
+      <div class="member-overview-grid">
+        ${memberOverviewCardsHtml}
+      </div>
+
+      <!-- 2. 各成員詳細行程分攤明細清冊 -->
+      <div class="split-section-subtitle" style="margin-top: 18px;">各成員詳細行程分攤明細</div>
+      <div class="member-breakdowns-container">
+        ${memberBreakdownSectionsHtml}
       </div>
     </div>
   `;
@@ -1050,6 +1365,216 @@ export const generateTripPdfHtml = (data: TripExportData): string => {
       border-radius: 3px;
     }
 
+    /* ================= Member Schedule Split Styles ================= */
+    .split-section-subtitle {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--color-cocoa);
+      margin: 14px 0 10px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .total-badge-pill {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--color-sage);
+      background: #EBF1EE;
+      border: 1px solid rgba(86, 122, 107, 0.25);
+      padding: 3px 9px;
+      border-radius: 8px;
+      font-family: monospace;
+    }
+    .member-overview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .member-overview-card {
+      background: #FFFFFF;
+      border: 1.5px solid var(--color-border);
+      border-radius: 14px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      box-shadow: 0 1px 3px rgba(61, 50, 44, 0.03);
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .member-overview-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid var(--color-border);
+      margin-bottom: 6px;
+      background: #FAF7EE;
+    }
+    .member-overview-name {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--color-cocoa);
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-bottom: 3px;
+    }
+    .member-overview-total {
+      font-size: 13.5px;
+      font-weight: 900;
+      color: var(--color-sage);
+      font-family: monospace;
+    }
+    .member-overview-count {
+      font-size: 10.5px;
+      color: var(--color-muted);
+      font-weight: 600;
+      margin-top: 2px;
+    }
+
+    /* 各成員行程分攤清冊卡片 */
+    .member-breakdowns-container {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .member-breakdown-card {
+      background: #FFFFFF;
+      border: 1.5px solid var(--color-border);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 1px 4px rgba(61, 50, 44, 0.03);
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .member-breakdown-header {
+      background: #FAF8F5;
+      border-bottom: 1.5px solid var(--color-border);
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .member-detail-profile {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .member-detail-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1.5px solid var(--color-border);
+      background: #FAF7EE;
+    }
+    .member-name-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .member-detail-name {
+      font-size: 13.5px;
+      font-weight: 800;
+      color: var(--color-cocoa);
+    }
+    .member-detail-tag {
+      font-size: 10px;
+      background: #EBF1EE;
+      color: var(--color-sage);
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+    .member-detail-sub {
+      font-size: 11px;
+      color: var(--color-muted);
+      display: block;
+      margin-top: 1px;
+    }
+    .member-total-box {
+      text-align: right;
+    }
+    .member-total-box .total-label {
+      font-size: 9.5px;
+      color: var(--color-muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      display: block;
+    }
+    .member-total-box .total-amount {
+      font-size: 14.5px;
+      font-weight: 900;
+      color: var(--color-sage);
+      font-family: monospace;
+    }
+
+    .member-items-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11.5px;
+      text-align: left;
+    }
+    .member-items-table th {
+      background: #FCFBF8;
+      color: var(--color-muted);
+      font-weight: 700;
+      padding: 7px 12px;
+      border-bottom: 1px solid var(--color-border);
+      font-size: 11px;
+    }
+    .member-items-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid #F3EFE6;
+      vertical-align: middle;
+      color: var(--color-cocoa);
+    }
+    .member-items-table tr:last-child td {
+      border-bottom: none;
+    }
+    .member-items-table tr:nth-child(even) td {
+      background-color: #FCFBF8;
+    }
+    .member-items-table tfoot td {
+      background: #FAF8F5;
+      border-top: 1.5px solid var(--color-border);
+      padding: 8px 12px;
+    }
+    .footer-total-label {
+      font-weight: 800;
+      color: var(--color-cocoa);
+      font-size: 11.5px;
+    }
+    .footer-total-amount {
+      text-align: right;
+      font-family: monospace;
+      font-weight: 900;
+      font-size: 13px;
+      color: var(--color-sage);
+    }
+    .type-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+    .empty-breakdown-box {
+      text-align: center;
+      padding: 20px 12px;
+      color: var(--color-muted);
+      font-size: 12px;
+      font-weight: 700;
+      background: #FCFBF8;
+    }
+
     /* Footer Stamp */
     .journal-footer {
       text-align: center;
@@ -1074,10 +1599,10 @@ export const generateTripPdfHtml = (data: TripExportData): string => {
     <!-- Floating Quick Bar when opened directly as HTML -->
     <div class="floating-print-bar no-print">
       <div class="floating-info">
-        <span>📖 ${escapeHtml(tripName)} · 離線手帳檔案</span>
+        <span>📖 ${escapeHtml(tripName)} · 離線手帳檔案 (含分攤明細)</span>
       </div>
       <button class="print-btn" onclick="window.print()">
-        🖨️ 列印 / 另存為 PDF
+        📄 轉為 PDF 檔案
       </button>
     </div>
 
@@ -1121,6 +1646,9 @@ export const generateTripPdfHtml = (data: TripExportData): string => {
 
     <!-- Section: Expense Summary -->
     ${expenseSummaryHtml}
+
+    <!-- Section: Member Schedule Cost Breakdown (行程分攤明細) -->
+    ${splitSettlementHtml}
 
     <!-- Footer Stamp -->
     <div class="journal-footer">
@@ -1201,7 +1729,7 @@ export const downloadOfflineTripHtml = (data: TripExportData) => {
   const a = document.createElement('a');
   const safeName = (data.tripName || '旅行手帳').replace(/[/\\?%*:|"<>]/g, '_');
   a.href = url;
-  a.download = `${safeName}_行程手帳.html`;
+  a.download = `${safeName}_行程手帳_含分攤明細.html`;
   document.body.appendChild(a);
   a.click();
   setTimeout(() => {
@@ -1209,3 +1737,119 @@ export const downloadOfflineTripHtml = (data: TripExportData) => {
     URL.revokeObjectURL(url);
   }, 1000);
 };
+
+/**
+ * 直接將行程轉換並下載為 PDF 檔案 (.pdf)
+ * 真正轉為 PDF，無須開啟列印視窗
+ */
+export const exportTripToPdfFile = async (
+  data: TripExportData,
+  onProgress?: (message: string, percent: number) => void
+): Promise<boolean> => {
+  let container: HTMLElement | null = null;
+  try {
+    onProgress?.('正在準備行程手帳與分攤明細資料...', 15);
+
+    // 建立臨時隱藏容器以精確模擬 A4 寬度 (800px)
+    container = document.createElement('div');
+    container.id = 'trip-pdf-render-container';
+    container.style.position = 'fixed';
+    container.style.top = '0';
+    container.style.left = '-9999px';
+    container.style.width = '800px';
+    container.style.backgroundColor = '#FAF8F2';
+    container.style.zIndex = '-9999';
+    container.style.boxSizing = 'border-box';
+    container.style.padding = '0';
+    container.style.margin = '0';
+
+    const fullHtml = generateTripPdfHtml(data);
+    
+    // 擷取 body 內的所有內容
+    const bodyContent = fullHtml.match(/<body[^>]*>([\s\S]*)<\/body>/i)?.[1] || fullHtml;
+    // 擷取 style 標籤
+    const styleMatches = fullHtml.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];
+    const styles = styleMatches.join('\n');
+
+    container.innerHTML = `
+      ${styles}
+      <style>
+        .no-print { display: none !important; }
+        .page-container { width: 800px !important; margin: 0 auto !important; padding: 24px !important; }
+      </style>
+      ${bodyContent}
+    `;
+
+    document.body.appendChild(container);
+
+    onProgress?.('正在載入排版與文字向量...', 35);
+    if (document.fonts) {
+      await document.fonts.ready;
+    }
+    // 稍等以確保所有渲染準備就緒
+    await new Promise(resolve => setTimeout(resolve, 350));
+
+    onProgress?.('正在轉繪為高解析度手帳圖文...', 65);
+    const canvas = await html2canvas(container, {
+      scale: 2, // 2x 高解析度
+      useCORS: true,
+      allowTaint: true,
+      logging: false,
+      backgroundColor: '#FAF8F2',
+      windowWidth: 800,
+    });
+
+    onProgress?.('正在封裝生成 A4 PDF 檔案...', 88);
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pdfWidth = 210;
+    const pdfHeight = 297;
+
+    // 計算每頁對應的 canvas 高度 (依照 A4 寬高比 297 / 210)
+    const pageCanvasHeight = (canvas.width * pdfHeight) / pdfWidth;
+    const totalPages = Math.ceil(canvas.height / pageCanvasHeight);
+
+    for (let page = 0; page < totalPages; page++) {
+      if (page > 0) {
+        pdf.addPage();
+      }
+
+      // 切割每一頁 canvas
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = pageCanvasHeight;
+      const pageCtx = pageCanvas.getContext('2d');
+
+      if (pageCtx) {
+        pageCtx.fillStyle = '#FAF8F2';
+        pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvasHeight);
+
+        const sourceY = page * pageCanvasHeight;
+        const sourceHeight = Math.min(pageCanvasHeight, canvas.height - sourceY);
+
+        pageCtx.drawImage(
+          canvas,
+          0, sourceY, canvas.width, sourceHeight,
+          0, 0, canvas.width, sourceHeight
+        );
+
+        const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.95);
+        pdf.addImage(pageImgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+      }
+    }
+
+    onProgress?.('正在儲存 PDF 檔案...', 98);
+    const safeName = (data.tripName || '旅行手帳').replace(/[/\\?%*:|"<>]/g, '_');
+    pdf.save(`${safeName}_行程手帳_含分攤明細.pdf`);
+
+    onProgress?.('轉換完成！', 100);
+    return true;
+  } catch (err) {
+    console.error('Failed to export PDF file:', err);
+    return false;
+  } finally {
+    if (container && document.body.contains(container)) {
+      document.body.removeChild(container);
+    }
+  }
+};
+

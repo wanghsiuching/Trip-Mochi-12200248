@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, X, Coins, Plus, Save, Copy, Check, Hash, FileText, Eye, Printer, Download } from 'lucide-react';
+import { Settings, X, Coins, Plus, Save, Copy, Check, Hash, FileText, Eye, Download, Loader2 } from 'lucide-react';
 import { 
   Currency, 
   TripDay, 
@@ -12,7 +12,7 @@ import {
   Member 
 } from '../../types';
 import { ExportPdfModal } from './ExportPdfModal';
-import { printTripToPdf, downloadOfflineTripHtml, TripExportData } from '../../utils/pdfExport';
+import { exportTripToPdfFile, TripExportData } from '../../utils/pdfExport';
 
 export const TripSettingsModal = ({ 
     isOpen, onClose, currencies, onAddCurrency, onRemoveCurrency, onDuplicate,
@@ -47,7 +47,8 @@ export const TripSettingsModal = ({
     const [newCurrencyRate, setNewCurrencyRate] = useState('');
     const [copiedCode, setCopiedCode] = useState(false);
     const [isExportPdfOpen, setIsExportPdfOpen] = useState(false);
-    const [isDirectPrinting, setIsDirectPrinting] = useState(false);
+    const [isConvertingPdf, setIsConvertingPdf] = useState(false);
+    const [pdfSuccess, setPdfSuccess] = useState(false);
 
     if (!isOpen) return null;
 
@@ -81,10 +82,15 @@ export const TripSettingsModal = ({
         }
     };
 
-    const handleDirectPrint = async () => {
-        setIsDirectPrinting(true);
-        await printTripToPdf(exportData);
-        setTimeout(() => setIsDirectPrinting(false), 1000);
+    const handleDirectExportPdf = async () => {
+        if (isConvertingPdf) return;
+        setIsConvertingPdf(true);
+        const ok = await exportTripToPdfFile(exportData);
+        setIsConvertingPdf(false);
+        if (ok) {
+            setPdfSuccess(true);
+            setTimeout(() => setPdfSuccess(false), 3500);
+        }
     };
 
     return (
@@ -126,11 +132,11 @@ export const TripSettingsModal = ({
                             </div>
                             <div className="flex-1">
                                 <div className="flex items-center gap-2">
-                                    <h4 className="text-base font-black text-cocoa">匯出行程手帳 (PDF)</h4>
-                                    <span className="text-[10px] bg-sage text-white font-black px-2 py-0.5 rounded-full">離線列印</span>
+                                    <h4 className="text-base font-black text-cocoa">匯出行程為 PDF</h4>
+                                    <span className="text-[10px] bg-sage text-white font-black px-2 py-0.5 rounded-full">含成員分攤</span>
                                 </div>
                                 <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                                    自動彙整<strong>每日排程、機票住宿訂單、花費概覽</strong>，轉化為日系手帳風格 A4 離線檔案。
+                                    自動彙整<strong>每日排程、機票住宿、開銷統計與各成員詳細行程分攤明細</strong>，轉化為日系手帳風格 PDF 檔案。
                                 </p>
                             </div>
                         </div>
@@ -144,12 +150,26 @@ export const TripSettingsModal = ({
                                 <span>預覽手帳版型</span>
                             </button>
                             <button
-                                onClick={handleDirectPrint}
-                                disabled={isDirectPrinting}
-                                className="py-3 px-2.5 bg-sage text-white font-black rounded-xl text-xs hover:bg-sage-dark flex items-center justify-center gap-1.5 shadow-hard-sm-sage transition-all active:scale-95 disabled:opacity-50"
+                                onClick={handleDirectExportPdf}
+                                disabled={isConvertingPdf}
+                                className="py-3 px-2.5 bg-sage text-white font-black rounded-xl text-xs hover:bg-sage-dark flex items-center justify-center gap-1.5 shadow-hard-sm-sage transition-all active:scale-95 disabled:opacity-60"
                             >
-                                <Printer size={15} />
-                                <span>{isDirectPrinting ? '開啟列印中...' : '列印 / 存為 PDF'}</span>
+                                {isConvertingPdf ? (
+                                    <>
+                                        <Loader2 size={15} className="animate-spin" />
+                                        <span>轉為 PDF 中...</span>
+                                    </>
+                                ) : pdfSuccess ? (
+                                    <>
+                                        <Check size={15} className="text-green-300" />
+                                        <span>已下載 PDF！</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Download size={15} />
+                                        <span>轉為 PDF 檔案</span>
+                                    </>
+                                )}
                             </button>
                         </div>
                     </div>
