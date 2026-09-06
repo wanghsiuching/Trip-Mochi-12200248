@@ -229,8 +229,8 @@ export const ScheduleDetailModal = ({
                     {item.type === 'stay' && item.stayDetails && (
                         <div className="bg-purple-50/50 p-4 rounded-2xl border border-purple-100 space-y-3">
                             <div className="flex gap-4 text-xs font-bold text-gray-500">
-                                <div className="flex items-center gap-1"><Clock size={12}/> In: {item.checkIn}</div>
-                                <div className="flex items-center gap-1"><Clock size={12}/> Out: {item.checkOut}</div>
+                                <div className="flex items-center gap-1.5"><Clock size={13} className="text-purple-500"/>入住時: <span className="font-mono font-bold text-cocoa">{item.checkIn || item.stayDetails.checkInTime || '15:00'}</span></div>
+                                <div className="flex items-center gap-1.5"><Clock size={13} className="text-purple-500"/>退房時間: <span className="font-mono font-bold text-cocoa">{item.checkOut || item.stayDetails.checkOutTime || '11:00'}</span></div>
                             </div>
                             <div className="flex gap-2">
                                 {item.meals?.breakfast && <span className="text-[10px] bg-white px-2 py-1 rounded-lg border border-purple-200 text-purple-500 font-bold flex items-center gap-1"><Coffee size={10}/> 早餐</span>}

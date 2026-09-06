@@ -24,12 +24,32 @@ import { compressBase64IfNeeded } from '../utils/imageService';
 export const sortScheduleItems = (items: ScheduleItem[], scheduleOrder?: string[]): ScheduleItem[] => {
   if (!Array.isArray(items) || items.length <= 1) return items || [];
 
-  // 1. If explicit scheduleOrder array exists from root doc, strictly adhere to it
+  // 1. If items have explicit order property, use it as source of truth
+  const hasExplicitOrder = items.some(i => typeof i.order === 'number');
+  if (hasExplicitOrder) {
+    return [...items].sort((a, b) => {
+      if (a.date && b.date && a.date !== b.date) {
+        return a.date.localeCompare(b.date);
+      }
+      const orderA = typeof a.order === 'number' ? a.order : 999999;
+      const orderB = typeof b.order === 'number' ? b.order : 999999;
+      if (orderA !== orderB) return orderA - orderB;
+
+      const timeComp = (a.time || '').localeCompare(b.time || '');
+      if (timeComp !== 0) return timeComp;
+      return String(a.id).localeCompare(String(b.id));
+    });
+  }
+
+  // 2. If explicit scheduleOrder array exists from root doc, strictly adhere to it
   if (Array.isArray(scheduleOrder) && scheduleOrder.length > 0) {
     const orderMap = new Map<string, number>();
     scheduleOrder.forEach((id, idx) => orderMap.set(String(id), idx));
 
     return [...items].sort((a, b) => {
+      if (a.date && b.date && a.date !== b.date) {
+        return a.date.localeCompare(b.date);
+      }
       const hasA = orderMap.has(String(a.id));
       const hasB = orderMap.has(String(b.id));
       if (hasA && hasB) {
@@ -48,22 +68,11 @@ export const sortScheduleItems = (items: ScheduleItem[], scheduleOrder?: string[
     });
   }
 
-  // 2. Check if items have explicit order property
-  const hasExplicitOrder = items.some(i => typeof i.order === 'number');
-  if (hasExplicitOrder) {
-    return [...items].sort((a, b) => {
-      const orderA = typeof a.order === 'number' ? a.order : 999999;
-      const orderB = typeof b.order === 'number' ? b.order : 999999;
-      if (orderA !== orderB) return orderA - orderB;
-
-      const timeComp = (a.time || '').localeCompare(b.time || '');
-      if (timeComp !== 0) return timeComp;
-      return String(a.id).localeCompare(String(b.id));
-    });
-  }
-
-  // 3. Fallback for legacy trips without explicit ordering: chronological by time
+  // 3. Fallback for legacy trips without explicit ordering: chronological by date and time
   return [...items].sort((a, b) => {
+    if (a.date && b.date && a.date !== b.date) {
+      return a.date.localeCompare(b.date);
+    }
     const timeComp = (a.time || '').localeCompare(b.time || '');
     if (timeComp !== 0) return timeComp;
     return String(a.id).localeCompare(String(b.id));
@@ -742,14 +751,14 @@ export const updateTripField = async (tripId: string, field: string, value: any)
         }
       }
 
-      await batch.commit();
-
       const tripRef = doc(db, 'trips', tripId);
       const orderIds = value.map(i => String(i.id));
-      await setDoc(tripRef, { 
+      batch.set(tripRef, { 
         scheduleItems: [],
         scheduleOrder: orderIds 
       }, { merge: true });
+
+      await batch.commit();
       return;
     }
 
