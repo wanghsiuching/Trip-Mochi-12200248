@@ -419,140 +419,82 @@ export const deleteScheduleItem = async (tripId: string, itemId: string): Promis
  * Saves a single pocket item into subcollection (prevents 1MB root doc limit)
  */
 export const savePocketItem = async (tripId: string, item: PocketItem): Promise<void> => {
-  try {
-    if (!tripId || !item || !item.id) return;
-
-    if (item.image && typeof item.image === 'string' && item.image.startsWith('data:image/') && item.image.length > 58000) {
-      item = { ...item, image: await compressBase64IfNeeded(item.image, 750, 52000) };
-    }
-
-    const cleaned = cleanData(item);
-    const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(item.id));
-    await setDoc(itemRef, cleaned);
-
-    // Clean up stale copy in root doc
+  if (!tripId || !item || !item.id) return;
+  return queueWrite(async () => {
     try {
-      const tripRef = doc(db, 'trips', tripId);
-      const snap = await getDoc(tripRef);
-      if (snap.exists()) {
-        const rootData = snap.data();
-        if (Array.isArray(rootData.pocketItems) && rootData.pocketItems.some((i: any) => String(i.id) === String(item.id))) {
-          await setDoc(tripRef, {
-            pocketItems: rootData.pocketItems.filter((i: any) => String(i.id) !== String(item.id))
-          }, { merge: true });
-        }
+      if (item.image && typeof item.image === 'string' && item.image.startsWith('data:image/') && item.image.length > 58000) {
+        item = { ...item, image: await compressBase64IfNeeded(item.image, 750, 52000) };
       }
-    } catch (cleanErr) {
-      console.warn("Non-fatal root doc pocket item cleanup:", cleanErr);
+
+      const cleaned = cleanData(item);
+      const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(item.id));
+      await setDoc(itemRef, cleaned);
+    } catch (err) {
+      console.error("Failed to save pocket item to subcollection:", err);
+      throw err;
     }
-  } catch (err) {
-    console.error("Failed to save pocket item to subcollection:", err);
-    throw err;
-  }
+  });
 };
 
 /**
  * Deletes a single pocket item from subcollection
  */
 export const deletePocketItem = async (tripId: string, itemId: string): Promise<void> => {
-  try {
-    if (!tripId || !itemId) return;
-    const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(itemId));
-    await deleteDoc(itemRef);
-
-    // Also remove from root doc if present
+  if (!tripId || !itemId) return;
+  return queueWrite(async () => {
     try {
-      const tripRef = doc(db, 'trips', tripId);
-      const snap = await getDoc(tripRef);
-      if (snap.exists()) {
-        const rootData = snap.data();
-        if (Array.isArray(rootData.pocketItems) && rootData.pocketItems.some((i: any) => String(i.id) === String(itemId))) {
-          await setDoc(tripRef, {
-            pocketItems: rootData.pocketItems.filter((i: any) => String(i.id) !== String(itemId))
-          }, { merge: true });
-        }
-      }
-    } catch (cleanErr) {
-      console.warn("Non-fatal root doc pocket item delete cleanup:", cleanErr);
+      const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(itemId));
+      await deleteDoc(itemRef);
+    } catch (err) {
+      console.error("Failed to delete pocket item from subcollection:", err);
+      throw err;
     }
-  } catch (err) {
-    console.error("Failed to delete pocket item from subcollection:", err);
-    throw err;
-  }
+  });
 };
 
 /**
  * Saves a single journal item into subcollection (prevents 1MB root doc limit for photos)
  */
 export const saveJournalItem = async (tripId: string, journal: Journal): Promise<void> => {
-  try {
-    if (!tripId || !journal || !journal.id) return;
-
-    if (Array.isArray(journal.images) && journal.images.length > 0) {
-      const sanitizedImages: string[] = [];
-      for (const img of journal.images) {
-        if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 58000) {
-          sanitizedImages.push(await compressBase64IfNeeded(img, 750, 52000));
-        } else {
-          sanitizedImages.push(img);
-        }
-      }
-      journal = { ...journal, images: sanitizedImages };
-    }
-
-    const cleaned = cleanData(journal);
-    const itemRef = doc(db, 'trips', tripId, 'journals', String(journal.id));
-    await setDoc(itemRef, cleaned);
-
-    // Clean up stale copy in root doc
+  if (!tripId || !journal || !journal.id) return;
+  return queueWrite(async () => {
     try {
-      const tripRef = doc(db, 'trips', tripId);
-      const snap = await getDoc(tripRef);
-      if (snap.exists()) {
-        const rootData = snap.data();
-        if (Array.isArray(rootData.journals) && rootData.journals.some((i: any) => String(i.id) === String(journal.id))) {
-          await setDoc(tripRef, {
-            journals: rootData.journals.filter((i: any) => String(i.id) !== String(journal.id))
-          }, { merge: true });
+      if (Array.isArray(journal.images) && journal.images.length > 0) {
+        const sanitizedImages: string[] = [];
+        for (const img of journal.images) {
+          if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 58000) {
+            sanitizedImages.push(await compressBase64IfNeeded(img, 750, 52000));
+          } else {
+            sanitizedImages.push(img);
+          }
         }
+        journal = { ...journal, images: sanitizedImages };
       }
-    } catch (cleanErr) {
-      console.warn("Non-fatal root doc journal item cleanup:", cleanErr);
+
+      const cleaned = cleanData(journal);
+      const itemRef = doc(db, 'trips', tripId, 'journals', String(journal.id));
+      await setDoc(itemRef, cleaned);
+    } catch (err) {
+      console.error("Failed to save journal item to subcollection:", err);
+      throw err;
     }
-  } catch (err) {
-    console.error("Failed to save journal item to subcollection:", err);
-    throw err;
-  }
+  });
 };
 
 /**
  * Deletes a single journal item from subcollection
  */
 export const deleteJournalItem = async (tripId: string, journalId: number | string): Promise<void> => {
-  try {
-    if (!tripId || !journalId) return;
-    const itemRef = doc(db, 'trips', tripId, 'journals', String(journalId));
-    await deleteDoc(itemRef);
-
-    // Also remove from root doc if present
+  if (!tripId || !journalId) return;
+  return queueWrite(async () => {
     try {
-      const tripRef = doc(db, 'trips', tripId);
-      const snap = await getDoc(tripRef);
-      if (snap.exists()) {
-        const rootData = snap.data();
-        if (Array.isArray(rootData.journals) && rootData.journals.some((i: any) => String(i.id) === String(journalId))) {
-          await setDoc(tripRef, {
-            journals: rootData.journals.filter((i: any) => String(i.id) !== String(journalId))
-          }, { merge: true });
-        }
-      }
-    } catch (cleanErr) {
-      console.warn("Non-fatal root doc journal item delete cleanup:", cleanErr);
+      const itemRef = doc(db, 'trips', tripId, 'journals', String(journalId));
+      await deleteDoc(itemRef);
+    } catch (err) {
+      console.error("Failed to delete journal item from subcollection:", err);
+      throw err;
     }
-  } catch (err) {
-    console.error("Failed to delete journal item from subcollection:", err);
-    throw err;
-  }
+  });
 };
 
 /**
