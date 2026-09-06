@@ -52,6 +52,7 @@ export const AddScheduleModal = ({
   isOpen, 
   onClose, 
   onSave, 
+  onDelete,
   initialData,
   currencies = [],
   members = [],
@@ -61,6 +62,7 @@ export const AddScheduleModal = ({
   isOpen: boolean, 
   onClose: () => void, 
   onSave: (item: Omit<ScheduleItem, 'id'>) => void,
+  onDelete?: (id: string) => void,
   initialData?: ScheduleItem | null,
   currencies?: Currency[],
   members?: Member[],
@@ -69,6 +71,7 @@ export const AddScheduleModal = ({
 }) => {
   const [step, setStep] = useState<'category' | 'details'>('category');
   const [selectedType, setSelectedType] = useState<ItemType>('spot');
+  const [isDeleteScheduleConfirmOpen, setIsDeleteScheduleConfirmOpen] = useState(false);
   
   // Basic Fields
   const [title, setTitle] = useState('');
@@ -607,7 +610,19 @@ export const AddScheduleModal = ({
                <div className="flex items-center justify-between pb-3 border-b-2 border-beige-dark flex-shrink-0 mb-3">
                   <button onClick={() => !initialData && setStep('category')} className={`text-gray-400 font-bold text-sm ${initialData ? 'opacity-0 pointer-events-none' : 'hover:text-sage'}`}>← 返回種類</button>
                   <h3 className="text-xl font-black text-cocoa tracking-wider">{initialData ? '編輯項目' : '輸入細節'}</h3>
-                  <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors"><X size={18}/></button>
+                  <div className="flex items-center gap-1.5">
+                    {initialData && onDelete && (
+                      <button
+                        type="button"
+                        onClick={() => setIsDeleteScheduleConfirmOpen(true)}
+                        className="p-2 bg-red-50 hover:bg-red-100 text-red-500 rounded-full border border-red-200 shadow-xs transition-colors flex-shrink-0"
+                        title="刪除此行程項目"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                    <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors"><X size={18}/></button>
+                  </div>
                </div>
 
                <div className="space-y-4 overflow-y-auto custom-scroll flex-1 pr-1 pb-4">
@@ -1292,13 +1307,37 @@ export const AddScheduleModal = ({
              </div>
            </div>
 
-           <div className="pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
-             <button onClick={handleSubmit} className="w-full py-4 rounded-2xl bg-sage text-white text-lg font-bold shadow-hard-sage active:translate-y-1 active:shadow-none transition-all border-2 border-sage">{initialData ? '確認修改' : '確認新增'}</button>
+           <div className="pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0 flex gap-3">
+             {initialData && onDelete && (
+               <button 
+                 type="button" 
+                 onClick={() => setIsDeleteScheduleConfirmOpen(true)}
+                 className="px-4 sm:px-5 py-4 rounded-2xl font-bold bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 border-2 border-red-200 transition-all active:translate-y-1 flex items-center justify-center gap-2 text-base flex-shrink-0 shadow-sm"
+                 title="刪除此行程項目"
+               >
+                 <Trash2 size={18} strokeWidth={2.5} />
+                 <span>刪除項目</span>
+               </button>
+             )}
+             <button onClick={handleSubmit} className="flex-1 py-4 rounded-2xl bg-sage text-white text-lg font-bold shadow-hard-sage active:translate-y-1 active:shadow-none transition-all border-2 border-sage">{initialData ? '確認修改' : '確認新增'}</button>
            </div>
           </div>
         )}
       </div>
     </div>
+
+      <DeleteItemConfirmModal 
+        isOpen={isDeleteScheduleConfirmOpen} 
+        onClose={() => setIsDeleteScheduleConfirmOpen(false)} 
+        onConfirm={() => {
+          setIsDeleteScheduleConfirmOpen(false);
+          if (initialData && onDelete) {
+            onDelete(initialData.id);
+            onClose();
+          }
+        }} 
+        title={initialData?.title || '此行程項目'} 
+      />
 
       <DeleteItemConfirmModal 
         isOpen={!!expenseToDelete} 

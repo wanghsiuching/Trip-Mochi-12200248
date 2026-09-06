@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
     MapPin, Utensils, Train, Bed, Camera, Plane, X, Navigation, 
-    Clock, Luggage, Briefcase, Coffee, Ticket, AlignLeft, Users, Edit3, Car
+    Clock, Luggage, Briefcase, Coffee, Ticket, AlignLeft, Users, Edit3, Car, Trash2
 } from 'lucide-react';
 import { ScheduleItem, Currency, Member } from '../../types';
 import { TransitLegChainView } from '../TransitComponents';
@@ -9,9 +9,15 @@ import { MemberAvatar } from '../MemberAvatar';
 import { Lightbox } from '../Lightbox';
 
 export const ScheduleDetailModal = ({
-    isOpen, onClose, item, onEdit, currencies, members
+    isOpen, onClose, item, onEdit, onDelete, currencies, members
 }: {
-    isOpen: boolean, onClose: () => void, item: ScheduleItem | null, onEdit: () => void, currencies: Currency[], members: Member[]
+    isOpen: boolean, 
+    onClose: () => void, 
+    item: ScheduleItem | null, 
+    onEdit: () => void, 
+    onDelete?: (item: ScheduleItem) => void,
+    currencies: Currency[], 
+    members: Member[]
 }) => {
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
@@ -44,7 +50,19 @@ export const ScheduleDetailModal = ({
                             <h3 className="text-lg sm:text-xl font-black text-cocoa leading-snug break-words">{item.title}</h3>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors flex-shrink-0"><X size={18}/></button>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                        {onDelete && (
+                            <button 
+                                type="button"
+                                onClick={() => onDelete(item)} 
+                                className="p-2 bg-red-50 hover:bg-red-100 text-red-500 rounded-full border border-red-200 shadow-xs transition-colors"
+                                title="刪除此項目"
+                            >
+                                <Trash2 size={16} />
+                            </button>
+                        )}
+                        <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors"><X size={18}/></button>
+                    </div>
                 </div>
 
                 <div className="overflow-y-auto custom-scroll flex-1 space-y-4 pr-1">
@@ -312,8 +330,18 @@ export const ScheduleDetailModal = ({
                 </div>
 
                 {/* Footer Action */}
-                <div className="mt-4 pt-4 border-t-2 border-beige-dark border-dashed flex-shrink-0">
-                    <button onClick={onEdit} className="w-full bg-sage text-white py-3 rounded-2xl font-black shadow-hard-sage active:translate-y-1 active:shadow-none transition-all border-2 border-sage-dark flex items-center justify-center gap-2 text-sm">
+                <div className="mt-4 pt-4 border-t-2 border-beige-dark border-dashed flex-shrink-0 flex gap-2.5">
+                    {onDelete && (
+                        <button 
+                            type="button"
+                            onClick={() => onDelete(item)} 
+                            className="px-4 py-3 rounded-2xl font-black bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 border-2 border-red-200 transition-all active:translate-y-1 shadow-sm flex items-center justify-center gap-1.5 text-sm flex-shrink-0"
+                            title="刪除此行程項目"
+                        >
+                            <Trash2 size={16} strokeWidth={2.5} /> 刪除
+                        </button>
+                    )}
+                    <button onClick={onEdit} className="flex-1 bg-sage text-white py-3 rounded-2xl font-black shadow-hard-sage active:translate-y-1 active:shadow-none transition-all border-2 border-sage-dark flex items-center justify-center gap-2 text-sm">
                         <Edit3 size={16} strokeWidth={2.5}/> 編輯項目
                     </button>
                 </div>

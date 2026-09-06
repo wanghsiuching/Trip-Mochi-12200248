@@ -837,6 +837,14 @@ export default function App() {
                                       >
                                         <ChevronDown size={13} strokeWidth={2.5} />
                                       </button>
+                                      <button 
+                                        type="button"
+                                        onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id); }} 
+                                        title="刪除此項目"
+                                        className="p-1.5 rounded-full border border-beige-dark text-gray-300 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all active:scale-90 shadow-sm"
+                                      >
+                                        <Trash2 size={13} strokeWidth={2.5} />
+                                      </button>
                                     </div>
                                 </div>
                                 <div className="flex items-center text-gray-500 text-xs sm:text-sm gap-2 font-bold bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 w-full"><MapPin size={15} className="text-sage flex-shrink-0" /><span className="break-words flex-1 leading-snug">{item.location}</span><button onClick={(e) => { e.stopPropagation(); openMap(item.location); }} className="p-1.5 bg-white rounded-lg text-cocoa hover:text-white hover:bg-sage shadow-sm border border-gray-200 transition-colors flex-shrink-0"><Navigation size={12} strokeWidth={2.5} /></button></div>
@@ -1137,8 +1145,29 @@ export default function App() {
         </main>
         
         {/* Global Trip Modals (Available across all tabs) */}
-        <AddScheduleModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onSave={handleSaveItem} initialData={editingItem} currencies={currencies} members={members} currentDate={selectedDate} tripId={currentTripId} />
-        <ScheduleDetailModal isOpen={!!viewingItem} onClose={() => setViewingItem(null)} item={viewingItem} onEdit={() => { if(viewingItem) { setViewingItem(null); handleEditClick(viewingItem); } }} currencies={currencies} members={members} />
+        <AddScheduleModal 
+          isOpen={isAddModalOpen} 
+          onClose={() => setIsAddModalOpen(false)} 
+          onSave={handleSaveItem} 
+          onDelete={(id) => confirmDeleteTripItem(id)}
+          initialData={editingItem} 
+          currencies={currencies} 
+          members={members} 
+          currentDate={selectedDate} 
+          tripId={currentTripId} 
+        />
+        <ScheduleDetailModal 
+          isOpen={!!viewingItem} 
+          onClose={() => setViewingItem(null)} 
+          item={viewingItem} 
+          onEdit={() => { if(viewingItem) { setViewingItem(null); handleEditClick(viewingItem); } }} 
+          onDelete={(item) => {
+            setViewingItem(null);
+            setItemToDelete(item.id);
+          }}
+          currencies={currencies} 
+          members={members} 
+        />
         <DeleteItemConfirmModal isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} onConfirm={confirmDeleteItem} title={scheduleItems.find(i => i.id === itemToDelete)?.title || '此項目'} />
         <PotentialExpensesModal isOpen={isPotentialModalOpen} onClose={() => setIsPotentialModalOpen(false)} items={scheduleItems} currencies={currencies} members={members} onJumpToSchedule={handleJumpToSchedule} />
         <EditDayDetailsModal isOpen={isEditDayModalOpen} onClose={() => setIsEditDayModalOpen(false)} onConfirm={handleUpdateDayDetails} initialDate={selectedDate} initialLocation={currentLocation} initialFruit={currentFruit} />
