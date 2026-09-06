@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { TripDay, ScheduleItem } from '../types';
-import { saveScheduleItem, deleteScheduleItem, updateTripField } from '../services/tripService';
+import { saveScheduleItem, deleteScheduleItem, updateTripField, sortScheduleItems } from '../services/tripService';
 
 export const useTripData = (currentTripId: string) => {
   const [tripDays, setTripDays] = useState<TripDay[]>([]);
@@ -17,21 +17,22 @@ export const useTripData = (currentTripId: string) => {
         id: editingItem.id,
         order: editingItem.order !== undefined ? editingItem.order : 0
       };
-      setScheduleItems(prev => prev.map(item => item.id === editingItem.id ? fullItem : item));
+      setScheduleItems(prev => sortScheduleItems(prev.map(item => item.id === editingItem.id ? fullItem : item)));
       if (onSaved) onSaved();
       saveScheduleItem(currentTripId, fullItem).catch(err => {
         console.error("Failed to save edited schedule item:", err);
       });
     } else {
-      const nextOrder = scheduleItems.length > 0 
-        ? Math.max(...scheduleItems.map(i => (typeof i.order === 'number' ? i.order : 0)), 0) + 1 
+      const sameDayItems = scheduleItems.filter(i => i.date === itemData.date);
+      const nextOrder = sameDayItems.length > 0 
+        ? Math.max(...sameDayItems.map(i => (typeof i.order === 'number' ? i.order : 0)), -1) + 1 
         : 0;
       const newItem: ScheduleItem = { 
         ...itemData, 
         id: Date.now().toString(),
         order: nextOrder
       };
-      setScheduleItems(prev => [...prev, newItem]);
+      setScheduleItems(prev => sortScheduleItems([...prev, newItem]));
       if (onSaved) onSaved();
       saveScheduleItem(currentTripId, newItem).catch(err => {
         console.error("Failed to save new schedule item:", err);
@@ -42,8 +43,17 @@ export const useTripData = (currentTripId: string) => {
   const confirmDeleteItem = (itemToDelete: string | null, onDeleted?: () => void) => {
     if (itemToDelete) {
       setScheduleItems(prev => {
-        const filtered = prev.filter(item => item.id !== itemToDelete);
-        const updated = filtered.map((item, idx) => ({ ...item, order: idx }));
+        const itemToRemove = prev.find(i => String(i.id) === String(itemToDelete));
+        const filtered = prev.filter(item => String(item.id) !== String(itemToDelete));
+        let updated: ScheduleItem[];
+        if (itemToRemove) {
+          const sameDayItems = filtered.filter(i => i.date === itemToRemove.date);
+          const normalizedSameDay = sortScheduleItems(sameDayItems).map((item, idx) => ({ ...item, order: idx }));
+          const otherDays = filtered.filter(i => i.date !== itemToRemove.date);
+          updated = sortScheduleItems([...otherDays, ...normalizedSameDay]);
+        } else {
+          updated = sortScheduleItems(filtered);
+        }
         updateTripField(currentTripId, 'scheduleItems', updated).catch(err => {
           console.error("Failed to sync reindexed schedule items after delete:", err);
         });
@@ -56,58 +66,60 @@ export const useTripData = (currentTripId: string) => {
     }
   };
 
-  const handleMoveItem = (index: number, direction: 'up' | 'down', selectedDate: string) => {
+  const handleMoveItem = (
+    index: number, 
+    direction: 'up' | 'down', 
+    selectedDate: string,
+    currentId?: string,
+    targetId?: string
+  ) => {
     setScheduleItems(prevSchedule => {
-      // 1. Get current day items sorted strictly by order/time
-      const dayItems = prevSchedule
-        .filter(i => i.date === selectedDate)
-        .sort((a, b) => {
-          const orderA = typeof a.order === 'number' ? a.order : 999999;
-          const orderB = typeof b.order === 'number' ? b.order : 999999;
-          if (orderA !== orderB) return orderA - orderB;
-          return (a.time || '').localeCompare(b.time || '');
-        });
-
-      const targetIndex = direction === 'up' ? index - 1 : index + 1;
-      if (index < 0 || index >= dayItems.length || targetIndex < 0 || targetIndex >= dayItems.length) {
-        return prevSchedule;
-      }
-
-      // 2. Swap items in the sorted day array
-      const newDayItems = [...dayItems];
-      const temp = newDayItems[index];
-      newDayItems[index] = newDayItems[targetIndex];
-      newDayItems[targetIndex] = temp;
-
-      // 3. Rebuild complete schedule with chronological dates and cleanly ordered items
+      // 1. Separate items of other days from items of selected date
       const otherDaysItems = prevSchedule.filter(i => i.date !== selectedDate);
-      const allDates = Array.from(new Set(prevSchedule.map(i => i.date))).sort();
-      if (!allDates.includes(selectedDate)) allDates.push(selectedDate);
+      const currentDayRaw = prevSchedule.filter(i => i.date === selectedDate);
+      const currentDayItems = sortScheduleItems(currentDayRaw);
 
-      const fullReordered: ScheduleItem[] = [];
-      for (const d of allDates) {
-        if (d === selectedDate) {
-          fullReordered.push(...newDayItems);
-        } else {
-          const dItems = otherDaysItems
-            .filter(i => i.date === d)
-            .sort((a, b) => (a.order ?? 999999) - (b.order ?? 999999));
-          fullReordered.push(...dItems);
-        }
+      // 2. Identify the two items to swap (by ID if provided, otherwise by index)
+      let itemA: ScheduleItem | undefined;
+      let itemB: ScheduleItem | undefined;
+
+      if (currentId && targetId) {
+        itemA = currentDayItems.find(i => String(i.id) === String(currentId));
+        itemB = currentDayItems.find(i => String(i.id) === String(targetId));
       }
 
-      // 4. Assign sequential clean order index to all items
-      const finalUpdated = fullReordered.map((item, idx) => ({
+      if (!itemA || !itemB) {
+        itemA = currentDayItems[index];
+        const targetIndex = direction === 'up' ? index - 1 : index + 1;
+        itemB = currentDayItems[targetIndex];
+      }
+
+      if (!itemA || !itemB) return prevSchedule;
+
+      const idxA = currentDayItems.findIndex(i => String(i.id) === String(itemA!.id));
+      const idxB = currentDayItems.findIndex(i => String(i.id) === String(itemB!.id));
+
+      if (idxA === -1 || idxB === -1 || idxA === idxB) return prevSchedule;
+
+      // 3. Swap in currentDayItems
+      const swappedDayItems = [...currentDayItems];
+      [swappedDayItems[idxA], swappedDayItems[idxB]] = [swappedDayItems[idxB], swappedDayItems[idxA]];
+
+      // 4. Normalize explicit numeric order (0, 1, 2, 3...) for all items on this date
+      const normalizedDayItems = swappedDayItems.map((item, orderIdx) => ({
         ...item,
-        order: idx
+        order: orderIdx
       }));
 
-      // 5. Persist to Firestore atomically
-      updateTripField(currentTripId, 'scheduleItems', finalUpdated).catch(err => {
-        console.error("Failed to reorder items:", err);
+      // 5. Combine with other days and sort globally
+      const updatedArr = sortScheduleItems([...otherDaysItems, ...normalizedDayItems]);
+
+      // 6. Persist to Firestore
+      updateTripField(currentTripId, 'scheduleItems', updatedArr).catch(err => {
+        console.error("Failed to reorder items in Firestore:", err);
       });
 
-      return finalUpdated;
+      return updatedArr;
     });
   };
 

@@ -17,64 +17,55 @@ import { compressBase64IfNeeded } from '../utils/imageService';
 
 /**
  * Sorts schedule items reliably based on:
- * 1. Root trip document `scheduleOrder` (ordered array of item IDs)
- * 2. Item-level `order` property (numeric position)
- * 3. Fallback to `time` (chronological) and deterministic ID
+ * 1. Date (always chronological by date string)
+ * 2. Item-level `order` property (numeric position on that date)
+ * 3. Root trip document `scheduleOrder` (ordered array of item IDs)
+ * 4. Fallback to `time` (chronological) and deterministic ID
  */
 export const sortScheduleItems = (items: ScheduleItem[], scheduleOrder?: string[]): ScheduleItem[] => {
   if (!Array.isArray(items) || items.length <= 1) return items || [];
 
-  // 1. If items have explicit order property, use it as source of truth
-  const hasExplicitOrder = items.some(i => typeof i.order === 'number');
-  if (hasExplicitOrder) {
-    return [...items].sort((a, b) => {
-      if (a.date && b.date && a.date !== b.date) {
-        return a.date.localeCompare(b.date);
-      }
-      const orderA = typeof a.order === 'number' ? a.order : 999999;
-      const orderB = typeof b.order === 'number' ? b.order : 999999;
-      if (orderA !== orderB) return orderA - orderB;
-
-      const timeComp = (a.time || '').localeCompare(b.time || '');
-      if (timeComp !== 0) return timeComp;
-      return String(a.id).localeCompare(String(b.id));
-    });
-  }
-
-  // 2. If explicit scheduleOrder array exists from root doc, strictly adhere to it
+  const orderMap = new Map<string, number>();
   if (Array.isArray(scheduleOrder) && scheduleOrder.length > 0) {
-    const orderMap = new Map<string, number>();
     scheduleOrder.forEach((id, idx) => orderMap.set(String(id), idx));
-
-    return [...items].sort((a, b) => {
-      if (a.date && b.date && a.date !== b.date) {
-        return a.date.localeCompare(b.date);
-      }
-      const hasA = orderMap.has(String(a.id));
-      const hasB = orderMap.has(String(b.id));
-      if (hasA && hasB) {
-        return orderMap.get(String(a.id))! - orderMap.get(String(b.id))!;
-      }
-      if (hasA && !hasB) return -1;
-      if (!hasA && hasB) return 1;
-
-      const orderA = typeof a.order === 'number' ? a.order : 999999;
-      const orderB = typeof b.order === 'number' ? b.order : 999999;
-      if (orderA !== orderB) return orderA - orderB;
-
-      const timeComp = (a.time || '').localeCompare(b.time || '');
-      if (timeComp !== 0) return timeComp;
-      return String(a.id).localeCompare(String(b.id));
-    });
   }
 
-  // 3. Fallback for legacy trips without explicit ordering: chronological by date and time
   return [...items].sort((a, b) => {
-    if (a.date && b.date && a.date !== b.date) {
-      return a.date.localeCompare(b.date);
+    // 1. Always sort by date first (chronological by date string)
+    const dateA = a.date || '';
+    const dateB = b.date || '';
+    if (dateA !== dateB) {
+      return dateA.localeCompare(dateB);
     }
-    const timeComp = (a.time || '').localeCompare(b.time || '');
-    if (timeComp !== 0) return timeComp;
+
+    // 2. Within the same date: If both items have explicit numeric order, sort by order
+    const hasOrderA = typeof a.order === 'number';
+    const hasOrderB = typeof b.order === 'number';
+    if (hasOrderA && hasOrderB && a.order !== b.order) {
+      return a.order! - b.order!;
+    }
+    if (hasOrderA && !hasOrderB) return -1;
+    if (!hasOrderA && hasOrderB) return 1;
+
+    // 3. If explicit scheduleOrder exists from root doc, use it
+    const hasMapA = orderMap.has(String(a.id));
+    const hasMapB = orderMap.has(String(b.id));
+    if (hasMapA && hasMapB && orderMap.get(String(a.id)) !== orderMap.get(String(b.id))) {
+      return orderMap.get(String(a.id))! - orderMap.get(String(b.id))!;
+    }
+    if (hasMapA && !hasMapB) return -1;
+    if (!hasMapA && hasMapB) return 1;
+
+    // 4. Chronological by time
+    const timeA = a.time || '';
+    const timeB = b.time || '';
+    if (timeA && timeB && timeA !== timeB) {
+      return timeA.localeCompare(timeB);
+    }
+    if (timeA && !timeB) return -1;
+    if (!timeA && timeB) return 1;
+
+    // 5. Deterministic fallback by id
     return String(a.id).localeCompare(String(b.id));
   });
 };

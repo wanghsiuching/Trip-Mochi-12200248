@@ -25,7 +25,7 @@ import { ExpensesView } from './components/ExpensesView';
 import { JournalView } from './components/JournalView';
 import { PlanningView } from './components/PlanningView';
 import { MembersView } from './components/MembersView';
-import { createTrip, joinTripByCode, subscribeToTrip, addTripItem, updateTripField, duplicateTrip } from './services/tripService';
+import { createTrip, joinTripByCode, subscribeToTrip, addTripItem, updateTripField, duplicateTrip, sortScheduleItems } from './services/tripService';
 import { 
   useTripData, 
   useBookingsData, 
@@ -222,70 +222,6 @@ export default function App() {
   const currentLocation = currentDayObj?.location || '旅行地點';
   const currentFruit = currentDayObj?.fruit || '🍎';
 
-  const todayAccommodation = useMemo(() => {
-    // 1. Check if there is a stay item on the selected date
-    const staySchedule = scheduleItems.find(item => item.date === selectedDate && item.type === 'stay');
-    if (staySchedule) {
-      return {
-        name: staySchedule.title,
-        checkInTime: staySchedule.checkIn || staySchedule.stayDetails?.checkInTime || '15:00',
-        checkOutTime: staySchedule.checkOut || staySchedule.stayDetails?.checkOutTime || '11:00',
-      };
-    }
-
-    // 2. Check booking accommodations covering selectedDate
-    const bookingAcc = bookingAccommodations.find(acc => {
-      if (!acc.checkInDate) return false;
-      const inDate = acc.checkInDate.split('T')[0];
-      const outDate = acc.checkOutDate ? acc.checkOutDate.split('T')[0] : inDate;
-      return selectedDate >= inDate && selectedDate <= outDate;
-    });
-    if (bookingAcc) {
-      const checkInTime = bookingAcc.checkInDate.includes('T') ? bookingAcc.checkInDate.split('T')[1].slice(0, 5) : '15:00';
-      const checkOutTime = bookingAcc.checkOutDate && bookingAcc.checkOutDate.includes('T') ? bookingAcc.checkOutDate.split('T')[1].slice(0, 5) : '11:00';
-      return {
-        name: bookingAcc.name,
-        checkInTime: checkInTime || '15:00',
-        checkOutTime: checkOutTime || '11:00',
-      };
-    }
-
-    // 3. Fallback to any booking accommodation in the trip
-    if (bookingAccommodations.length > 0) {
-      const firstAcc = bookingAccommodations[0];
-      const checkInTime = firstAcc.checkInDate && firstAcc.checkInDate.includes('T') ? firstAcc.checkInDate.split('T')[1].slice(0, 5) : '15:00';
-      const checkOutTime = firstAcc.checkOutDate && firstAcc.checkOutDate.includes('T') ? firstAcc.checkOutDate.split('T')[1].slice(0, 5) : '11:00';
-      return {
-        name: firstAcc.name,
-        checkInTime: checkInTime || '15:00',
-        checkOutTime: checkOutTime || '11:00',
-      };
-    }
-
-    // 4. Fallback to any stay item in the trip
-    const anyStay = scheduleItems.find(item => item.type === 'stay');
-    if (anyStay) {
-      return {
-        name: anyStay.title,
-        checkInTime: anyStay.checkIn || anyStay.stayDetails?.checkInTime || '15:00',
-        checkOutTime: anyStay.checkOut || anyStay.stayDetails?.checkOutTime || '11:00',
-      };
-    }
-
-    return null;
-  }, [scheduleItems, bookingAccommodations, selectedDate]);
-
-  const currentDaySchedule = useMemo(() => {
-    return scheduleItems
-      .filter(item => item.date === selectedDate)
-      .sort((a, b) => {
-        const orderA = typeof a.order === 'number' ? a.order : 999999;
-        const orderB = typeof b.order === 'number' ? b.order : 999999;
-        if (orderA !== orderB) return orderA - orderB;
-        return (a.time || '').localeCompare(b.time || '');
-      });
-  }, [scheduleItems, selectedDate]);
-
   const getACFruit = (str: string) => {
       const fruits = ['🍎', '🍊', '🍐', '🍑', '🍒', '🥥'];
       if (!str) return '✈️';
@@ -461,10 +397,14 @@ export default function App() {
     confirmDeleteTripItem(itemToDelete, () => setItemToDelete(null));
   };
 
+  const currentDayScheduleItems = useMemo(() => {
+    return sortScheduleItems(scheduleItems.filter(item => item.date === selectedDate));
+  }, [scheduleItems, selectedDate]);
+
   const handleRequestMoveItem = (index: number, direction: 'up' | 'down') => {
-    const currentItem = currentDaySchedule[index];
+    const currentItem = currentDayScheduleItems[index];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    const targetItem = currentDaySchedule[targetIndex];
+    const targetItem = currentDayScheduleItems[targetIndex];
     if (!currentItem || !targetItem) return;
     setPendingMoveItem({
       index,
@@ -476,7 +416,13 @@ export default function App() {
 
   const handleConfirmMoveItem = () => {
     if (!pendingMoveItem) return;
-    handleMoveTripItem(pendingMoveItem.index, pendingMoveItem.direction, selectedDate);
+    handleMoveTripItem(
+      pendingMoveItem.index, 
+      pendingMoveItem.direction, 
+      selectedDate,
+      pendingMoveItem.currentItem.id,
+      pendingMoveItem.targetItem.id
+    );
     if (window.navigator?.vibrate) {
       try {
         window.navigator.vibrate([30, 40]);
@@ -690,24 +636,6 @@ export default function App() {
           <div className="flex flex-col flex-1 min-w-0 pr-2">
             <button onClick={handleBackToHome} className="flex items-center gap-1 text-sm font-bold text-gray-400 mb-3"><ChevronLeft size={16} strokeWidth={3}/> 返回首頁</button>
             <h1 className="text-2xl sm:text-3xl font-black text-cocoa tracking-tight break-words leading-snug">{currentTripName}</h1>
-            {todayAccommodation && (
-              <div className="mt-2.5 inline-flex items-center gap-2 text-xs font-bold bg-white text-purple-700 px-3 py-1.5 rounded-xl border-2 border-purple-200 shadow-hard-sm max-w-full flex-wrap">
-                <div className="flex items-center gap-1.5 min-w-0 flex-shrink-0">
-                  <Bed size={14} className="text-purple-600 flex-shrink-0" />
-                  <span className="font-black text-cocoa max-w-[130px] truncate">{todayAccommodation.name}</span>
-                </div>
-                <span className="text-purple-300 hidden sm:inline">|</span>
-                <span className="flex items-center gap-1 flex-shrink-0">
-                  <span className="text-gray-400 font-bold">入住時</span>
-                  <span className="font-mono font-black text-purple-800">{todayAccommodation.checkInTime}</span>
-                </span>
-                <span className="text-purple-300">·</span>
-                <span className="flex items-center gap-1 flex-shrink-0">
-                  <span className="text-gray-400 font-bold">退房時間</span>
-                  <span className="font-mono font-black text-purple-800">{todayAccommodation.checkOutTime}</span>
-                </span>
-              </div>
-            )}
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <button 
                 type="button"
@@ -822,8 +750,8 @@ export default function App() {
 
                <div className="px-2.5 sm:px-4 pt-2">
                   <div className="relative border-l-2 border-beige-dark ml-2.5 sm:ml-3 space-y-6 py-2">
-                    {currentDaySchedule.length === 0 && (<div className="pl-6 text-gray-400 font-bold italic py-10">此日期尚無行程，點擊右下角新增！</div>)}
-                    {currentDaySchedule.map((item, index) => {
+                    {currentDayScheduleItems.length === 0 && (<div className="pl-6 text-gray-400 font-bold italic py-10">此日期尚無行程，點擊右下角新增！</div>)}
+                    {currentDayScheduleItems.map((item, index) => {
                       let icon = MapPin; let colorClass = 'bg-gray-100 text-gray-500';
                       if (item.type === 'food') { icon = Utensils; colorClass = 'bg-orange-100 text-orange-500'; }
                       if (item.type === 'transport') { icon = Train; colorClass = 'bg-blue-100 text-blue-500'; }
@@ -912,9 +840,9 @@ export default function App() {
                                       <button 
                                         type="button"
                                         onClick={(e) => { e.stopPropagation(); handleRequestMoveItem(index, 'down'); }} 
-                                        disabled={index === currentDaySchedule.length - 1} 
+                                        disabled={index === currentDayScheduleItems.length - 1} 
                                         title="向下調換順序"
-                                        className={`p-1.5 rounded-full border border-beige-dark transition-all ${index === currentDaySchedule.length - 1 ? 'opacity-0 pointer-events-none' : 'text-gray-400 hover:bg-sage hover:text-white active:scale-90 hover:border-sage shadow-sm'}`}
+                                        className={`p-1.5 rounded-full border border-beige-dark transition-all ${index === currentDayScheduleItems.length - 1 ? 'opacity-0 pointer-events-none' : 'text-gray-400 hover:bg-sage hover:text-white active:scale-90 hover:border-sage shadow-sm'}`}
                                       >
                                         <ChevronDown size={13} strokeWidth={2.5} />
                                       </button>
@@ -1091,8 +1019,8 @@ export default function App() {
                                                 <div className="flex items-center gap-2"><Bed size={14} className="text-purple-600"/><span className="text-sm font-black text-cocoa">住宿詳情</span></div>
                                             </div>
                                             <div className="flex gap-4 text-[11px] font-bold text-gray-500">
-                                                <div className="flex items-center gap-1.5"><Clock size={12} className="text-purple-400"/>入住時: <span className="font-mono font-bold text-cocoa">{item.checkIn || item.stayDetails?.checkInTime || '15:00'}</span></div>
-                                                <div className="flex items-center gap-1.5"><Clock size={12} className="text-purple-400"/>退房時間: <span className="font-mono font-bold text-cocoa">{item.checkOut || item.stayDetails?.checkOutTime || '11:00'}</span></div>
+                                                <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>CI: {item.checkIn}</div>
+                                                <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>CO: {item.checkOut}</div>
                                             </div>
                                             <div className="flex gap-3 mt-1">
                                                 {item.meals?.breakfast && <span className="text-[10px] bg-white px-2 py-0.5 rounded-full border border-purple-200 text-purple-400 flex items-center gap-1"><Coffee size={10}/> 早餐</span>}
