@@ -126,18 +126,12 @@ export const TripSettingsModal = ({
 
                     {/* PDF Export Section */}
                     <div className="bg-gradient-to-br from-white to-[#F6F4ED] border-2 border-sage/40 p-4 rounded-2xl shadow-sm relative overflow-hidden">
-                        <div className="flex items-start gap-3">
-                            <div className="w-11 h-11 rounded-2xl bg-sage text-white flex items-center justify-center font-bold shadow-sm flex-shrink-0 mt-0.5">
+                        <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 rounded-2xl bg-sage text-white flex items-center justify-center font-bold shadow-sm flex-shrink-0">
                                 <FileText size={22} />
                             </div>
                             <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                    <h4 className="text-base font-black text-cocoa">匯出行程為 PDF</h4>
-                                    <span className="text-[10px] bg-sage text-white font-black px-2 py-0.5 rounded-full">含成員分攤</span>
-                                </div>
-                                <p className="text-xs text-gray-500 mt-1 leading-relaxed">
-                                    自動彙整<strong>每日排程、機票住宿、開銷統計與各成員詳細行程分攤明細</strong>，轉化為日系手帳風格 PDF 檔案。
-                                </p>
+                                <h4 className="text-base font-black text-cocoa">匯出行程為 PDF</h4>
                             </div>
                         </div>
 

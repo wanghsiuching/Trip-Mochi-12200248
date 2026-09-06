@@ -84,11 +84,9 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({ isOpen, onClose,
               <FileText size={22} />
             </div>
             <div>
-              <h3 className="text-lg sm:text-xl font-black text-cocoa flex items-center gap-2">
-                行程手帳轉為 PDF
-                <span className="text-[10px] bg-sage text-white px-2 py-0.5 rounded-full font-bold">含成員分攤</span>
+              <h3 className="text-lg sm:text-xl font-black text-cocoa">
+                匯出行程為 PDF
               </h3>
-              <p className="text-xs text-gray-500 font-medium">每日排程、機票住宿訂單與成員詳細行程分攤明細，轉為精美 A4 PDF 檔案</p>
             </div>
           </div>
           <button 
@@ -180,10 +178,6 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({ isOpen, onClose,
 
           {/* Live A4 Aesthetic Preview Box */}
           <div className="flex-1 bg-gray-100 rounded-2xl border-2 border-beige-dark overflow-hidden relative shadow-inner flex flex-col">
-            <div className="bg-white/80 border-b border-beige-dark px-3 py-1.5 text-[11px] text-gray-500 font-bold flex justify-between items-center">
-              <span>📄 手帳與行程分攤明細即時排版預覽 (A4 Aesthetic Preview)</span>
-              <span className="text-sage font-medium">已包含成員詳細資料行程分攤清冊</span>
-            </div>
             <div className="flex-1 overflow-auto p-2 sm:p-4 flex justify-center bg-[#EBE7DF]">
               <div className="w-full max-w-[760px] bg-white shadow-lg rounded-xl overflow-hidden min-h-full border border-black/5">
                 <iframe
