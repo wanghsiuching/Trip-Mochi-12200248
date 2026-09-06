@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Edit3, Shuffle } from 'lucide-react';
+import { X, Edit3, Shuffle, AlertCircle } from 'lucide-react';
 import { DatePickerField } from '../TimePickerComponents';
 
 // Extensive fruit/food icon list
@@ -18,7 +18,23 @@ const FRUIT_ICONS = [
 // Helper to get a random fruit
 const getRandomFruit = () => FRUIT_ICONS[Math.floor(Math.random() * FRUIT_ICONS.length)];
 
-export const EditDayDetailsModal = ({ isOpen, onClose, onConfirm, initialDate, initialLocation, initialFruit }: { isOpen: boolean, onClose: () => void, onConfirm: (date: string, loc: string, fruit: string) => void, initialDate: string, initialLocation: string, initialFruit: string }) => {
+export const EditDayDetailsModal = ({ 
+    isOpen, 
+    onClose, 
+    onConfirm, 
+    initialDate, 
+    initialLocation, 
+    initialFruit,
+    existingTripDays = []
+}: { 
+    isOpen: boolean;
+    onClose: () => void;
+    onConfirm: (date: string, loc: string, fruit: string) => void;
+    initialDate: string;
+    initialLocation: string;
+    initialFruit: string;
+    existingTripDays?: { date: string; location?: string; fruit?: string }[];
+}) => {
     const [loc, setLoc] = useState(initialLocation);
     const [date, setDate] = useState(initialDate);
     
@@ -27,7 +43,17 @@ export const EditDayDetailsModal = ({ isOpen, onClose, onConfirm, initialDate, i
         setDate(initialDate);
     }, [initialLocation, initialDate, isOpen]);
 
+    // Check if the newly selected date already exists in another day card
+    const isDuplicateDate = Boolean(
+        date && 
+        date !== initialDate && 
+        existingTripDays.some(d => d.date === date)
+    );
+    const conflictingDay = isDuplicateDate ? existingTripDays.find(d => d.date === date) : undefined;
+    const conflictingDayIndex = isDuplicateDate ? existingTripDays.findIndex(d => d.date === date) : -1;
+
     const handleConfirm = () => {
+        if (isDuplicateDate || !loc || !date) return;
         // Randomly select a fruit from the pool upon confirmation
         const randomFruit = getRandomFruit();
         onConfirm(date, loc, randomFruit);
@@ -51,12 +77,29 @@ export const EditDayDetailsModal = ({ isOpen, onClose, onConfirm, initialDate, i
                     <p className="text-gray-400 font-bold text-center text-xs">修改日期與當日地點</p>
                     
                     <div className="space-y-4">
-                        <DatePickerField
-                            label="日期"
-                            value={date}
-                            onChange={setDate}
-                            themeColor="sage"
-                        />
+                        <div>
+                            <DatePickerField
+                                label="日期"
+                                value={date}
+                                onChange={setDate}
+                                themeColor="sage"
+                            />
+                            {isDuplicateDate && (
+                                <div className="mt-2 bg-amber-50/95 border-2 border-amber-300 rounded-2xl p-3.5 text-amber-900 shadow-sm animate-fade-in flex items-start gap-2.5">
+                                    <AlertCircle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                                    <div className="text-xs space-y-1">
+                                        <p className="font-black text-amber-800 flex items-center gap-1">
+                                            該日期已存在於行程中！
+                                        </p>
+                                        <p className="text-amber-700 leading-relaxed text-[11px]">
+                                            行程中已經有 <strong>{date}</strong>（第 {conflictingDayIndex + 1} 天 {conflictingDay?.fruit} {conflictingDay?.location}）的卡片。
+                                            <br />
+                                            為防呆並確保資料不會雙雙覆蓋，無法將此卡片改為相同日期。請選擇其他尚未使用的日期，或直接在上方切換至該天查看。
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
 
                         <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark flex items-center gap-3 shadow-sm">
                             <div className="w-10 h-10 bg-beige rounded-xl flex items-center justify-center text-xl shadow-sm border border-beige-dark flex-shrink-0 cursor-default select-none relative group">
@@ -73,7 +116,7 @@ export const EditDayDetailsModal = ({ isOpen, onClose, onConfirm, initialDate, i
                                     placeholder="例如: 札幌 Sapporo"
                                     className="w-full bg-transparent font-bold text-cocoa outline-none text-sm"
                                     onKeyDown={e => {
-                                        if (e.key === 'Enter' && loc && date) {
+                                        if (e.key === 'Enter' && loc && date && !isDuplicateDate) {
                                             handleConfirm();
                                         }
                                     }}
@@ -86,7 +129,13 @@ export const EditDayDetailsModal = ({ isOpen, onClose, onConfirm, initialDate, i
 
                 <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
                     <button onClick={onClose} className="flex-1 py-4 rounded-2xl font-bold text-gray-400 bg-white border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
-                    <button onClick={handleConfirm} disabled={!loc || !date} className="flex-1 py-4 rounded-2xl font-bold text-white bg-sage hover:bg-sage-dark shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 disabled:shadow-none">確認修改</button>
+                    <button 
+                        onClick={handleConfirm} 
+                        disabled={!loc || !date || isDuplicateDate} 
+                        className="flex-1 py-4 rounded-2xl font-bold text-white bg-sage hover:bg-sage-dark shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all disabled:opacity-40 disabled:shadow-none disabled:cursor-not-allowed text-sm"
+                    >
+                        {isDuplicateDate ? '該日期已存在（無法修改）' : '確認修改'}
+                    </button>
                 </div>
             </div>
         </div>

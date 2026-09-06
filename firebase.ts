@@ -1,6 +1,11 @@
 
 import { initializeApp } from 'firebase/app';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager,
+  getFirestore
+} from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
 // Hardcoded Firebase configuration as requested for robust connection
@@ -14,18 +19,21 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const storage = getStorage(app);
 
-// Enable Offline Persistence for a smoother travel experience
-if (typeof window !== 'undefined') {
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn('Persistence failed: Multiple tabs open.');
-    } else if (err.code === 'unimplemented') {
-      console.warn('Persistence failed: Browser not supported.');
-    }
+// Initialize Firestore with robust multi-tab local cache
+let db: ReturnType<typeof getFirestore>;
+try {
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    })
   });
+} catch (err) {
+  console.warn('Persistent local cache not available, using default Firestore:', err);
+  db = getFirestore(app);
 }
 
+const storage = getStorage(app);
+
 export { db, storage };
+

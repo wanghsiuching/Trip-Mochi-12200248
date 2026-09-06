@@ -16,6 +16,9 @@ export default defineConfig(({ mode }) => {
         VitePWA({
           registerType: 'autoUpdate',
           includeAssets: ['icon.jpg', 'icon.png', 'icon.svg', 'apple-touch-icon.png'],
+          workbox: {
+            maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+          },
           manifest: {
             name: 'Trip Mochi',
             short_name: 'Trip Mochi',

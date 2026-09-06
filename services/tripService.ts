@@ -4,6 +4,7 @@ import {
   setDoc, 
   getDoc, 
   deleteDoc,
+  updateDoc,
   collection,
   getDocs,
   onSnapshot, 
@@ -85,6 +86,18 @@ const cleanData = (obj: any): any => {
     );
   }
   return obj;
+};
+
+/**
+ * Sequential write queue to serialize outgoing Firestore writes.
+ * Prevents overlapping concurrent writes from exceeding Firestore's HTTP/2 write stream
+ * capacity ("Write stream exhausted maximum allowed queued writes").
+ */
+let writeQueue = Promise.resolve();
+export const queueWrite = <T>(op: () => Promise<T>): Promise<T> => {
+  const result = writeQueue.then(op, op);
+  writeQueue = result.then(() => {}, () => {});
+  return result;
 };
 
 /**
@@ -321,98 +334,85 @@ export const joinTripByCode = async (code: string): Promise<any> => {
  * Saves a single schedule item into subcollection (prevents 1MB root doc limit)
  */
 export const saveScheduleItem = async (tripId: string, item: ScheduleItem): Promise<void> => {
-  try {
-    if (!tripId || !item || !item.id) return;
-    
-    // Proactive safety: Re-compress any oversized Base64 images (>58KB) before saving
-    if (Array.isArray(item.images) && item.images.length > 0) {
-      const sanitizedImages: string[] = [];
-      for (const img of item.images) {
-        if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 58000) {
-          const compressed = await compressBase64IfNeeded(img, 750, 52000);
-          sanitizedImages.push(compressed);
-        } else {
-          sanitizedImages.push(img);
-        }
-      }
-      item = { ...item, images: sanitizedImages };
-    }
-
-    const cleaned = cleanData(item);
-    const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(item.id));
-    
+  if (!tripId || !item || !item.id) return;
+  return queueWrite(async () => {
     try {
-      await setDoc(itemRef, cleaned);
-    } catch (setErr: any) {
-      // Automatic recovery if Firestore throws maximum document size exceeded error
-      if (setErr?.message?.includes('size') || setErr?.message?.includes('1,048,576') || setErr?.code === 'resource-exhausted') {
-        console.warn("Firestore size exceeded, applying emergency image compression...", setErr);
-        if (Array.isArray(cleaned.images)) {
-          cleaned.images = await Promise.all(
-            cleaned.images.map((img: string) => compressBase64IfNeeded(img, 600, 42000))
-          );
-          await setDoc(itemRef, cleaned);
+      // Proactive safety: Re-compress any oversized Base64 images (>58KB) before saving
+      if (Array.isArray(item.images) && item.images.length > 0) {
+        const sanitizedImages: string[] = [];
+        for (const img of item.images) {
+          if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 58000) {
+            const compressed = await compressBase64IfNeeded(img, 750, 52000);
+            sanitizedImages.push(compressed);
+          } else {
+            sanitizedImages.push(img);
+          }
+        }
+        item = { ...item, images: sanitizedImages };
+      }
+
+      const cleaned = cleanData(item);
+      const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(item.id));
+      const tripRef = doc(db, 'trips', tripId);
+
+      const batch = writeBatch(db);
+      batch.set(itemRef, cleaned);
+      batch.set(tripRef, {
+        scheduleOrder: arrayUnion(String(item.id))
+      }, { merge: true });
+
+      try {
+        await batch.commit();
+      } catch (setErr: any) {
+        // Automatic recovery if Firestore throws maximum document size exceeded error
+        if (setErr?.message?.includes('size') || setErr?.message?.includes('1,048,576') || setErr?.code === 'resource-exhausted') {
+          console.warn("Firestore size exceeded, applying emergency image compression...", setErr);
+          if (Array.isArray(cleaned.images)) {
+            cleaned.images = await Promise.all(
+              cleaned.images.map((img: string) => compressBase64IfNeeded(img, 600, 42000))
+            );
+            const retryBatch = writeBatch(db);
+            retryBatch.set(itemRef, cleaned);
+            retryBatch.set(tripRef, {
+              scheduleOrder: arrayUnion(String(item.id))
+            }, { merge: true });
+            await retryBatch.commit();
+          } else {
+            throw setErr;
+          }
         } else {
           throw setErr;
         }
-      } else {
-        throw setErr;
       }
+    } catch (err) {
+      console.error("Failed to save schedule item to subcollection:", err);
+      throw err;
     }
-
-    // Clean up stale copy in root doc so it doesn't overwrite with outdated photos, and ensure scheduleOrder includes item.id
-    try {
-      const tripRef = doc(db, 'trips', tripId);
-      const snap = await getDoc(tripRef);
-      if (snap.exists()) {
-        const rootData = snap.data();
-        const updates: any = {
-          scheduleOrder: arrayUnion(String(item.id))
-        };
-        if (Array.isArray(rootData.scheduleItems) && rootData.scheduleItems.some((i: any) => String(i.id) === String(item.id))) {
-          updates.scheduleItems = rootData.scheduleItems.filter((i: any) => String(i.id) !== String(item.id));
-        }
-        await setDoc(tripRef, updates, { merge: true });
-      }
-    } catch (cleanErr) {
-      console.warn("Non-fatal root doc schedule item cleanup:", cleanErr);
-    }
-  } catch (err) {
-    console.error("Failed to save schedule item to subcollection:", err);
-    throw err;
-  }
+  });
 };
 
 /**
  * Deletes a single schedule item from subcollection
  */
 export const deleteScheduleItem = async (tripId: string, itemId: string): Promise<void> => {
-  try {
-    if (!tripId || !itemId) return;
-    const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(itemId));
-    await deleteDoc(itemRef);
-
-    // Also remove from root doc if present, and update scheduleOrder
+  if (!tripId || !itemId) return;
+  return queueWrite(async () => {
     try {
+      const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(itemId));
       const tripRef = doc(db, 'trips', tripId);
-      const snap = await getDoc(tripRef);
-      if (snap.exists()) {
-        const rootData = snap.data();
-        const updates: any = {
-          scheduleOrder: arrayRemove(String(itemId))
-        };
-        if (Array.isArray(rootData.scheduleItems) && rootData.scheduleItems.some((i: any) => String(i.id) === String(itemId))) {
-          updates.scheduleItems = rootData.scheduleItems.filter((i: any) => String(i.id) !== String(itemId));
-        }
-        await setDoc(tripRef, updates, { merge: true });
-      }
-    } catch (cleanErr) {
-      console.warn("Non-fatal root doc schedule item delete cleanup:", cleanErr);
+
+      const batch = writeBatch(db);
+      batch.delete(itemRef);
+      batch.set(tripRef, {
+        scheduleOrder: arrayRemove(String(itemId))
+      }, { merge: true });
+
+      await batch.commit();
+    } catch (err) {
+      console.error("Failed to delete schedule item from subcollection:", err);
+      throw err;
     }
-  } catch (err) {
-    console.error("Failed to delete schedule item from subcollection:", err);
-    throw err;
-  }
+  });
 };
 
 /**
@@ -684,138 +684,337 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
  * Adds an item to a specific collection or array field in the trip document atomically.
  */
 export const addTripItem = async (tripId: string, collectionName: string, item: any): Promise<void> => {
-  try {
-    if (collectionName === 'scheduleItems') {
-      await saveScheduleItem(tripId, item);
-      return;
-    }
-    if (collectionName === 'pocketItems') {
-      await savePocketItem(tripId, item);
-      return;
-    }
-    if (collectionName === 'journals') {
-      await saveJournalItem(tripId, item);
-      return;
-    }
+  if (!tripId) return;
+  return queueWrite(async () => {
+    try {
+      if (collectionName === 'scheduleItems') {
+        await saveScheduleItem(tripId, item);
+        return;
+      }
+      if (collectionName === 'pocketItems') {
+        await savePocketItem(tripId, item);
+        return;
+      }
+      if (collectionName === 'journals') {
+        await saveJournalItem(tripId, item);
+        return;
+      }
 
-    const tripRef = doc(db, 'trips', tripId);
-    const cleanedItem = cleanData(item);
-    await setDoc(tripRef, {
-      [collectionName]: arrayUnion(cleanedItem)
-    }, { merge: true });
-  } catch (error) {
-    console.error(`Failed to add item to ${collectionName}:`, error);
-    throw new Error("更新資料失敗");
-  }
+      const tripRef = doc(db, 'trips', tripId);
+      const cleanedItem = cleanData(item);
+      await setDoc(tripRef, {
+        [collectionName]: arrayUnion(cleanedItem)
+      }, { merge: true });
+    } catch (error) {
+      console.error(`Failed to add item to ${collectionName}:`, error);
+      throw new Error("更新資料失敗");
+    }
+  });
+};
+
+/**
+ * Ultra-lightweight schedule reorder persistence.
+ * Only updates the `order` field of items on the modified day,
+ * and updates the root trip document `scheduleOrder` array.
+ * This takes <1KB payload and 1 atomic commit, completely preventing write-stream exhaustion.
+ */
+export const reorderScheduleItems = async (
+  tripId: string,
+  updatedItems: { id: string | number; order: number }[],
+  fullScheduleOrderIds: string[]
+): Promise<void> => {
+  if (!tripId) return;
+  return queueWrite(async () => {
+    try {
+      const batch = writeBatch(db);
+
+      for (const item of updatedItems) {
+        if (item && item.id) {
+          const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(item.id));
+          batch.update(itemRef, { order: item.order });
+        }
+      }
+
+      const tripRef = doc(db, 'trips', tripId);
+      batch.set(tripRef, { scheduleOrder: fullScheduleOrderIds }, { merge: true });
+
+      await batch.commit();
+    } catch (err) {
+      console.error("Failed to persist reordered schedule items:", err);
+    }
+  });
+};
+
+/**
+ * Coordinated update for tripDays and scheduleItems.
+ * Performs a single atomic batch diff update for subcollection scheduleItems and updates
+ * tripDays/scheduleOrder in the root doc.
+ * Never writes the heavy scheduleItems array into root doc, preventing write-stream exhaustion.
+ */
+export const updateTripDaysAndSchedule = async (
+  tripId: string, 
+  tripDays: any[], 
+  scheduleItems: ScheduleItem[]
+): Promise<void> => {
+  if (!tripId) return;
+  return queueWrite(async () => {
+    try {
+      const orderIds = scheduleItems.map(i => String(i.id));
+      const newIds = new Set(orderIds);
+      const scheduleColRef = collection(db, 'trips', tripId, 'scheduleItems');
+      const existingSnap = await getDocs(scheduleColRef);
+      const existingMap = new Map<string, any>();
+      for (const d of existingSnap.docs) {
+        existingMap.set(d.id, d.data());
+      }
+
+      const batch = writeBatch(db);
+      let batchCount = 0;
+
+      // 1. Delete items no longer in scheduleItems
+      for (const existingDoc of existingSnap.docs) {
+        if (!newIds.has(existingDoc.id)) {
+          batch.delete(existingDoc.ref);
+          batchCount++;
+        }
+      }
+
+      // 2. Only write new items or update changed properties (e.g. date, order)
+      for (let idx = 0; idx < scheduleItems.length; idx++) {
+        const item = scheduleItems[idx];
+        if (!item || !item.id) continue;
+        const itemId = String(item.id);
+        const itemRef = doc(db, 'trips', tripId, 'scheduleItems', itemId);
+        const existingData = existingMap.get(itemId);
+        const targetOrder = item.order !== undefined ? item.order : idx;
+
+        if (!existingData) {
+          batch.set(itemRef, cleanData({ ...item, order: targetOrder }));
+          batchCount++;
+        } else {
+          const updates: Record<string, any> = {};
+          if (existingData.date !== item.date) updates.date = item.date;
+          if (existingData.order !== targetOrder) updates.order = targetOrder;
+          if (existingData.time !== item.time) updates.time = item.time;
+          if (existingData.title !== item.title) updates.title = item.title;
+
+          if (Object.keys(updates).length > 0) {
+            batch.update(itemRef, updates);
+            batchCount++;
+          }
+        }
+      }
+
+      // 3. Update root document with tripDays and scheduleOrder (NEVER bloated scheduleItems)
+      const tripRef = doc(db, 'trips', tripId);
+      batch.set(tripRef, { 
+        tripDays: cleanData(tripDays), 
+        scheduleOrder: orderIds 
+      }, { merge: true });
+      batchCount++;
+
+      if (batchCount > 0) {
+        await batch.commit();
+      }
+    } catch (err) {
+      console.error("Failed to update trip days and schedule:", err);
+      throw err;
+    }
+  });
+};
+
+/**
+ * Atomically updates a day's date, location, and fruit, while synchronizing all schedule items
+ * belonging to that day to the new date.
+ * Committed in a single atomic batch so no items or day cards are ever lost or desynced.
+ */
+export const updateTripDayDateAndDetails = async (
+  tripId: string,
+  oldDate: string,
+  newDate: string,
+  newLocation: string,
+  newFruit: string,
+  allTripDays: TripDay[],
+  allScheduleItems: ScheduleItem[]
+): Promise<void> => {
+  if (!tripId) return;
+  return queueWrite(async () => {
+    try {
+      const batch = writeBatch(db);
+
+      // 1. Update tripDays in memory and sort chronologically
+      const updatedDays = allTripDays.map(d => 
+        d.date === oldDate ? { ...d, date: newDate, location: newLocation, fruit: newFruit } : d
+      ).sort((a, b) => a.date.localeCompare(b.date));
+
+      // 2. Identify all items on this day that need their date updated
+      const updatedSchedule = allScheduleItems.map(item => 
+        item.date === oldDate ? { ...item, date: newDate } : item
+      );
+
+      // 3. Atomically update affected subcollection items (ONLY the date field! No heavy re-uploads)
+      if (oldDate !== newDate) {
+        const affectedItems = allScheduleItems.filter(item => item.date === oldDate);
+        for (const item of affectedItems) {
+          if (item && item.id) {
+            const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(item.id));
+            batch.update(itemRef, { date: newDate });
+          }
+        }
+      }
+
+      // 4. Update the root trip document with new tripDays and scheduleOrder (NEVER bloated scheduleItems)
+      const tripRef = doc(db, 'trips', tripId);
+      batch.set(tripRef, {
+        tripDays: cleanData(updatedDays),
+        scheduleOrder: updatedSchedule.map(i => String(i.id))
+      }, { merge: true });
+
+      // 5. Commit atomic batch in a single request
+      await batch.commit();
+    } catch (err) {
+      console.error("Failed to atomically update trip day date and details:", err);
+      throw err;
+    }
+  });
 };
 
 /**
  * Updates a specific field or replaces a full list in the trip document with ultra-fast writeBatch.
  */
 export const updateTripField = async (tripId: string, field: string, value: any): Promise<void> => {
-  try {
-    if (!tripId) return;
-
-    // If updating scheduleItems, store them in the subcollection using atomic writeBatch
-    if (field === 'scheduleItems' && Array.isArray(value)) {
-      const scheduleColRef = collection(db, 'trips', tripId, 'scheduleItems');
-      const existingSnap = await getDocs(scheduleColRef);
-      const newIds = new Set(value.map(s => String(s.id)));
-
-      const batch = writeBatch(db);
-
-      for (const existingDoc of existingSnap.docs) {
-        if (!newIds.has(existingDoc.id)) {
-          batch.delete(existingDoc.ref);
+  if (!tripId) return;
+  return queueWrite(async () => {
+    try {
+      // If updating scheduleItems, route through coordinated updateTripDaysAndSchedule logic
+      if (field === 'scheduleItems' && Array.isArray(value)) {
+        const scheduleColRef = collection(db, 'trips', tripId, 'scheduleItems');
+        const existingSnap = await getDocs(scheduleColRef);
+        const existingMap = new Map<string, any>();
+        for (const d of existingSnap.docs) {
+          existingMap.set(d.id, d.data());
         }
+        const newIds = new Set(value.map(s => String(s.id)));
+
+        const batch = writeBatch(db);
+        let batchCount = 0;
+
+        // 1. Delete items no longer in list
+        for (const existingDoc of existingSnap.docs) {
+          if (!newIds.has(existingDoc.id)) {
+            batch.delete(existingDoc.ref);
+            batchCount++;
+          }
+        }
+
+        // 2. Only set new items or update changed properties (e.g. date, order)
+        for (let idx = 0; idx < value.length; idx++) {
+          const item = value[idx];
+          if (!item || !item.id) continue;
+          const itemId = String(item.id);
+          const itemRef = doc(db, 'trips', tripId, 'scheduleItems', itemId);
+          const existingData = existingMap.get(itemId);
+          const targetOrder = item.order !== undefined ? item.order : idx;
+
+          if (!existingData) {
+            const itemWithOrder = {
+              ...item,
+              order: targetOrder
+            };
+            batch.set(itemRef, cleanData(itemWithOrder));
+            batchCount++;
+          } else {
+            const updates: Record<string, any> = {};
+            if (existingData.date !== item.date) updates.date = item.date;
+            if (existingData.order !== targetOrder) updates.order = targetOrder;
+            if (existingData.time !== item.time) updates.time = item.time;
+            if (existingData.title !== item.title) updates.title = item.title;
+
+            if (Object.keys(updates).length > 0) {
+              batch.update(itemRef, updates);
+              batchCount++;
+            }
+          }
+        }
+
+        const tripRef = doc(db, 'trips', tripId);
+        const orderIds = value.map(i => String(i.id));
+        batch.set(tripRef, { 
+          scheduleItems: [],
+          scheduleOrder: orderIds 
+        }, { merge: true });
+        batchCount++;
+
+        if (batchCount > 0) {
+          await batch.commit();
+        }
+        return;
       }
 
-      for (let idx = 0; idx < value.length; idx++) {
-        const item = value[idx];
-        if (item && item.id) {
-          const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(item.id));
-          const itemWithOrder = {
-            ...item,
-            order: item.order !== undefined ? item.order : idx
-          };
-          batch.set(itemRef, cleanData(itemWithOrder));
+      // If updating pocketItems, store them in the subcollection using atomic writeBatch
+      if (field === 'pocketItems' && Array.isArray(value)) {
+        const pocketColRef = collection(db, 'trips', tripId, 'pocketItems');
+        const existingSnap = await getDocs(pocketColRef);
+        const newIds = new Set(value.map(p => String(p.id)));
+
+        const batch = writeBatch(db);
+
+        for (const existingDoc of existingSnap.docs) {
+          if (!newIds.has(existingDoc.id)) {
+            batch.delete(existingDoc.ref);
+          }
         }
+
+        for (const item of value) {
+          if (item && item.id) {
+            const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(item.id));
+            batch.set(itemRef, cleanData(item));
+          }
+        }
+
+        const tripRef = doc(db, 'trips', tripId);
+        batch.set(tripRef, { pocketItems: [] }, { merge: true });
+
+        await batch.commit();
+        return;
+      }
+
+      // If updating journals, store them in the subcollection using atomic writeBatch
+      if (field === 'journals' && Array.isArray(value)) {
+        const journalColRef = collection(db, 'trips', tripId, 'journals');
+        const existingSnap = await getDocs(journalColRef);
+        const newIds = new Set(value.map(j => String(j.id)));
+
+        const batch = writeBatch(db);
+
+        for (const existingDoc of existingSnap.docs) {
+          if (!newIds.has(existingDoc.id)) {
+            batch.delete(existingDoc.ref);
+          }
+        }
+
+        for (const item of value) {
+          if (item && item.id) {
+            const itemRef = doc(db, 'trips', tripId, 'journals', String(item.id));
+            batch.set(itemRef, cleanData(item));
+          }
+        }
+
+        const tripRef = doc(db, 'trips', tripId);
+        batch.set(tripRef, { journals: [] }, { merge: true });
+
+        await batch.commit();
+        return;
       }
 
       const tripRef = doc(db, 'trips', tripId);
-      const orderIds = value.map(i => String(i.id));
-      batch.set(tripRef, { 
-        scheduleItems: [],
-        scheduleOrder: orderIds 
+      const cleanedValue = cleanData(value);
+      await setDoc(tripRef, {
+        [field]: cleanedValue
       }, { merge: true });
-
-      await batch.commit();
-      return;
+    } catch (error) {
+      console.error(`Failed to update field ${field}:`, error);
+      throw new Error("同步資料失敗");
     }
-
-    // If updating pocketItems, store them in the subcollection using atomic writeBatch
-    if (field === 'pocketItems' && Array.isArray(value)) {
-      const pocketColRef = collection(db, 'trips', tripId, 'pocketItems');
-      const existingSnap = await getDocs(pocketColRef);
-      const newIds = new Set(value.map(p => String(p.id)));
-
-      const batch = writeBatch(db);
-
-      for (const existingDoc of existingSnap.docs) {
-        if (!newIds.has(existingDoc.id)) {
-          batch.delete(existingDoc.ref);
-        }
-      }
-
-      for (const item of value) {
-        if (item && item.id) {
-          const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(item.id));
-          batch.set(itemRef, cleanData(item));
-        }
-      }
-
-      await batch.commit();
-
-      const tripRef = doc(db, 'trips', tripId);
-      await setDoc(tripRef, { pocketItems: [] }, { merge: true });
-      return;
-    }
-
-    // If updating journals, store them in the subcollection using atomic writeBatch
-    if (field === 'journals' && Array.isArray(value)) {
-      const journalColRef = collection(db, 'trips', tripId, 'journals');
-      const existingSnap = await getDocs(journalColRef);
-      const newIds = new Set(value.map(j => String(j.id)));
-
-      const batch = writeBatch(db);
-
-      for (const existingDoc of existingSnap.docs) {
-        if (!newIds.has(existingDoc.id)) {
-          batch.delete(existingDoc.ref);
-        }
-      }
-
-      for (const item of value) {
-        if (item && item.id) {
-          const itemRef = doc(db, 'trips', tripId, 'journals', String(item.id));
-          batch.set(itemRef, cleanData(item));
-        }
-      }
-
-      await batch.commit();
-
-      const tripRef = doc(db, 'trips', tripId);
-      await setDoc(tripRef, { journals: [] }, { merge: true });
-      return;
-    }
-
-    const tripRef = doc(db, 'trips', tripId);
-    const cleanedValue = cleanData(value);
-    await setDoc(tripRef, {
-      [field]: cleanedValue
-    }, { merge: true });
-  } catch (error) {
-    console.error(`Failed to update field ${field}:`, error);
-    throw new Error("同步資料失敗");
-  }
+  });
 };

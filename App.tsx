@@ -445,8 +445,8 @@ export default function App() {
   };
   
   const handleUpdateDayDetails = (newDate: string, newLoc: string, newFruit: string) => { 
-    handleUpdateTripDayDetails(selectedDate, newDate, newLoc, newFruit, () => {
-      setSelectedDate(newDate);
+    handleUpdateTripDayDetails(selectedDate, newDate, newLoc, newFruit, (updatedDate) => {
+      setSelectedDate(updatedDate || newDate);
       setIsEditDayModalOpen(false);
     });
   };
@@ -1179,7 +1179,15 @@ export default function App() {
         />
         <DeleteItemConfirmModal isOpen={!!itemToDelete} onClose={() => setItemToDelete(null)} onConfirm={confirmDeleteItem} title={scheduleItems.find(i => i.id === itemToDelete)?.title || '此項目'} />
         <PotentialExpensesModal isOpen={isPotentialModalOpen} onClose={() => setIsPotentialModalOpen(false)} items={scheduleItems} currencies={currencies} members={members} onJumpToSchedule={handleJumpToSchedule} />
-        <EditDayDetailsModal isOpen={isEditDayModalOpen} onClose={() => setIsEditDayModalOpen(false)} onConfirm={handleUpdateDayDetails} initialDate={selectedDate} initialLocation={currentLocation} initialFruit={currentFruit} />
+        <EditDayDetailsModal 
+          isOpen={isEditDayModalOpen} 
+          onClose={() => setIsEditDayModalOpen(false)} 
+          onConfirm={handleUpdateDayDetails} 
+          initialDate={selectedDate} 
+          initialLocation={currentLocation} 
+          initialFruit={currentFruit} 
+          existingTripDays={tripDays}
+        />
         <DeleteDayConfirmModal isOpen={isDeleteDayModalOpen} onClose={() => setIsDeleteDayModalOpen(false)} onConfirm={confirmDeleteDay} date={selectedDate} />
         <TripSettingsModal 
           isOpen={isSettingsModalOpen} 
