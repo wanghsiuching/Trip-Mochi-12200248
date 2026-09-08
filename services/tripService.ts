@@ -337,12 +337,12 @@ export const saveScheduleItem = async (tripId: string, item: ScheduleItem): Prom
   if (!tripId || !item || !item.id) return;
   return queueWrite(async () => {
     try {
-      // Proactive safety: Re-compress any oversized Base64 images (>58KB) before saving
+      // Proactive safety: Only re-compress if an image is abnormally giant (>380KB Base64) before saving
       if (Array.isArray(item.images) && item.images.length > 0) {
         const sanitizedImages: string[] = [];
         for (const img of item.images) {
-          if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 58000) {
-            const compressed = await compressBase64IfNeeded(img, 850, 52000);
+          if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 380000) {
+            const compressed = await compressBase64IfNeeded(img, 1200, 320000);
             sanitizedImages.push(compressed);
           } else {
             sanitizedImages.push(img);
@@ -353,11 +353,11 @@ export const saveScheduleItem = async (tripId: string, item: ScheduleItem): Prom
 
       let cleaned = cleanData(item);
 
-      // Check total estimated payload size (scheduleItem can contain multiple images + transit / stay details)
+      // Check total estimated payload size (scheduleItem subcollection doc limit is 1,048,576 bytes)
       const payloadSize = JSON.stringify(cleaned).length;
-      if (payloadSize > 650000 && Array.isArray(cleaned.images)) {
+      if (payloadSize > 880000 && Array.isArray(cleaned.images)) {
         cleaned.images = await Promise.all(
-          cleaned.images.map((img: string) => compressBase64IfNeeded(img, 650, 38000))
+          cleaned.images.map((img: string) => compressBase64IfNeeded(img, 1000, 200000))
         );
       }
 
@@ -378,7 +378,7 @@ export const saveScheduleItem = async (tripId: string, item: ScheduleItem): Prom
           console.warn("Firestore size exceeded, applying emergency image compression...", setErr);
           if (Array.isArray(cleaned.images)) {
             cleaned.images = await Promise.all(
-              cleaned.images.map((img: string) => compressBase64IfNeeded(img, 500, 28000))
+              cleaned.images.map((img: string) => compressBase64IfNeeded(img, 900, 140000))
             );
             const retryBatch = writeBatch(db);
             retryBatch.set(itemRef, cleaned);
@@ -431,16 +431,16 @@ export const savePocketItem = async (tripId: string, item: PocketItem): Promise<
   if (!tripId || !item || !item.id) return;
   return queueWrite(async () => {
     try {
-      // 1. Proactive image array and single image compression
-      if (item.image && typeof item.image === 'string' && item.image.startsWith('data:image/') && item.image.length > 58000) {
-        item = { ...item, image: await compressBase64IfNeeded(item.image, 850, 52000) };
+      // 1. Proactive image array and single image safety check (>380KB)
+      if (item.image && typeof item.image === 'string' && item.image.startsWith('data:image/') && item.image.length > 380000) {
+        item = { ...item, image: await compressBase64IfNeeded(item.image, 1200, 320000) };
       }
 
       if (Array.isArray(item.images) && item.images.length > 0) {
         const sanitizedImages: string[] = [];
         for (const img of item.images) {
-          if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 58000) {
-            const compressed = await compressBase64IfNeeded(img, 850, 52000);
+          if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 380000) {
+            const compressed = await compressBase64IfNeeded(img, 1200, 320000);
             sanitizedImages.push(compressed);
           } else {
             sanitizedImages.push(img);
@@ -451,11 +451,11 @@ export const savePocketItem = async (tripId: string, item: PocketItem): Promise<
 
       let cleaned = cleanData(item);
 
-      // 2. Multi-image document safety: If total size > 650KB, compress images further to prevent 1MB Firestore doc limit
+      // 2. Multi-image document safety: If total size > 880KB, compress images further to prevent 1MB Firestore doc limit
       const payloadSize = JSON.stringify(cleaned).length;
-      if (payloadSize > 650000 && Array.isArray(cleaned.images)) {
+      if (payloadSize > 880000 && Array.isArray(cleaned.images)) {
         cleaned.images = await Promise.all(
-          cleaned.images.map((img: string) => compressBase64IfNeeded(img, 650, 38000))
+          cleaned.images.map((img: string) => compressBase64IfNeeded(img, 1000, 200000))
         );
       }
 
@@ -468,7 +468,7 @@ export const savePocketItem = async (tripId: string, item: PocketItem): Promise<
           console.warn("Firestore pocketItem size exceeded, applying emergency compression...", setErr);
           if (Array.isArray(cleaned.images)) {
             cleaned.images = await Promise.all(
-              cleaned.images.map((img: string) => compressBase64IfNeeded(img, 500, 28000))
+              cleaned.images.map((img: string) => compressBase64IfNeeded(img, 900, 140000))
             );
             await setDoc(itemRef, cleaned);
           } else {
@@ -511,8 +511,8 @@ export const saveJournalItem = async (tripId: string, journal: Journal): Promise
       if (Array.isArray(journal.images) && journal.images.length > 0) {
         const sanitizedImages: string[] = [];
         for (const img of journal.images) {
-          if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 58000) {
-            sanitizedImages.push(await compressBase64IfNeeded(img, 850, 52000));
+          if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 380000) {
+            sanitizedImages.push(await compressBase64IfNeeded(img, 1200, 320000));
           } else {
             sanitizedImages.push(img);
           }
@@ -523,9 +523,9 @@ export const saveJournalItem = async (tripId: string, journal: Journal): Promise
       let cleaned = cleanData(journal);
 
       const payloadSize = JSON.stringify(cleaned).length;
-      if (payloadSize > 650000 && Array.isArray(cleaned.images)) {
+      if (payloadSize > 880000 && Array.isArray(cleaned.images)) {
         cleaned.images = await Promise.all(
-          cleaned.images.map((img: string) => compressBase64IfNeeded(img, 650, 38000))
+          cleaned.images.map((img: string) => compressBase64IfNeeded(img, 1000, 200000))
         );
       }
 
@@ -538,7 +538,7 @@ export const saveJournalItem = async (tripId: string, journal: Journal): Promise
           console.warn("Firestore journal size exceeded, applying emergency compression...", setErr);
           if (Array.isArray(cleaned.images)) {
             cleaned.images = await Promise.all(
-              cleaned.images.map((img: string) => compressBase64IfNeeded(img, 500, 28000))
+              cleaned.images.map((img: string) => compressBase64IfNeeded(img, 900, 140000))
             );
             await setDoc(itemRef, cleaned);
           } else {
