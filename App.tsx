@@ -1,10 +1,10 @@
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
   MapPin, ArrowRight, Plane, Plus, X, Copy, BookOpen, ChevronLeft, Trash2,
   ChevronUp, ChevronDown, Navigation, StickyNote, Settings, AlertCircle, 
   CalendarCheck, Coins, Edit3, Users, Luggage, Briefcase, Bed, Car, Coffee, Utensils, ShoppingBag, Fuel, Ticket, Clock,
-  Train, Camera, Compass, Share2
+  Train, Camera, Compass, Share2, Loader2
 } from 'lucide-react';
 
 import { 
@@ -26,6 +26,7 @@ import { JournalView } from './components/JournalView';
 import { PlanningView } from './components/PlanningView';
 import { MembersView } from './components/MembersView';
 import { createTrip, joinTripByCode, subscribeToTrip, addTripItem, updateTripField, duplicateTrip, sortScheduleItems } from './services/tripService';
+import { getCachedTrip, setCachedTrip, clearCachedTrip } from './utils/tripCache';
 import { 
   useTripData, 
   useBookingsData, 
@@ -44,6 +45,7 @@ export default function App() {
   const scrollRef = useRef<HTMLDivElement>(null);
   
   const [loading, setLoading] = useState(true);
+  const [isTripLoading, setIsTripLoading] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
   const [isShareTripModalOpen, setIsShareTripModalOpen] = useState(false);
   const [pendingMoveItem, setPendingMoveItem] = useState<{
@@ -277,40 +279,105 @@ export default function App() {
     }
   }, []);
 
+  const applyTripData = useCallback((data: any) => {
+    if (!data) return;
+    if (data.name) setCurrentTripName(data.name);
+    if (Array.isArray(data.tripDays)) {
+      setTripDays(data.tripDays);
+      setSelectedDate(prev => {
+        if (!prev && data.tripDays.length > 0) return data.tripDays[0].date;
+        if (data.tripDays.length > 0 && !data.tripDays.find((d: TripDay) => d.date === prev)) {
+          return data.tripDays[0].date;
+        }
+        return prev || (data.tripDays[0]?.date || '');
+      });
+    }
+    if (Array.isArray(data.scheduleItems)) setScheduleItems(data.scheduleItems);
+    if (Array.isArray(data.flights)) setBookingFlights(data.flights);
+    if (Array.isArray(data.accommodations)) setBookingAccommodations(data.accommodations);
+    const cars = data.carRentals || (data.carRental && data.carRental.company ? [data.carRental] : []);
+    if (cars) setBookingCarRentals(cars);
+    if (Array.isArray(data.tickets)) setBookingTickets(data.tickets);
+    if (Array.isArray(data.expenses)) setExpenses(data.expenses);
+    if (Array.isArray(data.journals)) setJournals(data.journals);
+    if (data.planning) {
+      setPlanningLists({
+        todo: data.planning?.todo || [],
+        packing: data.planning?.packing || [],
+        wish: data.planning?.wish || [],
+        shopping: data.planning?.shopping || [],
+        documents: data.planning?.documents || [],
+      });
+    }
+    if (Array.isArray(data.currencies)) setCurrencies(data.currencies);
+    if (Array.isArray(data.members)) setMembers(data.members);
+    if (Array.isArray(data.pocketItems)) setPocketItems(data.pocketItems);
+  }, [
+    setTripDays,
+    setSelectedDate,
+    setScheduleItems,
+    setBookingFlights,
+    setBookingAccommodations,
+    setBookingCarRentals,
+    setBookingTickets,
+    setExpenses,
+    setJournals,
+    setPlanningLists,
+    setCurrencies,
+    setMembers,
+    setPocketItems,
+    setCurrentTripName
+  ]);
+
+  const clearTripStates = useCallback(() => {
+    setTripDays([]);
+    setSelectedDate('');
+    setScheduleItems([]);
+    setBookingFlights([]);
+    setBookingAccommodations([]);
+    setBookingCarRentals([]);
+    setBookingTickets([]);
+    setExpenses([]);
+    setJournals([]);
+    setPlanningLists({ todo: [], packing: [], wish: [], shopping: [], documents: [] });
+    setCurrencies([]);
+    setMembers([]);
+    setPocketItems([]);
+  }, [
+    setTripDays,
+    setSelectedDate,
+    setScheduleItems,
+    setBookingFlights,
+    setBookingAccommodations,
+    setBookingCarRentals,
+    setBookingTickets,
+    setExpenses,
+    setJournals,
+    setPlanningLists,
+    setCurrencies,
+    setMembers,
+    setPocketItems
+  ]);
+
   useEffect(() => {
       if (!currentTripId) return;
+
+      // 1. Instant Cache Hydration: Render immediately with zero delay
+      const cached = getCachedTrip(currentTripId);
+      if (cached) {
+        applyTripData(cached);
+        setIsTripLoading(false);
+      }
+
       const unsubscribe = subscribeToTrip(currentTripId, (data) => {
-          setTripDays(data.tripDays || []);
-          setSelectedDate(prev => {
-            if (!prev && data.tripDays?.length > 0) return data.tripDays[0].date;
-            if (data.tripDays?.length > 0 && !data.tripDays.find((d: TripDay) => d.date === prev)) {
-              return data.tripDays[0].date;
-            }
-            return prev;
-          });
-          setScheduleItems(data.scheduleItems || []);
-          setBookingFlights(data.flights || []);
-          setBookingAccommodations(data.accommodations || []);
-          const cars = data.carRentals || (data.carRental && data.carRental.company ? [data.carRental] : []);
-          setBookingCarRentals(cars);
-          setBookingTickets(data.tickets || []);
-          setExpenses(data.expenses || []);
-          setJournals(data.journals || []);
-          setPlanningLists({
-            todo: data.planning?.todo || [],
-            packing: data.planning?.packing || [],
-            wish: data.planning?.wish || [],
-            shopping: data.planning?.shopping || [],
-            documents: data.planning?.documents || [],
-          });
-          setCurrencies(data.currencies || []);
-          setMembers(data.members || []);
-          setPocketItems(data.pocketItems || []);
-          setCurrentTripName(data.name || '未命名行程');
+          applyTripData(data);
+          // Persist to local cache for instant future loads
+          setCachedTrip(currentTripId, data);
+          setIsTripLoading(false);
           setLoading(false);
       });
       return () => unsubscribe();
-  }, [currentTripId]);
+  }, [currentTripId, applyTripData]);
 
   useEffect(() => {
       if (savedTrips.length > 0) localStorage.setItem('trip_mochi_index', JSON.stringify(savedTrips));
@@ -332,20 +399,38 @@ export default function App() {
     if(!inputDetail) return; setIsSearching(true);
     const cleanId = inputDetail.trim().toUpperCase();
     try {
+        // If cached on this device, open immediately
+        const cached = getCachedTrip(cleanId);
+        if (cached) {
+          openTrip(cleanId, cached.name || '我的行程');
+        }
         const tripData = await joinTripByCode(cleanId);
         setSavedTrips(prev => [{ id: cleanId, name: tripData.name, date: new Date().toISOString().split('T')[0] }, ...prev.filter(t => t.id !== cleanId)]);
+        setCachedTrip(cleanId, tripData);
         openTrip(cleanId, tripData.name);
     } catch (e) { setSearchError('找不到此行程碼'); } finally { setIsSearching(false); }
   };
 
   const handleDeleteTrip = () => {
     if (!deleteModalTarget) return;
+    clearCachedTrip(deleteModalTarget);
     setSavedTrips(prev => prev.filter(t => t.id !== deleteModalTarget));
     setDeleteModalTarget(null);
   };
 
   const openTrip = (id: string, name: string) => {
     setCurrentTripId(id); setCurrentTripName(name);
+
+    // 1. Instant Cache Hydration: Render immediately with zero delay
+    const cached = getCachedTrip(id);
+    if (cached) {
+      applyTripData(cached);
+      setIsTripLoading(false);
+    } else {
+      clearTripStates();
+      setIsTripLoading(true);
+    }
+
     try {
       const newUrl = `${window.location.pathname}?tripCode=${id}`;
       window.history.pushState({ path: newUrl }, '', newUrl);
@@ -645,6 +730,11 @@ export default function App() {
               >
                 <Share2 size={13} strokeWidth={2.5} className="group-hover:rotate-12 transition-transform"/> 分享行程
               </button>
+              {isTripLoading && (
+                <span className="text-[11px] font-bold text-sage bg-white/90 border border-sage/30 px-2.5 py-1 rounded-xl flex items-center gap-1.5 shadow-sm">
+                  <Loader2 size={12} className="animate-spin text-sage" /> 同步手帳中...
+                </span>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-3 pt-6 flex-shrink-0">
@@ -663,44 +753,55 @@ export default function App() {
                     <div className="flex items-center gap-2 flex-wrap justify-end min-w-0">{tripDays.length > 1 && <button onClick={() => setIsDeleteDayModalOpen(true)} className="p-1.5 bg-red-100 text-red-500 rounded-full border border-red-200 flex-shrink-0"><Trash2 size={12} /></button>}<button onClick={() => setIsEditDayModalOpen(true)} className="text-[10px] font-bold px-2.5 py-1 rounded-full border bg-white border-[#E0E5D5] text-cocoa flex items-center gap-1 shadow-sm max-w-full text-left leading-tight"><span className="break-words">{currentFruit} {currentLocation}</span></button></div>
                  </div>
                  
-                 <div ref={scrollRef} className="flex space-x-2 overflow-x-auto no-scrollbar pb-1 snap-x touch-pan-x">
-                   {dates.map((date, idx) => {
-                     const isSelected = selectedDate === date.date;
-                     const isSwapping = swappingFromIndex === idx;
-                     const isPotentialTarget = swappingFromIndex !== null && swappingFromIndex !== idx;
+                 {isTripLoading && dates.length === 0 ? (
+                   <div className="flex space-x-2 overflow-x-auto no-scrollbar pb-1">
+                     {[1, 2, 3, 4].map(d => (
+                       <div key={d} className="flex-shrink-0 flex flex-col items-center justify-center w-[3.75rem] min-w-[3.75rem] h-16 rounded-2xl bg-white/70 border-2 border-[#E0E5D5] animate-pulse">
+                         <div className="w-8 h-2 bg-gray-200 rounded mb-1.5" />
+                         <div className="w-6 h-4 bg-gray-200 rounded" />
+                       </div>
+                     ))}
+                   </div>
+                 ) : (
+                   <div ref={scrollRef} className="flex space-x-2 overflow-x-auto no-scrollbar pb-1 snap-x touch-pan-x">
+                     {dates.map((date, idx) => {
+                       const isSelected = selectedDate === date.date;
+                       const isSwapping = swappingFromIndex === idx;
+                       const isPotentialTarget = swappingFromIndex !== null && swappingFromIndex !== idx;
 
-                     return (
-                        <div 
-                            key={date.date} 
-                            data-day-index={idx}
-                            onTouchStart={(e) => handleDayTouchStart(idx, e)}
-                            onTouchMove={handleDayTouchMove}
-                            onTouchEnd={handleDayTouchEnd}
-                            onTouchCancel={handleDayTouchEnd}
-                            onMouseDown={(e) => handleDayTouchStart(idx, e)}
-                            onMouseUp={handleDayTouchEnd}
-                            onContextMenu={(e) => e.preventDefault()}
-                            onClick={() => handleDayItemClick(idx, date.date)}
-                            style={{ WebkitTouchCallout: 'none', userSelect: 'none' }}
-                            className={`flex-shrink-0 flex flex-col items-center justify-center w-[3.75rem] min-w-[3.75rem] h-16 rounded-2xl transition-all snap-center cursor-pointer relative overflow-hidden select-none px-1
-                                ${isSwapping ? 'animate-pulse bg-orange-100 border-orange-400 scale-110 shadow-lg border-2 z-20' : 
-                                  isPotentialTarget ? 'bg-white border-dashed border-orange-200 opacity-90 scale-95' :
-                                  isSelected ? `bg-sage shadow-hard-sm-sage border-sage text-white scale-105 border-2` : 
-                                  'bg-white border-2 border-[#E0E5D5] text-gray-400 hover:border-sage'}`}
-                        >
-                            {isSwapping && (
-                                <div className="absolute top-0 left-0 w-full bg-orange-400 text-white text-[7px] font-black text-center py-0.5 uppercase tracking-tighter shadow-sm z-30">
-                                    對調中
-                                </div>
-                            )}
-                            <span className={`text-[9px] font-black uppercase tracking-tight ${isSelected ? 'opacity-90' : 'text-[#B0A590]'}`}>Day {date.dayNum}</span>
-                            <span className="text-[15px] font-black leading-tight my-0.5 tracking-tight">{date.monthDay}</span>
-                            <span className={`text-[10px] font-bold ${isSelected ? 'opacity-90' : 'opacity-70'}`}>{date.weekday}</span>
-                        </div>
-                     );
-                   })}
-                   <button onClick={handleAddDay} className="flex-shrink-0 flex flex-col items-center justify-center w-[3.75rem] min-w-[3.75rem] h-16 rounded-2xl border-2 border-dashed border-[#E0E5D5] text-gray-300 hover:text-sage bg-white/50 snap-center"><Plus size={24} strokeWidth={3} /></button>
-                 </div>
+                       return (
+                          <div 
+                              key={date.date} 
+                              data-day-index={idx}
+                              onTouchStart={(e) => handleDayTouchStart(idx, e)}
+                              onTouchMove={handleDayTouchMove}
+                              onTouchEnd={handleDayTouchEnd}
+                              onTouchCancel={handleDayTouchEnd}
+                              onMouseDown={(e) => handleDayTouchStart(idx, e)}
+                              onMouseUp={handleDayTouchEnd}
+                              onContextMenu={(e) => e.preventDefault()}
+                              onClick={() => handleDayItemClick(idx, date.date)}
+                              style={{ WebkitTouchCallout: 'none', userSelect: 'none' }}
+                              className={`flex-shrink-0 flex flex-col items-center justify-center w-[3.75rem] min-w-[3.75rem] h-16 rounded-2xl transition-all snap-center cursor-pointer relative overflow-hidden select-none px-1
+                                  ${isSwapping ? 'animate-pulse bg-orange-100 border-orange-400 scale-110 shadow-lg border-2 z-20' : 
+                                    isPotentialTarget ? 'bg-white border-dashed border-orange-200 opacity-90 scale-95' :
+                                    isSelected ? `bg-sage shadow-hard-sm-sage border-sage text-white scale-105 border-2` : 
+                                    'bg-white border-2 border-[#E0E5D5] text-gray-400 hover:border-sage'}`}
+                          >
+                              {isSwapping && (
+                                  <div className="absolute top-0 left-0 w-full bg-orange-400 text-white text-[7px] font-black text-center py-0.5 uppercase tracking-tighter shadow-sm z-30">
+                                      對調中
+                                  </div>
+                              )}
+                              <span className={`text-[9px] font-black uppercase tracking-tight ${isSelected ? 'opacity-90' : 'text-[#B0A590]'}`}>Day {date.dayNum}</span>
+                              <span className="text-[15px] font-black leading-tight my-0.5 tracking-tight">{date.monthDay}</span>
+                              <span className={`text-[10px] font-bold ${isSelected ? 'opacity-90' : 'opacity-70'}`}>{date.weekday}</span>
+                          </div>
+                       );
+                     })}
+                     <button onClick={handleAddDay} className="flex-shrink-0 flex flex-col items-center justify-center w-[3.75rem] min-w-[3.75rem] h-16 rounded-2xl border-2 border-dashed border-[#E0E5D5] text-gray-300 hover:text-sage bg-white/50 snap-center"><Plus size={24} strokeWidth={3} /></button>
+                   </div>
+                 )}
                  <div className="mt-2 flex flex-col sm:flex-row sm:justify-between sm:items-center px-1 gap-2">
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400">
                         <span className="w-1.5 h-1.5 rounded-full bg-sage/80 flex-shrink-0"></span>
@@ -749,9 +850,26 @@ export default function App() {
                </div>
 
                <div className="px-2.5 sm:px-4 pt-2">
-                  <div className="relative border-l-2 border-beige-dark ml-2.5 sm:ml-3 space-y-6 py-2">
-                    {currentDayScheduleItems.length === 0 && (<div className="pl-6 text-gray-400 font-bold italic py-10">此日期尚無行程，點擊右下角新增！</div>)}
-                    {currentDayScheduleItems.map((item, index) => {
+                  {isTripLoading && currentDayScheduleItems.length === 0 ? (
+                    <div className="space-y-4 py-3 pl-4 sm:pl-6 animate-pulse">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="bg-white/80 rounded-[1.75rem] border-2 border-beige-dark p-4 shadow-hard-sm flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-gray-200 flex-shrink-0 animate-pulse" />
+                          <div className="flex-1 space-y-2 py-1">
+                            <div className="h-4 bg-gray-200 rounded-md w-1/3 animate-pulse" />
+                            <div className="h-5 bg-gray-200 rounded-md w-2/3 animate-pulse" />
+                          </div>
+                        </div>
+                      ))}
+                      <div className="text-center py-4 text-xs font-bold text-gray-400 flex items-center justify-center gap-2">
+                        <Loader2 size={14} className="animate-spin text-sage" />
+                        <span>正在同步行程手帳資料...</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="relative border-l-2 border-beige-dark ml-2.5 sm:ml-3 space-y-6 py-2">
+                      {currentDayScheduleItems.length === 0 && (<div className="pl-6 text-gray-400 font-bold italic py-10">此日期尚無行程，點擊右下角新增！</div>)}
+                      {currentDayScheduleItems.map((item, index) => {
                       let icon = MapPin; let colorClass = 'bg-gray-100 text-gray-500';
                       if (item.type === 'food') { icon = Utensils; colorClass = 'bg-orange-100 text-orange-500'; }
                       if (item.type === 'transport') { icon = Train; colorClass = 'bg-blue-100 text-blue-500'; }
@@ -1129,6 +1247,7 @@ export default function App() {
                       );
                     })}
                   </div>
+                  )}
                </div>
                <button onClick={() => { setEditingItem(null); setIsAddModalOpen(true); }} className="fixed bottom-24 right-5 bg-cocoa text-white shadow-hard-sage active:translate-y-1 active:shadow-none z-30 flex items-center gap-2 px-4 py-3 rounded-[2rem] border-2 border-cocoa"><Plus size={20} strokeWidth={3} /><span className="font-bold tracking-widest text-base">新增</span></button>
             </div>

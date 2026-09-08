@@ -5,18 +5,24 @@ import { saveJournalItem, deleteJournalItem } from '../services/tripService';
 export const useJournalsData = (currentTripId: string) => {
   const [journals, setJournals] = useState<Journal[]>([]);
 
-  const handleAddJournal = (newJournal: Journal) => {
+  const handleAddJournal = async (newJournal: Journal): Promise<void> => {
     setJournals(prev => [newJournal, ...prev.filter(j => j.id !== newJournal.id)]);
-    saveJournalItem(currentTripId, newJournal).catch(err => {
+    try {
+      await saveJournalItem(currentTripId, newJournal);
+    } catch (err) {
       console.error("Failed to save journal:", err);
-    });
+      throw err;
+    }
   };
 
-  const handleUpdateJournal = (updated: Journal) => {
+  const handleUpdateJournal = async (updated: Journal): Promise<void> => {
     setJournals(prev => prev.map(j => j.id === updated.id ? updated : j));
-    saveJournalItem(currentTripId, updated).catch(err => {
+    try {
+      await saveJournalItem(currentTripId, updated);
+    } catch (err) {
       console.error("Failed to update journal:", err);
-    });
+      throw err;
+    }
   };
 
   const handleDeleteJournal = (id: number) => {

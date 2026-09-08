@@ -24,8 +24,8 @@ interface PocketPlacesModalProps {
   tripId?: string;
   pocketItems: PocketItem[];
   tripDays: TripDay[];
-  onAddItem: (item: Omit<PocketItem, 'id' | 'createdAt'>) => void;
-  onUpdateItem: (item: PocketItem) => void;
+  onAddItem: (item: Omit<PocketItem, 'id' | 'createdAt'>) => Promise<void> | void;
+  onUpdateItem: (item: PocketItem) => Promise<void> | void;
   onDeleteItem: (id: string) => void;
   onAddToSchedule?: (item: PocketItem, targetDate: string, time: string) => void;
 }
@@ -56,6 +56,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formImages, setFormImages] = useState<FormImageItem[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Lightbox State
@@ -219,20 +220,42 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
     setFormImages(prev => prev.filter(img => img.id !== idToRemove));
   };
 
-  const handleSaveForm = (e: React.FormEvent) => {
+  const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title.trim()) return;
+    if (!formData.title.trim() || isSaving) return;
 
-    // Filter only fully compressed base64 / valid URLs (never allow transient blob: URLs to database)
-    const finalImages = formImages
-      .filter(img => img.isReady && img.url && (img.url.startsWith('data:image/') || img.url.startsWith('http')))
-      .map(img => img.url);
+    if (formImages.some(img => !img.isReady)) {
+      setUploadError('圖片尚在壓縮中，請稍候片刻再儲存');
+      return;
+    }
 
-    if (editingId) {
-      const original = pocketItems.find(p => p.id === editingId);
-      if (original) {
-        onUpdateItem({
-          ...original,
+    setIsSaving(true);
+    setUploadError(null);
+
+    try {
+      // Filter only fully compressed base64 / valid URLs (never allow transient blob: URLs to database)
+      const finalImages = formImages
+        .filter(img => img.isReady && img.url && (img.url.startsWith('data:image/') || img.url.startsWith('http')))
+        .map(img => img.url);
+
+      if (editingId) {
+        const original = pocketItems.find(p => p.id === editingId);
+        if (original) {
+          await onUpdateItem({
+            ...original,
+            category: formData.category,
+            title: formData.title.trim(),
+            location: formData.location.trim(),
+            url: formData.url.trim(),
+            notes: formData.notes.trim(),
+            tag: formData.tag.trim(),
+            rating: formData.rating,
+            assignedDate: formData.assignedDate,
+            images: finalImages,
+          });
+        }
+      } else {
+        await onAddItem({
           category: formData.category,
           title: formData.title.trim(),
           location: formData.location.trim(),
@@ -242,25 +265,23 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
           rating: formData.rating,
           assignedDate: formData.assignedDate,
           images: finalImages,
+          isVisited: false,
         });
       }
-    } else {
-      onAddItem({
-        category: formData.category,
-        title: formData.title.trim(),
-        location: formData.location.trim(),
-        url: formData.url.trim(),
-        notes: formData.notes.trim(),
-        tag: formData.tag.trim(),
-        rating: formData.rating,
-        assignedDate: formData.assignedDate,
-        images: finalImages,
-        isVisited: false,
-      });
-    }
 
-    setIsFormOpen(false);
-    setEditingId(null);
+      // 儲存成功才關閉表單，確保使用者編輯資料絕不遺失
+      setIsFormOpen(false);
+      setEditingId(null);
+    } catch (err: any) {
+      console.error('儲存口袋名單失敗:', err);
+      setUploadError(
+        err?.message?.includes('size') || err?.message?.includes('1,048,576')
+          ? '照片總容量過大超出儲存限制，請嘗試刪除 1～2 張照片後再按儲存（您的筆記文字已完整保留！）。'
+          : '儲存失敗，請重試！您的編輯內容與備註皆已完整保留，未遺失。'
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleToggleVisited = (item: PocketItem) => {
@@ -1027,9 +1048,9 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                 </button>
                 <button
                   type="submit"
-                  disabled={formImages.some(img => !img.isReady)}
+                  disabled={isSaving || formImages.some(img => !img.isReady)}
                   className={`flex-1 py-3.5 rounded-2xl ${
-                    formImages.some(img => !img.isReady)
+                    isSaving || formImages.some(img => !img.isReady)
                       ? 'bg-gray-400 cursor-not-allowed opacity-80'
                       : formData.category === 'food' 
                       ? 'bg-orange-500 hover:bg-orange-600 active:scale-95' 
@@ -1038,10 +1059,15 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                       : 'bg-rose-500 hover:bg-rose-600 active:scale-95'
                   } text-white font-black text-sm shadow-md transition-all flex items-center justify-center gap-2`}
                 >
-                  {formImages.some(img => !img.isReady) ? (
+                  {isSaving ? (
                     <>
                       <Loader2 size={16} className="animate-spin" />
-                      <span>圖片上傳處理中...</span>
+                      <span>儲存資料中...</span>
+                    </>
+                  ) : formImages.some(img => !img.isReady) ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>圖片處理中...</span>
                     </>
                   ) : (
                     editingId ? '儲存變更' : '新增項目'

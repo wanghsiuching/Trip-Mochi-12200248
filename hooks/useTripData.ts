@@ -14,11 +14,11 @@ export const useTripData = (currentTripId: string) => {
   const [tripDays, setTripDays] = useState<TripDay[]>([]);
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
 
-  const handleSaveItem = (
+  const handleSaveItem = async (
     itemData: Omit<ScheduleItem, 'id'>, 
     editingItem: ScheduleItem | null, 
     onSaved?: () => void
-  ) => {
+  ): Promise<void> => {
     if (editingItem) {
       const fullItem: ScheduleItem = { 
         ...itemData, 
@@ -27,9 +27,12 @@ export const useTripData = (currentTripId: string) => {
       };
       setScheduleItems(prev => sortScheduleItems(prev.map(item => item.id === editingItem.id ? fullItem : item)));
       if (onSaved) onSaved();
-      saveScheduleItem(currentTripId, fullItem).catch(err => {
+      try {
+        await saveScheduleItem(currentTripId, fullItem);
+      } catch (err) {
         console.error("Failed to save edited schedule item:", err);
-      });
+        throw err;
+      }
     } else {
       const sameDayItems = scheduleItems.filter(i => i.date === itemData.date);
       const nextOrder = sameDayItems.length > 0 
@@ -42,9 +45,12 @@ export const useTripData = (currentTripId: string) => {
       };
       setScheduleItems(prev => sortScheduleItems([...prev, newItem]));
       if (onSaved) onSaved();
-      saveScheduleItem(currentTripId, newItem).catch(err => {
+      try {
+        await saveScheduleItem(currentTripId, newItem);
+      } catch (err) {
         console.error("Failed to save new schedule item:", err);
-      });
+        throw err;
+      }
     }
   };
 

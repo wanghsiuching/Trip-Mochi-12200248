@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Camera, Utensils, Train, Bed, Plane, X, Navigation, 
   ExternalLink, Clock, DollarSign, Fuel, Plus, AlignLeft, Car, Ticket, Coffee,
-  Image as ImageIcon, Upload, Trash2, Loader2, ArrowLeft, ArrowRight, Star, Move, Check
+  Image as ImageIcon, Upload, Trash2, Loader2, ArrowLeft, ArrowRight, Star, Move, Check, AlertCircle
 } from 'lucide-react';
 import { ItemType, ScheduleItem, Currency, Member, ExpenseItem, TransitLeg, TransitFareDetails } from '../../types';
 import { TransitLegEditor } from '../TransitComponents';
@@ -61,7 +61,7 @@ export const AddScheduleModal = ({
 }: { 
   isOpen: boolean, 
   onClose: () => void, 
-  onSave: (item: Omit<ScheduleItem, 'id'>) => void,
+  onSave: (item: Omit<ScheduleItem, 'id'>) => Promise<void> | void,
   onDelete?: (id: string) => void,
   initialData?: ScheduleItem | null,
   currencies?: Currency[],
@@ -72,6 +72,8 @@ export const AddScheduleModal = ({
   const [step, setStep] = useState<'category' | 'details'>('category');
   const [selectedType, setSelectedType] = useState<ItemType>('spot');
   const [isDeleteScheduleConfirmOpen, setIsDeleteScheduleConfirmOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   
   // Basic Fields
   const [title, setTitle] = useState('');
@@ -435,7 +437,7 @@ export const AddScheduleModal = ({
   const removeRentalExpense = (id: string) => setRentalExpenses(prev => prev.filter(item => item.id !== id));
   const confirmRemoveExpense = () => { if (expenseToDelete) { removeRentalExpense(expenseToDelete); setExpenseToDelete(null); } };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     let finalTitle = title;
     let finalLocation = location || '未指定地點';
 
@@ -534,7 +536,24 @@ export const AddScheduleModal = ({
         hasTicket, ticketCost: hasTicket ? (Number(ticketCost) || 0) : undefined, currency: hasTicket ? selectedCurrency : undefined, hasServiceFee, serviceFee: (hasTicket && hasServiceFee) ? (Number(ticketCost) || 0) * (Number(serviceFeePercentage) || 0) / 100 : undefined, serviceFeePercentage: (hasTicket && hasServiceFee) ? (Number(serviceFeePercentage) || 0) : undefined, participants: hasTicket ? participantIds : undefined, isPotential: hasTicket ? isPotential : false
       };
     }
-    onSave(itemData); onClose();
+    
+    if (isSaving) return;
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      await onSave(itemData);
+      onClose();
+    } catch (err: any) {
+      console.error('儲存行程項目失敗:', err);
+      setSaveError(
+        err?.message?.includes('size') || err?.message?.includes('1,048,576')
+          ? '照片總容量過大超出儲存限制，請嘗試刪除 1～2 張照片後再按儲存（您的編輯文字已完整保留！）。'
+          : '儲存失敗，請重試！您的編輯內容已完整保留，未遺失。'
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Reusable Components
@@ -1307,19 +1326,52 @@ export const AddScheduleModal = ({
              </div>
            </div>
 
+           {saveError && (
+             <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-xs font-bold text-red-600 animate-fade-in">
+               <AlertCircle size={16} className="flex-shrink-0 text-red-500" />
+               <span className="flex-1">{saveError}</span>
+               <button
+                 type="button"
+                 onClick={() => setSaveError(null)}
+                 className="p-1 hover:bg-red-100 rounded-lg text-red-400"
+               >
+                 <X size={14} />
+               </button>
+             </div>
+           )}
+
            <div className="pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0 flex gap-3">
              {initialData && onDelete && (
                <button 
                  type="button" 
                  onClick={() => setIsDeleteScheduleConfirmOpen(true)}
-                 className="px-4 sm:px-5 py-4 rounded-2xl font-bold bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 border-2 border-red-200 transition-all active:translate-y-1 flex items-center justify-center gap-2 text-base flex-shrink-0 shadow-sm"
+                 disabled={isSaving}
+                 className="px-4 sm:px-5 py-4 rounded-2xl font-bold bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 border-2 border-red-200 transition-all active:translate-y-1 flex items-center justify-center gap-2 text-base flex-shrink-0 shadow-sm disabled:opacity-50"
                  title="刪除此行程項目"
                >
                  <Trash2 size={18} strokeWidth={2.5} />
                  <span>刪除項目</span>
                </button>
              )}
-             <button onClick={handleSubmit} className="flex-1 py-4 rounded-2xl bg-sage text-white text-lg font-bold shadow-hard-sage active:translate-y-1 active:shadow-none transition-all border-2 border-sage">{initialData ? '確認修改' : '確認新增'}</button>
+             <button 
+               onClick={handleSubmit} 
+               disabled={isSaving || isUploadingImage}
+               className="flex-1 py-4 rounded-2xl bg-sage text-white text-lg font-bold shadow-hard-sage active:translate-y-1 active:shadow-none transition-all border-2 border-sage disabled:bg-gray-400 disabled:border-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+             >
+               {isSaving ? (
+                 <>
+                   <Loader2 size={20} className="animate-spin" />
+                   <span>儲存中...</span>
+                 </>
+               ) : isUploadingImage ? (
+                 <>
+                   <Loader2 size={20} className="animate-spin" />
+                   <span>照片處理中...</span>
+                 </>
+               ) : (
+                 initialData ? '確認修改' : '確認新增'
+               )}
+             </button>
            </div>
           </div>
         )}

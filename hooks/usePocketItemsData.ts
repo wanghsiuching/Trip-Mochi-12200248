@@ -5,23 +5,29 @@ import { savePocketItem, deletePocketItem, saveScheduleItem } from '../services/
 export const usePocketItemsData = (currentTripId: string) => {
   const [pocketItems, setPocketItems] = useState<PocketItem[]>([]);
 
-  const handleAddPocketItem = (item: Omit<PocketItem, 'id' | 'createdAt'>) => {
+  const handleAddPocketItem = async (item: Omit<PocketItem, 'id' | 'createdAt'>): Promise<void> => {
     const newItem: PocketItem = {
       ...item,
       id: Date.now().toString(),
       createdAt: Date.now(),
     };
     setPocketItems(prev => [newItem, ...prev.filter(p => p.id !== newItem.id)]);
-    savePocketItem(currentTripId, newItem).catch(err => {
+    try {
+      await savePocketItem(currentTripId, newItem);
+    } catch (err) {
       console.error('Failed to add pocket item:', err);
-    });
+      throw err;
+    }
   };
 
-  const handleUpdatePocketItem = (updated: PocketItem) => {
+  const handleUpdatePocketItem = async (updated: PocketItem): Promise<void> => {
     setPocketItems(prev => prev.map(p => p.id === updated.id ? updated : p));
-    savePocketItem(currentTripId, updated).catch(err => {
+    try {
+      await savePocketItem(currentTripId, updated);
+    } catch (err) {
       console.error('Failed to update pocket item:', err);
-    });
+      throw err;
+    }
   };
 
   const handleDeletePocketItem = (id: string) => {

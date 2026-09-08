@@ -342,7 +342,7 @@ export const saveScheduleItem = async (tripId: string, item: ScheduleItem): Prom
         const sanitizedImages: string[] = [];
         for (const img of item.images) {
           if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 58000) {
-            const compressed = await compressBase64IfNeeded(img, 750, 52000);
+            const compressed = await compressBase64IfNeeded(img, 850, 52000);
             sanitizedImages.push(compressed);
           } else {
             sanitizedImages.push(img);
@@ -351,7 +351,16 @@ export const saveScheduleItem = async (tripId: string, item: ScheduleItem): Prom
         item = { ...item, images: sanitizedImages };
       }
 
-      const cleaned = cleanData(item);
+      let cleaned = cleanData(item);
+
+      // Check total estimated payload size (scheduleItem can contain multiple images + transit / stay details)
+      const payloadSize = JSON.stringify(cleaned).length;
+      if (payloadSize > 650000 && Array.isArray(cleaned.images)) {
+        cleaned.images = await Promise.all(
+          cleaned.images.map((img: string) => compressBase64IfNeeded(img, 650, 38000))
+        );
+      }
+
       const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(item.id));
       const tripRef = doc(db, 'trips', tripId);
 
@@ -369,7 +378,7 @@ export const saveScheduleItem = async (tripId: string, item: ScheduleItem): Prom
           console.warn("Firestore size exceeded, applying emergency image compression...", setErr);
           if (Array.isArray(cleaned.images)) {
             cleaned.images = await Promise.all(
-              cleaned.images.map((img: string) => compressBase64IfNeeded(img, 600, 42000))
+              cleaned.images.map((img: string) => compressBase64IfNeeded(img, 500, 28000))
             );
             const retryBatch = writeBatch(db);
             retryBatch.set(itemRef, cleaned);
@@ -422,13 +431,53 @@ export const savePocketItem = async (tripId: string, item: PocketItem): Promise<
   if (!tripId || !item || !item.id) return;
   return queueWrite(async () => {
     try {
+      // 1. Proactive image array and single image compression
       if (item.image && typeof item.image === 'string' && item.image.startsWith('data:image/') && item.image.length > 58000) {
-        item = { ...item, image: await compressBase64IfNeeded(item.image, 750, 52000) };
+        item = { ...item, image: await compressBase64IfNeeded(item.image, 850, 52000) };
       }
 
-      const cleaned = cleanData(item);
+      if (Array.isArray(item.images) && item.images.length > 0) {
+        const sanitizedImages: string[] = [];
+        for (const img of item.images) {
+          if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 58000) {
+            const compressed = await compressBase64IfNeeded(img, 850, 52000);
+            sanitizedImages.push(compressed);
+          } else {
+            sanitizedImages.push(img);
+          }
+        }
+        item = { ...item, images: sanitizedImages };
+      }
+
+      let cleaned = cleanData(item);
+
+      // 2. Multi-image document safety: If total size > 650KB, compress images further to prevent 1MB Firestore doc limit
+      const payloadSize = JSON.stringify(cleaned).length;
+      if (payloadSize > 650000 && Array.isArray(cleaned.images)) {
+        cleaned.images = await Promise.all(
+          cleaned.images.map((img: string) => compressBase64IfNeeded(img, 650, 38000))
+        );
+      }
+
       const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(item.id));
-      await setDoc(itemRef, cleaned);
+      
+      try {
+        await setDoc(itemRef, cleaned);
+      } catch (setErr: any) {
+        if (setErr?.message?.includes('size') || setErr?.message?.includes('1,048,576') || setErr?.code === 'resource-exhausted') {
+          console.warn("Firestore pocketItem size exceeded, applying emergency compression...", setErr);
+          if (Array.isArray(cleaned.images)) {
+            cleaned.images = await Promise.all(
+              cleaned.images.map((img: string) => compressBase64IfNeeded(img, 500, 28000))
+            );
+            await setDoc(itemRef, cleaned);
+          } else {
+            throw setErr;
+          }
+        } else {
+          throw setErr;
+        }
+      }
     } catch (err) {
       console.error("Failed to save pocket item to subcollection:", err);
       throw err;
@@ -463,7 +512,7 @@ export const saveJournalItem = async (tripId: string, journal: Journal): Promise
         const sanitizedImages: string[] = [];
         for (const img of journal.images) {
           if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 58000) {
-            sanitizedImages.push(await compressBase64IfNeeded(img, 750, 52000));
+            sanitizedImages.push(await compressBase64IfNeeded(img, 850, 52000));
           } else {
             sanitizedImages.push(img);
           }
@@ -471,9 +520,34 @@ export const saveJournalItem = async (tripId: string, journal: Journal): Promise
         journal = { ...journal, images: sanitizedImages };
       }
 
-      const cleaned = cleanData(journal);
+      let cleaned = cleanData(journal);
+
+      const payloadSize = JSON.stringify(cleaned).length;
+      if (payloadSize > 650000 && Array.isArray(cleaned.images)) {
+        cleaned.images = await Promise.all(
+          cleaned.images.map((img: string) => compressBase64IfNeeded(img, 650, 38000))
+        );
+      }
+
       const itemRef = doc(db, 'trips', tripId, 'journals', String(journal.id));
-      await setDoc(itemRef, cleaned);
+      
+      try {
+        await setDoc(itemRef, cleaned);
+      } catch (setErr: any) {
+        if (setErr?.message?.includes('size') || setErr?.message?.includes('1,048,576') || setErr?.code === 'resource-exhausted') {
+          console.warn("Firestore journal size exceeded, applying emergency compression...", setErr);
+          if (Array.isArray(cleaned.images)) {
+            cleaned.images = await Promise.all(
+              cleaned.images.map((img: string) => compressBase64IfNeeded(img, 500, 28000))
+            );
+            await setDoc(itemRef, cleaned);
+          } else {
+            throw setErr;
+          }
+        } else {
+          throw setErr;
+        }
+      }
     } catch (err) {
       console.error("Failed to save journal item to subcollection:", err);
       throw err;
@@ -512,6 +586,14 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
     let subcollectionScheduleItems: ScheduleItem[] = [];
     let subcollectionPocketItems: PocketItem[] = [];
     let subcollectionJournals: Journal[] = [];
+
+    // Track initial resolution of all subscriptions to prevent emitting premature empty arrays
+    let hasTripDoc = false;
+    let hasScheduleCol = false;
+    let hasPocketCol = false;
+    let hasJournalCol = false;
+    let initialSyncComplete = false;
+    let initialSyncTimer: ReturnType<typeof setTimeout> | null = null;
 
     const notifyCombined = () => {
       if (!currentTripData) return;
@@ -576,11 +658,37 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
       onUpdate(combined);
     };
 
+    const tryInitialNotify = () => {
+      if (initialSyncComplete) {
+        notifyCombined();
+        return;
+      }
+      // Check if all essential initial snapshots have arrived
+      if (hasTripDoc && hasScheduleCol && hasPocketCol && hasJournalCol) {
+        if (initialSyncTimer) {
+          clearTimeout(initialSyncTimer);
+          initialSyncTimer = null;
+        }
+        initialSyncComplete = true;
+        notifyCombined();
+      } else if (hasTripDoc) {
+        // If trip doc is here, start safety timer so we never wait more than 350ms for subcollections
+        if (!initialSyncTimer) {
+          initialSyncTimer = setTimeout(() => {
+            initialSyncComplete = true;
+            initialSyncTimer = null;
+            notifyCombined();
+          }, 350);
+        }
+      }
+    };
+
     // 1. Subscribe to main trip document
     const unsubTrip = onSnapshot(tripRef, (docSnap) => {
       if (docSnap.exists()) {
+        hasTripDoc = true;
         currentTripData = docSnap.data();
-        notifyCombined();
+        tryInitialNotify();
       }
     }, (error) => {
       console.error("Real-time sync error (trip doc):", error);
@@ -588,29 +696,33 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
 
     // 2. Subscribe to scheduleItems subcollection
     const unsubSchedule = onSnapshot(scheduleColRef, (colSnap) => {
+      hasScheduleCol = true;
       subcollectionScheduleItems = colSnap.docs.map(d => d.data() as ScheduleItem);
-      notifyCombined();
+      tryInitialNotify();
     }, (error) => {
       console.error("Real-time sync error (schedule subcollection):", error);
     });
 
     // 3. Subscribe to pocketItems subcollection
     const unsubPocket = onSnapshot(pocketColRef, (colSnap) => {
+      hasPocketCol = true;
       subcollectionPocketItems = colSnap.docs.map(d => d.data() as PocketItem);
-      notifyCombined();
+      tryInitialNotify();
     }, (error) => {
       console.error("Real-time sync error (pocket subcollection):", error);
     });
 
     // 4. Subscribe to journals subcollection
     const unsubJournal = onSnapshot(journalColRef, (colSnap) => {
+      hasJournalCol = true;
       subcollectionJournals = colSnap.docs.map(d => d.data() as Journal);
-      notifyCombined();
+      tryInitialNotify();
     }, (error) => {
       console.error("Real-time sync error (journal subcollection):", error);
     });
 
     return () => {
+      if (initialSyncTimer) clearTimeout(initialSyncTimer);
       unsubTrip();
       unsubSchedule();
       unsubPocket();

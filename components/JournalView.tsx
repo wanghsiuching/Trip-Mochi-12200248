@@ -17,8 +17,8 @@ interface FormImageItem {
 interface JournalViewProps {
   journals: Journal[];
   members: Member[];
-  onAdd: (journal: Journal) => void;
-  onUpdate: (journal: Journal) => void;
+  onAdd: (journal: Journal) => Promise<void> | void;
+  onUpdate: (journal: Journal) => Promise<void> | void;
   onDelete: (id: number) => void;
   tripId?: string;
 }
@@ -26,6 +26,7 @@ interface JournalViewProps {
 export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onAdd, onUpdate, onDelete, tripId }) => {
   const [showModal, setShowModal] = useState(false);
   const [editingJournal, setEditingJournal] = useState<Journal | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Initialize with current date and time
   const getCurrentDateTime = () => {
@@ -151,27 +152,48 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
     setFormImages(prev => prev.filter(img => img.id !== idToRemove));
   };
 
-  const handleSave = () => {
-    if (!form.content && formImages.length === 0) return;
+  const handleSave = async () => {
+    if ((!form.content && formImages.length === 0) || isSaving) return;
 
-    // Filter only valid base64 / http images
-    const finalPhotos = formImages
-      .filter(img => img.isReady && img.url && (img.url.startsWith('data:image/') || img.url.startsWith('http')))
-      .map(img => img.url);
-
-    const journalPayload = {
-      content: form.content.trim(),
-      date: form.date,
-      author: form.author,
-      photos: finalPhotos,
-    };
-
-    if (editingJournal) {
-      onUpdate({ ...editingJournal, ...journalPayload });
-    } else {
-      onAdd({ id: Date.now(), ...journalPayload });
+    if (formImages.some(img => !img.isReady)) {
+      setUploadError('圖片尚在處理中，請稍候片刻再行保存');
+      return;
     }
-    setShowModal(false);
+
+    setIsSaving(true);
+    setUploadError(null);
+
+    try {
+      // Filter only valid base64 / http images
+      const finalPhotos = formImages
+        .filter(img => img.isReady && img.url && (img.url.startsWith('data:image/') || img.url.startsWith('http')))
+        .map(img => img.url);
+
+      const journalPayload = {
+        content: form.content.trim(),
+        date: form.date,
+        author: form.author,
+        photos: finalPhotos,
+      };
+
+      if (editingJournal) {
+        await onUpdate({ ...editingJournal, ...journalPayload });
+      } else {
+        await onAdd({ id: Date.now(), ...journalPayload });
+      }
+
+      // 儲存成功才關閉視窗，確保使用者輸入不遺失
+      setShowModal(false);
+    } catch (err: any) {
+      console.error('儲存日誌失敗:', err);
+      setUploadError(
+        err?.message?.includes('size') || err?.message?.includes('1,048,576')
+          ? '照片總容量過大超出限制，請刪除部分照片後再按保存（您的日誌文字已完整保留！）。'
+          : '保存日誌失敗，請重試！您的編輯文字已完整保留，未遺失。'
+      );
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const confirmDelete = () => {
@@ -670,11 +692,25 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                     <button 
                       type="button"
                       onClick={handleSave} 
-                      disabled={!form.content && formImages.length === 0}
-                      className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
+                      disabled={(!form.content && formImages.length === 0) || isSaving || formImages.some(img => !img.isReady)}
+                      className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 disabled:bg-gray-400 disabled:border-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
                     >
-                      <Check size={16} />
-                      保存日誌
+                      {isSaving ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          <span>保存日誌中...</span>
+                        </>
+                      ) : formImages.some(img => !img.isReady) ? (
+                        <>
+                          <Loader2 size={16} className="animate-spin" />
+                          <span>圖片處理中...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check size={16} />
+                          <span>保存日誌</span>
+                        </>
+                      )}
                     </button>
                 </div>
             </div>
