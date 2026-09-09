@@ -7,7 +7,10 @@ import {
   BookingTicket, 
   Expense, 
   Currency, 
-  Member 
+  Member,
+  PocketItem,
+  TodoItem,
+  TravelDocument
 } from '../types';
 import { getExchangeRate } from './currency';
 import { getMemberAvatarSrc } from '../constants/avatars';
@@ -27,6 +30,14 @@ export interface TripExportData {
   expenses?: Expense[];
   members?: Member[];
   currencies?: Currency[];
+  pocketItems?: PocketItem[];
+  planningLists?: {
+    todo?: TodoItem[];
+    packing?: TodoItem[];
+    wish?: TodoItem[];
+    shopping?: TodoItem[];
+    documents?: TravelDocument[];
+  };
 }
 
 /**
@@ -64,7 +75,9 @@ export const generateTripPdfHtml = (data: TripExportData): string => {
     bookingTickets = [],
     expenses = [],
     members = [],
-    currencies = []
+    currencies = [],
+    pocketItems = [],
+    planningLists
   } = data;
 
   // 1. 計算日期起訖與總天數
@@ -707,6 +720,193 @@ export const generateTripPdfHtml = (data: TripExportData): string => {
       </div>
     </div>
   `;
+
+  // 8. 口袋名單筆記清單 HTML (Pocket Places & Notes)
+  let pocketListHtml = '';
+  if (pocketItems && pocketItems.length > 0) {
+    const foodItems = pocketItems.filter(p => p.category === 'food');
+    const spotItems = pocketItems.filter(p => p.category === 'spot');
+    const shoppingItems = pocketItems.filter(p => p.category === 'shopping' || (!p.category && !['food', 'spot'].includes(p.category)));
+
+    const renderPocketCategory = (categoryTitle: string, categoryIcon: string, items: PocketItem[], badgeBg: string) => {
+      if (items.length === 0) return '';
+      return `
+        <div class="pocket-cat-section">
+          <div class="pocket-cat-title-row">
+            <span class="pocket-cat-icon">${categoryIcon}</span>
+            <span class="pocket-cat-name">${categoryTitle}</span>
+            <span class="pocket-cat-badge" style="background: ${badgeBg};">${items.length} 則筆記</span>
+          </div>
+          <div class="pocket-cards-grid">
+            ${items.map(item => {
+              const stars = item.rating ? '★'.repeat(Math.min(5, Math.max(1, Math.round(item.rating)))) : '';
+              const isVisited = !!item.isVisited;
+              return `
+                <div class="pocket-card ${isVisited ? 'is-visited' : ''}">
+                  <div class="pocket-card-top">
+                    <div class="pocket-card-title">${escapeHtml(item.title)}</div>
+                    <div class="pocket-badges-wrap">
+                      ${item.tag ? `<span class="pocket-tag-pill">🏷️ ${escapeHtml(item.tag)}</span>` : ''}
+                      ${stars ? `<span class="pocket-rating-pill">⭐ ${stars} <span class="num">(${item.rating})</span></span>` : ''}
+                      <span class="pocket-status-pill ${isVisited ? 'visited' : 'pending'}">
+                        ${isVisited ? '✅ 已造訪 / 已採購' : '📌 口袋名單備忘'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div class="pocket-meta-list">
+                    ${item.location ? `
+                      <div class="pocket-meta-row">
+                        <span class="meta-label">📍 地點地址</span>
+                        <span class="meta-val">${escapeHtml(item.location)}</span>
+                      </div>
+                    ` : ''}
+                    ${item.assignedDate ? `
+                      <div class="pocket-meta-row">
+                        <span class="meta-label">📅 預定前往</span>
+                        <span class="meta-val highlight">${escapeHtml(item.assignedDate)}</span>
+                      </div>
+                    ` : ''}
+                    ${item.priceRange ? `
+                      <div class="pocket-meta-row">
+                        <span class="meta-label">💰 預算花費</span>
+                        <span class="meta-val">${escapeHtml(item.priceRange)}</span>
+                      </div>
+                    ` : ''}
+                    ${item.url ? `
+                      <div class="pocket-meta-row">
+                        <span class="meta-label">🔗 網址/連結</span>
+                        <a href="${escapeHtml(item.url)}" target="_blank" class="meta-link">${escapeHtml(item.url)}</a>
+                      </div>
+                    ` : ''}
+                  </div>
+
+                  ${item.notes ? `
+                    <div class="pocket-notes-box">
+                      <div class="pocket-notes-label">📝 備註筆記與推薦重點：</div>
+                      <div class="pocket-notes-body">${escapeHtml(item.notes).replace(/\n/g, '<br/>')}</div>
+                    </div>
+                  ` : ''}
+
+                  ${item.images && item.images.length > 0 ? `
+                    <div class="pocket-photos-strip">
+                      ${item.images.slice(0, 3).map(img => `
+                        <div class="pocket-thumb-box">
+                          <img src="${img}" class="pocket-thumb-img" alt="${escapeHtml(item.title)}" />
+                        </div>
+                      `).join('')}
+                    </div>
+                  ` : ''}
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    };
+
+    pocketListHtml = `
+      <div class="section-card page-break-before">
+        <div class="section-header">
+          <span class="section-icon">🔖</span>
+          <h3 class="section-title">口袋名單筆記清單 (Pocket Places & Notes)</h3>
+          <span class="badge-count">${pocketItems.length} 筆清單備忘</span>
+        </div>
+        <p class="section-intro">
+          收錄行程之美食口袋名單、必訪探索景點與購物伴手禮筆記，包含評分星級、預估預算、地點與詳細推薦備註。
+        </p>
+        ${renderPocketCategory('美食名店口袋名單 (Dining & Cafes)', '🍜', foodItems, '#EA580C')}
+        ${renderPocketCategory('私房與探索景點 (Must-visit Spots)', '⛩️', spotItems, '#0D9488')}
+        ${renderPocketCategory('購物與伴手禮清單 (Shopping & Souvenirs)', '🛍️', shoppingItems, '#9333EA')}
+      </div>
+    `;
+  }
+
+  // 8b. 行前準備與備忘清單 HTML (Planning & Checklists)
+  let planningListsHtml = '';
+  if (planningLists) {
+    const todos = planningLists.todo || [];
+    const packings = planningLists.packing || [];
+    const wishes = planningLists.wish || [];
+    const shoppings = planningLists.shopping || [];
+    const documents = planningLists.documents || [];
+    const totalChecklistItems = todos.length + packings.length + wishes.length + shoppings.length + documents.length;
+
+    if (totalChecklistItems > 0) {
+      const renderChecklistSection = (title: string, icon: string, items: TodoItem[]) => {
+        if (items.length === 0) return '';
+        const doneCount = items.filter(i => i.done).length;
+        return `
+          <div class="checklist-section">
+            <div class="checklist-sec-header">
+              <span class="checklist-sec-title">${icon} ${title}</span>
+              <span class="checklist-sec-badge">${doneCount} / ${items.length} 完成</span>
+            </div>
+            <div class="checklist-items-grid">
+              ${items.map(i => `
+                <div class="checklist-card ${i.done ? 'is-done' : ''}">
+                  <span class="check-box-sign">${i.done ? '☑' : '☐'}</span>
+                  <span class="check-text ${i.done ? 'strike' : ''}">${escapeHtml(i.text)}</span>
+                  ${i.assignee ? `<span class="check-assignee-badge">👤 ${escapeHtml(Array.isArray(i.assignee) ? i.assignee.join(', ') : i.assignee)}</span>` : ''}
+                  ${i.note ? `<span class="check-note-text">(${escapeHtml(i.note)})</span>` : ''}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      };
+
+      let documentsHtml = '';
+      if (documents.length > 0) {
+        documentsHtml = `
+          <div class="checklist-section">
+            <div class="checklist-sec-header">
+              <span class="checklist-sec-title">📄 重要旅行證件與憑證備忘 (Travel Documents)</span>
+              <span class="checklist-sec-badge">${documents.length} 份文件</span>
+            </div>
+            <div class="docs-table-wrapper">
+              <table class="docs-export-table">
+                <thead>
+                  <tr>
+                    <th style="width: 15%;">類別</th>
+                    <th style="width: 25%;">憑證名稱</th>
+                    <th style="width: 15%;">持有人</th>
+                    <th style="width: 20%;">證號 / 代碼</th>
+                    <th style="width: 25%;">備註說明</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${documents.map(d => `
+                    <tr>
+                      <td><span class="doc-badge-pill">${escapeHtml(d.category)}</span></td>
+                      <td class="font-bold">${escapeHtml(d.title)}</td>
+                      <td>${escapeHtml(d.holder || '全體')}</td>
+                      <td class="font-mono">${escapeHtml(d.docNumber || '-')}</td>
+                      <td>${escapeHtml(d.note || '-')}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+
+      planningListsHtml = `
+        <div class="section-card page-break-before">
+          <div class="section-header">
+            <span class="section-icon">🧳</span>
+            <h3 class="section-title">行前準備與備忘清單 (Travel Checklists)</h3>
+            <span class="badge-count">${totalChecklistItems} 項目</span>
+          </div>
+          ${renderChecklistSection('行李打包準備清單 (Packing List)', '🧳', packings)}
+          ${renderChecklistSection('行前待辦事項清單 (To-do List)', '📝', todos)}
+          ${renderChecklistSection('必買心願與購物備忘 (Wishlist & Shopping)', '🎁', [...wishes, ...shoppings])}
+          ${documentsHtml}
+        </div>
+      `;
+    }
+  }
 
   // 9. 組合完整手帳樣式 HTML
   return `<!DOCTYPE html>
@@ -1575,6 +1775,296 @@ export const generateTripPdfHtml = (data: TripExportData): string => {
       background: #FCFBF8;
     }
 
+    /* ================= Pocket Items & Notes Styles ================= */
+    .pocket-cat-section {
+      margin-top: 16px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--color-border);
+    }
+    .pocket-cat-section:first-of-type {
+      margin-top: 10px;
+      border-top: none;
+      padding-top: 0;
+    }
+    .pocket-cat-title-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .pocket-cat-icon {
+      font-size: 16px;
+    }
+    .pocket-cat-name {
+      font-size: 13.5px;
+      font-weight: 800;
+      color: var(--color-cocoa);
+    }
+    .pocket-cat-badge {
+      font-size: 10px;
+      font-weight: 800;
+      color: #FFFFFF;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+    .pocket-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 12px;
+    }
+    .pocket-card {
+      background: #FFFFFF;
+      border: 1.5px solid var(--color-border);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: 0 1px 3px rgba(61, 50, 44, 0.03);
+      page-break-inside: avoid;
+      break-inside: avoid;
+      display: flex;
+      flex-direction: column;
+    }
+    .pocket-card.is-visited {
+      background: #FCFDFB;
+      border-color: rgba(95, 122, 110, 0.35);
+    }
+    .pocket-card-top {
+      margin-bottom: 8px;
+    }
+    .pocket-card-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--color-cocoa);
+      line-height: 1.35;
+      margin-bottom: 5px;
+    }
+    .pocket-badges-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px;
+    }
+    .pocket-tag-pill {
+      font-size: 9.5px;
+      font-weight: 700;
+      background: #FAF7EE;
+      color: var(--color-cocoa-light);
+      padding: 2px 6px;
+      border-radius: 6px;
+      border: 1px solid var(--color-border);
+    }
+    .pocket-rating-pill {
+      font-size: 9.5px;
+      font-weight: 700;
+      background: #FEF3C7;
+      color: #92400E;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+    .pocket-rating-pill .num {
+      font-size: 8.5px;
+      opacity: 0.85;
+    }
+    .pocket-status-pill {
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+    .pocket-status-pill.visited {
+      background: #EBF1EE;
+      color: var(--color-sage);
+      border: 1px solid rgba(86, 122, 107, 0.25);
+    }
+    .pocket-status-pill.pending {
+      background: #F3EFE6;
+      color: var(--color-muted);
+    }
+    .pocket-meta-list {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      font-size: 11px;
+      margin-bottom: 6px;
+    }
+    .pocket-meta-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .meta-label {
+      font-weight: 700;
+      color: var(--color-muted);
+      flex-shrink: 0;
+      font-size: 10px;
+    }
+    .meta-val {
+      color: var(--color-cocoa);
+      word-break: break-word;
+    }
+    .meta-val.highlight {
+      font-weight: 800;
+      color: var(--color-sage);
+    }
+    .meta-link {
+      color: #0284C7;
+      text-decoration: none;
+      word-break: break-all;
+    }
+    .pocket-notes-box {
+      background: #FAF8F2;
+      border-radius: 8px;
+      padding: 8px 10px;
+      margin-top: 6px;
+      font-size: 11px;
+      border-left: 3px solid var(--color-sage);
+    }
+    .pocket-notes-label {
+      font-weight: 800;
+      color: var(--color-cocoa);
+      margin-bottom: 2px;
+      font-size: 10.5px;
+    }
+    .pocket-notes-body {
+      color: var(--color-cocoa-light);
+      line-height: 1.45;
+      word-break: break-word;
+    }
+    .pocket-photos-strip {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px dashed var(--color-border);
+    }
+    .pocket-thumb-box {
+      width: 58px;
+      height: 58px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--color-border);
+      flex-shrink: 0;
+      background: #F3EFE6;
+    }
+    .pocket-thumb-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    /* ================= Checklists & Planning Styles ================= */
+    .checklist-section {
+      margin-top: 14px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--color-border);
+    }
+    .checklist-section:first-of-type {
+      margin-top: 8px;
+      border-top: none;
+      padding-top: 0;
+    }
+    .checklist-sec-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .checklist-sec-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--color-cocoa);
+    }
+    .checklist-sec-badge {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--color-muted);
+      background: var(--color-cream);
+      padding: 2px 7px;
+      border-radius: 8px;
+    }
+    .checklist-items-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 6px;
+    }
+    .checklist-card {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      background: #FFFFFF;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      padding: 5px 8px;
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .checklist-card.is-done {
+      background: #F9FAF8;
+      border-color: #E2E8F0;
+    }
+    .check-box-sign {
+      font-size: 13px;
+      font-weight: bold;
+      color: var(--color-sage);
+      flex-shrink: 0;
+    }
+    .check-text {
+      color: var(--color-cocoa);
+      flex: 1;
+      word-break: break-word;
+    }
+    .check-text.strike {
+      text-decoration: line-through;
+      color: var(--color-muted);
+    }
+    .check-assignee-badge {
+      font-size: 9.5px;
+      font-weight: 700;
+      background: #EBF1EE;
+      color: var(--color-sage);
+      padding: 1px 5px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .check-note-text {
+      font-size: 10px;
+      color: var(--color-muted);
+    }
+    .docs-table-wrapper {
+      overflow-x: auto;
+      margin-top: 4px;
+    }
+    .docs-export-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+    .docs-export-table th, .docs-export-table td {
+      border: 1px solid var(--color-border);
+      padding: 6px 8px;
+      text-align: left;
+    }
+    .docs-export-table th {
+      background: var(--color-cream);
+      font-weight: 800;
+      color: var(--color-cocoa);
+      font-size: 10.5px;
+    }
+    .docs-export-table td {
+      background: #FFFFFF;
+      color: var(--color-cocoa);
+    }
+    .doc-badge-pill {
+      font-size: 9.5px;
+      font-weight: 800;
+      background: #FAF7EE;
+      color: var(--color-cocoa-light);
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--color-border);
+    }
+
     /* Footer Stamp */
     .journal-footer {
       text-align: center;
@@ -1599,7 +2089,7 @@ export const generateTripPdfHtml = (data: TripExportData): string => {
     <!-- Floating Quick Bar when opened directly as HTML -->
     <div class="floating-print-bar no-print">
       <div class="floating-info">
-        <span>📖 ${escapeHtml(tripName)} · 離線手帳檔案 (含分攤明細)</span>
+        <span>📖 ${escapeHtml(tripName)} · 離線手帳檔案 (含口袋名單與分攤明細)</span>
       </div>
       <button class="print-btn" onclick="window.print()">
         📄 轉為 PDF 檔案
@@ -1643,6 +2133,12 @@ export const generateTripPdfHtml = (data: TripExportData): string => {
       </div>
     </div>
     ${daysScheduleHtml}
+
+    <!-- Section: Pocket Places & Notes (口袋名單筆記清單) -->
+    ${pocketListHtml}
+
+    <!-- Section: Travel Checklists & Planning Notes (行前準備清單) -->
+    ${planningListsHtml}
 
     <!-- Section: Expense Summary -->
     ${expenseSummaryHtml}
@@ -1729,7 +2225,7 @@ export const downloadOfflineTripHtml = (data: TripExportData) => {
   const a = document.createElement('a');
   const safeName = (data.tripName || '旅行手帳').replace(/[/\\?%*:|"<>]/g, '_');
   a.href = url;
-  a.download = `${safeName}_行程手帳_含分攤明細.html`;
+  a.download = `${safeName}_行程手帳_含口袋名單筆記與分攤明細.html`;
   document.body.appendChild(a);
   a.click();
   setTimeout(() => {
@@ -1839,7 +2335,7 @@ export const exportTripToPdfFile = async (
 
     onProgress?.('正在儲存 PDF 檔案...', 98);
     const safeName = (data.tripName || '旅行手帳').replace(/[/\\?%*:|"<>]/g, '_');
-    pdf.save(`${safeName}_行程手帳_含分攤明細.pdf`);
+    pdf.save(`${safeName}_行程手帳_含口袋名單筆記與分攤明細.pdf`);
 
     onProgress?.('轉換完成！', 100);
     return true;

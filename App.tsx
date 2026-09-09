@@ -1325,6 +1325,8 @@ export default function App() {
           bookingTickets={bookingTickets}
           expenses={expenses}
           members={members}
+          pocketItems={pocketItems}
+          planningLists={planningLists}
         />
         <ShareTripModal
           isOpen={isShareTripModalOpen}

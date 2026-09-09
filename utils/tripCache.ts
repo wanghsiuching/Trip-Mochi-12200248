@@ -36,8 +36,24 @@ export const getCachedTrip = (tripId: string): any | null => {
 export const setCachedTrip = (tripId: string, tripData: any): void => {
   if (!tripId || !tripData || typeof window === 'undefined') return;
   try {
+    const prev = getCachedTrip(tripId);
+    // Merge defensively: don't accidentally wipe out pocketItems or scheduleItems if a partial update arrived
+    const mergedData = {
+      ...(prev || {}),
+      ...tripData,
+      pocketItems: (Array.isArray(tripData.pocketItems) && tripData.pocketItems.length > 0)
+        ? tripData.pocketItems
+        : (prev?.pocketItems || tripData.pocketItems || []),
+      scheduleItems: (Array.isArray(tripData.scheduleItems) && tripData.scheduleItems.length > 0)
+        ? tripData.scheduleItems
+        : (prev?.scheduleItems || tripData.scheduleItems || []),
+      journals: (Array.isArray(tripData.journals) && tripData.journals.length > 0)
+        ? tripData.journals
+        : (prev?.journals || tripData.journals || [])
+    };
+
     const payload: CachedTripData = {
-      data: tripData,
+      data: mergedData,
       cachedAt: Date.now()
     };
     const serialized = JSON.stringify(payload);
@@ -54,33 +70,57 @@ export const setCachedTrip = (tripId: string, tripData: any): void => {
         }
       }
 
+      const prev = getCachedTrip(tripId);
+      const mergedData = {
+        ...(prev || {}),
+        ...tripData,
+        pocketItems: (Array.isArray(tripData.pocketItems) && tripData.pocketItems.length > 0)
+          ? tripData.pocketItems
+          : (prev?.pocketItems || tripData.pocketItems || []),
+        scheduleItems: (Array.isArray(tripData.scheduleItems) && tripData.scheduleItems.length > 0)
+          ? tripData.scheduleItems
+          : (prev?.scheduleItems || tripData.scheduleItems || []),
+        journals: (Array.isArray(tripData.journals) && tripData.journals.length > 0)
+          ? tripData.journals
+          : (prev?.journals || tripData.journals || [])
+      };
+
       // Try saving again
       const payload: CachedTripData = {
-        data: tripData,
+        data: mergedData,
         cachedAt: Date.now()
       };
       localStorage.setItem(`${CACHE_PREFIX}${tripId}`, JSON.stringify(payload));
     } catch (retryErr) {
-      // 2. If still exceeding, create a lightweight version without large photos
+      // 2. If still exceeding, create a lightweight version without heavy image base64, keeping all text & notes intact
       try {
-        const lightweightData = {
+        const prev = getCachedTrip(tripId);
+        const sourceData = {
+          ...(prev || {}),
           ...tripData,
-          scheduleItems: Array.isArray(tripData.scheduleItems)
-            ? tripData.scheduleItems.map((item: any) => ({
+          pocketItems: (Array.isArray(tripData.pocketItems) && tripData.pocketItems.length > 0)
+            ? tripData.pocketItems
+            : (prev?.pocketItems || tripData.pocketItems || [])
+        };
+
+        const lightweightData = {
+          ...sourceData,
+          scheduleItems: Array.isArray(sourceData.scheduleItems)
+            ? sourceData.scheduleItems.map((item: any) => ({
                 ...item,
-                images: Array.isArray(item.images) ? item.images.slice(0, 1) : []
+                images: [] // strip images in cache to guarantee text, notes & titles fit easily in quota
               }))
             : [],
-          pocketItems: Array.isArray(tripData.pocketItems)
-            ? tripData.pocketItems.map((p: any) => ({
+          pocketItems: Array.isArray(sourceData.pocketItems)
+            ? sourceData.pocketItems.map((p: any) => ({
                 ...p,
-                images: Array.isArray(p.images) ? p.images.slice(0, 1) : []
+                images: [] // preserve all titles, categories, notes, ratings, locations, tags
               }))
             : [],
-          journals: Array.isArray(tripData.journals)
-            ? tripData.journals.map((j: any) => ({
+          journals: Array.isArray(sourceData.journals)
+            ? sourceData.journals.map((j: any) => ({
                 ...j,
-                photos: Array.isArray(j.photos) ? j.photos.slice(0, 1) : []
+                photos: []
               }))
             : []
         };

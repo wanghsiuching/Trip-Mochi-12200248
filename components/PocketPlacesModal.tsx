@@ -1,9 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { 
   X, Plus, Utensils, Compass, ShoppingBag, MapPin, ExternalLink, StickyNote, 
   Trash2, Edit3, CheckCircle2, Circle, Navigation, Tag, Star, 
-  Search, CalendarPlus, ChevronRight, Copy, Check,
-  Image as ImageIcon, Upload, Camera, Loader2, ZoomIn, AlertCircle
+  Search, CalendarPlus, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Copy, Check,
+  Image as ImageIcon, Upload, Camera, Loader2, ZoomIn, AlertCircle,
+  FileText, Layers, ArrowUp, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { PocketItem, TripDay } from '../types';
 import { Lightbox } from './Lightbox';
@@ -34,6 +35,241 @@ const FOOD_PRESET_TAGS = ['拉麵', '燒肉', '甜點/咖啡', '壽司/海鮮', 
 const SPOT_PRESET_TAGS = ['熱門景點', '自然風光', '夜景', '神社/古蹟', '體驗/手作', '文青展覽', '溫泉', '拍照打卡', '公園/散步'];
 const SHOPPING_PRESET_TAGS = ['伴手禮', '藥妝', '百貨商場', '零食/點心', '服飾/潮牌', '家電/雜貨', '文具/雜貨', '免稅店', '超市/量販', '限定商品'];
 
+interface PocketItemCardProps {
+  item: PocketItem;
+  isFood: boolean;
+  isSpot: boolean;
+  isShopping: boolean;
+  isCopied: boolean;
+  canAddToSchedule: boolean;
+  onToggleVisited: (item: PocketItem) => void;
+  onAddToSchedule: (item: PocketItem) => void;
+  onOpenEditForm: (item: PocketItem) => void;
+  onDeleteItem: (id: string, title: string) => void;
+  onCopyText: (text: string, id: string) => void;
+  onOpenMap: (location: string) => void;
+  onOpenLightbox: (images: string[], index: number) => void;
+}
+
+const PocketItemCard: React.FC<PocketItemCardProps> = React.memo(({
+  item,
+  isFood,
+  isSpot,
+  isShopping,
+  isCopied,
+  canAddToSchedule,
+  onToggleVisited,
+  onAddToSchedule,
+  onOpenEditForm,
+  onDeleteItem,
+  onCopyText,
+  onOpenMap,
+  onOpenLightbox,
+}) => {
+  const [isNotesExpanded, setIsNotesExpanded] = useState(false);
+  const isLongNote = !!item.notes && item.notes.length > 220;
+
+  return (
+    <div
+      className={`bg-white rounded-3xl p-4 sm:p-5 border-2 ${
+        item.isVisited ? 'border-gray-200 opacity-75' : 'border-beige-dark hover:border-sage/50'
+      } shadow-sm transition-all`}
+    >
+      {/* Card Header */}
+      <div className="flex items-start justify-between gap-3 mb-2.5">
+        <div className="flex items-start gap-2.5 flex-1 min-w-0">
+          <button
+            type="button"
+            onClick={() => onToggleVisited(item)}
+            className="mt-0.5 text-gray-400 hover:text-sage transition-colors flex-shrink-0"
+            title={item.isVisited ? '標記為未造訪/未購買' : '標記為已造訪/已購買'}
+          >
+            {item.isVisited ? (
+              <CheckCircle2 size={20} className="text-emerald-500 fill-emerald-50" />
+            ) : (
+              <Circle size={20} className="text-gray-300" />
+            )}
+          </button>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <h4 className={`text-base font-black text-cocoa break-words ${item.isVisited ? 'line-through text-gray-400' : ''}`}>
+                {item.title}
+              </h4>
+
+              {item.tag && (
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  isFood 
+                    ? 'bg-orange-50 text-orange-700 border-orange-200' 
+                    : isSpot
+                    ? 'bg-teal-50 text-teal-700 border-teal-200'
+                    : 'bg-rose-50 text-rose-700 border-rose-200'
+                }`}>
+                  {item.tag}
+                </span>
+              )}
+
+              {item.assignedDate && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sage/10 text-sage border border-sage/20">
+                  預計: {item.assignedDate}
+                </span>
+              )}
+            </div>
+
+            {/* Rating Stars */}
+            {item.rating && item.rating > 0 && (
+              <div className="flex items-center gap-0.5 text-amber-400">
+                {Array.from({ length: item.rating }).map((_, i) => (
+                  <Star key={i} size={12} className="fill-amber-400 text-amber-400" />
+                ))}
+                <span className="text-[10px] font-bold text-gray-400 ml-1">
+                  {item.rating}.0
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {canAddToSchedule && (
+            <button
+              type="button"
+              onClick={() => onAddToSchedule(item)}
+              className="p-1.5 text-sage hover:bg-sage/10 rounded-lg transition-colors"
+              title="加入每日行程"
+            >
+              <CalendarPlus size={16} />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => onOpenEditForm(item)}
+            className="p-1.5 text-gray-400 hover:text-cocoa hover:bg-gray-100 rounded-lg transition-colors"
+            title="編輯"
+          >
+            <Edit3 size={15} />
+          </button>
+          <button
+            type="button"
+            onClick={() => onDeleteItem(item.id, item.title)}
+            className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+            title="刪除"
+          >
+            <Trash2 size={15} />
+          </button>
+        </div>
+      </div>
+
+      {/* Location & Address with Map navigation */}
+      {item.location && (
+        <div className="flex items-center gap-2 text-xs font-bold text-gray-600 bg-gray-50 px-3 py-2 rounded-xl mb-2 border border-gray-100 flex-wrap sm:flex-nowrap">
+          <MapPin size={14} className="text-sage flex-shrink-0" />
+          <span className="flex-1 break-words leading-snug">{item.location}</span>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => onCopyText(item.location!, item.id)}
+              className="p-1 bg-white hover:bg-gray-100 rounded-lg text-gray-500 border border-gray-200 transition-colors"
+              title="複製地址"
+            >
+              {isCopied ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenMap(item.location!)}
+              className="p-1 bg-white hover:bg-sage hover:text-white rounded-lg text-cocoa border border-gray-200 transition-colors flex items-center gap-1 px-2 text-[11px]"
+              title="在 Google Maps 開啟"
+            >
+              <Navigation size={11} /> 導航
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* URL Hyperlink */}
+      {item.url && (
+        <div className="mb-2">
+          <a
+            href={item.url.startsWith('http') ? item.url : `https://${item.url}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50/80 hover:bg-blue-100 px-3 py-1.5 rounded-xl border border-blue-200/80 transition-colors break-all"
+          >
+            <ExternalLink size={13} className="flex-shrink-0" />
+            <span className="break-all">
+              {item.url.replace(/^https?:\/\//, '')}
+            </span>
+          </a>
+        </div>
+      )}
+
+      {/* Photo Thumbnails */}
+      {item.images && item.images.length > 0 && (
+        <div className="mb-2.5">
+          <div className="flex items-center gap-2 overflow-x-auto custom-scroll pb-1">
+            {item.images.map((imgSrc, imgIdx) => (
+              <button
+                key={imgIdx}
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenLightbox(item.images!, imgIdx);
+                }}
+                className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 border-beige-dark flex-shrink-0 group shadow-2xs hover:border-sage transition-all"
+                title="點擊放大檢視"
+              >
+                <img
+                  src={imgSrc}
+                  alt={`${item.title} 照片 ${imgIdx + 1}`}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                  loading="lazy"
+                  decoding="async"
+                />
+                <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
+                  <ZoomIn size={14} />
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Notes Box */}
+      {item.notes && (
+        <div className="bg-amber-50/70 p-3.5 rounded-2xl border border-amber-200/70">
+          <div className="flex items-center justify-between gap-1.5 text-xs font-black text-amber-800 mb-1.5">
+            <div className="flex items-center gap-1.5">
+              <StickyNote size={14} className="text-amber-600 flex-shrink-0" />
+              <span>備註:</span>
+            </div>
+            {isLongNote && (
+              <button
+                type="button"
+                onClick={() => setIsNotesExpanded(prev => !prev)}
+                className="text-[11px] text-amber-700 hover:text-amber-900 font-bold flex items-center gap-0.5 hover:underline"
+              >
+                {isNotesExpanded ? (
+                  <>收合筆記 <ChevronUp size={12} /></>
+                ) : (
+                  <>展開完整筆記 <ChevronDown size={12} /></>
+                )}
+              </button>
+            )}
+          </div>
+          <div className={`text-[11pt] font-medium text-amber-950 whitespace-pre-wrap leading-relaxed ${
+            isLongNote && !isNotesExpanded ? 'line-clamp-3' : ''
+          }`}>
+            {item.notes}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+});
+
+PocketItemCard.displayName = 'PocketItemCard';
+
 export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
   isOpen,
   onClose,
@@ -50,6 +286,16 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('全部');
   const [filterVisited, setFilterVisited] = useState<'all' | 'unvisited' | 'visited'>('all');
+
+  // Pagination & Progressive Virtual Loading State
+  const [viewMode, setViewMode] = useState<'pagination' | 'stream'>('pagination');
+  const [pageSize, setPageSize] = useState<number>(12);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [streamCount, setStreamCount] = useState<number>(12);
+  const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+
+  const listContainerRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   // Form State
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -90,29 +336,107 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
   // Copy feedback
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  if (!isOpen) return null;
-
-  const currentTabItems = pocketItems.filter(item => item.category === activeTab);
+  // Reset pagination when category, search, tag, visited filter or pageSize changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setStreamCount(pageSize);
+    if (listContainerRef.current) {
+      listContainerRef.current.scrollTop = 0;
+    }
+  }, [activeTab, searchQuery, selectedTag, filterVisited, pageSize]);
 
   // Filter items
-  const filteredItems = currentTabItems.filter(item => {
-    const matchesSearch = 
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.location && item.location.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (item.notes && item.notes.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (item.tag && item.tag.toLowerCase().includes(searchQuery.toLowerCase()));
+  const currentTabItems = useMemo(
+    () => pocketItems.filter(item => item.category === activeTab),
+    [pocketItems, activeTab]
+  );
 
-    const matchesTag = selectedTag === '全部' || item.tag === selectedTag;
+  const filteredItems = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return currentTabItems.filter(item => {
+      const matchesSearch = !q ||
+        item.title.toLowerCase().includes(q) ||
+        (item.location && item.location.toLowerCase().includes(q)) ||
+        (item.notes && item.notes.toLowerCase().includes(q)) ||
+        (item.tag && item.tag.toLowerCase().includes(q));
 
-    const matchesVisited = 
-      filterVisited === 'all' ||
-      (filterVisited === 'visited' && item.isVisited) ||
-      (filterVisited === 'unvisited' && !item.isVisited);
+      const matchesTag = selectedTag === '全部' || item.tag === selectedTag;
 
-    return matchesSearch && matchesTag && matchesVisited;
-  });
+      const matchesVisited = 
+        filterVisited === 'all' ||
+        (filterVisited === 'visited' && item.isVisited) ||
+        (filterVisited === 'unvisited' && !item.isVisited);
 
-  const availableTags = ['全部', ...Array.from(new Set(currentTabItems.map(i => i.tag).filter(Boolean))) as string[]];
+      return matchesSearch && matchesTag && matchesVisited;
+    });
+  }, [currentTabItems, searchQuery, selectedTag, filterVisited]);
+
+  const availableTags = useMemo(
+    () => ['全部', ...Array.from(new Set(currentTabItems.map(i => i.tag).filter(Boolean))) as string[]],
+    [currentTabItems]
+  );
+
+  const totalItems = filteredItems.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  // Slice items for rendering to eliminate the 10-second DOM mount freeze
+  const displayedItems = useMemo(() => {
+    if (viewMode === 'pagination') {
+      const startIndex = (safeCurrentPage - 1) * pageSize;
+      return filteredItems.slice(startIndex, startIndex + pageSize);
+    } else {
+      return filteredItems.slice(0, streamCount);
+    }
+  }, [filteredItems, viewMode, safeCurrentPage, pageSize, streamCount]);
+
+  // IntersectionObserver for Stream / Progressive loading mode
+  useEffect(() => {
+    if (viewMode !== 'stream') return;
+    if (streamCount >= filteredItems.length) return;
+
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !isLoadingMore) {
+          setIsLoadingMore(true);
+          setTimeout(() => {
+            setStreamCount(prev => Math.min(prev + pageSize, filteredItems.length));
+            setIsLoadingMore(false);
+          }, 80);
+        }
+      },
+      {
+        root: listContainerRef.current,
+        rootMargin: '120px',
+        threshold: 0.1,
+      }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [viewMode, streamCount, filteredItems.length, pageSize, isLoadingMore]);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    const targetPage = Math.max(1, Math.min(newPage, totalPages));
+    setCurrentPage(targetPage);
+    listContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [totalPages]);
+
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (safeCurrentPage <= 4) {
+      return [1, 2, 3, 4, 5, '...', totalPages];
+    }
+    if (safeCurrentPage >= totalPages - 3) {
+      return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, '...', safeCurrentPage - 1, safeCurrentPage, safeCurrentPage + 1, '...', totalPages];
+  }, [totalPages, safeCurrentPage]);
 
   const handleOpenAddForm = (category: 'food' | 'spot' | 'shopping') => {
     setEditingId(null);
@@ -284,23 +608,38 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
     }
   };
 
-  const handleToggleVisited = (item: PocketItem) => {
+  const handleToggleVisited = useCallback((item: PocketItem) => {
     onUpdateItem({
       ...item,
       isVisited: !item.isVisited,
     });
-  };
+  }, [onUpdateItem]);
 
-  const handleCopyText = (text: string, id: string) => {
+  const handleCopyText = useCallback((text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
-  };
+  }, []);
 
-  const handleOpenMap = (location: string) => {
+  const handleOpenMap = useCallback((location: string) => {
     const encoded = encodeURIComponent(location);
     window.open(`https://www.google.com/maps/search/?api=1&query=${encoded}`, '_blank', 'noopener,noreferrer');
-  };
+  }, []);
+
+  const handleDeleteItem = useCallback((id: string, title: string) => {
+    if (window.confirm(`確定要刪除「${title}」嗎？`)) {
+      onDeleteItem(id);
+    }
+  }, [onDeleteItem]);
+
+  const handleOpenLightbox = useCallback((images: string[], index: number) => {
+    setLightboxState({ images, index });
+  }, []);
+
+  const handleAddToScheduleClick = useCallback((item: PocketItem) => {
+    setAddToScheduleTarget(item);
+    setTargetScheduleDate(item.assignedDate || tripDays[0]?.date || '');
+  }, [tripDays]);
 
   const confirmAddToSchedule = () => {
     if (addToScheduleTarget && onAddToSchedule) {
@@ -341,6 +680,8 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
         name: '購物/伴手禮名單',
         itemType: '購物/伴手禮',
       };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={onClose}>
@@ -461,10 +802,69 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
               ))}
             </div>
           )}
+
+          {/* Pagination & View Mode Toolbar */}
+          <div className="mt-2.5 pt-2 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-1.5 font-bold text-gray-500">
+              <span className="text-cocoa font-black">共 {filteredItems.length} 項</span>
+              {filteredItems.length > 0 && (
+                <span className="text-gray-400 font-medium">
+                  {viewMode === 'pagination'
+                    ? `· 第 ${safeCurrentPage}/${totalPages} 頁 (第 ${((safeCurrentPage - 1) * pageSize) + 1} ~ ${Math.min(safeCurrentPage * pageSize, filteredItems.length)} 項)`
+                    : `· 已載入 ${displayedItems.length} 項`}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 ml-auto">
+              {/* Mode switch */}
+              <div className="flex items-center bg-gray-100 p-0.5 rounded-xl border border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('pagination')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    viewMode === 'pagination'
+                      ? 'bg-white text-cocoa shadow-2xs'
+                      : 'text-gray-400 hover:text-gray-700'
+                  }`}
+                  title="分頁瀏覽模式"
+                >
+                  <FileText size={12} /> 分頁模式
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewMode('stream')}
+                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                    viewMode === 'stream'
+                      ? 'bg-white text-cocoa shadow-2xs'
+                      : 'text-gray-400 hover:text-gray-700'
+                  }`}
+                  title="連續捲動加載模式"
+                >
+                  <Layers size={12} /> 捲動加載
+                </button>
+              </div>
+
+              {/* Page size select */}
+              {viewMode === 'pagination' && (
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
+                  className="bg-gray-100 text-gray-600 text-[11px] font-bold px-2 py-1 rounded-lg border border-gray-200 outline-none cursor-pointer"
+                  title="每頁顯示筆數"
+                >
+                  <option value={10}>10 筆/頁</option>
+                  <option value={12}>12 筆/頁</option>
+                  <option value={20}>20 筆/頁</option>
+                  <option value={30}>30 筆/頁</option>
+                </select>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Content Body - Card List */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 no-scrollbar">
+        <div ref={listContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3 no-scrollbar">
           {filteredItems.length === 0 ? (
             <div className="text-center py-12 px-4 bg-white/70 rounded-3xl border-2 border-dashed border-beige-dark">
               <div className={`w-16 h-16 mx-auto rounded-full ${currentTheme.lightBg} flex items-center justify-center mb-3`}>
@@ -492,192 +892,148 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
               </button>
             </div>
           ) : (
-            filteredItems.map(item => {
-              const isFood = item.category === 'food';
-              const isSpot = item.category === 'spot';
-              const isShopping = item.category === 'shopping';
-              return (
-                <div
+            <>
+              {displayedItems.map(item => (
+                <PocketItemCard
                   key={item.id}
-                  className={`bg-white rounded-3xl p-4 sm:p-5 border-2 ${
-                    item.isVisited ? 'border-gray-200 opacity-75' : 'border-beige-dark hover:border-sage/50'
-                  } shadow-sm transition-all`}
-                >
-                  {/* Card Header */}
-                  <div className="flex items-start justify-between gap-3 mb-2.5">
-                    <div className="flex items-start gap-2.5 flex-1 min-w-0">
-                      <button
-                        onClick={() => handleToggleVisited(item)}
-                        className="mt-0.5 text-gray-400 hover:text-sage transition-colors flex-shrink-0"
-                        title={item.isVisited ? '標記為未造訪/未購買' : '標記為已造訪/已購買'}
-                      >
-                        {item.isVisited ? (
-                          <CheckCircle2 size={20} className="text-emerald-500 fill-emerald-50" />
-                        ) : (
-                          <Circle size={20} className="text-gray-300" />
-                        )}
-                      </button>
+                  item={item}
+                  isFood={item.category === 'food'}
+                  isSpot={item.category === 'spot'}
+                  isShopping={item.category === 'shopping'}
+                  isCopied={copiedId === item.id}
+                  canAddToSchedule={!!onAddToSchedule}
+                  onToggleVisited={handleToggleVisited}
+                  onAddToSchedule={handleAddToScheduleClick}
+                  onOpenEditForm={handleOpenEditForm}
+                  onDeleteItem={handleDeleteItem}
+                  onCopyText={handleCopyText}
+                  onOpenMap={handleOpenMap}
+                  onOpenLightbox={handleOpenLightbox}
+                />
+              ))}
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <h4 className={`text-base font-black text-cocoa break-words ${item.isVisited ? 'line-through text-gray-400' : ''}`}>
-                            {item.title}
-                          </h4>
-
-                          {item.tag && (
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                              isFood 
-                                ? 'bg-orange-50 text-orange-700 border-orange-200' 
-                                : isSpot
-                                ? 'bg-teal-50 text-teal-700 border-teal-200'
-                                : 'bg-rose-50 text-rose-700 border-rose-200'
-                            }`}>
-                              {item.tag}
-                            </span>
-                          )}
-
-                          {item.assignedDate && (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sage/10 text-sage border border-sage/20">
-                              預計: {item.assignedDate}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Rating Stars */}
-                        {item.rating && item.rating > 0 && (
-                          <div className="flex items-center gap-0.5 text-amber-400">
-                            {Array.from({ length: item.rating }).map((_, i) => (
-                              <Star key={i} size={12} className="fill-amber-400 text-amber-400" />
-                            ))}
-                            <span className="text-[10px] font-bold text-gray-400 ml-1">
-                              {item.rating}.0
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Action buttons */}
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {onAddToSchedule && (
-                        <button
-                          onClick={() => {
-                            setAddToScheduleTarget(item);
-                            setTargetScheduleDate(item.assignedDate || tripDays[0]?.date || '');
-                          }}
-                          className="p-1.5 text-sage hover:bg-sage/10 rounded-lg transition-colors"
-                          title="加入每日行程"
-                        >
-                          <CalendarPlus size={16} />
-                        </button>
-                      )}
-                      <button
-                        onClick={() => handleOpenEditForm(item)}
-                        className="p-1.5 text-gray-400 hover:text-cocoa hover:bg-gray-100 rounded-lg transition-colors"
-                        title="編輯"
-                      >
-                        <Edit3 size={15} />
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (window.confirm(`確定要刪除「${item.title}」嗎？`)) {
-                            onDeleteItem(item.id);
-                          }
-                        }}
-                        className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        title="刪除"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    </div>
+              {/* Pagination Bar */}
+              {viewMode === 'pagination' && totalPages > 1 && (
+                <div className="pt-4 pb-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-beige-dark/70">
+                  <div className="text-xs font-bold text-gray-400">
+                    第 <span className="text-cocoa font-black">{safeCurrentPage}</span> 頁，共 {totalPages} 頁 ({filteredItems.length} 項)
                   </div>
 
-                  {/* Location & Address with Map navigation */}
-                  {item.location && (
-                    <div className="flex items-center gap-2 text-xs font-bold text-gray-600 bg-gray-50 px-3 py-2 rounded-xl mb-2 border border-gray-100 flex-wrap sm:flex-nowrap">
-                      <MapPin size={14} className="text-sage flex-shrink-0" />
-                      <span className="flex-1 break-words leading-snug">{item.location}</span>
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <button
-                          onClick={() => handleCopyText(item.location!, item.id)}
-                          className="p-1 bg-white hover:bg-gray-100 rounded-lg text-gray-500 border border-gray-200 transition-colors"
-                          title="複製地址"
-                        >
-                          {copiedId === item.id ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
-                        </button>
-                        <button
-                          onClick={() => handleOpenMap(item.location!)}
-                          className="p-1 bg-white hover:bg-sage hover:text-white rounded-lg text-cocoa border border-gray-200 transition-colors flex items-center gap-1 px-2 text-[11px]"
-                          title="在 Google Maps 開啟"
-                        >
-                          <Navigation size={11} /> 導航
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(1)}
+                      disabled={safeCurrentPage === 1}
+                      className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-500 hover:text-cocoa hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                      title="第一頁"
+                    >
+                      <ChevronsLeft size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(safeCurrentPage - 1)}
+                      disabled={safeCurrentPage === 1}
+                      className="px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-bold text-gray-600 hover:text-cocoa hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1"
+                    >
+                      <ChevronLeft size={14} /> 上一頁
+                    </button>
 
-                  {/* URL Hyperlink */}
-                  {item.url && (
-                    <div className="mb-2">
-                      <a
-                        href={item.url.startsWith('http') ? item.url : `https://${item.url}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50/80 hover:bg-blue-100 px-3 py-1.5 rounded-xl border border-blue-200/80 transition-colors break-all"
-                      >
-                        <ExternalLink size={13} className="flex-shrink-0" />
-                        <span className="break-all">
-                          {item.url.replace(/^https?:\/\//, '')}
-                        </span>
-                      </a>
-                    </div>
-                  )}
-
-                  {/* Photo Thumbnails */}
-                  {item.images && item.images.length > 0 && (
-                    <div className="mb-2.5">
-                      <div className="flex items-center gap-2 overflow-x-auto custom-scroll pb-1">
-                        {item.images.map((imgSrc, imgIdx) => (
+                    <div className="flex items-center gap-1 mx-1">
+                      {pageNumbers.map((p, idx) => {
+                        if (p === '...') {
+                          return (
+                            <span key={`ellipsis-${idx}`} className="px-1 text-xs text-gray-400 font-bold">
+                              …
+                            </span>
+                          );
+                        }
+                        const pageNum = p as number;
+                        const isActive = pageNum === safeCurrentPage;
+                        return (
                           <button
-                            key={imgIdx}
+                            key={pageNum}
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setLightboxState({ images: item.images!, index: imgIdx });
-                            }}
-                            className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 border-beige-dark flex-shrink-0 group shadow-2xs hover:border-sage transition-all"
-                            title="點擊放大檢視"
+                            onClick={() => handlePageChange(pageNum)}
+                            className={`min-w-[32px] h-8 rounded-lg text-xs font-black transition-all ${
+                              isActive
+                                ? `${currentTheme.primary} text-white shadow-2xs scale-105`
+                                : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                            }`}
                           >
-                            <img
-                              src={imgSrc}
-                              alt={`${item.title} 照片 ${imgIdx + 1}`}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                              loading="lazy"
-                            />
-                            <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">
-                              <ZoomIn size={14} />
-                            </div>
+                            {pageNum}
                           </button>
-                        ))}
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(safeCurrentPage + 1)}
+                      disabled={safeCurrentPage === totalPages}
+                      className="px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-bold text-gray-600 hover:text-cocoa hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition-colors flex items-center gap-1"
+                    >
+                      下一頁 <ChevronRight size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePageChange(totalPages)}
+                      disabled={safeCurrentPage === totalPages}
+                      className="p-1.5 rounded-lg border border-gray-200 bg-white text-gray-500 hover:text-cocoa hover:bg-gray-50 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                      title="最後一頁"
+                    >
+                      <ChevronsRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Stream Mode Sentinel / Load More / Completed state */}
+              {viewMode === 'stream' && (
+                <div className="pt-3 pb-2 text-center">
+                  {displayedItems.length < filteredItems.length ? (
+                    <div ref={sentinelRef} className="py-2">
+                      {isLoadingMore ? (
+                        <div className="flex items-center justify-center gap-2 text-xs font-bold text-gray-400 py-1">
+                          <Loader2 size={16} className="animate-spin text-orange-500" />
+                          <span>正在載入更多口袋名單筆記...</span>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsLoadingMore(true);
+                            setTimeout(() => {
+                              setStreamCount(prev => Math.min(prev + pageSize, filteredItems.length));
+                              setIsLoadingMore(false);
+                            }, 80);
+                          }}
+                          className="px-4 py-2 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-600 shadow-2xs transition-all active:scale-95"
+                        >
+                          載入更多 (還有 {filteredItems.length - displayedItems.length} 項)
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="py-2">
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/80 border border-beige-dark rounded-full text-xs font-bold text-gray-400">
+                        <CheckCircle2 size={13} className="text-sage" />
+                        <span>已顯示全部 {filteredItems.length} 項名單</span>
                       </div>
                     </div>
                   )}
 
-                  {/* Notes Box */}
-                  {item.notes && (
-                    <div className="bg-amber-50/70 p-3.5 rounded-2xl border border-amber-200/70">
-                      <div className="flex items-center gap-1.5 text-xs font-black text-amber-800 mb-1.5">
-                        <StickyNote size={14} className="text-amber-600 flex-shrink-0" />
-                        <span>備註:</span>
-                      </div>
-                      <div className="text-[11pt] font-medium text-amber-950 whitespace-pre-wrap leading-relaxed">
-                        {item.notes}
-                      </div>
-                    </div>
+                  {displayedItems.length > 12 && (
+                    <button
+                      type="button"
+                      onClick={() => listContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                      className="mx-auto mt-2 flex items-center gap-1 text-[11px] font-bold text-gray-400 hover:text-cocoa py-1 px-2.5 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <ArrowUp size={12} /> 回到頂部
+                    </button>
                   )}
                 </div>
-              );
-            })
+              )}
+            </>
           )}
         </div>
 

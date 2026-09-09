@@ -10,7 +10,8 @@ import {
   CreditCard,
   Users,
   CheckCircle2,
-  Loader2
+  Loader2,
+  Bookmark
 } from 'lucide-react';
 import { 
   TripExportData, 
@@ -174,6 +175,12 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({ isOpen, onClose,
               <Users size={13} className="text-sage" />
               {data.members?.length || 0} 位成員分攤
             </span>
+            {data.pocketItems && data.pocketItems.length > 0 && (
+              <span className="bg-white border border-amber-300 text-amber-900 px-3 py-1.5 rounded-xl flex items-center gap-1.5 shadow-xs whitespace-nowrap">
+                <Bookmark size={13} className="text-amber-600 fill-amber-600" />
+                {data.pocketItems.length} 則口袋名單筆記
+              </span>
+            )}
           </div>
 
           {/* Live A4 Aesthetic Preview Box */}

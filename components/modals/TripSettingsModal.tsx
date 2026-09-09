@@ -9,7 +9,10 @@ import {
   BookingCarRental, 
   BookingTicket, 
   Expense, 
-  Member 
+  Member,
+  PocketItem,
+  TodoItem,
+  TravelDocument
 } from '../../types';
 import { ExportPdfModal } from './ExportPdfModal';
 import { exportTripToPdfFile, TripExportData } from '../../utils/pdfExport';
@@ -24,7 +27,9 @@ export const TripSettingsModal = ({
     bookingCarRentals = [],
     bookingTickets = [],
     expenses = [],
-    members = []
+    members = [],
+    pocketItems = [],
+    planningLists
 }: { 
     isOpen: boolean;
     onClose: () => void;
@@ -42,6 +47,14 @@ export const TripSettingsModal = ({
     bookingTickets?: BookingTicket[];
     expenses?: Expense[];
     members?: Member[];
+    pocketItems?: PocketItem[];
+    planningLists?: {
+      todo?: TodoItem[];
+      packing?: TodoItem[];
+      wish?: TodoItem[];
+      shopping?: TodoItem[];
+      documents?: TravelDocument[];
+    };
 }) => {
     const [newCurrencyCode, setNewCurrencyCode] = useState('');
     const [newCurrencyRate, setNewCurrencyRate] = useState('');
@@ -63,7 +76,9 @@ export const TripSettingsModal = ({
       bookingTickets,
       expenses,
       members,
-      currencies
+      currencies,
+      pocketItems,
+      planningLists
     };
 
     const handleCopyCode = () => {
