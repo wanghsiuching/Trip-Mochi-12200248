@@ -291,7 +291,7 @@ export const joinTripByCode = async (code: string): Promise<any> => {
     const rawSchedule = Array.from(scheduleMap.values());
     data.scheduleItems = sortScheduleItems(rawSchedule, data.scheduleOrder);
 
-    // 2. Fetch pocket items from subcollection and merge
+    // 2. Fetch pocket items from subcollection and merge defensively
     const pocketMap = new Map<string, PocketItem>();
     if (Array.isArray(data.pocketItems)) {
       for (const item of data.pocketItems) {
@@ -301,7 +301,23 @@ export const joinTripByCode = async (code: string): Promise<any> => {
     if (pocketSnap) {
       for (const d of pocketSnap.docs) {
         const item = d.data() as PocketItem;
-        if (item && item.id) pocketMap.set(String(item.id), item);
+        if (item && item.id) {
+          const prevItem = pocketMap.get(String(item.id));
+          if (prevItem) {
+            // Defensively preserve notes, images, priceRange, etc. if subcollection doc was missing any field
+            pocketMap.set(String(item.id), {
+              ...prevItem,
+              ...item,
+              notes: item.notes || (item as any).note || prevItem.notes || (prevItem as any).note || '',
+              images: (Array.isArray(item.images) && item.images.length > 0) ? item.images : (prevItem.images || []),
+              location: item.location || (item as any).address || prevItem.location || (prevItem as any).address || '',
+              url: item.url || (item as any).googleMapUrl || (item as any).link || prevItem.url || (prevItem as any).googleMapUrl || '',
+              priceRange: item.priceRange || (item as any).price || prevItem.priceRange || (prevItem as any).price || '',
+            });
+          } else {
+            pocketMap.set(String(item.id), item);
+          }
+        }
       }
     }
     const finalPocket = Array.from(pocketMap.values());
@@ -617,7 +633,7 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
       const rawSchedule = Array.from(scheduleMap.values());
       const finalSchedule = sortScheduleItems(rawSchedule, currentTripData.scheduleOrder);
 
-      // 2. Merge pocket items: Subcollection takes precedence
+      // 2. Merge pocket items: Subcollection takes precedence, defensively preserving fields
       const pocketMap = new Map<string, PocketItem>();
       if (Array.isArray(currentTripData.pocketItems)) {
         for (const item of currentTripData.pocketItems) {
@@ -628,7 +644,20 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
       }
       for (const item of subcollectionPocketItems) {
         if (item && item.id) {
-          pocketMap.set(String(item.id), item);
+          const prevItem = pocketMap.get(String(item.id));
+          if (prevItem) {
+            pocketMap.set(String(item.id), {
+              ...prevItem,
+              ...item,
+              notes: item.notes || (item as any).note || prevItem.notes || (prevItem as any).note || '',
+              images: (Array.isArray(item.images) && item.images.length > 0) ? item.images : (prevItem.images || []),
+              location: item.location || (item as any).address || prevItem.location || (prevItem as any).address || '',
+              url: item.url || (item as any).googleMapUrl || (item as any).link || prevItem.url || (prevItem as any).googleMapUrl || '',
+              priceRange: item.priceRange || (item as any).price || prevItem.priceRange || (prevItem as any).price || '',
+            });
+          } else {
+            pocketMap.set(String(item.id), item);
+          }
         }
       }
       const finalPocket = Array.from(pocketMap.values());

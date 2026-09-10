@@ -21,7 +21,7 @@ interface FormImageItem {
 interface PocketPlacesModalProps {
   isOpen: boolean;
   onClose: () => void;
-  initialTab?: 'food' | 'spot' | 'shopping';
+  initialTab?: 'all' | 'food' | 'spot' | 'shopping';
   tripId?: string;
   pocketItems: PocketItem[];
   tripDays: TripDay[];
@@ -37,6 +37,7 @@ const SHOPPING_PRESET_TAGS = ['伴手禮', '藥妝', '百貨商場', '零食/點
 
 interface PocketItemCardProps {
   item: PocketItem;
+  activeTab: 'all' | 'food' | 'spot' | 'shopping';
   isFood: boolean;
   isSpot: boolean;
   isShopping: boolean;
@@ -53,6 +54,7 @@ interface PocketItemCardProps {
 
 const PocketItemCard: React.FC<PocketItemCardProps> = React.memo(({
   item,
+  activeTab,
   isFood,
   isSpot,
   isShopping,
@@ -66,8 +68,26 @@ const PocketItemCard: React.FC<PocketItemCardProps> = React.memo(({
   onOpenMap,
   onOpenLightbox,
 }) => {
-  const [isNotesExpanded, setIsNotesExpanded] = useState(false);
-  const isLongNote = !!item.notes && item.notes.length > 220;
+  // Normalize fields so legacy or alternative property names are NEVER lost
+  const displayNotes = item.notes || (item as any).note || '';
+  const displayLocation = item.location || (item as any).address || '';
+  const displayUrl = item.url || (item as any).googleMapUrl || (item as any).link || '';
+  const displayPriceRange = item.priceRange || (item as any).price || '';
+
+  const displayImages = useMemo(() => {
+    const list: string[] = [];
+    if (Array.isArray(item.images)) {
+      list.push(...item.images.filter(Boolean));
+    }
+    if ((item as any).image && typeof (item as any).image === 'string' && !list.includes((item as any).image)) {
+      list.push((item as any).image);
+    }
+    return list;
+  }, [item.images, (item as any).image]);
+
+  const resolvedCategory = item.category || 'spot';
+  const isFoodCategory = resolvedCategory === 'food';
+  const isShoppingCategory = resolvedCategory === 'shopping';
 
   return (
     <div
@@ -97,11 +117,24 @@ const PocketItemCard: React.FC<PocketItemCardProps> = React.memo(({
                 {item.title}
               </h4>
 
+              {/* Show category chip when in 'All' tab */}
+              {activeTab === 'all' && (
+                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border ${
+                  isFoodCategory 
+                    ? 'bg-orange-50 text-orange-700 border-orange-200' 
+                    : isShoppingCategory
+                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                    : 'bg-teal-50 text-teal-700 border-teal-200'
+                }`}>
+                  {isFoodCategory ? '美食' : isShoppingCategory ? '購物' : '景點'}
+                </span>
+              )}
+
               {item.tag && (
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                  isFood 
+                  isFoodCategory 
                     ? 'bg-orange-50 text-orange-700 border-orange-200' 
-                    : isSpot
+                    : isSpot 
                     ? 'bg-teal-50 text-teal-700 border-teal-200'
                     : 'bg-rose-50 text-rose-700 border-rose-200'
                 }`}>
@@ -162,14 +195,14 @@ const PocketItemCard: React.FC<PocketItemCardProps> = React.memo(({
       </div>
 
       {/* Location & Address with Map navigation */}
-      {item.location && (
+      {displayLocation && (
         <div className="flex items-center gap-2 text-xs font-bold text-gray-600 bg-gray-50 px-3 py-2 rounded-xl mb-2 border border-gray-100 flex-wrap sm:flex-nowrap">
           <MapPin size={14} className="text-sage flex-shrink-0" />
-          <span className="flex-1 break-words leading-snug">{item.location}</span>
+          <span className="flex-1 break-words leading-snug">{displayLocation}</span>
           <div className="flex items-center gap-1 flex-shrink-0">
             <button
               type="button"
-              onClick={() => onCopyText(item.location!, item.id)}
+              onClick={() => onCopyText(displayLocation, item.id)}
               className="p-1 bg-white hover:bg-gray-100 rounded-lg text-gray-500 border border-gray-200 transition-colors"
               title="複製地址"
             >
@@ -177,7 +210,7 @@ const PocketItemCard: React.FC<PocketItemCardProps> = React.memo(({
             </button>
             <button
               type="button"
-              onClick={() => onOpenMap(item.location!)}
+              onClick={() => onOpenMap(displayLocation)}
               className="p-1 bg-white hover:bg-sage hover:text-white rounded-lg text-cocoa border border-gray-200 transition-colors flex items-center gap-1 px-2 text-[11px]"
               title="在 Google Maps 開啟"
             >
@@ -187,34 +220,44 @@ const PocketItemCard: React.FC<PocketItemCardProps> = React.memo(({
         </div>
       )}
 
+      {/* Price Range */}
+      {displayPriceRange && (
+        <div className="mb-2">
+          <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200/80">
+            <span className="text-emerald-600 font-medium">預算/價格:</span>
+            <span className="font-black text-emerald-950">{displayPriceRange}</span>
+          </span>
+        </div>
+      )}
+
       {/* URL Hyperlink */}
-      {item.url && (
+      {displayUrl && (
         <div className="mb-2">
           <a
-            href={item.url.startsWith('http') ? item.url : `https://${item.url}`}
+            href={displayUrl.startsWith('http') ? displayUrl : `https://${displayUrl}`}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50/80 hover:bg-blue-100 px-3 py-1.5 rounded-xl border border-blue-200/80 transition-colors break-all"
           >
             <ExternalLink size={13} className="flex-shrink-0" />
             <span className="break-all">
-              {item.url.replace(/^https?:\/\//, '')}
+              {displayUrl.replace(/^https?:\/\//, '')}
             </span>
           </a>
         </div>
       )}
 
       {/* Photo Thumbnails */}
-      {item.images && item.images.length > 0 && (
+      {displayImages.length > 0 && (
         <div className="mb-2.5">
           <div className="flex items-center gap-2 overflow-x-auto custom-scroll pb-1">
-            {item.images.map((imgSrc, imgIdx) => (
+            {displayImages.map((imgSrc, imgIdx) => (
               <button
                 key={imgIdx}
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onOpenLightbox(item.images!, imgIdx);
+                  onOpenLightbox(displayImages, imgIdx);
                 }}
                 className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-2 border-beige-dark flex-shrink-0 group shadow-2xs hover:border-sage transition-all"
                 title="點擊放大檢視"
@@ -235,32 +278,15 @@ const PocketItemCard: React.FC<PocketItemCardProps> = React.memo(({
         </div>
       )}
 
-      {/* Notes Box */}
-      {item.notes && (
-        <div className="bg-amber-50/70 p-3.5 rounded-2xl border border-amber-200/70">
-          <div className="flex items-center justify-between gap-1.5 text-xs font-black text-amber-800 mb-1.5">
-            <div className="flex items-center gap-1.5">
-              <StickyNote size={14} className="text-amber-600 flex-shrink-0" />
-              <span>備註:</span>
-            </div>
-            {isLongNote && (
-              <button
-                type="button"
-                onClick={() => setIsNotesExpanded(prev => !prev)}
-                className="text-[11px] text-amber-700 hover:text-amber-900 font-bold flex items-center gap-0.5 hover:underline"
-              >
-                {isNotesExpanded ? (
-                  <>收合筆記 <ChevronUp size={12} /></>
-                ) : (
-                  <>展開完整筆記 <ChevronDown size={12} /></>
-                )}
-              </button>
-            )}
+      {/* Notes Box - Full content always visible, never truncated or clamped */}
+      {displayNotes && (
+        <div className="bg-amber-50/80 p-3.5 rounded-2xl border border-amber-200/80 shadow-2xs">
+          <div className="flex items-center gap-1.5 text-xs font-black text-amber-800 mb-1.5">
+            <StickyNote size={14} className="text-amber-600 flex-shrink-0" />
+            <span>備註說明:</span>
           </div>
-          <div className={`text-[11pt] font-medium text-amber-950 whitespace-pre-wrap leading-relaxed ${
-            isLongNote && !isNotesExpanded ? 'line-clamp-3' : ''
-          }`}>
-            {item.notes}
+          <div className="text-[11pt] font-medium text-amber-950 whitespace-pre-wrap leading-relaxed select-text break-words">
+            {displayNotes}
           </div>
         </div>
       )}
@@ -282,16 +308,23 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
   onDeleteItem,
   onAddToSchedule,
 }) => {
-  const [activeTab, setActiveTab] = useState<'food' | 'spot' | 'shopping'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'all' | 'food' | 'spot' | 'shopping'>(initialTab || 'all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('全部');
   const [filterVisited, setFilterVisited] = useState<'all' | 'unvisited' | 'visited'>('all');
 
+  // Sync activeTab if initialTab prop changes
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
   // Pagination & Progressive Virtual Loading State
   const [viewMode, setViewMode] = useState<'pagination' | 'stream'>('pagination');
-  const [pageSize, setPageSize] = useState<number>(12);
+  const [pageSize, setPageSize] = useState<number>(20);
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [streamCount, setStreamCount] = useState<number>(12);
+  const [streamCount, setStreamCount] = useState<number>(20);
   const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 
   const listContainerRef = useRef<HTMLDivElement>(null);
@@ -317,8 +350,9 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
     tag: string;
     rating: number;
     assignedDate: string;
+    priceRange: string;
   }>({
-    category: initialTab,
+    category: (initialTab === 'food' || initialTab === 'shopping' || initialTab === 'spot') ? initialTab : 'food',
     title: '',
     location: '',
     url: '',
@@ -326,6 +360,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
     tag: '',
     rating: 5,
     assignedDate: '',
+    priceRange: '',
   });
 
   // Add to Schedule dialog state
@@ -345,20 +380,35 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
     }
   }, [activeTab, searchQuery, selectedTag, filterVisited, pageSize]);
 
-  // Filter items
-  const currentTabItems = useMemo(
-    () => pocketItems.filter(item => item.category === activeTab),
-    [pocketItems, activeTab]
-  );
+  // Filter items by category
+  const currentTabItems = useMemo(() => {
+    return pocketItems.filter(item => {
+      if (activeTab === 'all') return true;
+      const cat = item.category || 'spot';
+      if (activeTab === 'food') return cat === 'food';
+      if (activeTab === 'shopping') return cat === 'shopping';
+      if (activeTab === 'spot') return cat === 'spot' || (cat !== 'food' && cat !== 'shopping');
+      return true;
+    });
+  }, [pocketItems, activeTab]);
 
   const filteredItems = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return currentTabItems.filter(item => {
+      const title = item.title || '';
+      const location = item.location || (item as any).address || '';
+      const notes = item.notes || (item as any).note || '';
+      const tag = item.tag || '';
+      const priceRange = item.priceRange || (item as any).price || '';
+      const url = item.url || (item as any).googleMapUrl || (item as any).link || '';
+
       const matchesSearch = !q ||
-        item.title.toLowerCase().includes(q) ||
-        (item.location && item.location.toLowerCase().includes(q)) ||
-        (item.notes && item.notes.toLowerCase().includes(q)) ||
-        (item.tag && item.tag.toLowerCase().includes(q));
+        title.toLowerCase().includes(q) ||
+        location.toLowerCase().includes(q) ||
+        notes.toLowerCase().includes(q) ||
+        tag.toLowerCase().includes(q) ||
+        priceRange.toLowerCase().includes(q) ||
+        url.toLowerCase().includes(q);
 
       const matchesTag = selectedTag === '全部' || item.tag === selectedTag;
 
@@ -450,6 +500,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
       tag: '',
       rating: 5,
       assignedDate: '',
+      priceRange: '',
     });
     setFormImages([]);
     setIsFormOpen(true);
@@ -458,18 +509,33 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
   const handleOpenEditForm = (item: PocketItem) => {
     setEditingId(item.id);
     setUploadError(null);
+    const cat = (item.category === 'food' || item.category === 'shopping' || item.category === 'spot')
+      ? item.category
+      : 'spot';
+
     setFormData({
-      category: item.category,
-      title: item.title,
-      location: item.location || '',
-      url: item.url || '',
-      notes: item.notes || '',
+      category: cat,
+      title: item.title || '',
+      location: item.location || (item as any).address || '',
+      url: item.url || (item as any).googleMapUrl || (item as any).link || '',
+      notes: item.notes || (item as any).note || '',
       tag: item.tag || '',
       rating: item.rating || 5,
       assignedDate: item.assignedDate || '',
+      priceRange: item.priceRange || (item as any).price || '',
     });
+
+    // Gather images from both array and legacy single image string
+    const existingImages: string[] = [];
+    if (Array.isArray(item.images)) {
+      existingImages.push(...item.images.filter(Boolean));
+    }
+    if ((item as any).image && typeof (item as any).image === 'string' && !existingImages.includes((item as any).image)) {
+      existingImages.push((item as any).image);
+    }
+
     setFormImages(
-      (item.images || []).map((imgUrl, i) => ({
+      existingImages.map((imgUrl, i) => ({
         id: `existing-${item.id}-${i}-${Date.now()}`,
         url: imgUrl,
         progress: 100,
@@ -575,6 +641,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
             tag: formData.tag.trim(),
             rating: formData.rating,
             assignedDate: formData.assignedDate,
+            priceRange: formData.priceRange.trim() || undefined,
             images: finalImages,
           });
         }
@@ -588,6 +655,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
           tag: formData.tag.trim(),
           rating: formData.rating,
           assignedDate: formData.assignedDate,
+          priceRange: formData.priceRange.trim() || undefined,
           images: finalImages,
           isVisited: false,
         });
@@ -670,7 +738,8 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
         name: '探索景點名單',
         itemType: '探索景點',
       }
-    : {
+    : activeTab === 'shopping'
+    ? {
         primary: 'bg-rose-500',
         primaryHover: 'hover:bg-rose-600',
         lightBg: 'bg-rose-50',
@@ -679,6 +748,16 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
         iconColor: 'text-rose-500',
         name: '購物/伴手禮名單',
         itemType: '購物/伴手禮',
+      }
+    : {
+        primary: 'bg-cocoa',
+        primaryHover: 'hover:bg-cocoa/90',
+        lightBg: 'bg-beige-light',
+        badgeBg: 'bg-cocoa/10 text-cocoa border-cocoa/20',
+        border: 'border-beige-dark',
+        iconColor: 'text-cocoa',
+        name: '全部口袋名單',
+        itemType: '口袋名單',
       };
 
   if (!isOpen) return null;
@@ -706,18 +785,33 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
             </button>
           </div>
 
-          {/* Main Category Tabs (美食清單, 探索景點, 購物/伴手禮) */}
-          <div className="grid grid-cols-3 gap-1.5 sm:gap-2 bg-gray-100 p-1.5 rounded-2xl">
+          {/* Main Category Tabs (全部, 美食清單, 探索景點, 購物/伴手禮) */}
+          <div className="grid grid-cols-4 gap-1 sm:gap-1.5 bg-gray-100 p-1 sm:p-1.5 rounded-2xl">
+            <button
+              onClick={() => { setActiveTab('all'); setSelectedTag('全部'); }}
+              className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all ${
+                activeTab === 'all'
+                  ? 'bg-cocoa text-white shadow-sm'
+                  : 'text-gray-500 hover:text-cocoa hover:bg-white/50'
+              }`}
+            >
+              <Layers size={15} className="flex-shrink-0" /> <span className="truncate">全部</span>
+              <span className={`text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full font-bold ${
+                activeTab === 'all' ? 'bg-cocoa-light text-white' : 'bg-gray-200 text-gray-600'
+              }`}>
+                {pocketItems.length}
+              </span>
+            </button>
             <button
               onClick={() => { setActiveTab('food'); setSelectedTag('全部'); }}
-              className={`flex items-center justify-center gap-1.5 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all ${
+              className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all ${
                 activeTab === 'food'
                   ? 'bg-orange-500 text-white shadow-sm'
                   : 'text-gray-500 hover:text-orange-600 hover:bg-white/50'
               }`}
             >
-              <Utensils size={15} /> <span className="truncate">美食清單</span>
-              <span className={`text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full ${
+              <Utensils size={15} className="flex-shrink-0" /> <span className="truncate">美食</span>
+              <span className={`text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full font-bold ${
                 activeTab === 'food' ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-600'
               }`}>
                 {pocketItems.filter(p => p.category === 'food').length}
@@ -725,29 +819,29 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
             </button>
             <button
               onClick={() => { setActiveTab('spot'); setSelectedTag('全部'); }}
-              className={`flex items-center justify-center gap-1.5 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all ${
+              className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all ${
                 activeTab === 'spot'
                   ? 'bg-teal-600 text-white shadow-sm'
                   : 'text-gray-500 hover:text-teal-700 hover:bg-white/50'
               }`}
             >
-              <Compass size={15} /> <span className="truncate">探索景點</span>
-              <span className={`text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full ${
+              <Compass size={15} className="flex-shrink-0" /> <span className="truncate">景點</span>
+              <span className={`text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full font-bold ${
                 activeTab === 'spot' ? 'bg-teal-700 text-white' : 'bg-gray-200 text-gray-600'
               }`}>
-                {pocketItems.filter(p => p.category === 'spot').length}
+                {pocketItems.filter(p => (p.category || 'spot') === 'spot').length}
               </span>
             </button>
             <button
               onClick={() => { setActiveTab('shopping'); setSelectedTag('全部'); }}
-              className={`flex items-center justify-center gap-1.5 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all ${
+              className={`flex items-center justify-center gap-1 sm:gap-1.5 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm transition-all ${
                 activeTab === 'shopping'
                   ? 'bg-rose-500 text-white shadow-sm'
                   : 'text-gray-500 hover:text-rose-600 hover:bg-white/50'
               }`}
             >
-              <ShoppingBag size={15} /> <span className="truncate">購物/伴手禮</span>
-              <span className={`text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full ${
+              <ShoppingBag size={15} className="flex-shrink-0" /> <span className="truncate">購物</span>
+              <span className={`text-[10px] sm:text-xs px-1.5 py-0.2 rounded-full font-bold ${
                 activeTab === 'shopping' ? 'bg-rose-600 text-white' : 'bg-gray-200 text-gray-600'
               }`}>
                 {pocketItems.filter(p => p.category === 'shopping').length}
@@ -763,7 +857,15 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                placeholder={`搜尋${activeTab === 'food' ? '美食店名、地址、備註' : activeTab === 'spot' ? '景點、地名、備註' : '伴手禮、商品、店名、備註'}...`}
+                placeholder={
+                  activeTab === 'food' 
+                    ? '搜尋美食店名、地址、備註、預算...' 
+                    : activeTab === 'spot' 
+                    ? '搜尋景點、地名、備註...' 
+                    : activeTab === 'shopping'
+                    ? '搜尋伴手禮、商品、店名、備註...'
+                    : '搜尋口袋名單店名、地址、備註、標籤、預算...'
+                }
                 className="w-full bg-gray-50 pl-9 pr-3 py-2 rounded-xl text-xs font-bold border border-gray-200 focus:border-sage outline-none"
               />
               {searchQuery && (
@@ -777,10 +879,10 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
             </div>
 
             <button
-              onClick={() => handleOpenAddForm(activeTab)}
+              onClick={() => handleOpenAddForm(activeTab === 'all' ? 'food' : activeTab)}
               className={`${currentTheme.primary} ${currentTheme.primaryHover} text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all active:scale-95 flex-shrink-0`}
             >
-              <Plus size={15} strokeWidth={2.5} /> 新增{activeTab === 'food' ? '美食' : activeTab === 'spot' ? '探索' : '購物'}
+              <Plus size={15} strokeWidth={2.5} /> 新增{activeTab === 'food' ? '美食' : activeTab === 'spot' ? '景點' : activeTab === 'shopping' ? '購物' : '筆記'}
             </button>
           </div>
 
@@ -793,7 +895,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                   onClick={() => setSelectedTag(tag)}
                   className={`px-2.5 py-1 rounded-lg font-bold whitespace-nowrap transition-all ${
                     selectedTag === tag
-                      ? `${activeTab === 'food' ? 'bg-orange-100 text-orange-800 border-orange-300' : activeTab === 'spot' ? 'bg-teal-100 text-teal-800 border-teal-300' : 'bg-rose-100 text-rose-800 border-rose-300'} border`
+                      ? `${activeTab === 'food' ? 'bg-orange-100 text-orange-800 border-orange-300' : activeTab === 'spot' ? 'bg-teal-100 text-teal-800 border-teal-300' : activeTab === 'shopping' ? 'bg-rose-100 text-rose-800 border-rose-300' : 'bg-cocoa text-white border-cocoa'} border`
                       : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                   }`}
                 >
@@ -810,9 +912,22 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
               {filteredItems.length > 0 && (
                 <span className="text-gray-400 font-medium">
                   {viewMode === 'pagination'
-                    ? `· 第 ${safeCurrentPage}/${totalPages} 頁 (第 ${((safeCurrentPage - 1) * pageSize) + 1} ~ ${Math.min(safeCurrentPage * pageSize, filteredItems.length)} 項)`
+                    ? (pageSize >= 9999 ? '· 完整列表' : `· 第 ${safeCurrentPage}/${totalPages} 頁 (第 ${((safeCurrentPage - 1) * pageSize) + 1} ~ ${Math.min(safeCurrentPage * pageSize, filteredItems.length)} 項)`)
                     : `· 已載入 ${displayedItems.length} 項`}
                 </span>
+              )}
+              {(searchQuery || selectedTag !== '全部' || filterVisited !== 'all') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setSelectedTag('全部');
+                    setFilterVisited('all');
+                  }}
+                  className="ml-1 text-[11px] text-amber-600 hover:text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md font-bold"
+                >
+                  清除篩選 (顯示全部)
+                </button>
               )}
             </div>
 
@@ -854,9 +969,9 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                   title="每頁顯示筆數"
                 >
                   <option value={10}>10 筆/頁</option>
-                  <option value={12}>12 筆/頁</option>
                   <option value={20}>20 筆/頁</option>
-                  <option value={30}>30 筆/頁</option>
+                  <option value={50}>50 筆/頁</option>
+                  <option value={9999}>全部顯示 (不分頁)</option>
                 </select>
               )}
             </div>
@@ -872,20 +987,24 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                   <Utensils size={28} className="text-orange-400" />
                 ) : activeTab === 'spot' ? (
                   <Compass size={28} className="text-teal-500" />
-                ) : (
+                ) : activeTab === 'shopping' ? (
                   <ShoppingBag size={28} className="text-rose-500" />
+                ) : (
+                  <Layers size={28} className="text-cocoa" />
                 )}
               </div>
               <h4 className="font-black text-cocoa text-base mb-1">
-                {searchQuery || selectedTag !== '全部' ? '沒有符合篩選條件的項目' : `尚未新增任何${currentTheme.itemType}`}
+                {searchQuery || selectedTag !== '全部' || filterVisited !== 'all' ? '沒有符合篩選條件的項目' : `尚未新增任何${currentTheme.itemType}`}
               </h4>
               <p className="text-xs text-gray-400 font-bold mb-4">
                 {activeTab === 'shopping' 
                   ? '可以記錄想買的伴手禮、藥妝清單、推薦零食、特色紀念品與購買地點！'
-                  : '可以記錄網路上查到想吃的私房餐廳、必逛打卡點、地址超連結與備註！'}
+                  : activeTab === 'food'
+                  ? '可以記錄網路上查到想吃的私房餐廳、必逛打卡點、地址超連結與備註！'
+                  : '可以記錄美食、景點、購物清單，隨時隨地加入行程中！'}
               </p>
               <button
-                onClick={() => handleOpenAddForm(activeTab)}
+                onClick={() => handleOpenAddForm(activeTab === 'all' ? 'food' : activeTab)}
                 className={`inline-flex items-center gap-1.5 ${currentTheme.primary} ${currentTheme.primaryHover} text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-all`}
               >
                 <Plus size={16} /> 立即新增第一筆{currentTheme.itemType}
@@ -897,6 +1016,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                 <PocketItemCard
                   key={item.id}
                   item={item}
+                  activeTab={activeTab}
                   isFood={item.category === 'food'}
                   isSpot={item.category === 'spot'}
                   isShopping={item.category === 'shopping'}
@@ -1377,6 +1497,18 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Price / Budget Range */}
+              <div>
+                <label className="text-xs font-black text-gray-400 block mb-1">預算 / 價格區間 (可選)</label>
+                <input
+                  type="text"
+                  value={formData.priceRange}
+                  onChange={e => setFormData({ ...formData, priceRange: e.target.value })}
+                  placeholder="例：¥1,000 ~ ¥2,000 / NT$500 / 免費"
+                  className="w-full bg-gray-50 p-2.5 rounded-xl border border-gray-200 focus:border-sage outline-none font-bold text-xs text-cocoa"
+                />
               </div>
 
               {/* Notes */}

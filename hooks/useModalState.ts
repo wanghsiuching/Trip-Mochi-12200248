@@ -11,7 +11,7 @@ export const useModalState = () => {
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isPotentialModalOpen, setIsPotentialModalOpen] = useState(false);
   const [isPocketModalOpen, setIsPocketModalOpen] = useState(false);
-  const [pocketInitialTab, setPocketInitialTab] = useState<'food' | 'spot' | 'shopping'>('food');
+  const [pocketInitialTab, setPocketInitialTab] = useState<'all' | 'food' | 'spot' | 'shopping'>('food');
   const [isEditDayModalOpen, setIsEditDayModalOpen] = useState(false);
   const [isDeleteDayModalOpen, setIsDeleteDayModalOpen] = useState(false);
   const [isBackupConfirmOpen, setIsBackupConfirmOpen] = useState(false);

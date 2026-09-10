@@ -37,13 +37,31 @@ export const setCachedTrip = (tripId: string, tripData: any): void => {
   if (!tripId || !tripData || typeof window === 'undefined') return;
   try {
     const prev = getCachedTrip(tripId);
+
+    // Merge pocket items defensively by ID to prevent dropping any items or fields
+    const pocketMap = new Map<string, any>();
+    if (prev?.pocketItems && Array.isArray(prev.pocketItems)) {
+      for (const p of prev.pocketItems) {
+        if (p && p.id) pocketMap.set(String(p.id), p);
+      }
+    }
+    if (tripData.pocketItems && Array.isArray(tripData.pocketItems)) {
+      for (const p of tripData.pocketItems) {
+        if (p && p.id) {
+          const old = pocketMap.get(String(p.id));
+          pocketMap.set(String(p.id), old ? { ...old, ...p } : p);
+        }
+      }
+    }
+    const mergedPocketItems = pocketMap.size > 0
+      ? Array.from(pocketMap.values())
+      : (Array.isArray(tripData.pocketItems) ? tripData.pocketItems : (prev?.pocketItems || []));
+
     // Merge defensively: don't accidentally wipe out pocketItems or scheduleItems if a partial update arrived
     const mergedData = {
       ...(prev || {}),
       ...tripData,
-      pocketItems: (Array.isArray(tripData.pocketItems) && tripData.pocketItems.length > 0)
-        ? tripData.pocketItems
-        : (prev?.pocketItems || tripData.pocketItems || []),
+      pocketItems: mergedPocketItems,
       scheduleItems: (Array.isArray(tripData.scheduleItems) && tripData.scheduleItems.length > 0)
         ? tripData.scheduleItems
         : (prev?.scheduleItems || tripData.scheduleItems || []),

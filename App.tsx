@@ -4,7 +4,7 @@ import {
   MapPin, ArrowRight, Plane, Plus, X, Copy, BookOpen, ChevronLeft, Trash2,
   ChevronUp, ChevronDown, Navigation, StickyNote, Settings, AlertCircle, 
   CalendarCheck, Coins, Edit3, Users, Luggage, Briefcase, Bed, Car, Coffee, Utensils, ShoppingBag, Fuel, Ticket, Clock,
-  Train, Camera, Compass, Share2, Loader2
+  Train, Camera, Compass, Share2, Loader2, Bookmark, Layers
 } from 'lucide-react';
 
 import { 
@@ -808,6 +808,18 @@ export default function App() {
                         <span>{swappingFromIndex !== null ? '點擊其他日期來完成對調' : '長按日期方塊後釋放，再點擊目標可對調'}</span>
                     </div>
                     <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+                        <button 
+                            onClick={() => { setPocketInitialTab('all'); setIsPocketModalOpen(true); }} 
+                            className="bg-stone-100 hover:bg-stone-200 text-cocoa px-2.5 py-1.5 rounded-xl border border-stone-300/80 shadow-sm text-xs font-black inline-flex items-center gap-1.5 transition-all active:scale-95 whitespace-nowrap"
+                            title="全部口袋名單筆記"
+                        >
+                            <Bookmark size={13} className="text-cocoa" /> 全部
+                            {pocketItems.length > 0 && (
+                                <span className="bg-cocoa text-white text-[9px] px-1.5 py-0.5 rounded-full font-mono leading-none">
+                                    {pocketItems.length}
+                                </span>
+                            )}
+                        </button>
                         <button 
                             onClick={() => { setPocketInitialTab('food'); setIsPocketModalOpen(true); }} 
                             className="bg-orange-100 hover:bg-orange-200 text-orange-700 px-2.5 py-1.5 rounded-xl border border-orange-200 shadow-sm text-xs font-bold inline-flex items-center gap-1.5 transition-all active:scale-95 whitespace-nowrap"
