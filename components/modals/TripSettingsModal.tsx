@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, X, Coins, Plus, Save, Copy, Check, Hash, FileText, Eye, Download, Loader2 } from 'lucide-react';
+import { Settings, X, Coins, Plus, Save, Copy, Check, Hash, FileText, Eye, Download, Loader2, UserCheck, History, Trash2 } from 'lucide-react';
 import { 
   Currency, 
   TripDay, 
@@ -16,6 +16,7 @@ import {
 } from '../../types';
 import { ExportPdfModal } from './ExportPdfModal';
 import { exportTripToPdfFile, TripExportData } from '../../utils/pdfExport';
+import { ActorAvatar } from '../MemberAvatar';
 
 export const TripSettingsModal = ({ 
     isOpen, onClose, currencies, onAddCurrency, onRemoveCurrency, onDuplicate,
@@ -29,7 +30,13 @@ export const TripSettingsModal = ({
     expenses = [],
     members = [],
     pocketItems = [],
-    planningLists
+    planningLists,
+    currentActorName,
+    currentActorAvatar,
+    onOpenIdentityPicker,
+    onOpenActivityHistory,
+    onOpenTrash,
+    deletedItemsCount = 0,
 }: { 
     isOpen: boolean;
     onClose: () => void;
@@ -55,7 +62,14 @@ export const TripSettingsModal = ({
       shopping?: TodoItem[];
       documents?: TravelDocument[];
     };
+    currentActorName?: string;
+    currentActorAvatar?: string;
+    onOpenIdentityPicker?: () => void;
+    onOpenActivityHistory?: () => void;
+    onOpenTrash?: () => void;
+    deletedItemsCount?: number;
 }) => {
+
     const [newCurrencyCode, setNewCurrencyCode] = useState('');
     const [newCurrencyRate, setNewCurrencyRate] = useState('');
     const [copiedCode, setCopiedCode] = useState(false);
@@ -138,6 +152,73 @@ export const TripSettingsModal = ({
                             <p className="text-[10px] text-gray-400 mt-2">好友可在首頁輸入此代碼加入或查看此行程。</p>
                         </div>
                     )}
+
+                    {/* Operator Identity & Collaboration History */}
+                    <div className="bg-white border-2 border-sand p-4 rounded-2xl shadow-sm space-y-3">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <div className="w-8 h-8 rounded-xl bg-sage/10 text-sage flex items-center justify-center font-bold">
+                                    <UserCheck size={18} />
+                                </div>
+                                <div>
+                                    <h4 className="text-sm font-black text-cocoa">我的操作身分</h4>
+                                    <div className="text-[11px] text-gray-400 font-bold flex items-center gap-1.5 mt-0.5">
+                                        <span>目前代表：</span>
+                                        <div className="w-4 h-4 rounded-full overflow-hidden inline-flex items-center justify-center bg-sand/30 flex-shrink-0">
+                                            <ActorAvatar avatar={currentActorAvatar} className="w-full h-full object-cover" />
+                                        </div>
+                                        <span className="text-cocoa font-bold truncate max-w-[120px]">{currentActorName || '未指定身分'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            {onOpenIdentityPicker && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        onClose();
+                                        onOpenIdentityPicker();
+                                    }}
+                                    className="px-3 py-1.5 bg-sage/10 hover:bg-sage/20 text-sage-dark font-black text-xs rounded-xl border border-sage/30 transition-all active:scale-95 cursor-pointer"
+                                >
+                                    切換身分
+                                </button>
+                            )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2 pt-1 border-t border-sand/60">
+                            {onOpenActivityHistory && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        onClose();
+                                        onOpenActivityHistory();
+                                    }}
+                                    className="py-2.5 px-3 bg-[#FAF8F2] hover:bg-sand/30 border border-sand rounded-xl text-xs font-black text-cocoa flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                                >
+                                    <History size={14} className="text-terracotta" />
+                                    <span>歷史紀錄</span>
+                                </button>
+                            )}
+                            {onOpenTrash && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        onClose();
+                                        onOpenTrash();
+                                    }}
+                                    className="py-2.5 px-3 bg-[#FAF8F2] hover:bg-sand/30 border border-sand rounded-xl text-xs font-black text-cocoa flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer relative"
+                                >
+                                    <Trash2 size={14} className="text-rose-500" />
+                                    <span>最近刪除</span>
+                                    {deletedItemsCount > 0 && (
+                                        <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.2 rounded-full font-mono">
+                                            {deletedItemsCount}
+                                        </span>
+                                    )}
+                                </button>
+                            )}
+                        </div>
+                    </div>
 
                     {/* PDF Export Section */}
                     <div className="bg-gradient-to-br from-white to-[#F6F4ED] border-2 border-sage/40 p-4 rounded-2xl shadow-sm relative overflow-hidden">
