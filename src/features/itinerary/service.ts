@@ -57,35 +57,11 @@ export const itineraryService = {
   },
 
   /**
-   * Delete a schedule item (hard delete fallback)
+   * Delete a schedule item
    */
   async deleteScheduleItem(tripId: string, itemId: string): Promise<void> {
     const docRef = doc(db, 'trips', tripId, 'scheduleItems', itemId);
     await deleteDoc(docRef);
-  },
-
-  /**
-   * Soft delete a schedule item
-   */
-  async softDeleteScheduleItem(tripId: string, itemId: string, deletedBy: string = '成員'): Promise<void> {
-    const docRef = doc(db, 'trips', tripId, 'scheduleItems', itemId);
-    await setDoc(docRef, {
-      deletedAt: Date.now(),
-      deletedBy,
-      schemaVersion: CURRENT_SCHEMA_VERSION,
-    }, { merge: true });
-  },
-
-  /**
-   * Restore a soft-deleted schedule item
-   */
-  async restoreScheduleItem(tripId: string, itemId: string): Promise<void> {
-    const docRef = doc(db, 'trips', tripId, 'scheduleItems', itemId);
-    await setDoc(docRef, {
-      deletedAt: null,
-      deletedBy: null,
-      schemaVersion: CURRENT_SCHEMA_VERSION,
-    }, { merge: true });
   },
 
   /**

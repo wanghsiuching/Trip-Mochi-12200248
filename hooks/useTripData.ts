@@ -9,8 +9,6 @@ import {
   updateTripDaysAndSchedule,
   updateTripDayDateAndDetails
 } from '../services/tripService';
-import { activityService } from '../src/features/activity/service';
-import { historyService } from '../src/features/history/service';
 
 export const useTripData = (currentTripId: string) => {
   const [tripDays, setTripDays] = useState<TripDay[]>([]);
@@ -19,8 +17,7 @@ export const useTripData = (currentTripId: string) => {
   const handleSaveItem = async (
     itemData: Omit<ScheduleItem, 'id'>, 
     editingItem: ScheduleItem | null, 
-    onSaved?: () => void,
-    actorName: string = '成員'
+    onSaved?: () => void
   ): Promise<void> => {
     if (editingItem) {
       const fullItem: ScheduleItem = { 
@@ -32,30 +29,12 @@ export const useTripData = (currentTripId: string) => {
       if (onSaved) onSaved();
       try {
         await saveScheduleItem(currentTripId, fullItem);
-        // Record field-level history diff
-        historyService.recordChange(currentTripId, {
-          entityType: 'schedule',
-          entityId: fullItem.id,
-          actorName,
-          action: 'edit',
-          summary: `編輯了行程「${fullItem.title}」`,
-          before: editingItem,
-          after: fullItem,
-        });
-        // Record activity log
-        activityService.recordActivity(currentTripId, {
-          actorName,
-          action: 'update',
-          entityType: 'schedule',
-          entityId: fullItem.id,
-          summary: `編輯了行程「${fullItem.title}」(${fullItem.time})`,
-        });
       } catch (err) {
         console.error("Failed to save edited schedule item:", err);
         throw err;
       }
     } else {
-      const sameDayItems = scheduleItems.filter(i => i.date === itemData.date && !i.deletedAt);
+      const sameDayItems = scheduleItems.filter(i => i.date === itemData.date);
       const nextOrder = sameDayItems.length > 0 
         ? Math.max(...sameDayItems.map(i => (typeof i.order === 'number' ? i.order : 0)), -1) + 1 
         : 0;
@@ -68,13 +47,6 @@ export const useTripData = (currentTripId: string) => {
       if (onSaved) onSaved();
       try {
         await saveScheduleItem(currentTripId, newItem);
-        activityService.recordActivity(currentTripId, {
-          actorName,
-          action: 'create',
-          entityType: 'schedule',
-          entityId: newItem.id,
-          summary: `新增了行程「${newItem.title}」(${newItem.time})`,
-        });
       } catch (err) {
         console.error("Failed to save new schedule item:", err);
         throw err;
@@ -82,46 +54,16 @@ export const useTripData = (currentTripId: string) => {
     }
   };
 
-  const confirmDeleteItem = (
-    itemToDelete: string | null, 
-    onDeleted?: () => void,
-    actorName: string = '成員'
-  ) => {
+  const confirmDeleteItem = (itemToDelete: string | null, onDeleted?: () => void) => {
     if (!itemToDelete) return;
     const targetId = String(itemToDelete);
-    const existing = scheduleItems.find(i => String(i.id) === targetId);
-    
-    // Soft delete: set deletedAt so it's hidden from normal view and recoverable
-    const softDeleted: ScheduleItem = existing 
-      ? { ...existing, deletedAt: Date.now(), deletedBy: actorName } 
-      : { id: targetId, deletedAt: Date.now(), deletedBy: actorName } as any;
-
+    // Optimistic local state update
     setScheduleItems(prev => prev.filter(item => String(item.id) !== targetId));
     if (onDeleted) onDeleted();
-
-    // Persist soft delete
-    saveScheduleItem(currentTripId, softDeleted).catch(err => {
-      console.error("Failed to soft-delete schedule item:", err);
+    // Lightweight single document deletion
+    deleteScheduleItem(currentTripId, targetId).catch(err => {
+      console.error("Failed to delete schedule item:", err);
     });
-
-    if (existing) {
-      historyService.recordChange(currentTripId, {
-        entityType: 'schedule',
-        entityId: targetId,
-        actorName,
-        action: 'soft_delete',
-        summary: `刪除了行程「${existing.title || '項目'}」`,
-        before: existing,
-        after: softDeleted,
-      });
-      activityService.recordActivity(currentTripId, {
-        actorName,
-        action: 'delete',
-        entityType: 'schedule',
-        entityId: targetId,
-        summary: `刪除了行程「${existing.title || '項目'}」`,
-      });
-    }
   };
 
   const handleMoveItem = (
@@ -183,16 +125,6 @@ export const useTripData = (currentTripId: string) => {
     reorderScheduleItems(currentTripId, changedItems, fullOrderIds).catch(err => {
       console.error("Failed to reorder items in Firestore:", err);
     });
-
-    if (itemA) {
-      activityService.recordActivity(currentTripId, {
-        actorName: '成員',
-        action: 'move',
-        entityType: 'schedule',
-        entityId: String(itemA.id),
-        summary: `調整了行程「${itemA.title}」的順序`,
-      });
-    }
   };
 
   const handleAddDay = () => {

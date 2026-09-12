@@ -45,8 +45,6 @@ export interface BookingFlight extends VersionedEntity {
   returnTransitDuration?: string;
   returnTransitFlightCode?: string;
   isPotential?: boolean;
-  deletedAt?: number | null;
-  deletedBy?: string | null;
 }
 
 export interface BookingAccommodation extends VersionedEntity {
@@ -75,8 +73,6 @@ export interface BookingAccommodation extends VersionedEntity {
   imageReferences?: ImageAssetReference[];
   note: string;
   isPotential?: boolean;
-  deletedAt?: number | null;
-  deletedBy?: string | null;
 }
 
 export interface BookingCarRental extends VersionedEntity {
@@ -102,8 +98,6 @@ export interface BookingCarRental extends VersionedEntity {
   participants: string[];
   hasRental: boolean;
   isPotential?: boolean;
-  deletedAt?: number | null;
-  deletedBy?: string | null;
 }
 
 export interface BookingTicket extends VersionedEntity {
@@ -114,8 +108,6 @@ export interface BookingTicket extends VersionedEntity {
   currency: string;
   participants: string[];
   note?: string;
-  deletedAt?: number | null;
-  deletedBy?: string | null;
 }
 
 export interface BookingsState {

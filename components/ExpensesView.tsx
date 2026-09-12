@@ -6,20 +6,18 @@ import {
   ArrowUpRight, ArrowDownLeft, Scale, CheckCircle2, Circle, AlertCircle, HelpCircle,
   Percent, Landmark, PiggyBank, Edit3, Calendar as CalendarIcon, Tag, Users,
   PlusCircle, MinusCircle, ReceiptText, Heart, ShoppingBag, Sparkles, HandCoins,
-  Car, Bed, Utensils, Ticket, PieChart as PieChartIcon, History
+  Car, Bed, Utensils, Ticket, PieChart as PieChartIcon
 } from 'lucide-react';
 import { Expense, Member, Currency, Comment } from '../types';
 import { ToggleSwitch, DeleteItemConfirmModal } from './modals';
 import { DatePickerField, TimePickerField, DateTimePickerField } from './TimePickerComponents';
 import { MemberAvatar } from './MemberAvatar';
 import { ExpenseDistributionChart, detectExpenseCategory, ExpenseCategoryKey } from './ExpenseDistributionChart';
-import { HistoryPanel } from './HistoryPanel';
 
 interface ExpensesViewProps {
   expenses: Expense[];
   members: Member[];
   currencies: Currency[];
-  tripId?: string;
   onAdd: (expense: Omit<Expense, 'id'>) => void;
   onUpdate: (expense: Expense) => void;
   onDelete: (id: number) => void;
@@ -36,14 +34,13 @@ const CATEGORY_OPTIONS: { key: ExpenseCategoryKey; label: string; icon: React.Co
 ];
 
 export const ExpensesView: React.FC<ExpensesViewProps> = ({ 
-  expenses, members, currencies, tripId, onAdd, onUpdate, onDelete, onShowToast, highlightId 
+  expenses, members, currencies, onAdd, onUpdate, onDelete, onShowToast, highlightId 
 }) => {
   // Helper: Defined getExchangeRate helper inside the component
   const getExchangeRate = (code: string): number => currencies.find(c => c.code === code)?.rate || 1;
 
   const [viewMode, setViewMode] = useState<'general' | 'fund'>('general');
   const [mobileTab, setMobileTab] = useState<'input' | 'list'>(highlightId ? 'list' : 'input');
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
   
   // General Form State
   const [form, setForm] = useState({ 
@@ -124,9 +121,9 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       return Math.round(totalAmount * rate);
   };
 
-  // Filter Expenses by Category (auto filter soft-deleted items)
-  const generalExpenses = expenses.filter(e => (!e.category || e.category === 'general') && !e.deletedAt);
-  const fundExpenses = expenses.filter(e => e.category === 'public_fund' && !e.deletedAt);
+  // Filter Expenses by Category
+  const generalExpenses = expenses.filter(e => !e.category || e.category === 'general');
+  const fundExpenses = expenses.filter(e => e.category === 'public_fund');
 
   // General Filter
   const filteredGeneralExpenses = filter === 'all' 
@@ -566,29 +563,12 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
                                     return (
                                         <div key={exp.id} id={`expense-${exp.id}`} className={`bg-white p-5 rounded-[2rem] shadow-hard-sm border-2 transition-all border-beige-dark relative group`}>
-                                            <div className="absolute top-4 right-4 flex items-center gap-1.5 z-20">
-                                                {tripId && (
-                                                    <button 
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setEditingExpense(exp);
-                                                            setShowHistoryModal(true);
-                                                        }}
-                                                        className="p-2 bg-white/90 hover:bg-sand/40 text-cocoa rounded-full border border-beige-dark shadow-xs transition-all opacity-100 sm:opacity-80 sm:group-hover:opacity-100 cursor-pointer"
-                                                        title="查看修訂歷史紀錄"
-                                                    >
-                                                        <History size={15} className="text-sage" />
-                                                    </button>
-                                                )}
-                                                <button 
-                                                    type="button"
-                                                    onClick={() => handleEditClick(exp)}
-                                                    className="p-2 bg-white/90 text-gray-500 rounded-full border border-beige-dark opacity-100 sm:opacity-80 sm:group-hover:opacity-100 transition-all hover:bg-sage hover:text-white shadow-xs cursor-pointer"
-                                                    title="編輯此費用"
-                                                >
-                                                    <Edit3 size={15} />
-                                                </button>
-                                            </div>
+                                            <button 
+                                                onClick={() => handleEditClick(exp)}
+                                                className="absolute top-4 right-4 p-2 bg-gray-50 text-gray-400 rounded-full border border-beige-dark opacity-0 group-hover:opacity-100 transition-opacity hover:bg-sage hover:text-white z-20"
+                                            >
+                                                <Edit3 size={16} />
+                                            </button>
 
                                             <div className="flex items-center gap-4 mb-4">
                                                 <div className="w-14 h-14 rounded-full bg-beige border-2 border-beige-dark flex-shrink-0 flex items-center justify-center relative overflow-hidden shadow-inner p-0.5">
@@ -746,20 +726,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                                                    {exp.currency !== 'TWD' && <div className="text-[10px] font-bold text-gray-300">≈ NT$ {calculateTWD(exp.amount, exp.currency).toLocaleString()}</div>}
                                                </div>
                                                
-                                               <div className="absolute -top-2 -right-2 flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                                                   {tripId && (
-                                                       <button 
-                                                           type="button"
-                                                           onClick={() => {
-                                                               setEditingExpense(exp);
-                                                               setShowHistoryModal(true);
-                                                           }} 
-                                                           className="bg-white text-cocoa p-1.5 rounded-full border border-beige-dark shadow-sm hover:bg-sand/40 cursor-pointer"
-                                                           title="查看修訂紀錄"
-                                                       >
-                                                           <History size={12} className="text-sage"/>
-                                                       </button>
-                                                   )}
+                                               <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                                    <button onClick={() => handleEditClick(exp)} className="bg-white text-gray-400 p-1.5 rounded-full border border-beige-dark shadow-sm hover:text-sage"><Edit3 size={12}/></button>
                                                    <button onClick={() => handleDeleteClick(exp.id)} className="bg-red-100 text-red-400 p-1.5 rounded-full border border-red-200 shadow-sm hover:bg-red-200"><Trash2 size={12}/></button>
                                                </div>
@@ -780,21 +747,9 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
                    <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                        <h3 className="font-black text-xl text-cocoa">編輯{editForm.fundType ? '公費項目' : '項目'}</h3>
-                       <div className="flex items-center gap-1.5">
-                           {tripId && editingExpense && (
-                               <button
-                                   type="button"
-                                   onClick={() => setShowHistoryModal(true)}
-                                   className="p-2 bg-white hover:bg-sand/30 text-gray-500 hover:text-cocoa rounded-full border border-beige-dark shadow-xs transition-colors"
-                                   title="查看修改紀錄"
-                               >
-                                   <History size={18} />
-                               </button>
-                           )}
-                           <button onClick={() => setShowEditModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
-                               <X size={18} />
-                           </button>
-                       </div>
+                       <button onClick={() => setShowEditModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                           <X size={18} />
+                       </button>
                    </div>
                    
                    <div className="overflow-y-auto custom-scroll flex-1 py-4 pr-1 space-y-4">
@@ -877,24 +832,6 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                    </div>
                </div>
            </div>
-       )}
-
-       {tripId && editingExpense && (
-           <HistoryPanel
-               isOpen={showHistoryModal}
-               onClose={() => setShowHistoryModal(false)}
-               tripId={tripId}
-               entityId={String(editingExpense.id)}
-               entityType="expense"
-               entityTitle={editingExpense.title}
-               getCurrentEntity={async () => expenses.find(e => e.id === editingExpense.id) || editingExpense}
-               onReverted={async (reverted) => {
-                   onUpdate(reverted as Expense);
-                   setShowEditModal(false);
-                   setShowHistoryModal(false);
-                   onShowToast('已成功復原此費用項目', 'success');
-               }}
-           />
        )}
 
        {/* Fund Input Modal - Full-Screen Responsive */}

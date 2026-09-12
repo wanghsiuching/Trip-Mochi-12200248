@@ -125,8 +125,6 @@ export interface ScheduleItemV2 extends VersionedEntity {
   images?: string[]; // Backwards compatibility for UI
   photoPlacement?: 'top' | 'middle' | 'bottom';
   photoOffsetY?: number;
-  deletedAt?: number | null;
-  deletedBy?: string | null;
 }
 
 export type ScheduleItem = ScheduleItemV2;

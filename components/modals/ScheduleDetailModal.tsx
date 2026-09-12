@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import { 
     MapPin, Utensils, Train, Bed, Camera, Plane, X, Navigation, 
-    Clock, Luggage, Briefcase, Coffee, Ticket, AlignLeft, Users, Edit3, Car, Trash2, History
+    Clock, Luggage, Briefcase, Coffee, Ticket, AlignLeft, Users, Edit3, Car, Trash2
 } from 'lucide-react';
 import { ScheduleItem, Currency, Member } from '../../types';
 import { TransitLegChainView } from '../TransitComponents';
 import { MemberAvatar } from '../MemberAvatar';
 import { Lightbox } from '../Lightbox';
-import { HistoryPanel } from '../HistoryPanel';
 
 export const ScheduleDetailModal = ({
-    isOpen, onClose, item, onEdit, onDelete, currencies, members, tripId, onRevertScheduleItem
+    isOpen, onClose, item, onEdit, onDelete, currencies, members
 }: {
     isOpen: boolean, 
     onClose: () => void, 
@@ -18,12 +17,9 @@ export const ScheduleDetailModal = ({
     onEdit: () => void, 
     onDelete?: (item: ScheduleItem) => void,
     currencies: Currency[], 
-    members: Member[],
-    tripId?: string,
-    onRevertScheduleItem?: (reverted: ScheduleItem) => Promise<void>
+    members: Member[]
 }) => {
     const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-    const [showHistory, setShowHistory] = useState(false);
 
     if (!isOpen || !item) return null;
 
@@ -55,17 +51,6 @@ export const ScheduleDetailModal = ({
                         </div>
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
-                        {tripId && (
-                            <button 
-                                type="button"
-                                onClick={() => setShowHistory(true)} 
-                                className="px-2.5 py-1.5 bg-white hover:bg-sand/30 text-cocoa font-bold text-xs rounded-xl border border-beige-dark shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
-                                title="查看修改紀錄"
-                            >
-                                <History size={14} className="text-sage" />
-                                <span>歷史紀錄</span>
-                            </button>
-                        )}
                         {onDelete && (
                             <button 
                                 type="button"
@@ -346,16 +331,6 @@ export const ScheduleDetailModal = ({
 
                 {/* Footer Action */}
                 <div className="mt-4 pt-4 border-t-2 border-beige-dark border-dashed flex-shrink-0 flex gap-2.5">
-                    {tripId && (
-                        <button 
-                            type="button"
-                            onClick={() => setShowHistory(true)} 
-                            className="px-3.5 py-3 rounded-2xl font-black bg-white text-cocoa hover:bg-sand/30 border-2 border-beige-dark transition-all active:translate-y-1 shadow-sm flex items-center justify-center gap-1.5 text-sm flex-shrink-0 cursor-pointer"
-                            title="查看此項目的修訂歷史與復原"
-                        >
-                            <History size={16} strokeWidth={2.5} className="text-sage" /> 歷史紀錄
-                        </button>
-                    )}
                     {onDelete && (
                         <button 
                             type="button"
@@ -377,23 +352,6 @@ export const ScheduleDetailModal = ({
                     images={item.images}
                     initialIndex={lightboxIndex}
                     onClose={() => setLightboxIndex(null)}
-                />
-            )}
-
-            {tripId && (
-                <HistoryPanel
-                    isOpen={showHistory}
-                    onClose={() => setShowHistory(false)}
-                    tripId={tripId}
-                    entityId={item.id}
-                    entityType="schedule"
-                    entityTitle={item.title}
-                    getCurrentEntity={async () => item}
-                    onReverted={async (reverted) => {
-                        if (onRevertScheduleItem) {
-                            await onRevertScheduleItem(reverted as ScheduleItem);
-                        }
-                    }}
                 />
             )}
         </div>

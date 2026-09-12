@@ -4,7 +4,7 @@ import {
   MapPin, ArrowRight, Plane, Plus, X, Copy, BookOpen, ChevronLeft, Trash2,
   ChevronUp, ChevronDown, Navigation, StickyNote, Settings, AlertCircle, 
   CalendarCheck, Coins, Edit3, Users, Luggage, Briefcase, Bed, Car, Coffee, Utensils, ShoppingBag, Fuel, Ticket, Clock,
-  Train, Camera, Compass, Share2, Loader2, Bookmark, Layers, Activity
+  Train, Camera, Compass, Share2, Loader2, Bookmark, Layers
 } from 'lucide-react';
 
 import { 
@@ -19,7 +19,6 @@ import {
 } from './components/modals';
 import { Lightbox } from './components/Lightbox';
 import { PocketPlacesModal } from './components/PocketPlacesModal';
-import { ActivityFeedModal } from './components/ActivityFeedModal';
 import { TransitLegChainView } from './components/TransitComponents';
 import { BookingsView } from './components/BookingsView';
 import { ExpensesView } from './components/ExpensesView';
@@ -195,7 +194,6 @@ export default function App() {
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTriggeredAtRef = useRef<number>(0);
   const touchStartPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
-  const [isActivityFeedOpen, setIsActivityFeedOpen] = useState(false);
 
   const dates = tripDays.map((day, i) => {
     let month = 1;
@@ -294,14 +292,14 @@ export default function App() {
         return prev || (data.tripDays[0]?.date || '');
       });
     }
-    if (Array.isArray(data.scheduleItems)) setScheduleItems(data.scheduleItems.filter((i: any) => !i.deletedAt));
-    if (Array.isArray(data.flights)) setBookingFlights(data.flights.filter((i: any) => !i.deletedAt));
-    if (Array.isArray(data.accommodations)) setBookingAccommodations(data.accommodations.filter((i: any) => !i.deletedAt));
+    if (Array.isArray(data.scheduleItems)) setScheduleItems(data.scheduleItems);
+    if (Array.isArray(data.flights)) setBookingFlights(data.flights);
+    if (Array.isArray(data.accommodations)) setBookingAccommodations(data.accommodations);
     const cars = data.carRentals || (data.carRental && data.carRental.company ? [data.carRental] : []);
-    if (cars) setBookingCarRentals(cars.filter((i: any) => !i.deletedAt));
-    if (Array.isArray(data.tickets)) setBookingTickets(data.tickets.filter((i: any) => !i.deletedAt));
-    if (Array.isArray(data.expenses)) setExpenses(data.expenses.filter((i: any) => !i.deletedAt));
-    if (Array.isArray(data.journals)) setJournals(data.journals.filter((i: any) => !i.deletedAt));
+    if (cars) setBookingCarRentals(cars);
+    if (Array.isArray(data.tickets)) setBookingTickets(data.tickets);
+    if (Array.isArray(data.expenses)) setExpenses(data.expenses);
+    if (Array.isArray(data.journals)) setJournals(data.journals);
     if (data.planning) {
       setPlanningLists({
         todo: data.planning?.todo || [],
@@ -313,7 +311,7 @@ export default function App() {
     }
     if (Array.isArray(data.currencies)) setCurrencies(data.currencies);
     if (Array.isArray(data.members)) setMembers(data.members);
-    if (Array.isArray(data.pocketItems)) setPocketItems(data.pocketItems.filter((i: any) => !i.deletedAt));
+    if (Array.isArray(data.pocketItems)) setPocketItems(data.pocketItems);
   }, [
     setTripDays,
     setSelectedDate,
@@ -739,17 +737,9 @@ export default function App() {
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 pt-6 flex-shrink-0">
-            <button 
-              type="button"
-              onClick={() => setIsActivityFeedOpen(true)} 
-              className="p-3 bg-white rounded-full shadow-hard-sm border-2 border-beige-dark text-gray-500 hover:text-sage hover:border-sage transition-all cursor-pointer"
-              title="旅行動態紀錄"
-            >
-              <Activity size={20} strokeWidth={2.5} />
-            </button>
+          <div className="flex items-center gap-3 pt-6 flex-shrink-0">
             {activeTab === 'schedule' && (
-              <button onClick={() => setIsSettingsModalOpen(true)} className="p-3 bg-white rounded-full shadow-hard-sm border-2 border-beige-dark text-gray-400 hover:text-sage transition-all"><Settings size={20} strokeWidth={2.5} /></button>
+              <button onClick={() => setIsSettingsModalOpen(true)} className="p-3 bg-white rounded-full shadow-hard-sm border-2 border-beige-dark text-gray-400 hover:text-sage"><Settings size={20} strokeWidth={2.5} /></button>
             )}
           </div>
         </header>
@@ -1274,42 +1264,8 @@ export default function App() {
                <button onClick={() => { setEditingItem(null); setIsAddModalOpen(true); }} className="fixed bottom-24 right-5 bg-cocoa text-white shadow-hard-sage active:translate-y-1 active:shadow-none z-30 flex items-center gap-2 px-4 py-3 rounded-[2rem] border-2 border-cocoa"><Plus size={20} strokeWidth={3} /><span className="font-bold tracking-widest text-base">新增</span></button>
             </div>
           )}
-          {activeTab === 'bookings' && (
-            <BookingsView 
-              tripId={currentTripId}
-              flights={bookingFlights} 
-              accommodations={bookingAccommodations} 
-              carRentals={bookingCarRentals} 
-              tickets={bookingTickets} 
-              currencies={currencies} 
-              members={members} 
-              onAddFlight={handleAddFlight} 
-              onUpdateFlight={handleUpdateFlight} 
-              onDeleteFlight={handleDeleteFlight} 
-              onAddAccommodation={handleAddAccommodation} 
-              onUpdateAccommodation={handleUpdateAccommodation} 
-              onDeleteAccommodation={handleDeleteAccommodation} 
-              onAddCar={handleAddCar} 
-              onUpdateCar={handleUpdateCar} 
-              onDeleteCar={handleDeleteCar} 
-              onAddTicket={handleAddTicket} 
-              onUpdateTicket={handleUpdateTicket} 
-              onDeleteTicket={handleDeleteTicket} 
-            />
-          )}
-          {activeTab === 'expense' && (
-            <ExpensesView 
-              tripId={currentTripId}
-              expenses={expenses} 
-              members={members} 
-              currencies={currencies} 
-              onAdd={handleAddExpense} 
-              onUpdate={handleUpdateExpense} 
-              onDelete={handleDeleteExpense} 
-              onShowToast={(m, t) => { if (t === 'error') alert(m); }} 
-              highlightId={highlightExpenseId} 
-            />
-          )}
+          {activeTab === 'bookings' && (<BookingsView flights={bookingFlights} accommodations={bookingAccommodations} carRentals={bookingCarRentals} tickets={bookingTickets} currencies={currencies} members={members} onAddFlight={handleAddFlight} onUpdateFlight={handleUpdateFlight} onDeleteFlight={handleDeleteFlight} onAddAccommodation={(a) => addTripItem(currentTripId, 'accommodations', a)} onUpdateAccommodation={(a) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.map(x => x.id === a.id ? a : x))} onDeleteAccommodation={(id) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.filter(x => x.id !== id))} onAddCar={handleAddCar} onUpdateCar={handleUpdateCar} onDeleteCar={handleDeleteCar} onAddTicket={(t) => addTripItem(currentTripId, 'tickets', t)} onUpdateTicket={(t) => updateTripField(currentTripId, 'tickets', bookingTickets.map(x => x.id === t.id ? t : x))} onDeleteTicket={(id) => updateTripField(currentTripId, 'tickets', bookingTickets.filter(x => x.id !== id))} />)}
+          {activeTab === 'expense' && (<ExpensesView expenses={expenses} members={members} currencies={currencies} onAdd={handleAddExpense} onUpdate={handleUpdateExpense} onDelete={handleDeleteExpense} onShowToast={(m, t) => { if (t === 'error') alert(m); }} highlightId={highlightExpenseId} />)}
           {activeTab === 'journal' && (<JournalView journals={journals} members={members} onAdd={handleAddJournal} onUpdate={handleUpdateJournal} onDelete={handleDeleteJournal} tripId={currentTripId} />)}
           {activeTab === 'planning' && (
             <PlanningView 
@@ -1422,12 +1378,6 @@ export default function App() {
           onUpdateItem={handleUpdatePocketItem}
           onDeleteItem={handleDeletePocketItem}
           onAddToSchedule={handleAddToScheduleFromPocket}
-        />
-        <ActivityFeedModal
-          isOpen={isActivityFeedOpen}
-          onClose={() => setIsActivityFeedOpen(false)}
-          tripId={currentTripId}
-          members={members}
         />
         <BottomNav activeTab={activeTab} setTab={setActiveTab} />
         {lightboxState && (

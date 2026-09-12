@@ -44,8 +44,6 @@ export interface ExpenseV2 extends VersionedEntity {
   category?: 'general' | 'public_fund';
   fundType?: 'deposit' | 'expense';
   expenseType?: 'transport' | 'accommodation' | 'dining' | 'spot' | 'other' | string;
-  deletedAt?: number | null;
-  deletedBy?: string | null;
 }
 
 export type Expense = ExpenseV2;

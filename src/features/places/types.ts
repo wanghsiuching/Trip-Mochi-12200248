@@ -18,8 +18,6 @@ export interface PocketItemV2 extends VersionedEntity {
   imageReferences?: ImageAssetReference[];
   images?: string[]; // Backwards compatibility for UI
   createdAt?: number;
-  deletedAt?: number | null;
-  deletedBy?: string | null;
 }
 
 export type PocketItem = PocketItemV2;
