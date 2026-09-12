@@ -15,6 +15,8 @@ import {
 } from 'firebase/firestore';
 import { PocketItem, Journal, ScheduleItem } from '../types';
 import { compressBase64IfNeeded } from '../utils/imageService';
+import { CURRENT_SCHEMA_VERSION } from '../src/shared/types/schema';
+import { normalizeImagesList } from '../src/shared/utils/imageAdapter';
 
 /**
  * Sorts schedule items reliably based on:
@@ -369,6 +371,13 @@ export const saveScheduleItem = async (tripId: string, item: ScheduleItem): Prom
         item = { ...item, images: sanitizedImages };
       }
 
+      // Schema V2 compliance & image reference normalization
+      item = {
+        ...item,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        imageReferences: normalizeImagesList(item.images, (item as any).image, (item as any).photos),
+      };
+
       let cleaned = cleanData(item);
 
       // Check total estimated payload size (scheduleItem subcollection doc limit is 1,048,576 bytes)
@@ -467,6 +476,13 @@ export const savePocketItem = async (tripId: string, item: PocketItem): Promise<
         item = { ...item, images: sanitizedImages };
       }
 
+      // Schema V2 compliance & image reference normalization
+      item = {
+        ...item,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        imageReferences: normalizeImagesList(item.images, (item as any).image, (item as any).photos),
+      };
+
       let cleaned = cleanData(item);
 
       // 2. Multi-image document safety: If total size > 880KB, compress images further to prevent 1MB Firestore doc limit
@@ -537,6 +553,13 @@ export const saveJournalItem = async (tripId: string, journal: Journal): Promise
         }
         journal = { ...journal, images: sanitizedImages };
       }
+
+      // Schema V2 compliance & image reference normalization
+      journal = {
+        ...journal,
+        schemaVersion: CURRENT_SCHEMA_VERSION,
+        imageReferences: normalizeImagesList(journal.images, (journal as any).image, journal.photos),
+      };
 
       let cleaned = cleanData(journal);
 

@@ -3,11 +3,12 @@ import {
   Plane, Bed, Car, Plus, MapPin, Compass, House, PenTool, Briefcase, 
   Info, Luggage, Navigation, Leaf, Link as LinkIcon, ExternalLink, X, 
   Calendar as CalendarIcon, ArrowRightLeft, Users, Clock, DollarSign, 
-  Trash2, Moon, Sparkles, Building, CheckCircle2, TrendingUp, HelpCircle
+  Trash2, Moon, Sparkles, Building, CheckCircle2, TrendingUp, HelpCircle, History
 } from 'lucide-react';
 import { BookingFlight, BookingAccommodation, BookingCarRental, BookingTicket, Currency, Member } from '../types';
 import { ToggleSwitch } from './modals';
 import { DateTimePickerField, TimePickerField, DatePickerField } from './TimePickerComponents';
+import { HistoryPanel } from './HistoryPanel';
 
 interface BookingsViewProps {
   flights: BookingFlight[];
@@ -16,6 +17,7 @@ interface BookingsViewProps {
   tickets: BookingTicket[];
   currencies: Currency[];
   members: Member[];
+  tripId?: string;
   onAddFlight: (flight: BookingFlight) => void;
   onUpdateFlight: (flight: BookingFlight) => void;
   onDeleteFlight: (id: number) => void;
@@ -31,12 +33,13 @@ interface BookingsViewProps {
 }
 
 export const BookingsView: React.FC<BookingsViewProps> = ({ 
-    flights, accommodations, carRentals, tickets, currencies, members,
+    flights, accommodations, carRentals, tickets, currencies, members, tripId,
     onAddFlight, onUpdateFlight, onDeleteFlight, 
     onUpdateAccommodation, onDeleteAccommodation, onAddAccommodation, 
     onAddCar, onUpdateCar, onDeleteCar, onAddTicket, onUpdateTicket, onDeleteTicket 
 }) => {
   const [subTab, setSubTab] = useState<'flight' | 'hotel' | 'car'>('flight');
+  const [historyTarget, setHistoryTarget] = useState<{ id: string; title: string; type: 'booking'; data: any } | null>(null);
 
   // Modal states
   const [showFlightModal, setShowFlightModal] = useState(false);
@@ -827,9 +830,21 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                 <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
                     <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                         <h3 className="font-black text-xl text-cocoa">{flights.find(f => f.id === editingFlight.id) ? '編輯航班' : '新增航班'}</h3>
-                        <button onClick={() => setShowFlightModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
-                            <X size={18} />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                            {tripId && flights.find(f => f.id === editingFlight.id) && (
+                                <button
+                                    type="button"
+                                    onClick={() => setHistoryTarget({ id: String(editingFlight.id), title: `${editingFlight.airline} ${editingFlight.code}`, type: 'booking', data: editingFlight })}
+                                    className="p-2 bg-white hover:bg-sand/30 text-gray-500 hover:text-cocoa rounded-full border border-beige-dark shadow-xs transition-colors"
+                                    title="查看修改紀錄"
+                                >
+                                    <History size={18} />
+                                </button>
+                            )}
+                            <button onClick={() => setShowFlightModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                                <X size={18} />
+                            </button>
+                        </div>
                     </div>
                     
                     <div className="space-y-3 overflow-y-auto custom-scroll flex-1 py-4 pr-1">
@@ -1096,9 +1111,21 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                 <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
                     <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                         <h3 className="font-black text-xl text-cocoa">{editingAcc.id && accommodations.find(a => a.id === editingAcc.id) ? '編輯住宿' : '新增住宿'}</h3>
-                        <button onClick={() => setShowAccModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
-                            <X size={18} />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                            {tripId && editingAcc.id && accommodations.find(a => a.id === editingAcc.id) && (
+                                <button
+                                    type="button"
+                                    onClick={() => setHistoryTarget({ id: String(editingAcc.id), title: editingAcc.name, type: 'booking', data: editingAcc })}
+                                    className="p-2 bg-white hover:bg-sand/30 text-gray-500 hover:text-cocoa rounded-full border border-beige-dark shadow-xs transition-colors"
+                                    title="查看修改紀錄"
+                                >
+                                    <History size={18} />
+                                </button>
+                            )}
+                            <button onClick={() => setShowAccModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                                <X size={18} />
+                            </button>
+                        </div>
                     </div>
                     <div className="space-y-4 overflow-y-auto custom-scroll flex-1 py-4 pr-1">
                         <div className="grid grid-cols-2 gap-2">
@@ -1222,9 +1249,21 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                 <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
                     <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                         <h3 className="font-black text-xl text-cocoa">{carRentals.find(c => c.id === editingCar.id) ? '編輯租車' : '新增租車'}</h3>
-                        <button onClick={() => setShowCarModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
-                            <X size={18} />
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                            {tripId && carRentals.find(c => c.id === editingCar.id) && (
+                                <button
+                                    type="button"
+                                    onClick={() => setHistoryTarget({ id: String(editingCar.id), title: `${editingCar.company} - ${editingCar.carModel}`, type: 'booking', data: editingCar })}
+                                    className="p-2 bg-white hover:bg-sand/30 text-gray-500 hover:text-cocoa rounded-full border border-beige-dark shadow-xs transition-colors"
+                                    title="查看修改紀錄"
+                                >
+                                    <History size={18} />
+                                </button>
+                            )}
+                            <button onClick={() => setShowCarModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                                <X size={18} />
+                            </button>
+                        </div>
                     </div>
                     <div className="space-y-4 overflow-y-auto custom-scroll flex-1 py-4 pr-1">
                         <div className="grid grid-cols-2 gap-2">
@@ -1311,6 +1350,44 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                     </div>
                 </div>
             </div>
+        )}
+
+        {tripId && historyTarget && (
+            <HistoryPanel
+                isOpen={!!historyTarget}
+                onClose={() => setHistoryTarget(null)}
+                tripId={tripId}
+                entityId={historyTarget.id}
+                entityType="booking"
+                entityTitle={historyTarget.title}
+                getCurrentEntity={async () => {
+                    const fl = flights.find(f => String(f.id) === historyTarget.id);
+                    if (fl) return fl;
+                    const acc = accommodations.find(a => String(a.id) === historyTarget.id);
+                    if (acc) return acc;
+                    const cr = carRentals.find(c => String(c.id) === historyTarget.id);
+                    if (cr) return cr;
+                    const tk = tickets.find(t => String(t.id) === historyTarget.id);
+                    if (tk) return tk;
+                    return historyTarget.data;
+                }}
+                onReverted={async (reverted) => {
+                    const id = historyTarget.id;
+                    if (flights.some(f => String(f.id) === id)) {
+                        onUpdateFlight(reverted as BookingFlight);
+                    } else if (accommodations.some(a => String(a.id) === id)) {
+                        onUpdateAccommodation(reverted as BookingAccommodation);
+                    } else if (carRentals.some(c => String(c.id) === id)) {
+                        onUpdateCar(reverted as BookingCarRental);
+                    } else if (tickets.some(t => String(t.id) === id)) {
+                        onUpdateTicket(reverted as BookingTicket);
+                    }
+                    setShowFlightModal(false);
+                    setShowAccModal(false);
+                    setShowCarModal(false);
+                    setHistoryTarget(null);
+                }}
+            />
         )}
     </div>
   );

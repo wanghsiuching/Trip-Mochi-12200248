@@ -1,39 +1,89 @@
 import { useState } from 'react';
 import { PocketItem, ScheduleItem, Member } from '../types';
-import { savePocketItem, deletePocketItem, saveScheduleItem } from '../services/tripService';
+import { placesService } from '../src/features/places/service';
+import { itineraryService } from '../src/features/itinerary/service';
+import { activityService } from '../src/features/activity/service';
+import { historyService } from '../src/features/history/service';
 
 export const usePocketItemsData = (currentTripId: string) => {
   const [pocketItems, setPocketItems] = useState<PocketItem[]>([]);
 
-  const handleAddPocketItem = async (item: Omit<PocketItem, 'id' | 'createdAt'>): Promise<void> => {
-    const newItem: PocketItem = {
-      ...item,
-      id: Date.now().toString(),
-      createdAt: Date.now(),
+  const handleAddPocketItem = async (
+    item: Omit<PocketItem, 'id' | 'createdAt'>,
+    actorName: string = '成員'
+  ): Promise<void> => {
+    const saved = await placesService.savePocketItem(currentTripId, item);
+    setPocketItems(prev => [saved, ...prev.filter(p => p.id !== saved.id)]);
+
+    activityService.recordActivity(currentTripId, {
+      actorName,
+      action: 'add_pocket_place',
+      entityType: 'pocket',
+      entityId: saved.id,
+      summary: `新增了口袋名單「${saved.title}」`,
+    });
+  };
+
+  const handleUpdatePocketItem = async (
+    updated: PocketItem,
+    actorName: string = '成員'
+  ): Promise<void> => {
+    const before = pocketItems.find(p => p.id === updated.id);
+    const saved = await placesService.savePocketItem(currentTripId, updated);
+    setPocketItems(prev => prev.map(p => p.id === saved.id ? saved : p));
+
+    if (before) {
+      historyService.recordChange(currentTripId, {
+        entityType: 'pocket',
+        entityId: updated.id,
+        actorName,
+        action: 'edit',
+        summary: `編輯了口袋名單「${updated.title}」`,
+        before,
+        after: updated,
+      });
+
+      activityService.recordActivity(currentTripId, {
+        actorName,
+        action: 'update',
+        entityType: 'pocket',
+        entityId: updated.id,
+        summary: `修改了口袋名單「${updated.title}」`,
+      });
+    }
+  };
+
+  const handleDeletePocketItem = (id: string, actorName: string = '成員') => {
+    const target = pocketItems.find(p => p.id === id);
+    if (!target) return;
+
+    const softDeleted: PocketItem = {
+      ...target,
+      deletedAt: Date.now(),
+      deletedBy: actorName,
     };
-    setPocketItems(prev => [newItem, ...prev.filter(p => p.id !== newItem.id)]);
-    try {
-      await savePocketItem(currentTripId, newItem);
-    } catch (err) {
-      console.error('Failed to add pocket item:', err);
-      throw err;
-    }
-  };
 
-  const handleUpdatePocketItem = async (updated: PocketItem): Promise<void> => {
-    setPocketItems(prev => prev.map(p => p.id === updated.id ? updated : p));
-    try {
-      await savePocketItem(currentTripId, updated);
-    } catch (err) {
-      console.error('Failed to update pocket item:', err);
-      throw err;
-    }
-  };
-
-  const handleDeletePocketItem = (id: string) => {
     setPocketItems(prev => prev.filter(p => p.id !== id));
-    deletePocketItem(currentTripId, id).catch(err => {
-      console.error('Failed to delete pocket item:', err);
+    placesService.softDeletePocketItem(currentTripId, id, actorName).catch(err => {
+      console.error('Failed to soft-delete pocket item:', err);
+    });
+
+    historyService.recordChange(currentTripId, {
+      entityType: 'pocket',
+      entityId: id,
+      actorName,
+      action: 'soft_delete',
+      summary: `刪除了口袋名單「${target.title}」`,
+      before: target,
+      after: softDeleted,
+    });
+
+    activityService.recordActivity(currentTripId, {
+      actorName,
+      action: 'delete',
+      entityType: 'pocket',
+      entityId: id,
+      summary: `刪除了口袋名單「${target.title}」`,
     });
   };
 
@@ -42,11 +92,13 @@ export const usePocketItemsData = (currentTripId: string) => {
     targetDate: string, 
     time: string, 
     fallbackDate: string = '', 
-    members: Member[] = []
+    members: Member[] = [],
+    actorName: string = '成員'
   ) => {
-    const newScheduleItem: ScheduleItem = {
+    const scheduleDate = targetDate || fallbackDate;
+    const newScheduleItem: Partial<ScheduleItem> = {
       id: Date.now().toString(),
-      date: targetDate || fallbackDate,
+      date: scheduleDate,
       time: time || '12:00',
       title: item.title,
       type: item.category === 'food' ? 'food' : 'spot',
@@ -61,14 +113,23 @@ export const usePocketItemsData = (currentTripId: string) => {
       },
       order: Date.now(),
     };
-    saveScheduleItem(currentTripId, newScheduleItem).catch(err => {
+    
+    itineraryService.saveScheduleItem(currentTripId, newScheduleItem).catch(err => {
       console.error('Failed to add schedule item from pocket:', err);
     });
 
     const updatedPocket: PocketItem = { ...item, assignedDate: targetDate };
     setPocketItems(prev => prev.map(p => p.id === item.id ? updatedPocket : p));
-    savePocketItem(currentTripId, updatedPocket).catch(err => {
+    placesService.savePocketItem(currentTripId, updatedPocket).catch(err => {
       console.error('Failed to update assignedDate in pocket:', err);
+    });
+
+    activityService.recordActivity(currentTripId, {
+      actorName,
+      action: 'move',
+      entityType: 'schedule',
+      entityId: newScheduleItem.id!,
+      summary: `將口袋名單「${item.title}」排入 ${scheduleDate} 行程`,
     });
   };
 

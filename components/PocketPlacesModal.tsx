@@ -4,11 +4,12 @@ import {
   Trash2, Edit3, CheckCircle2, Circle, Navigation, Tag, Star, 
   Search, CalendarPlus, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight, Copy, Check,
   Image as ImageIcon, Upload, Camera, Loader2, ZoomIn, AlertCircle,
-  FileText, Layers, ArrowUp, ChevronDown, ChevronUp
+  FileText, Layers, ArrowUp, ChevronDown, ChevronUp, History
 } from 'lucide-react';
 import { PocketItem, TripDay } from '../types';
 import { Lightbox } from './Lightbox';
 import { compressImageToBase64, uploadOrCompressImage } from '../utils/imageService';
+import { HistoryPanel } from './HistoryPanel';
 
 interface FormImageItem {
   id: string;
@@ -46,6 +47,7 @@ interface PocketItemCardProps {
   onToggleVisited: (item: PocketItem) => void;
   onAddToSchedule: (item: PocketItem) => void;
   onOpenEditForm: (item: PocketItem) => void;
+  onViewHistory?: (item: PocketItem) => void;
   onDeleteItem: (id: string, title: string) => void;
   onCopyText: (text: string, id: string) => void;
   onOpenMap: (location: string) => void;
@@ -63,6 +65,7 @@ const PocketItemCard: React.FC<PocketItemCardProps> = React.memo(({
   onToggleVisited,
   onAddToSchedule,
   onOpenEditForm,
+  onViewHistory,
   onDeleteItem,
   onCopyText,
   onOpenMap,
@@ -183,6 +186,16 @@ const PocketItemCard: React.FC<PocketItemCardProps> = React.memo(({
           >
             <Edit3 size={15} />
           </button>
+          {onViewHistory && (
+            <button
+              type="button"
+              onClick={() => onViewHistory(item)}
+              className="p-1.5 text-gray-400 hover:text-cocoa hover:bg-gray-100 rounded-lg transition-colors"
+              title="查看修改紀錄"
+            >
+              <History size={15} />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => onDeleteItem(item.id, item.title)}
@@ -312,6 +325,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTag, setSelectedTag] = useState<string>('全部');
   const [filterVisited, setFilterVisited] = useState<'all' | 'unvisited' | 'visited'>('all');
+  const [historyTarget, setHistoryTarget] = useState<PocketItem | null>(null);
 
   // Sync activeTab if initialTab prop changes
   useEffect(() => {
@@ -1025,6 +1039,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                   onToggleVisited={handleToggleVisited}
                   onAddToSchedule={handleAddToScheduleClick}
                   onOpenEditForm={handleOpenEditForm}
+                  onViewHistory={setHistoryTarget}
                   onDeleteItem={handleDeleteItem}
                   onCopyText={handleCopyText}
                   onOpenMap={handleOpenMap}
@@ -1645,6 +1660,22 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
           images={lightboxState.images}
           initialIndex={lightboxState.index}
           onClose={() => setLightboxState(null)}
+        />
+      )}
+
+      {tripId && historyTarget && (
+        <HistoryPanel
+          isOpen={!!historyTarget}
+          onClose={() => setHistoryTarget(null)}
+          tripId={tripId}
+          entityId={historyTarget.id}
+          entityType="pocket"
+          entityTitle={historyTarget.title}
+          getCurrentEntity={async () => pocketItems.find(p => p.id === historyTarget.id) || historyTarget}
+          onReverted={async (reverted) => {
+            await onUpdateItem(reverted as PocketItem);
+            setHistoryTarget(null);
+          }}
         />
       )}
     </div>
