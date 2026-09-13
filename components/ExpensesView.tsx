@@ -397,20 +397,21 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                 <button onClick={() => setViewMode('fund')} className={`flex-1 py-2.5 rounded-full transition-all flex items-center justify-center gap-1.5 ${viewMode === 'fund' ? 'bg-teal-600 text-white shadow-md' : 'text-gray-400'}`}><PiggyBank size={16} /> 公費管理</button>
             </div>
             
-            {/* Mobile Tab Switcher */}
+            {/* Tab Switcher */}
             {viewMode === 'general' && (
-                <div className="lg:hidden flex gap-2">
-                    <button onClick={() => setMobileTab('input')} className={`flex-1 py-2 rounded-xl text-xs font-black transition-all border-2 ${mobileTab === 'input' ? 'bg-sage border-sage text-white' : 'bg-white border-beige-dark text-gray-400'}`}>新增支出</button>
-                    <button onClick={() => setMobileTab('list')} className={`flex-1 py-2 rounded-xl text-xs font-black transition-all border-2 ${mobileTab === 'list' ? 'bg-sage border-sage text-white' : 'bg-white border-beige-dark text-gray-400'}`}>查看明細</button>
+                <div className="flex gap-2">
+                    <button onClick={() => setMobileTab('input')} className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all border-2 ${mobileTab === 'input' ? 'bg-sage border-sage text-white shadow-sm' : 'bg-white border-beige-dark text-gray-400 hover:bg-gray-50'}`}>新增支出</button>
+                    <button onClick={() => setMobileTab('list')} className={`flex-1 py-2.5 rounded-xl text-xs font-black transition-all border-2 ${mobileTab === 'list' ? 'bg-sage border-sage text-white shadow-sm' : 'bg-white border-beige-dark text-gray-400 hover:bg-gray-50'}`}>查看明細</button>
                 </div>
             )}
        </div>
 
        {/* === GENERAL (SPLIT) MODE === */}
        {viewMode === 'general' && (
-         <div className="px-4 lg:p-0 lg:grid lg:grid-cols-12 lg:gap-8">
-            <div className={`lg:col-span-5 lg:sticky lg:top-8 flex flex-col gap-6 lg:flex-col-reverse ${mobileTab === 'list' ? 'hidden lg:flex' : ''}`}>
-                <div className="bg-white p-5 rounded-[2rem] shadow-hard-sm border-2 border-beige-dark mb-10 lg:mb-0">
+         <div className="px-4 w-full max-w-md mx-auto">
+            {mobileTab === 'input' && (
+              <div className="flex flex-col gap-6 animate-fade-in">
+                <div className="bg-white p-5 rounded-[2rem] shadow-hard-sm border-2 border-beige-dark mb-10">
                     <h3 className="font-black text-cocoa mb-4 flex items-center gap-2 text-lg"><Wallet className="text-sage" size={24}/> 新增分帳支出</h3>
                     <div className="space-y-3">
                         <div className="grid grid-cols-2 gap-2">
@@ -516,9 +517,11 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                     </div>
                     <button onClick={handleAddGeneral} className="w-full mt-6 bg-sage text-white py-4 rounded-2xl font-black shadow-hard-sage border-2 border-sage-dark flex items-center justify-center gap-2 text-lg active:translate-y-1 active:shadow-none transition-all"><Check size={24}/> 確認記帳</button>
                 </div>
-            </div>
+              </div>
+            )}
 
-            <div className={`lg:col-span-7 lg:mt-0 pb-32 ${mobileTab === 'input' ? 'hidden lg:block' : 'block'}`}>
+            {mobileTab === 'list' && (
+              <div className="pb-32 w-full animate-fade-in">
                 <div className="mb-4 overflow-x-auto no-scrollbar py-2 flex gap-2.5 items-center">
                     <button onClick={() => setFilter('all')} className={`flex-shrink-0 px-5 py-2.5 rounded-full border-2 font-black text-sm transition-all ${filter === 'all' ? 'bg-cocoa text-white border-cocoa shadow-md' : 'bg-white text-gray-400 border-beige-dark'}`}>全部</button>
                     {members.map(m => (
@@ -562,10 +565,17 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                                     const CatIcon = categoryOpt.icon;
 
                                     return (
-                                        <div key={exp.id} id={`expense-${exp.id}`} className={`bg-white p-5 rounded-[2rem] shadow-hard-sm border-2 transition-all border-beige-dark relative group`}>
+                                        <div 
+                                            key={exp.id} 
+                                            id={`expense-${exp.id}`} 
+                                            onClick={() => handleEditClick(exp)}
+                                            className="bg-white p-5 rounded-[2rem] shadow-hard-sm border-2 transition-all border-beige-dark hover:border-sage relative group cursor-pointer"
+                                        >
                                             <button 
-                                                onClick={() => handleEditClick(exp)}
-                                                className="absolute top-4 right-4 p-2 bg-gray-50 text-gray-400 rounded-full border border-beige-dark opacity-0 group-hover:opacity-100 transition-opacity hover:bg-sage hover:text-white z-20"
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); handleEditClick(exp); }}
+                                                className="absolute top-4 right-4 p-2 bg-gray-50 text-gray-400 rounded-full border border-beige-dark opacity-100 sm:opacity-80 sm:group-hover:opacity-100 transition-all hover:bg-sage hover:text-white z-20"
+                                                title="編輯此支出"
                                             >
                                                 <Edit3 size={16} />
                                             </button>
@@ -629,9 +639,10 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                         </div>
                     ))}
                 </div>
-            </div>
-         </div>
-       )}
+              </div>
+            )}
+          </div>
+        )}
 
        {/* === PUBLIC FUND MODE === */}
        {viewMode === 'fund' && (
@@ -743,92 +754,312 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
        {/* Edit Public/Split Modal */}
        {showEditModal && editForm && (
-           <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[150] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={() => setShowEditModal(false)}>
-               <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+           <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowEditModal(false)}>
+               <div className="bg-[#FAF8F2] w-full max-h-[92vh] max-w-md rounded-[2.5rem] p-5 sm:p-6 shadow-2xl border-4 border-beige-dark flex flex-col justify-between overflow-hidden animate-scale-in" onClick={e => e.stopPropagation()}>
                    <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
-                       <h3 className="font-black text-xl text-cocoa">編輯{editForm.fundType ? '公費項目' : '項目'}</h3>
+                       <h3 className="font-black text-xl text-cocoa flex items-center gap-2">
+                           <Wallet className="text-sage" size={22}/>
+                           {editForm.fundType ? (editForm.fundType === 'deposit' ? '編輯公費入金' : '編輯公費支出') : '編輯分帳支出'}
+                       </h3>
                        <button onClick={() => setShowEditModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
                            <X size={18} />
                        </button>
                    </div>
                    
-                   <div className="overflow-y-auto custom-scroll flex-1 py-4 pr-1 space-y-4">
-                        <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark space-y-3 shadow-sm">
-                            <textarea 
-                                value={editForm.title} 
-                                onChange={e => setEditForm({...editForm, title: e.target.value})} 
-                                className="w-full bg-beige/30 p-2.5 rounded-xl border border-beige-dark outline-none font-bold text-cocoa resize-none h-20 leading-tight" 
-                                placeholder="項目名稱"
-                            />
-                            <div className="grid grid-cols-4 gap-2">
-                                <div className="col-span-3">
-                                    <input type="number" value={editForm.amount} onChange={e => setEditForm({...editForm, amount: e.target.value})} className="w-full bg-beige/30 p-2.5 rounded-xl border border-beige-dark outline-none font-black text-cocoa" placeholder="金額"/>
-                                </div>
-                                <div className="col-span-1">
-                                    <select value={editForm.currency} onChange={e => setEditForm({...editForm, currency: e.target.value})} className="w-full bg-beige/30 p-2.5 rounded-xl border border-beige-dark outline-none font-bold text-xs h-full">
-                                        <option value="TWD">TWD</option>{currencies.map(c => (<option key={c.code} value={c.code}>{c.code}</option>))}
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
+                   <div className="overflow-y-auto custom-scroll flex-1 py-4 pr-1 space-y-3">
+                       {!editForm.fundType && (
+                           <>
+                               <div className="grid grid-cols-2 gap-2">
+                                   <DatePickerField
+                                       label="日期"
+                                       value={editForm.date}
+                                       onChange={val => setEditForm({...editForm, date: val})}
+                                       themeColor="sage"
+                                   />
+                                   <TimePickerField
+                                       label="時間"
+                                       value={editForm.time}
+                                       onChange={val => setEditForm({...editForm, time: val})}
+                                       themeColor="sage"
+                                   />
+                               </div>
 
-                        <div className="grid grid-cols-2 gap-2">
-                            <DatePickerField
-                                label="日期"
-                                value={editForm.date}
-                                onChange={val => setEditForm({...editForm, date: val})}
-                                themeColor="sage"
-                            />
-                            <TimePickerField
-                                label="時間"
-                                value={editForm.time}
-                                onChange={val => setEditForm({...editForm, time: val})}
-                                themeColor="sage"
-                            />
-                        </div>
+                               <div className="flex bg-beige/30 p-1 rounded-2xl border-2 border-beige-dark mb-1">
+                                   <button 
+                                       type="button" 
+                                       onClick={() => setEditForm({...editForm, isCreditCard: false})} 
+                                       className={`flex-1 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 ${!editForm.isCreditCard ? 'bg-white text-orange-400 shadow-sm border border-beige-dark' : 'text-gray-400'}`}
+                                   >
+                                       <Coins size={14}/> 現金支付
+                                   </button>
+                                   <button 
+                                       type="button" 
+                                       onClick={() => setEditForm({...editForm, isCreditCard: true})} 
+                                       className={`flex-1 py-2 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-1 ${editForm.isCreditCard ? 'bg-white text-blue-500 shadow-sm border border-beige-dark' : 'text-gray-400'}`}
+                                   >
+                                       <CreditCard size={14}/> 信用卡
+                                   </button>
+                               </div>
 
-                        {!editForm.fundType && (
-                            <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
-                                <label className="text-[10px] text-gray-400 block mb-2 font-bold">付款人</label>
-                                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                                    {members.map(m => (
-                                        <button key={m.id} onClick={() => setEditForm({...editForm, payer: m.name})} className={`px-3 py-1.5 rounded-xl text-xs border-2 whitespace-nowrap font-bold transition-all ${editForm.payer === m.name ? 'bg-sage text-white border-sage-dark shadow-sm' : 'bg-beige/40 text-gray-400 border-beige-dark'}`}>{m.name}</button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                               <div className="grid grid-cols-4 gap-2">
+                                   <div className="col-span-3 bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
+                                       <label className="text-[10px] text-gray-400 block mb-1 font-bold">金額</label>
+                                       <input 
+                                           type="number" 
+                                           value={editForm.amount} 
+                                           onChange={e => setEditForm({...editForm, amount: e.target.value})} 
+                                           className="w-full bg-transparent text-cocoa outline-none font-black text-xl" 
+                                           placeholder="0" 
+                                       />
+                                   </div>
+                                   <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm overflow-hidden">
+                                       <label className="text-[10px] text-gray-400 block mb-1 font-bold">幣別</label>
+                                       <select 
+                                           value={editForm.currency} 
+                                           onChange={e => setEditForm({...editForm, currency: e.target.value})} 
+                                           className="w-full bg-transparent text-cocoa outline-none font-bold text-xs"
+                                       >
+                                           <option value="TWD">TWD</option>
+                                           {currencies.map(c => (<option key={c.code} value={c.code}>{c.code}</option>))}
+                                       </select>
+                                   </div>
+                               </div>
 
-                        {editForm.fundType === 'deposit' && (
-                             <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
-                                <label className="text-[10px] text-gray-400 block mb-2 font-bold">繳款人 (修正)</label>
-                                <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
-                                    {members.map(m => (
-                                        <button key={m.id} onClick={() => setEditForm({...editForm, payer: m.name})} className={`px-3 py-1.5 rounded-xl text-xs border-2 whitespace-nowrap font-bold transition-all ${editForm.payer === m.name ? 'bg-teal-500 text-white border-teal-600 shadow-sm' : 'bg-beige/40 text-gray-400 border-beige-dark'}`}>{m.name}</button>
-                                    ))}
-                                </div>
-                             </div>
-                        )}
+                               <div className="flex items-center justify-between mt-2 mb-1 px-1">
+                                   <ToggleSwitch 
+                                       checked={editForm.hasServiceFee || false} 
+                                       onChange={(checked) => setEditForm({...editForm, hasServiceFee: checked})} 
+                                       label="額外手續費/稅金" 
+                                       colorClass="bg-blue-400" 
+                                   />
+                                   {editForm.hasServiceFee && (
+                                       <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-lg border border-beige-dark shadow-sm">
+                                           <input 
+                                               type="number" 
+                                               value={editForm.serviceFeePercentage || ''} 
+                                               onChange={e => setEditForm({...editForm, serviceFeePercentage: e.target.value})} 
+                                               className="w-10 bg-transparent text-xs font-bold text-center outline-none text-cocoa border-b border-gray-200" 
+                                               placeholder="1.5"
+                                           />
+                                           <span className="text-xs font-bold text-gray-400">%</span>
+                                       </div>
+                                   )}
+                               </div>
 
-                        {editForm.fundType === 'expense' && (
-                            <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
-                                <label className="text-[10px] text-gray-400 block mb-2 font-bold">參與分攤成員</label>
-                                <div className="flex flex-wrap gap-2">
-                                    {members.map(m => (
-                                        <button key={m.id} onClick={() => {
-                                            const current = editForm.involvedMembers || [];
-                                            const updated = current.includes(m.name) ? current.filter((n: string) => n !== m.name) : [...current, m.name];
-                                            setEditForm({...editForm, involvedMembers: updated});
-                                        }} className={`px-3 py-1.5 rounded-xl text-xs font-bold border-2 whitespace-nowrap transition-all ${editForm.involvedMembers?.includes(m.name) ? 'bg-red-400 text-white border-red-500 shadow-sm' : 'bg-beige/40 text-gray-400 border-beige-dark'}`}>{m.name}</button>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
+                               <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
+                                   <label className="text-[10px] text-gray-400 block mb-1.5 font-bold">支出類別</label>
+                                   <div className="grid grid-cols-5 gap-1.5">
+                                       {CATEGORY_OPTIONS.map(cat => {
+                                           const Icon = cat.icon;
+                                           const isSelected = editForm.expenseType === cat.key;
+                                           return (
+                                               <button
+                                                   key={cat.key}
+                                                   type="button"
+                                                   onClick={() => setEditForm({ ...editForm, expenseType: cat.key })}
+                                                   className={`py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 border-2 transition-all text-xs font-black ${
+                                                       isSelected 
+                                                           ? `${cat.color} shadow-sm scale-105` 
+                                                           : 'bg-beige/20 text-gray-400 border-beige-dark hover:bg-beige/40'
+                                                   }`}
+                                               >
+                                                   <Icon size={16} />
+                                                   <span className="text-[10px]">{cat.label}</span>
+                                               </button>
+                                           );
+                                       })}
+                                   </div>
+                               </div>
+
+                               <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
+                                   <label className="text-[10px] text-gray-400 block mb-1 font-bold">項目名稱</label>
+                                   <input 
+                                       type="text" 
+                                       value={editForm.title} 
+                                       onChange={e => setEditForm({...editForm, title: e.target.value})} 
+                                       className="w-full bg-transparent text-cocoa outline-none font-bold" 
+                                       placeholder="例如：藥妝店購物"
+                                   />
+                               </div>
+
+                               <div className="bg-gray-50 p-3 rounded-xl border border-dashed border-beige-dark flex justify-between items-center">
+                                   <span className="text-xs font-bold text-gray-400">概算總額 (含手續費)</span>
+                                   <span className="text-sm font-black text-sage">
+                                       TWD {calculateTWD(Number(editForm.amount)||0, editForm.currency, editForm.hasServiceFee || false, Number(editForm.serviceFeePercentage)||0).toLocaleString()}
+                                   </span>
+                               </div>
+
+                               <div>
+                                   <label className="text-[10px] text-gray-400 block mb-2 font-bold ml-1 flex items-center gap-1"><User size={12}/> 付款人 (誰墊付?)</label>
+                                   <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                                       {members.map(m => (
+                                           <button 
+                                               key={m.id} 
+                                               type="button" 
+                                               onClick={() => setEditForm({...editForm, payer: m.name})} 
+                                               className={`px-4 py-2 rounded-full text-xs border-2 whitespace-nowrap font-bold transition-all ${editForm.payer === m.name ? 'bg-sage text-white border-sage shadow-md' : 'bg-white text-gray-400 border-beige-dark'}`}
+                                           >
+                                               {m.name}
+                                           </button>
+                                       ))}
+                                   </div>
+                               </div>
+
+                               <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
+                                   <div className="flex justify-between items-center mb-2">
+                                       <label className="text-[10px] text-gray-400 font-bold block flex items-center gap-1"><Users size={12}/> 參與分攤成員</label>
+                                       <div className="flex gap-2">
+                                           <button 
+                                               type="button" 
+                                               onClick={() => setEditForm({...editForm, involvedMembers: members.map(m => m.name)})} 
+                                               className="text-[10px] bg-white border-2 border-beige-dark text-cocoa font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-beige active:scale-95 transition-all"
+                                           >
+                                               全選
+                                           </button>
+                                           <button 
+                                               type="button" 
+                                               onClick={() => setEditForm({...editForm, involvedMembers: []})} 
+                                               className="text-[10px] bg-white border-2 border-beige-dark text-gray-400 font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-gray-50 active:scale-95 transition-all"
+                                           >
+                                               清除
+                                           </button>
+                                       </div>
+                                   </div>
+                                   <div className="flex flex-wrap gap-2">
+                                       {members.map(m => (
+                                           <button 
+                                               key={m.id} 
+                                               type="button" 
+                                               onClick={() => {
+                                                   const current = editForm.involvedMembers || [];
+                                                   const updated = current.includes(m.name) ? current.filter((n: string) => n !== m.name) : [...current, m.name];
+                                                   setEditForm({...editForm, involvedMembers: updated});
+                                               }} 
+                                               className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${editForm.involvedMembers?.includes(m.name) ? 'bg-orange-50 text-orange-500 border-orange-200' : 'bg-white text-gray-300 border-beige-dark'}`}
+                                           >
+                                               {m.name}
+                                           </button>
+                                       ))}
+                                   </div>
+                               </div>
+                           </>
+                       )}
+
+                       {editForm.fundType === 'deposit' && (
+                           <div className="space-y-3">
+                               <div className="grid grid-cols-2 gap-2">
+                                   <DatePickerField
+                                       label="日期"
+                                       value={editForm.date}
+                                       onChange={val => setEditForm({...editForm, date: val})}
+                                       themeColor="sage"
+                                   />
+                                   <TimePickerField
+                                       label="時間"
+                                       value={editForm.time}
+                                       onChange={val => setEditForm({...editForm, time: val})}
+                                       themeColor="sage"
+                                   />
+                               </div>
+                               <div className="grid grid-cols-4 gap-2">
+                                   <div className="col-span-3 bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
+                                       <label className="text-[10px] text-gray-400 block mb-1 font-bold">金額</label>
+                                       <input type="number" value={editForm.amount} onChange={e => setEditForm({...editForm, amount: e.target.value})} className="w-full bg-transparent text-cocoa outline-none font-black text-xl" placeholder="0" />
+                                   </div>
+                                   <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm overflow-hidden">
+                                       <label className="text-[10px] text-gray-400 block mb-1 font-bold">幣別</label>
+                                       <select value={editForm.currency} onChange={e => setEditForm({...editForm, currency: e.target.value})} className="w-full bg-transparent text-cocoa outline-none font-bold text-xs">
+                                           <option value="TWD">TWD</option>
+                                           {currencies.map(c => (<option key={c.code} value={c.code}>{c.code}</option>))}
+                                       </select>
+                                   </div>
+                               </div>
+                               <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
+                                   <label className="text-[10px] text-gray-400 block mb-2 font-bold">繳款人 (修正)</label>
+                                   <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                                       {members.map(m => (
+                                           <button key={m.id} type="button" onClick={() => setEditForm({...editForm, payer: m.name})} className={`px-3 py-1.5 rounded-xl text-xs border-2 whitespace-nowrap font-bold transition-all ${editForm.payer === m.name ? 'bg-teal-500 text-white border-teal-600 shadow-sm' : 'bg-beige/40 text-gray-400 border-beige-dark'}`}>{m.name}</button>
+                                       ))}
+                                   </div>
+                               </div>
+                           </div>
+                       )}
+
+                       {editForm.fundType === 'expense' && (
+                           <div className="space-y-3">
+                               <div className="grid grid-cols-2 gap-2">
+                                   <DatePickerField
+                                       label="日期"
+                                       value={editForm.date}
+                                       onChange={val => setEditForm({...editForm, date: val})}
+                                       themeColor="orange"
+                                   />
+                                   <TimePickerField
+                                       label="時間"
+                                       value={editForm.time}
+                                       onChange={val => setEditForm({...editForm, time: val})}
+                                       themeColor="orange"
+                                   />
+                               </div>
+                               <div className="grid grid-cols-4 gap-2">
+                                   <div className="col-span-3 bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
+                                       <label className="text-[10px] text-gray-400 block mb-1 font-bold">金額</label>
+                                       <input type="number" value={editForm.amount} onChange={e => setEditForm({...editForm, amount: e.target.value})} className="w-full bg-transparent text-cocoa outline-none font-black text-xl" placeholder="0" />
+                                   </div>
+                                   <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm overflow-hidden">
+                                       <label className="text-[10px] text-gray-400 block mb-1 font-bold">幣別</label>
+                                       <select value={editForm.currency} onChange={e => setEditForm({...editForm, currency: e.target.value})} className="w-full bg-transparent text-cocoa outline-none font-bold text-xs">
+                                           <option value="TWD">TWD</option>
+                                           {currencies.map(c => (<option key={c.code} value={c.code}>{c.code}</option>))}
+                                       </select>
+                                   </div>
+                               </div>
+                               <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
+                                   <label className="text-[10px] text-gray-400 block mb-1 font-bold">項目名稱</label>
+                                   <input type="text" value={editForm.title} onChange={e => setEditForm({...editForm, title: e.target.value})} className="w-full bg-transparent text-cocoa outline-none font-bold" placeholder="項目名稱" />
+                               </div>
+                               <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
+                                   <label className="text-[10px] text-gray-400 block mb-2 font-bold">參與分攤成員</label>
+                                   <div className="flex flex-wrap gap-2">
+                                       {members.map(m => (
+                                           <button key={m.id} type="button" onClick={() => {
+                                               const current = editForm.involvedMembers || [];
+                                               const updated = current.includes(m.name) ? current.filter((n: string) => n !== m.name) : [...current, m.name];
+                                               setEditForm({...editForm, involvedMembers: updated});
+                                           }} className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 whitespace-nowrap transition-all ${editForm.involvedMembers?.includes(m.name) ? 'bg-red-400 text-white border-red-500 shadow-sm' : 'bg-beige/40 text-gray-400 border-beige-dark'}`}>{m.name}</button>
+                                       ))}
+                                   </div>
+                               </div>
+                           </div>
+                       )}
                    </div>
                    
                    <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
-                       <button onClick={() => handleDeleteClick(editingExpense!.id)} className="px-4 py-3.5 rounded-2xl bg-red-50 text-red-500 border-2 border-red-200 hover:bg-red-100 transition-colors"><Trash2 size={20}/></button>
-                       <button onClick={() => setShowEditModal(false)} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
-                       <button onClick={handleSaveEdit} className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all">保存修改</button>
+                       <button 
+                           type="button" 
+                           onClick={() => {
+                               setShowEditModal(false);
+                               handleDeleteClick(editingExpense!.id);
+                           }} 
+                           className="px-4 py-3.5 rounded-2xl bg-red-50 text-red-500 border-2 border-red-200 hover:bg-red-100 transition-colors flex items-center justify-center flex-shrink-0"
+                           title="刪除此項目"
+                       >
+                           <Trash2 size={20}/>
+                       </button>
+                       <button 
+                           type="button" 
+                           onClick={() => setShowEditModal(false)} 
+                           className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors"
+                       >
+                           取消
+                       </button>
+                       <button 
+                           type="button" 
+                           onClick={handleSaveEdit} 
+                           className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all"
+                       >
+                           保存修改
+                       </button>
                    </div>
                </div>
            </div>

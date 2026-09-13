@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { PocketItem, TripDay } from '../types';
 import { Lightbox } from './Lightbox';
+import { DeleteItemConfirmModal } from './modals/DeleteItemConfirmModal';
 import { compressImageToBase64, uploadOrCompressImage } from '../utils/imageService';
 
 interface FormImageItem {
@@ -694,11 +695,11 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
     window.open(`https://www.google.com/maps/search/?api=1&query=${encoded}`, '_blank', 'noopener,noreferrer');
   }, []);
 
+  const [itemToDelete, setItemToDelete] = useState<{ id: string; title: string } | null>(null);
+
   const handleDeleteItem = useCallback((id: string, title: string) => {
-    if (window.confirm(`確定要刪除「${title}」嗎？`)) {
-      onDeleteItem(id);
-    }
-  }, [onDeleteItem]);
+    setItemToDelete({ id, title });
+  }, []);
 
   const handleOpenLightbox = useCallback((images: string[], index: number) => {
     setLightboxState({ images, index });
@@ -1527,6 +1528,16 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
 
               {/* Submit Buttons */}
               <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                {editingId && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteItem(editingId, formData.title)}
+                    className="px-4 py-3.5 rounded-2xl bg-red-50 text-red-500 border-2 border-red-200 hover:bg-red-100 transition-colors flex items-center justify-center flex-shrink-0"
+                    title="刪除此項目"
+                  >
+                    <Trash2 size={20} />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setIsFormOpen(false)}
@@ -1647,6 +1658,24 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
           onClose={() => setLightboxState(null)}
         />
       )}
+
+      {/* Delete Item Confirmation Modal */}
+      <DeleteItemConfirmModal
+        isOpen={itemToDelete !== null}
+        onClose={() => setItemToDelete(null)}
+        onConfirm={() => {
+          if (itemToDelete) {
+            onDeleteItem(itemToDelete.id);
+            if (editingId === itemToDelete.id) {
+              setIsFormOpen(false);
+              setEditingId(null);
+            }
+            setItemToDelete(null);
+          }
+        }}
+        title={itemToDelete?.title || '口袋名單項目'}
+        zIndex="z-[95]"
+      />
     </div>
   );
 };

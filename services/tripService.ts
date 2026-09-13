@@ -15,8 +15,6 @@ import {
 } from 'firebase/firestore';
 import { PocketItem, Journal, ScheduleItem } from '../types';
 import { compressBase64IfNeeded } from '../utils/imageService';
-import { CURRENT_SCHEMA_VERSION } from '../src/shared/types/schema';
-import { normalizeImagesList } from '../src/shared/utils/imageAdapter';
 
 /**
  * Sorts schedule items reliably based on:
@@ -371,13 +369,6 @@ export const saveScheduleItem = async (tripId: string, item: ScheduleItem): Prom
         item = { ...item, images: sanitizedImages };
       }
 
-      // Schema V2 compliance & image reference normalization
-      item = {
-        ...item,
-        schemaVersion: CURRENT_SCHEMA_VERSION,
-        imageReferences: normalizeImagesList(item.images, (item as any).image, (item as any).photos),
-      };
-
       let cleaned = cleanData(item);
 
       // Check total estimated payload size (scheduleItem subcollection doc limit is 1,048,576 bytes)
@@ -476,13 +467,6 @@ export const savePocketItem = async (tripId: string, item: PocketItem): Promise<
         item = { ...item, images: sanitizedImages };
       }
 
-      // Schema V2 compliance & image reference normalization
-      item = {
-        ...item,
-        schemaVersion: CURRENT_SCHEMA_VERSION,
-        imageReferences: normalizeImagesList(item.images, (item as any).image, (item as any).photos),
-      };
-
       let cleaned = cleanData(item);
 
       // 2. Multi-image document safety: If total size > 880KB, compress images further to prevent 1MB Firestore doc limit
@@ -520,7 +504,7 @@ export const savePocketItem = async (tripId: string, item: PocketItem): Promise<
 };
 
 /**
- * Deletes a single pocket item from subcollection
+ * Deletes a single pocket item from subcollection and removes from root doc if present
  */
 export const deletePocketItem = async (tripId: string, itemId: string): Promise<void> => {
   if (!tripId || !itemId) return;
@@ -528,6 +512,23 @@ export const deletePocketItem = async (tripId: string, itemId: string): Promise<
     try {
       const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(itemId));
       await deleteDoc(itemRef);
+
+      // Also clean up from root document if it exists in trip.pocketItems
+      try {
+        const tripRef = doc(db, 'trips', tripId);
+        const tripSnap = await getDoc(tripRef);
+        if (tripSnap.exists()) {
+          const data = tripSnap.data();
+          if (Array.isArray(data.pocketItems)) {
+            const filtered = data.pocketItems.filter((p: any) => String(p?.id) !== String(itemId));
+            if (filtered.length !== data.pocketItems.length) {
+              await updateDoc(tripRef, { pocketItems: filtered });
+            }
+          }
+        }
+      } catch (cleanErr) {
+        console.warn("Could not clean root pocketItems array (non-fatal):", cleanErr);
+      }
     } catch (err) {
       console.error("Failed to delete pocket item from subcollection:", err);
       throw err;
@@ -553,13 +554,6 @@ export const saveJournalItem = async (tripId: string, journal: Journal): Promise
         }
         journal = { ...journal, images: sanitizedImages };
       }
-
-      // Schema V2 compliance & image reference normalization
-      journal = {
-        ...journal,
-        schemaVersion: CURRENT_SCHEMA_VERSION,
-        imageReferences: normalizeImagesList(journal.images, (journal as any).image, journal.photos),
-      };
 
       let cleaned = cleanData(journal);
 
