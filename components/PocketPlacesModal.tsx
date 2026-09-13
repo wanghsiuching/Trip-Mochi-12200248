@@ -626,15 +626,20 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
     setUploadError(null);
 
     try {
-      // Filter only fully compressed base64 / valid URLs (never allow transient blob: URLs to database)
-      let finalImages = formImages
-        .filter(img => img.isReady && img.url && (img.url.startsWith('data:image/') || img.url.startsWith('http')))
-        .map(img => img.url);
+      // Filter only fully compressed base64 / valid URLs and deduplicate
+      let finalImages = Array.from(new Set(
+        formImages
+          .filter(img => img.isReady && img.url && (img.url.startsWith('data:image/') || img.url.startsWith('http')))
+          .map(img => img.url)
+      ));
 
-      // 防禦式總容量優化：若圖片總容量超過 650,000 字元，前端主動安全最佳化（維持 1200px 高清解析度）
+      // 防禦式總容量優化：根據照片張數精準分配預算，確保總合遠低於 Firestore 1MB 上限
+      const imgCount = Math.max(1, finalImages.length);
+      const budget = calculateImageBudget(imgCount);
+      const perImgBudget = budget.maxChars || Math.floor(450000 / imgCount);
+
       const totalBase64Len = finalImages.reduce((sum, img) => sum + (img.startsWith('data:image/') ? img.length : 0), 0);
-      if (totalBase64Len > 650000 && finalImages.length > 0) {
-        const perImgBudget = Math.floor(600000 / finalImages.length);
+      if (totalBase64Len > 480000 || finalImages.some(img => img.startsWith('data:image/') && img.length > perImgBudget)) {
         finalImages = await Promise.all(
           finalImages.map(img => compressBase64IfNeeded(img, 1200, perImgBudget))
         );
@@ -643,8 +648,12 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
       if (editingId) {
         const original = pocketItems.find(p => p.id === editingId);
         if (original) {
+          const sanitizedOriginal = { ...original };
+          // 徹底移除舊版單圖欄位，避免同張照片重複佔用雙倍/三倍容量
+          delete (sanitizedOriginal as any).image;
+
           await onUpdateItem({
-            ...original,
+            ...sanitizedOriginal,
             category: formData.category,
             title: formData.title.trim(),
             location: formData.location.trim(),

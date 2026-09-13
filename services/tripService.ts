@@ -449,36 +449,50 @@ export const savePocketItem = async (tripId: string, item: PocketItem): Promise<
   if (!tripId || !item || !item.id) return;
   return queueWrite(async () => {
     try {
-      const imgCount = (Array.isArray(item.images) ? item.images.length : 0) + (item.image ? 1 : 0);
-      const totalSafeBudget = 650000;
-      const perImageBudget = Math.floor(totalSafeBudget / Math.max(1, imgCount));
-
-      // 1. Proactive image array and single image safety check based on count budget
-      if (item.image && typeof item.image === 'string' && item.image.startsWith('data:image/') && item.image.length > perImageBudget) {
-        item = { ...item, image: await compressBase64IfNeeded(item.image, 1200, perImageBudget) };
+      // 1. Gather all images into a unified array, eliminating duplicate legacy 'image' field
+      let allImages: string[] = [];
+      if (Array.isArray(item.images)) {
+        allImages.push(...item.images.filter(Boolean));
       }
+      if ((item as any).image && typeof (item as any).image === 'string' && !allImages.includes((item as any).image)) {
+        allImages.push((item as any).image);
+      }
+      // Deduplicate images
+      allImages = Array.from(new Set(allImages));
 
-      if (Array.isArray(item.images) && item.images.length > 0) {
-        const sanitizedImages: string[] = [];
-        for (const img of item.images) {
-          if (typeof img === 'string' && img.startsWith('data:image/') && img.length > perImageBudget) {
+      const imgCount = Math.max(1, allImages.length);
+      const budget = calculateImageBudget(imgCount);
+      const perImageBudget = budget.maxChars || Math.floor(450000 / imgCount);
+
+      // Proactively compress images according to budget to ensure safety buffer
+      const sanitizedImages: string[] = [];
+      for (const img of allImages) {
+        if (typeof img === 'string' && img.startsWith('data:image/')) {
+          if (img.length > perImageBudget) {
             const compressed = await compressBase64IfNeeded(img, 1200, perImageBudget);
             sanitizedImages.push(compressed);
           } else {
             sanitizedImages.push(img);
           }
+        } else {
+          sanitizedImages.push(img);
         }
-        item = { ...item, images: sanitizedImages };
       }
 
-      let cleaned = cleanData(item);
+      let cleaned = cleanData({
+        ...item,
+        images: sanitizedImages,
+      });
 
-      // 2. Multi-image document safety: If total size > 700KB, compress images further to prevent 1MB Firestore doc limit
+      // 徹底刪除 legacy 單圖欄位，杜絕同一張照片重複寫入造成雙倍/三倍容量
+      delete (cleaned as any).image;
+
+      // 2. Multi-image document safety: If total size > 480KB, compress images further
       const payloadSize = JSON.stringify(cleaned).length;
-      if (payloadSize > 700000 && Array.isArray(cleaned.images) && cleaned.images.length > 0) {
-        const tightenedBudget = Math.floor(550000 / cleaned.images.length);
+      if (payloadSize > 480000 && Array.isArray(cleaned.images) && cleaned.images.length > 0) {
+        const tightenedBudget = Math.floor(400000 / cleaned.images.length);
         cleaned.images = await Promise.all(
-          cleaned.images.map((img: string) => compressBase64IfNeeded(img, 1200, tightenedBudget))
+          cleaned.images.map((img: string) => compressBase64IfNeeded(img, 1100, tightenedBudget))
         );
       }
 
@@ -495,23 +509,41 @@ export const savePocketItem = async (tripId: string, item: PocketItem): Promise<
 
         if (isSizeError && Array.isArray(cleaned.images) && cleaned.images.length > 0) {
           console.warn("Firestore pocketItem size exceeded, applying tier-1 emergency compression...", setErr);
-          const emergencyBudget = Math.floor(450000 / cleaned.images.length);
+          const emergencyBudget = Math.floor(350000 / cleaned.images.length);
           cleaned.images = await Promise.all(
-            cleaned.images.map((img: string) => compressBase64IfNeeded(img, 1100, emergencyBudget))
+            cleaned.images.map((img: string) => compressBase64IfNeeded(img, 960, emergencyBudget))
           );
           try {
             await setDoc(itemRef, cleaned);
           } catch (retryErr: any) {
             console.warn("Tier-1 failed, applying tier-2 deep rescue compression...", retryErr);
-            const deepBudget = Math.floor(320000 / cleaned.images.length);
+            const deepBudget = Math.floor(220000 / cleaned.images.length);
             cleaned.images = await Promise.all(
-              cleaned.images.map((img: string) => compressBase64IfNeeded(img, 960, deepBudget))
+              cleaned.images.map((img: string) => compressBase64IfNeeded(img, 800, deepBudget))
             );
             await setDoc(itemRef, cleaned);
           }
         } else {
           throw setErr;
         }
+      }
+
+      // Clean up legacy item from root document if it exists in trip.pocketItems
+      try {
+        const tripRef = doc(db, 'trips', tripId);
+        const tripSnap = await getDoc(tripRef);
+        if (tripSnap.exists()) {
+          const data = tripSnap.data();
+          if (Array.isArray(data.pocketItems)) {
+            const hasInRoot = data.pocketItems.some((p: any) => String(p?.id) === String(item.id));
+            if (hasInRoot) {
+              const filtered = data.pocketItems.filter((p: any) => String(p?.id) !== String(item.id));
+              await updateDoc(tripRef, { pocketItems: filtered });
+            }
+          }
+        }
+      } catch (cleanRootErr) {
+        console.warn("Cleanup of root pocketItems skipped:", cleanRootErr);
       }
     } catch (err) {
       console.error("Failed to save pocket item to subcollection:", err);
@@ -680,17 +712,29 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
         if (item && item.id) {
           const prevItem = pocketMap.get(String(item.id));
           if (prevItem) {
-            pocketMap.set(String(item.id), {
+            const mergedItem: any = {
               ...prevItem,
               ...item,
               notes: item.notes || (item as any).note || prevItem.notes || (prevItem as any).note || '',
-              images: (Array.isArray(item.images) && item.images.length > 0) ? item.images : (prevItem.images || []),
+              images: (Array.isArray(item.images) && item.images.length > 0) 
+                ? item.images 
+                : (Array.isArray(prevItem.images) && prevItem.images.length > 0)
+                ? prevItem.images
+                : (prevItem as any).image ? [(prevItem as any).image] : [],
               location: item.location || (item as any).address || prevItem.location || (prevItem as any).address || '',
               url: item.url || (item as any).googleMapUrl || (item as any).link || prevItem.url || (prevItem as any).googleMapUrl || '',
               priceRange: item.priceRange || (item as any).price || prevItem.priceRange || (prevItem as any).price || '',
-            });
+            };
+            if (Array.isArray(mergedItem.images) && mergedItem.images.length > 0) {
+              delete mergedItem.image;
+            }
+            pocketMap.set(String(item.id), mergedItem);
           } else {
-            pocketMap.set(String(item.id), item);
+            const cleanItem: any = { ...item };
+            if (Array.isArray(cleanItem.images) && cleanItem.images.length > 0) {
+              delete cleanItem.image;
+            }
+            pocketMap.set(String(item.id), cleanItem);
           }
         }
       }
