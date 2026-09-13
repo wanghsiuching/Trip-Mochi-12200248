@@ -14,8 +14,3 @@ export { SwapDaysConfirmModal } from './SwapDaysConfirmModal';
 export { ShareTripModal } from './ShareTripModal';
 export { MoveItemConfirmModal } from './MoveItemConfirmModal';
 export { ExportPdfModal } from './ExportPdfModal';
-export { IdentityPickerModal } from './IdentityPickerModal';
-export { ConflictModal } from './ConflictModal';
-export { TrashModal } from './TrashModal';
-export { ActivityHistoryModal } from './ActivityHistoryModal';
-

@@ -2,48 +2,25 @@ import { useState } from 'react';
 import { PocketItem, ScheduleItem, Member } from '../types';
 import { placesService } from '../src/features/places/service';
 import { itineraryService } from '../src/features/itinerary/service';
-import { softDeletePocketItem, restorePocketItem, savePocketItem } from '../services/tripService';
-import { LocalUserIdentity } from '../src/features/collaboration/types';
 
-export const usePocketItemsData = (currentTripId: string, currentUser?: LocalUserIdentity | null) => {
+export const usePocketItemsData = (currentTripId: string) => {
   const [pocketItems, setPocketItems] = useState<PocketItem[]>([]);
 
   const handleAddPocketItem = async (item: Omit<PocketItem, 'id' | 'createdAt'>): Promise<void> => {
-    const newItem: PocketItem = {
-      ...item,
-      id: Date.now().toString(),
-      createdAt: Date.now(),
-    };
-    setPocketItems(prev => [newItem, ...prev.filter(p => p.id !== newItem.id)]);
-    await savePocketItem(currentTripId, newItem, currentUser);
+    const saved = await placesService.savePocketItem(currentTripId, item);
+    setPocketItems(prev => [saved, ...prev.filter(p => p.id !== saved.id)]);
   };
 
-  const handleUpdatePocketItem = async (updated: PocketItem, prevItem?: PocketItem): Promise<void> => {
-    setPocketItems(prev => prev.map(p => p.id === updated.id ? updated : p));
-    await savePocketItem(currentTripId, updated, currentUser, prevItem);
+  const handleUpdatePocketItem = async (updated: PocketItem): Promise<void> => {
+    const saved = await placesService.savePocketItem(currentTripId, updated);
+    setPocketItems(prev => prev.map(p => p.id === saved.id ? saved : p));
   };
 
   const handleDeletePocketItem = (id: string) => {
-    const pocket = pocketItems.find(p => p.id === id);
-    const title = pocket?.title || '口袋名單地點';
-    const now = Date.now();
-    setPocketItems(prev => prev.map(p => p.id === id ? { ...p, deletedAt: now, deletedBy: currentUser?.userId || 'unknown' } : p));
-    softDeletePocketItem(currentTripId, id, currentUser, title).catch(err => {
-      console.error('Failed to soft-delete pocket item:', err);
+    setPocketItems(prev => prev.filter(p => p.id !== id));
+    placesService.deletePocketItem(currentTripId, id).catch(err => {
+      console.error('Failed to delete pocket item:', err);
     });
-  };
-
-  const handleRestorePocketItem = async (id: string) => {
-    const pocket = pocketItems.find(p => p.id === id);
-    const title = pocket?.title || '口袋名單地點';
-    setPocketItems(prev => prev.map(p => {
-      if (p.id === id) {
-        const { deletedAt, deletedBy, deletedByMemberId, ...rest } = p as any;
-        return rest;
-      }
-      return p;
-    }));
-    await restorePocketItem(currentTripId, id, currentUser, title);
   };
 
   const handleAddToScheduleFromPocket = (
@@ -77,7 +54,7 @@ export const usePocketItemsData = (currentTripId: string, currentUser?: LocalUse
 
     const updatedPocket: PocketItem = { ...item, assignedDate: targetDate };
     setPocketItems(prev => prev.map(p => p.id === item.id ? updatedPocket : p));
-    savePocketItem(currentTripId, updatedPocket, currentUser, item).catch(err => {
+    placesService.savePocketItem(currentTripId, updatedPocket).catch(err => {
       console.error('Failed to update assignedDate in pocket:', err);
     });
   };
@@ -88,8 +65,6 @@ export const usePocketItemsData = (currentTripId: string, currentUser?: LocalUse
     handleAddPocketItem,
     handleUpdatePocketItem,
     handleDeletePocketItem,
-    handleRestorePocketItem,
     handleAddToScheduleFromPocket
   };
 };
-

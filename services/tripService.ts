@@ -13,13 +13,10 @@ import {
   Timestamp,
   writeBatch
 } from 'firebase/firestore';
-import { PocketItem, Journal, ScheduleItem, Member } from '../types';
+import { PocketItem, Journal, ScheduleItem } from '../types';
 import { compressBase64IfNeeded } from '../utils/imageService';
 import { CURRENT_SCHEMA_VERSION } from '../src/shared/types/schema';
 import { normalizeImagesList } from '../src/shared/utils/imageAdapter';
-import { activityService } from '../src/features/activity/service';
-import { LocalUserIdentity } from '../src/features/collaboration/types';
-import { ActivityEntityType } from '../src/features/activity/types';
 
 /**
  * Sorts schedule items reliably based on:
@@ -356,12 +353,7 @@ export const joinTripByCode = async (code: string): Promise<any> => {
 /**
  * Saves a single schedule item into subcollection (prevents 1MB root doc limit)
  */
-export const saveScheduleItem = async (
-  tripId: string, 
-  item: ScheduleItem, 
-  actor?: LocalUserIdentity | null, 
-  previousItem?: ScheduleItem | null
-): Promise<void> => {
+export const saveScheduleItem = async (tripId: string, item: ScheduleItem): Promise<void> => {
   if (!tripId || !item || !item.id) return;
   return queueWrite(async () => {
     try {
@@ -380,18 +372,9 @@ export const saveScheduleItem = async (
       }
 
       // Schema V2 compliance & image reference normalization
-      const currentVer = typeof previousItem?.version === 'number' 
-        ? previousItem.version 
-        : (typeof item.version === 'number' ? item.version : 1);
-      const nextVer = currentVer + 1;
-
       item = {
         ...item,
         schemaVersion: CURRENT_SCHEMA_VERSION,
-        version: nextVer,
-        updatedAt: Date.now(),
-        updatedBy: actor?.userId || 'unknown',
-        updatedByMemberId: actor?.memberId || null,
         imageReferences: normalizeImagesList(item.images, (item as any).image, (item as any).photos),
       };
 
@@ -437,31 +420,6 @@ export const saveScheduleItem = async (
           throw setErr;
         }
       }
-
-      // Log ActivityEvent
-      try {
-        const isEdit = !!previousItem;
-        const changes = isEdit 
-          ? activityService.calculateChanges(previousItem, item, { 
-              title: '標題', date: '日期', time: '時間', location: '地點', notes: '備註' 
-            })
-          : [];
-
-        await activityService.logActivity(tripId, {
-          tripId,
-          actorId: actor?.userId || 'unknown',
-          actorMemberId: actor?.memberId || undefined,
-          actorName: actor?.displayName || '未知使用者',
-          actorAvatar: actor?.avatar || null,
-          action: isEdit ? 'update' : 'create',
-          entityType: 'schedule',
-          entityId: String(item.id),
-          summary: `${isEdit ? '修改' : '新增'}了行程「${item.title || '未命名行程'}」`,
-          changes: changes.length > 0 ? changes : undefined,
-        });
-      } catch (logErr) {
-        console.warn("Failed to log activity for schedule item:", logErr);
-      }
     } catch (err) {
       console.error("Failed to save schedule item to subcollection:", err);
       throw err;
@@ -470,98 +428,7 @@ export const saveScheduleItem = async (
 };
 
 /**
- * Soft deletes a single schedule item (retains document for restore)
- */
-export const softDeleteScheduleItem = async (
-  tripId: string, 
-  itemId: string, 
-  actor?: LocalUserIdentity | null, 
-  itemTitle?: string
-): Promise<void> => {
-  if (!tripId || !itemId) return;
-  return queueWrite(async () => {
-    try {
-      const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(itemId));
-      const deletedAt = Date.now();
-      const deletedBy = actor?.userId || 'unknown';
-      const deletedByMemberId = actor?.memberId || null;
-
-      await updateDoc(itemRef, {
-        deletedAt,
-        deletedBy,
-        deletedByMemberId,
-      });
-
-      // Log ActivityEvent
-      await activityService.logActivity(tripId, {
-        tripId,
-        actorId: deletedBy,
-        actorMemberId: deletedByMemberId || undefined,
-        actorName: actor?.displayName || '未知使用者',
-        actorAvatar: actor?.avatar || null,
-        action: 'delete',
-        entityType: 'schedule',
-        entityId: String(itemId),
-        summary: `刪除了行程「${itemTitle || '未命名行程'}」`,
-      });
-    } catch (err) {
-      console.error("Failed to soft-delete schedule item:", err);
-      throw err;
-    }
-  });
-};
-
-/**
- * Restores a previously soft-deleted schedule item
- */
-export const restoreScheduleItem = async (
-  tripId: string, 
-  itemId: string, 
-  actor?: LocalUserIdentity | null, 
-  itemTitle?: string
-): Promise<void> => {
-  if (!tripId || !itemId) return;
-  return queueWrite(async () => {
-    try {
-      const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(itemId));
-      const tripRef = doc(db, 'trips', tripId);
-      const restoredBy = actor?.userId || 'unknown';
-      const restoredByMemberId = actor?.memberId || null;
-
-      await updateDoc(itemRef, {
-        deletedAt: null,
-        deletedBy: null,
-        deletedByMemberId: null,
-        updatedAt: Date.now(),
-        updatedBy: restoredBy,
-      });
-
-      // Ensure item is in scheduleOrder
-      await setDoc(tripRef, {
-        scheduleOrder: arrayUnion(String(itemId))
-      }, { merge: true });
-
-      // Log ActivityEvent
-      await activityService.logActivity(tripId, {
-        tripId,
-        actorId: restoredBy,
-        actorMemberId: restoredByMemberId || undefined,
-        actorName: actor?.displayName || '未知使用者',
-        actorAvatar: actor?.avatar || null,
-        action: 'restore',
-        entityType: 'schedule',
-        entityId: String(itemId),
-        summary: `恢復了行程「${itemTitle || '未命名行程'}」`,
-      });
-    } catch (err) {
-      console.error("Failed to restore schedule item:", err);
-      throw err;
-    }
-  });
-};
-
-/**
- * Deletes a single schedule item from subcollection (Hard delete fallback)
+ * Deletes a single schedule item from subcollection
  */
 export const deleteScheduleItem = async (tripId: string, itemId: string): Promise<void> => {
   if (!tripId || !itemId) return;
@@ -587,12 +454,7 @@ export const deleteScheduleItem = async (tripId: string, itemId: string): Promis
 /**
  * Saves a single pocket item into subcollection (prevents 1MB root doc limit)
  */
-export const savePocketItem = async (
-  tripId: string, 
-  item: PocketItem, 
-  actor?: LocalUserIdentity | null,
-  previousItem?: PocketItem | null
-): Promise<void> => {
+export const savePocketItem = async (tripId: string, item: PocketItem): Promise<void> => {
   if (!tripId || !item || !item.id) return;
   return queueWrite(async () => {
     try {
@@ -615,17 +477,9 @@ export const savePocketItem = async (
       }
 
       // Schema V2 compliance & image reference normalization
-      const currentVer = typeof previousItem?.version === 'number' 
-        ? previousItem.version 
-        : (typeof item.version === 'number' ? item.version : 1);
-
       item = {
         ...item,
         schemaVersion: CURRENT_SCHEMA_VERSION,
-        version: currentVer + 1,
-        updatedAt: Date.now(),
-        updatedBy: actor?.userId || 'unknown',
-        updatedByMemberId: actor?.memberId || null,
         imageReferences: normalizeImagesList(item.images, (item as any).image, (item as any).photos),
       };
 
@@ -658,24 +512,6 @@ export const savePocketItem = async (
           throw setErr;
         }
       }
-
-      // Log ActivityEvent
-      try {
-        const isEdit = !!previousItem;
-        await activityService.logActivity(tripId, {
-          tripId,
-          actorId: actor?.userId || 'unknown',
-          actorMemberId: actor?.memberId || undefined,
-          actorName: actor?.displayName || '未知使用者',
-          actorAvatar: actor?.avatar || null,
-          action: isEdit ? 'update' : 'create',
-          entityType: 'pocket',
-          entityId: String(item.id),
-          summary: `${isEdit ? '修改' : '新增'}了口袋地點「${item.title || '未命名地點'}」`,
-        });
-      } catch (logErr) {
-        console.warn("Failed to log activity for pocket item:", logErr);
-      }
     } catch (err) {
       console.error("Failed to save pocket item to subcollection:", err);
       throw err;
@@ -684,90 +520,7 @@ export const savePocketItem = async (
 };
 
 /**
- * Soft deletes a single pocket item from subcollection
- */
-export const softDeletePocketItem = async (
-  tripId: string, 
-  itemId: string, 
-  actor?: LocalUserIdentity | null, 
-  itemTitle?: string
-): Promise<void> => {
-  if (!tripId || !itemId) return;
-  return queueWrite(async () => {
-    try {
-      const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(itemId));
-      const deletedAt = Date.now();
-      const deletedBy = actor?.userId || 'unknown';
-      const deletedByMemberId = actor?.memberId || null;
-
-      await updateDoc(itemRef, {
-        deletedAt,
-        deletedBy,
-        deletedByMemberId,
-      });
-
-      await activityService.logActivity(tripId, {
-        tripId,
-        actorId: deletedBy,
-        actorMemberId: deletedByMemberId || undefined,
-        actorName: actor?.displayName || '未知使用者',
-        actorAvatar: actor?.avatar || null,
-        action: 'delete',
-        entityType: 'pocket',
-        entityId: String(itemId),
-        summary: `刪除了口袋地點「${itemTitle || '未命名地點'}」`,
-      });
-    } catch (err) {
-      console.error("Failed to soft-delete pocket item:", err);
-      throw err;
-    }
-  });
-};
-
-/**
- * Restores a single pocket item from subcollection
- */
-export const restorePocketItem = async (
-  tripId: string, 
-  itemId: string, 
-  actor?: LocalUserIdentity | null, 
-  itemTitle?: string
-): Promise<void> => {
-  if (!tripId || !itemId) return;
-  return queueWrite(async () => {
-    try {
-      const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(itemId));
-      const restoredBy = actor?.userId || 'unknown';
-      const restoredByMemberId = actor?.memberId || null;
-
-      await updateDoc(itemRef, {
-        deletedAt: null,
-        deletedBy: null,
-        deletedByMemberId: null,
-        updatedAt: Date.now(),
-        updatedBy: restoredBy,
-      });
-
-      await activityService.logActivity(tripId, {
-        tripId,
-        actorId: restoredBy,
-        actorMemberId: restoredByMemberId || undefined,
-        actorName: actor?.displayName || '未知使用者',
-        actorAvatar: actor?.avatar || null,
-        action: 'restore',
-        entityType: 'pocket',
-        entityId: String(itemId),
-        summary: `恢復了口袋地點「${itemTitle || '未命名地點'}」`,
-      });
-    } catch (err) {
-      console.error("Failed to restore pocket item:", err);
-      throw err;
-    }
-  });
-};
-
-/**
- * Deletes a single pocket item from subcollection (Hard delete fallback)
+ * Deletes a single pocket item from subcollection
  */
 export const deletePocketItem = async (tripId: string, itemId: string): Promise<void> => {
   if (!tripId || !itemId) return;
@@ -785,12 +538,7 @@ export const deletePocketItem = async (tripId: string, itemId: string): Promise<
 /**
  * Saves a single journal item into subcollection (prevents 1MB root doc limit for photos)
  */
-export const saveJournalItem = async (
-  tripId: string, 
-  journal: Journal, 
-  actor?: LocalUserIdentity | null,
-  previousJournal?: Journal | null
-): Promise<void> => {
+export const saveJournalItem = async (tripId: string, journal: Journal): Promise<void> => {
   if (!tripId || !journal || !journal.id) return;
   return queueWrite(async () => {
     try {
@@ -807,17 +555,9 @@ export const saveJournalItem = async (
       }
 
       // Schema V2 compliance & image reference normalization
-      const currentVer = typeof previousJournal?.version === 'number' 
-        ? previousJournal.version 
-        : (typeof journal.version === 'number' ? journal.version : 1);
-
       journal = {
         ...journal,
         schemaVersion: CURRENT_SCHEMA_VERSION,
-        version: currentVer + 1,
-        updatedAt: Date.now(),
-        updatedBy: actor?.userId || 'unknown',
-        updatedByMemberId: actor?.memberId || null,
         imageReferences: normalizeImagesList(journal.images, (journal as any).image, journal.photos),
       };
 
@@ -849,24 +589,6 @@ export const saveJournalItem = async (
           throw setErr;
         }
       }
-
-      // Log ActivityEvent
-      try {
-        const isEdit = !!previousJournal;
-        await activityService.logActivity(tripId, {
-          tripId,
-          actorId: actor?.userId || 'unknown',
-          actorMemberId: actor?.memberId || undefined,
-          actorName: actor?.displayName || '未知使用者',
-          actorAvatar: actor?.avatar || null,
-          action: isEdit ? 'update' : 'create',
-          entityType: 'journal',
-          entityId: String(journal.id),
-          summary: `${isEdit ? '修改' : '發布'}了旅行日記「${journal.date || ''}」`,
-        });
-      } catch (logErr) {
-        console.warn("Failed to log activity for journal item:", logErr);
-      }
     } catch (err) {
       console.error("Failed to save journal item to subcollection:", err);
       throw err;
@@ -875,90 +597,7 @@ export const saveJournalItem = async (
 };
 
 /**
- * Soft deletes a single journal item from subcollection
- */
-export const softDeleteJournalItem = async (
-  tripId: string, 
-  journalId: number | string, 
-  actor?: LocalUserIdentity | null, 
-  itemTitle?: string
-): Promise<void> => {
-  if (!tripId || !journalId) return;
-  return queueWrite(async () => {
-    try {
-      const itemRef = doc(db, 'trips', tripId, 'journals', String(journalId));
-      const deletedAt = Date.now();
-      const deletedBy = actor?.userId || 'unknown';
-      const deletedByMemberId = actor?.memberId || null;
-
-      await updateDoc(itemRef, {
-        deletedAt,
-        deletedBy,
-        deletedByMemberId,
-      });
-
-      await activityService.logActivity(tripId, {
-        tripId,
-        actorId: deletedBy,
-        actorMemberId: deletedByMemberId || undefined,
-        actorName: actor?.displayName || '未知使用者',
-        actorAvatar: actor?.avatar || null,
-        action: 'delete',
-        entityType: 'journal',
-        entityId: String(journalId),
-        summary: `刪除了日記「${itemTitle || '旅行日記'}」`,
-      });
-    } catch (err) {
-      console.error("Failed to soft-delete journal item:", err);
-      throw err;
-    }
-  });
-};
-
-/**
- * Restores a single journal item from subcollection
- */
-export const restoreJournalItem = async (
-  tripId: string, 
-  journalId: number | string, 
-  actor?: LocalUserIdentity | null, 
-  itemTitle?: string
-): Promise<void> => {
-  if (!tripId || !journalId) return;
-  return queueWrite(async () => {
-    try {
-      const itemRef = doc(db, 'trips', tripId, 'journals', String(journalId));
-      const restoredBy = actor?.userId || 'unknown';
-      const restoredByMemberId = actor?.memberId || null;
-
-      await updateDoc(itemRef, {
-        deletedAt: null,
-        deletedBy: null,
-        deletedByMemberId: null,
-        updatedAt: Date.now(),
-        updatedBy: restoredBy,
-      });
-
-      await activityService.logActivity(tripId, {
-        tripId,
-        actorId: restoredBy,
-        actorMemberId: restoredByMemberId || undefined,
-        actorName: actor?.displayName || '未知使用者',
-        actorAvatar: actor?.avatar || null,
-        action: 'restore',
-        entityType: 'journal',
-        entityId: String(journalId),
-        summary: `恢復了日記「${itemTitle || '旅行日記'}」`,
-      });
-    } catch (err) {
-      console.error("Failed to restore journal item:", err);
-      throw err;
-    }
-  });
-};
-
-/**
- * Deletes a single journal item from subcollection (Hard delete fallback)
+ * Deletes a single journal item from subcollection
  */
 export const deleteJournalItem = async (tripId: string, journalId: number | string): Promise<void> => {
   if (!tripId || !journalId) return;
@@ -968,120 +607,6 @@ export const deleteJournalItem = async (tripId: string, journalId: number | stri
       await deleteDoc(itemRef);
     } catch (err) {
       console.error("Failed to delete journal item from subcollection:", err);
-      throw err;
-    }
-  });
-};
-
-/**
- * Soft deletes an item in an array-based collection on the root trip document
- * (e.g. flights, accommodations, carRentals, tickets, expenses, planning, members)
- */
-export const softDeleteTripItem = async <T extends { id: any; deletedAt?: any }>(
-  tripId: string,
-  field: string,
-  itemId: any,
-  actor?: LocalUserIdentity | null,
-  entityType: ActivityEntityType = 'booking',
-  itemTitle?: string
-): Promise<void> => {
-  if (!tripId) return;
-  return queueWrite(async () => {
-    try {
-      const tripRef = doc(db, 'trips', tripId);
-      const snap = await getDoc(tripRef);
-      if (!snap.exists()) return;
-      const data = snap.data();
-      const currentArray: T[] = Array.isArray(data[field]) ? data[field] : [];
-
-      const deletedAt = Date.now();
-      const deletedBy = actor?.userId || 'unknown';
-      const deletedByMemberId = actor?.memberId || null;
-
-      const updatedArray = currentArray.map(item => {
-        if (String(item.id) === String(itemId)) {
-          return {
-            ...item,
-            deletedAt,
-            deletedBy,
-            deletedByMemberId,
-          };
-        }
-        return item;
-      });
-
-      await setDoc(tripRef, { [field]: cleanData(updatedArray) }, { merge: true });
-
-      await activityService.logActivity(tripId, {
-        tripId,
-        actorId: deletedBy,
-        actorMemberId: deletedByMemberId || undefined,
-        actorName: actor?.displayName || '未知使用者',
-        actorAvatar: actor?.avatar || null,
-        action: 'delete',
-        entityType,
-        entityId: String(itemId),
-        summary: `刪除了${itemTitle || '項目'}`,
-      });
-    } catch (err) {
-      console.error(`Failed to soft-delete trip item in ${field}:`, err);
-      throw err;
-    }
-  });
-};
-
-/**
- * Restores a soft-deleted item in an array-based collection on the root trip document
- */
-export const restoreTripItem = async <T extends { id: any; deletedAt?: any }>(
-  tripId: string,
-  field: string,
-  itemId: any,
-  actor?: LocalUserIdentity | null,
-  entityType: ActivityEntityType = 'booking',
-  itemTitle?: string
-): Promise<void> => {
-  if (!tripId) return;
-  return queueWrite(async () => {
-    try {
-      const tripRef = doc(db, 'trips', tripId);
-      const snap = await getDoc(tripRef);
-      if (!snap.exists()) return;
-      const data = snap.data();
-      const currentArray: T[] = Array.isArray(data[field]) ? data[field] : [];
-
-      const restoredBy = actor?.userId || 'unknown';
-      const restoredByMemberId = actor?.memberId || null;
-
-      const updatedArray = currentArray.map(item => {
-        if (String(item.id) === String(itemId)) {
-          return {
-            ...item,
-            deletedAt: null,
-            deletedBy: null,
-            deletedByMemberId: null,
-            updatedAt: Date.now(),
-            updatedBy: restoredBy,
-          };
-        }
-        return item;
-      });
-
-      await setDoc(tripRef, { [field]: cleanData(updatedArray) }, { merge: true });
-
-      await activityService.logActivity(tripId, {
-        tripId,
-        actorId: restoredBy,
-        actorMemberId: restoredByMemberId || undefined,
-        actorName: actor?.displayName || '未知使用者',
-        actorAvatar: actor?.avatar || null,
-        action: 'restore',
-        entityType,
-        entityId: String(itemId),
-        summary: `恢復了${itemTitle || '項目'}`,
-      });
-    } catch (err) {
-      console.error(`Failed to restore trip item in ${field}:`, err);
       throw err;
     }
   });

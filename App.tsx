@@ -4,7 +4,7 @@ import {
   MapPin, ArrowRight, Plane, Plus, X, Copy, BookOpen, ChevronLeft, Trash2,
   ChevronUp, ChevronDown, Navigation, StickyNote, Settings, AlertCircle, 
   CalendarCheck, Coins, Edit3, Users, Luggage, Briefcase, Bed, Car, Coffee, Utensils, ShoppingBag, Fuel, Ticket, Clock,
-  Train, Camera, Compass, Share2, Loader2, Bookmark, Layers, History, UserCheck, RotateCcw, Sparkles
+  Train, Camera, Compass, Share2, Loader2, Bookmark, Layers
 } from 'lucide-react';
 
 import { 
@@ -15,8 +15,7 @@ import {
 import { BottomNav } from './components/CommonUI';
 import { 
   AddScheduleModal, CreateTripModal, DeleteConfirmModal, SearchErrorModal, DeleteItemConfirmModal, TripSettingsModal, PotentialExpensesModal, EditDayDetailsModal, DeleteDayConfirmModal, BackupConfirmModal, ScheduleDetailModal, SwapDaysConfirmModal,
-  ShareTripModal, MoveItemConfirmModal,
-  IdentityPickerModal, ConflictModal, TrashModal, ActivityHistoryModal, DeletedItemEntry
+  ShareTripModal, MoveItemConfirmModal
 } from './components/modals';
 import { Lightbox } from './components/Lightbox';
 import { PocketPlacesModal } from './components/PocketPlacesModal';
@@ -26,13 +25,8 @@ import { ExpensesView } from './components/ExpensesView';
 import { JournalView } from './components/JournalView';
 import { PlanningView } from './components/PlanningView';
 import { MembersView } from './components/MembersView';
-import { ActorAvatar } from './components/MemberAvatar';
-import { UndoToast, UndoItem } from './components/UndoToast';
-import { useCurrentUser } from './hooks/useCurrentUser';
-import { useActivity } from './src/features/activity/hooks/useActivity';
-import { createTrip, joinTripByCode, subscribeToTrip, addTripItem, updateTripField, duplicateTrip, sortScheduleItems, restoreTripItem } from './services/tripService';
+import { createTrip, joinTripByCode, subscribeToTrip, addTripItem, updateTripField, duplicateTrip, sortScheduleItems } from './services/tripService';
 import { getCachedTrip, setCachedTrip, clearCachedTrip } from './utils/tripCache';
-
 import { 
   useTripData, 
   useBookingsData, 
@@ -66,7 +60,21 @@ export default function App() {
   const [currentTripName, setCurrentTripName] = useState('');
   const [savedTrips, setSavedTrips] = useState<SavedTrip[]>([]);
 
-  // Domain Hooks - Members first to provide context for User Identity
+  // Domain Hooks
+  const {
+    tripDays,
+    setTripDays,
+    scheduleItems,
+    setScheduleItems,
+    handleSaveItem: handleSaveTripItem,
+    confirmDeleteItem: confirmDeleteTripItem,
+    handleMoveItem: handleMoveTripItem,
+    handleAddDay,
+    confirmDeleteDay: confirmDeleteTripDay,
+    handleUpdateDayDetails: handleUpdateTripDayDetails,
+    handleSwapLogic: handleSwapTripDaysLogic
+  } = useTripData(currentTripId);
+
   const {
     members,
     setMembers,
@@ -75,48 +83,6 @@ export default function App() {
     handleDeleteMember,
     getMemberNames
   } = useMembersData(currentTripId);
-
-  // User identity hook (Physical Operator vs Trip Member)
-  const {
-    currentUser,
-    isIdentityConfirmed,
-    selectMemberAsIdentity,
-    clearIdentity,
-    isPromptModalOpen: isIdentityPickerOpen,
-    setIsPromptModalOpen: setIsIdentityPickerOpen,
-  } = useCurrentUser(currentTripId, members);
-
-  // Activity events hook (Real-time collaboration history)
-  const {
-    activities,
-    loading: isActivityLoading,
-  } = useActivity(currentTripId);
-
-  // Collaboration UI states
-  const [isActivityHistoryModalOpen, setIsActivityHistoryModalOpen] = useState(false);
-  const [isTrashModalOpen, setIsTrashModalOpen] = useState(false);
-  const [undoItem, setUndoItem] = useState<UndoItem | null>(null);
-  const [conflictState, setConflictState] = useState<{
-    isOpen: boolean;
-    itemName: string;
-    onViewLatest: () => void;
-    onOverwrite: () => void;
-  } | null>(null);
-
-  const {
-    tripDays,
-    setTripDays,
-    scheduleItems,
-    setScheduleItems,
-    handleSaveItem: handleSaveTripItem,
-    confirmDeleteItem: confirmDeleteTripItem,
-    handleRestoreItem: handleRestoreTripItem,
-    handleMoveItem: handleMoveTripItem,
-    handleAddDay,
-    confirmDeleteDay: confirmDeleteTripDay,
-    handleUpdateDayDetails: handleUpdateTripDayDetails,
-    handleSwapLogic: handleSwapTripDaysLogic
-  } = useTripData(currentTripId, currentUser);
 
   const {
     bookingFlights,
@@ -130,20 +96,16 @@ export default function App() {
     handleAddFlight,
     handleUpdateFlight,
     handleDeleteFlight,
-    handleRestoreFlight,
     handleAddAccommodation,
     handleUpdateAccommodation,
     handleDeleteAccommodation,
-    handleRestoreAccommodation,
     handleAddCar,
     handleUpdateCar,
     handleDeleteCar,
-    handleRestoreCar,
     handleAddTicket,
     handleUpdateTicket,
-    handleDeleteTicket,
-    handleRestoreTicket,
-  } = useBookingsData(currentTripId, currentUser);
+    handleDeleteTicket
+  } = useBookingsData(currentTripId);
 
   const {
     expenses,
@@ -153,19 +115,17 @@ export default function App() {
     handleAddExpense,
     handleUpdateExpense,
     handleDeleteExpense,
-    handleRestoreExpense,
     addCurrency,
     removeCurrency
-  } = useExpensesData(currentTripId, currentUser);
+  } = useExpensesData(currentTripId);
 
   const {
     journals,
     setJournals,
     handleAddJournal,
     handleUpdateJournal,
-    handleDeleteJournal,
-    handleRestoreJournal,
-  } = useJournalsData(currentTripId, currentUser);
+    handleDeleteJournal
+  } = useJournalsData(currentTripId);
 
   const {
     planningLists,
@@ -185,9 +145,8 @@ export default function App() {
     handleAddPocketItem,
     handleUpdatePocketItem,
     handleDeletePocketItem,
-    handleRestorePocketItem,
     handleAddToScheduleFromPocket: handleAddPocketToSchedule
-  } = usePocketItemsData(currentTripId, currentUser);
+  } = usePocketItemsData(currentTripId);
 
   const {
     isAddModalOpen,
@@ -515,237 +474,17 @@ export default function App() {
     handleAddPocketToSchedule(item, targetDate, time, selectedDate, members);
   };
 
-  // Auto prompt identity picker when joining/entering trip if not confirmed
-  useEffect(() => {
-    if (view === 'app' && currentTripId && !isIdentityConfirmed) {
-      setIsIdentityPickerOpen(true);
-    }
-  }, [view, currentTripId, isIdentityConfirmed, setIsIdentityPickerOpen]);
-
-  const handleSaveItem = async (itemData: Omit<ScheduleItem, 'id'>) => {
-    try {
-      await handleSaveTripItem(itemData, editingItem, () => setEditingItem(null));
-    } catch (err: any) {
-      if (err?.code === 'VERSION_CONFLICT') {
-        setConflictState({
-          isOpen: true,
-          itemName: itemData.title || '行程項目',
-          onViewLatest: () => {
-            setConflictState(null);
-            setEditingItem(null);
-            setIsAddModalOpen(false);
-          },
-          onOverwrite: async () => {
-            setConflictState(null);
-            const latestRemoteVersion = err.remoteVersion || (editingItem?.version || 0) + 1;
-            await handleSaveTripItem(
-              itemData, 
-              editingItem ? { ...editingItem, version: latestRemoteVersion } : null,
-              () => setEditingItem(null)
-            );
-          }
-        });
-      } else {
-        console.error("Failed to save schedule item:", err);
-      }
-    }
+  const handleSaveItem = (itemData: Omit<ScheduleItem, 'id'>) => {
+    handleSaveTripItem(itemData, editingItem, () => setEditingItem(null));
   };
 
   const confirmDeleteItem = () => {
-    if (!itemToDelete) return;
-    const targetId = String(itemToDelete);
-    const target = scheduleItems.find(i => String(i.id) === targetId);
-    const title = target?.title || '行程項目';
-    confirmDeleteTripItem(itemToDelete, () => setItemToDelete(null), title);
-    setUndoItem({
-      id: targetId,
-      title,
-      onUndo: async () => {
-        await handleRestoreTripItem(targetId, title);
-      }
-    });
+    confirmDeleteTripItem(itemToDelete, () => setItemToDelete(null));
   };
 
   const currentDayScheduleItems = useMemo(() => {
-    return sortScheduleItems(scheduleItems.filter(item => item.date === selectedDate && !item.deletedAt));
+    return sortScheduleItems(scheduleItems.filter(item => item.date === selectedDate));
   }, [scheduleItems, selectedDate]);
-
-  // Aggregate all soft-deleted items across the trip for Trash management
-  const deletedItems: DeletedItemEntry[] = useMemo(() => {
-    const list: DeletedItemEntry[] = [];
-    
-    // 1. Schedule items
-    for (const item of scheduleItems) {
-      if (item.deletedAt) {
-        list.push({
-          id: String(item.id),
-          title: item.title || '行程項目',
-          entityType: 'schedule',
-          deletedAt: item.deletedAt,
-          deletedByName: item.deletedByMemberId ? (members.find(m => m.id === item.deletedByMemberId)?.name || item.deletedBy) : item.deletedBy,
-          deletedBy: item.deletedBy,
-          originalItem: item,
-        });
-      }
-    }
-
-    // 2. Flights
-    for (const f of bookingFlights) {
-      if (f.deletedAt) {
-        list.push({
-          id: String(f.id),
-          title: `${f.departureAirport || '航班'} → ${f.arrivalAirport || ''}`,
-          entityType: 'booking',
-          deletedAt: f.deletedAt,
-          deletedByName: f.deletedBy,
-          originalItem: f,
-        });
-      }
-    }
-
-    // 3. Accommodations
-    for (const a of bookingAccommodations) {
-      if (a.deletedAt) {
-        list.push({
-          id: String(a.id),
-          title: a.name || '住宿預訂',
-          entityType: 'booking',
-          deletedAt: a.deletedAt,
-          deletedByName: a.deletedBy,
-          originalItem: a,
-        });
-      }
-    }
-
-    // 4. Car rentals
-    for (const c of bookingCarRentals) {
-      if (c.deletedAt) {
-        list.push({
-          id: String(c.id),
-          title: c.company ? `${c.company} 租車` : '租車預訂',
-          entityType: 'booking',
-          deletedAt: c.deletedAt,
-          deletedByName: c.deletedBy,
-          originalItem: c,
-        });
-      }
-    }
-
-    // 5. Tickets
-    for (const t of bookingTickets) {
-      if (t.deletedAt) {
-        list.push({
-          id: String(t.id),
-          title: t.name || '票券預訂',
-          entityType: 'booking',
-          deletedAt: t.deletedAt,
-          deletedByName: t.deletedBy,
-          originalItem: t,
-        });
-      }
-    }
-
-    // 6. Expenses
-    for (const e of expenses) {
-      if (e.deletedAt) {
-        list.push({
-          id: String(e.id),
-          title: `${e.item} (${e.amount})`,
-          entityType: 'expense',
-          deletedAt: e.deletedAt,
-          deletedByName: e.deletedBy,
-          originalItem: e,
-        });
-      }
-    }
-
-    // 7. Pocket items
-    for (const p of pocketItems) {
-      if (p.deletedAt) {
-        list.push({
-          id: String(p.id),
-          title: p.title || '口袋地點',
-          entityType: 'pocket',
-          deletedAt: p.deletedAt,
-          deletedByName: p.deletedBy,
-          originalItem: p,
-        });
-      }
-    }
-
-    // 8. Journals
-    for (const j of journals) {
-      if (j.deletedAt) {
-        list.push({
-          id: String(j.id),
-          title: j.title || '旅行日記',
-          entityType: 'journal',
-          deletedAt: j.deletedAt,
-          deletedByName: j.deletedBy,
-          originalItem: j,
-        });
-      }
-    }
-
-    return list;
-  }, [scheduleItems, bookingFlights, bookingAccommodations, bookingCarRentals, bookingTickets, expenses, pocketItems, journals, members]);
-
-  const handleRestoreDeletedItem = async (entry: DeletedItemEntry) => {
-    switch (entry.entityType) {
-      case 'schedule':
-        await handleRestoreTripItem(entry.id, entry.title);
-        break;
-      case 'booking':
-        if (bookingFlights.some(f => String(f.id) === entry.id)) {
-          handleRestoreFlight(Number(entry.id));
-        } else if (bookingAccommodations.some(a => String(a.id) === entry.id)) {
-          handleRestoreAccommodation(Number(entry.id));
-        } else if (bookingCarRentals.some(c => String(c.id) === entry.id)) {
-          handleRestoreCar(Number(entry.id));
-        } else if (bookingTickets.some(t => String(t.id) === entry.id)) {
-          handleRestoreTicket(Number(entry.id));
-        }
-        break;
-      case 'expense':
-        handleRestoreExpense(Number(entry.id));
-        break;
-      case 'pocket':
-        await handleRestorePocketItem(entry.id);
-        break;
-      case 'journal':
-        await handleRestoreJournal(Number(entry.id));
-        break;
-    }
-  };
-
-  const handlePermanentDeleteItem = async (entry: DeletedItemEntry) => {
-    switch (entry.entityType) {
-      case 'schedule':
-        setScheduleItems(prev => prev.filter(i => String(i.id) !== entry.id));
-        break;
-      case 'booking':
-        if (bookingFlights.some(f => String(f.id) === entry.id)) {
-          setBookingFlights(prev => prev.filter(f => String(f.id) !== entry.id));
-        } else if (bookingAccommodations.some(a => String(a.id) === entry.id)) {
-          setBookingAccommodations(prev => prev.filter(a => String(a.id) !== entry.id));
-        } else if (bookingCarRentals.some(c => String(c.id) === entry.id)) {
-          setBookingCarRentals(prev => prev.filter(c => String(c.id) !== entry.id));
-        } else if (bookingTickets.some(t => String(t.id) === entry.id)) {
-          setBookingTickets(prev => prev.filter(t => String(t.id) !== entry.id));
-        }
-        break;
-      case 'expense':
-        setExpenses(prev => prev.filter(e => String(e.id) !== entry.id));
-        break;
-      case 'pocket':
-        setPocketItems(prev => prev.filter(p => String(p.id) !== entry.id));
-        break;
-      case 'journal':
-        setJournals(prev => prev.filter(j => String(j.id) !== entry.id));
-        break;
-    }
-  };
-
 
   const handleRequestMoveItem = (index: number, direction: 'up' | 'down') => {
     const currentItem = currentDayScheduleItems[index];
@@ -978,74 +717,10 @@ export default function App() {
   return (
     <div className={`min-h-screen ${THEME.colors.bg}`}>
       <div className="max-w-md mx-auto min-h-screen relative shadow-2xl bg-beige overflow-hidden">
-        <header className="px-4 sm:px-6 pt-10 sm:pt-12 pb-3 bg-beige border-b border-beige-dark/30">
-          {/* Top Bar: Navigation on Left, Utility Controls on Right */}
-          <div className="flex items-center justify-between gap-2 mb-2.5">
-            <button 
-              onClick={handleBackToHome} 
-              className="flex items-center gap-1 text-xs sm:text-sm font-bold text-gray-400 hover:text-cocoa transition-colors active:scale-95 py-1 flex-shrink-0"
-            >
-              <ChevronLeft size={16} strokeWidth={3}/> 返回首頁
-            </button>
-
-            <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
-              {/* Current Actor Identity Badge / Switcher */}
-              <button 
-                type="button"
-                onClick={() => setIsIdentityPickerOpen(true)}
-                className="px-2 py-1 sm:px-2.5 sm:py-1.5 bg-white hover:bg-sage/10 rounded-xl shadow-hard-sm border-2 border-beige-dark hover:border-sage flex items-center gap-1.5 text-xs font-black text-cocoa transition-all active:scale-95 cursor-pointer max-w-[130px]"
-                title="我的操作者身分 (點擊切換)"
-              >
-                <div className="w-4 h-4 sm:w-5 sm:h-5 rounded-full overflow-hidden flex-shrink-0 bg-sand/40 flex items-center justify-center">
-                  <ActorAvatar avatar={currentUser?.avatar} className="w-full h-full object-cover" />
-                </div>
-                <span className="max-w-[50px] sm:max-w-[65px] truncate text-[11px] sm:text-xs">
-                  {currentUser?.displayName || '未設定'}
-                </span>
-              </button>
-
-              {/* Activity History Timeline */}
-              <button 
-                type="button"
-                onClick={() => setIsActivityHistoryModalOpen(true)} 
-                className="p-1.5 sm:p-2 bg-white hover:bg-terracotta/10 rounded-xl shadow-hard-sm border-2 border-beige-dark hover:border-terracotta/40 text-gray-400 hover:text-terracotta transition-all active:scale-95 cursor-pointer"
-                title="歷史紀錄與旅伴動態"
-              >
-                <History size={16} strokeWidth={2.5} />
-              </button>
-
-              {/* Trash / Recently Deleted */}
-              <button 
-                type="button"
-                onClick={() => setIsTrashModalOpen(true)} 
-                className="relative p-1.5 sm:p-2 bg-white hover:bg-rose-50 rounded-xl shadow-hard-sm border-2 border-beige-dark hover:border-rose-300 text-gray-400 hover:text-rose-500 transition-all active:scale-95 cursor-pointer"
-                title="最近刪除 (垃圾桶)"
-              >
-                <Trash2 size={16} strokeWidth={2.5} />
-                {deletedItems.length > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[9px] font-black rounded-full min-w-[15px] h-3.5 px-1 flex items-center justify-center shadow-sm font-mono">
-                    {deletedItems.length}
-                  </span>
-                )}
-              </button>
-
-              {/* Trip Settings */}
-              <button 
-                type="button"
-                onClick={() => setIsSettingsModalOpen(true)} 
-                className="p-1.5 sm:p-2 bg-white hover:bg-sage/10 rounded-xl shadow-hard-sm border-2 border-beige-dark hover:border-sage text-gray-400 hover:text-sage transition-all active:scale-95 cursor-pointer"
-                title="行程設定"
-              >
-                <Settings size={16} strokeWidth={2.5} />
-              </button>
-            </div>
-          </div>
-
-          {/* Full-width Title & Sub-action area */}
-          <div className="w-full min-w-0">
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-black text-cocoa tracking-tight break-words leading-tight">
-              {currentTripName}
-            </h1>
+        <header className="px-6 pt-12 pb-2 flex justify-between items-start bg-beige">
+          <div className="flex flex-col flex-1 min-w-0 pr-2">
+            <button onClick={handleBackToHome} className="flex items-center gap-1 text-sm font-bold text-gray-400 mb-3"><ChevronLeft size={16} strokeWidth={3}/> 返回首頁</button>
+            <h1 className="text-2xl sm:text-3xl font-black text-cocoa tracking-tight break-words leading-snug">{currentTripName}</h1>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <button 
                 type="button"
@@ -1061,6 +736,11 @@ export default function App() {
                 </span>
               )}
             </div>
+          </div>
+          <div className="flex items-center gap-3 pt-6 flex-shrink-0">
+            {activeTab === 'schedule' && (
+              <button onClick={() => setIsSettingsModalOpen(true)} className="p-3 bg-white rounded-full shadow-hard-sm border-2 border-beige-dark text-gray-400 hover:text-sage"><Settings size={20} strokeWidth={2.5} /></button>
+            )}
           </div>
         </header>
 
@@ -1659,63 +1339,7 @@ export default function App() {
           members={members}
           pocketItems={pocketItems}
           planningLists={planningLists}
-          currentActorName={currentUser?.displayName}
-          currentActorAvatar={currentUser?.avatar}
-          onOpenIdentityPicker={() => setIsIdentityPickerOpen(true)}
-          onOpenActivityHistory={() => setIsActivityHistoryModalOpen(true)}
-          onOpenTrash={() => setIsTrashModalOpen(true)}
-          deletedItemsCount={deletedItems.length}
         />
-
-        {/* Physical Operator Identity Selector Modal */}
-        <IdentityPickerModal
-          isOpen={isIdentityPickerOpen}
-          onClose={() => setIsIdentityPickerOpen(false)}
-          members={members}
-          currentMemberId={currentUser?.memberId || undefined}
-          onSelectMember={(selectedMember) => {
-            selectMemberAsIdentity(selectedMember);
-          }}
-          onAddNewMember={(name, avatar) => {
-            handleAddMember(name, avatar || undefined);
-          }}
-        />
-
-        {/* Activity & Collaboration History Modal */}
-        <ActivityHistoryModal
-          isOpen={isActivityHistoryModalOpen}
-          onClose={() => setIsActivityHistoryModalOpen(false)}
-          activities={activities}
-          members={members}
-          loading={isActivityLoading}
-        />
-
-        {/* Recently Deleted Trash Modal with Restore & Purge */}
-        <TrashModal
-          isOpen={isTrashModalOpen}
-          onClose={() => setIsTrashModalOpen(false)}
-          deletedItems={deletedItems}
-          onRestore={handleRestoreDeletedItem}
-          onPermanentDelete={handlePermanentDeleteItem}
-        />
-
-        {/* Concurrency Optimistic Lock Conflict Modal */}
-        {conflictState && (
-          <ConflictModal
-            isOpen={conflictState.isOpen}
-            onClose={() => setConflictState(null)}
-            itemName={conflictState.itemName}
-            onViewLatest={conflictState.onViewLatest}
-            onOverwrite={conflictState.onOverwrite}
-          />
-        )}
-
-        {/* Instant Undo Toast on deletion */}
-        <UndoToast
-          undoItem={undoItem}
-          onClose={() => setUndoItem(null)}
-        />
-
         <ShareTripModal
           isOpen={isShareTripModalOpen}
           onClose={() => setIsShareTripModalOpen(false)}

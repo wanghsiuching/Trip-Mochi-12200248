@@ -1,39 +1,39 @@
 import { useState, useEffect, useCallback } from 'react';
-import { ActivityEvent } from '../types';
+import { ActivityLogItem } from '../types';
 import { activityService } from '../service';
 
 export function useActivity(tripId: string) {
-  const [activities, setActivities] = useState<ActivityEvent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [activities, setActivities] = useState<ActivityLogItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (!tripId) {
-      setActivities([]);
-      setLoading(false);
-      return;
-    }
-
+  const loadActivities = useCallback(async () => {
+    if (!tripId) return;
     setLoading(true);
-    const unsubscribe = activityService.subscribeToActivities(tripId, (items) => {
+    try {
+      const items = await activityService.fetchRecentActivities(tripId);
       setActivities(items);
+    } finally {
       setLoading(false);
-    });
-
-    return () => unsubscribe();
+    }
   }, [tripId]);
 
+  useEffect(() => {
+    loadActivities();
+  }, [loadActivities]);
+
   const logActivity = useCallback(
-    async (activity: Omit<ActivityEvent, 'id' | 'timestamp' | 'schemaVersion'>) => {
+    async (activity: Omit<ActivityLogItem, 'id' | 'timestamp' | 'schemaVersion'>) => {
       if (!tripId) return;
       await activityService.logActivity(tripId, activity);
+      loadActivities();
     },
-    [tripId]
+    [tripId, loadActivities]
   );
 
   return {
     activities,
     loading,
     logActivity,
+    refreshActivities: loadActivities,
   };
 }
-

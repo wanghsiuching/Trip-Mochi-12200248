@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { TripDay, ScheduleItem } from '../types';
 import { 
   saveScheduleItem, 
-  softDeleteScheduleItem,
-  restoreScheduleItem,
   deleteScheduleItem, 
   updateTripField, 
   sortScheduleItems, 
@@ -11,9 +9,8 @@ import {
   updateTripDaysAndSchedule,
   updateTripDayDateAndDetails
 } from '../services/tripService';
-import { LocalUserIdentity } from '../src/features/collaboration/types';
 
-export const useTripData = (currentTripId: string, currentUser?: LocalUserIdentity | null) => {
+export const useTripData = (currentTripId: string) => {
   const [tripDays, setTripDays] = useState<TripDay[]>([]);
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
 
@@ -26,19 +23,18 @@ export const useTripData = (currentTripId: string, currentUser?: LocalUserIdenti
       const fullItem: ScheduleItem = { 
         ...itemData, 
         id: editingItem.id,
-        order: editingItem.order !== undefined ? editingItem.order : 0,
-        version: editingItem.version,
+        order: editingItem.order !== undefined ? editingItem.order : 0
       };
       setScheduleItems(prev => sortScheduleItems(prev.map(item => item.id === editingItem.id ? fullItem : item)));
       if (onSaved) onSaved();
       try {
-        await saveScheduleItem(currentTripId, fullItem, currentUser, editingItem);
+        await saveScheduleItem(currentTripId, fullItem);
       } catch (err) {
         console.error("Failed to save edited schedule item:", err);
         throw err;
       }
     } else {
-      const sameDayItems = scheduleItems.filter(i => i.date === itemData.date && !i.deletedAt);
+      const sameDayItems = scheduleItems.filter(i => i.date === itemData.date);
       const nextOrder = sameDayItems.length > 0 
         ? Math.max(...sameDayItems.map(i => (typeof i.order === 'number' ? i.order : 0)), -1) + 1 
         : 0;
@@ -50,7 +46,7 @@ export const useTripData = (currentTripId: string, currentUser?: LocalUserIdenti
       setScheduleItems(prev => sortScheduleItems([...prev, newItem]));
       if (onSaved) onSaved();
       try {
-        await saveScheduleItem(currentTripId, newItem, currentUser);
+        await saveScheduleItem(currentTripId, newItem);
       } catch (err) {
         console.error("Failed to save new schedule item:", err);
         throw err;
@@ -58,50 +54,17 @@ export const useTripData = (currentTripId: string, currentUser?: LocalUserIdenti
     }
   };
 
-  const confirmDeleteItem = (itemToDelete: string | null, onDeleted?: () => void, itemTitle?: string) => {
+  const confirmDeleteItem = (itemToDelete: string | null, onDeleted?: () => void) => {
     if (!itemToDelete) return;
     const targetId = String(itemToDelete);
-    const targetItem = scheduleItems.find(item => String(item.id) === targetId);
-    const title = itemTitle || targetItem?.title || '行程項目';
-    
-    // Optimistic local state update: soft delete
-    const now = Date.now();
-    setScheduleItems(prev => prev.map(item => {
-      if (String(item.id) === targetId) {
-        return {
-          ...item,
-          deletedAt: now,
-          deletedBy: currentUser?.userId || 'unknown',
-          deletedByMemberId: currentUser?.memberId || null,
-        };
-      }
-      return item;
-    }));
+    // Optimistic local state update
+    setScheduleItems(prev => prev.filter(item => String(item.id) !== targetId));
     if (onDeleted) onDeleted();
-
-    // Soft delete via tripService
-    softDeleteScheduleItem(currentTripId, targetId, currentUser, title).catch(err => {
-      console.error("Failed to soft-delete schedule item:", err);
+    // Lightweight single document deletion
+    deleteScheduleItem(currentTripId, targetId).catch(err => {
+      console.error("Failed to delete schedule item:", err);
     });
   };
-
-  const handleRestoreItem = async (itemId: string, itemTitle?: string) => {
-    const targetId = String(itemId);
-    const targetItem = scheduleItems.find(item => String(item.id) === targetId);
-    const title = itemTitle || targetItem?.title || '行程項目';
-
-    // Optimistic local state update: restore
-    setScheduleItems(prev => prev.map(item => {
-      if (String(item.id) === targetId) {
-        const { deletedAt, deletedBy, deletedByMemberId, ...rest } = item;
-        return rest as ScheduleItem;
-      }
-      return item;
-    }));
-
-    await restoreScheduleItem(currentTripId, targetId, currentUser, title);
-  };
-
 
   const handleMoveItem = (
     index: number, 
@@ -284,7 +247,6 @@ export const useTripData = (currentTripId: string, currentUser?: LocalUserIdenti
     setScheduleItems,
     handleSaveItem,
     confirmDeleteItem,
-    handleRestoreItem,
     handleMoveItem,
     handleAddDay,
     confirmDeleteDay,
