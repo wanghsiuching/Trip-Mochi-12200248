@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   PenTool, List, Wallet, Coins, User, MapPin, Trash2, 
   Receipt, CreditCard, Clock, Check, ArrowLeft, Send, MessageCircle, X,
@@ -389,7 +390,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   };
 
   return (
-    <div className="w-full mx-auto lg:p-0 pb-48 lg:pb-0 animate-scale-in" ref={listContainerRef}>
+    <div className="w-full mx-auto lg:p-0 pb-48 lg:pb-0" ref={listContainerRef}>
        {/* Mode Switcher */}
        <div className="sticky top-0 z-40 bg-beige/95 backdrop-blur-md px-4 pt-3 pb-2 border-b border-beige-dark/50 mb-4">
             <div className="bg-white p-1.5 rounded-full flex text-sm font-bold text-gray-400 border-2 border-beige-dark shadow-sm w-full mb-3">
@@ -753,9 +754,9 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
        )}
 
        {/* Edit Public/Split Modal */}
-       {showEditModal && editForm && (
+       {showEditModal && editForm && typeof document !== 'undefined' && createPortal(
            <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowEditModal(false)}>
-               <div className="bg-[#FAF8F2] w-full max-h-[92vh] max-w-md rounded-[2.5rem] p-5 sm:p-6 shadow-2xl border-4 border-beige-dark flex flex-col justify-between overflow-hidden animate-scale-in" onClick={e => e.stopPropagation()}>
+               <div className="bg-[#FAF8F2] w-full max-h-[92vh] max-w-md rounded-[2.5rem] p-5 sm:p-6 shadow-2xl border-4 border-beige-dark flex flex-col justify-between overflow-hidden animate-scale-in my-auto" onClick={e => e.stopPropagation()}>
                    <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                        <h3 className="font-black text-xl text-cocoa flex items-center gap-2">
                            <Wallet className="text-sage" size={22}/>
@@ -1062,13 +1063,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                        </button>
                    </div>
                </div>
-           </div>
+           </div>,
+           document.body
        )}
 
        {/* Fund Input Modal - Full-Screen Responsive */}
-       {showFundInputModal && (
+       {showFundInputModal && typeof document !== 'undefined' && createPortal(
            <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[150] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={() => setShowFundInputModal(false)}>
-               <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+               <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden sm:my-auto" onClick={e => e.stopPropagation()}>
                    <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                        <h3 className="font-black text-xl text-cocoa flex items-center gap-2">
                            {fundForm.type === 'deposit' ? <PiggyBank className="text-teal-600" /> : <HandCoins className="text-orange-500" />}
@@ -1155,7 +1157,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                        <button onClick={handleAddFund} className={`flex-1 py-3.5 rounded-2xl text-white font-bold shadow-md border-2 active:translate-y-1 transition-all ${fundForm.type === 'deposit' ? 'bg-teal-500 border-teal-600 shadow-hard-teal' : 'bg-red-400 border-red-500'}`}>確認</button>
                    </div>
                </div>
-           </div>
+           </div>,
+           document.body
        )}
 
        {/* Delete Confirm Modal (Replacing window.confirm) */}
@@ -1167,9 +1170,9 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
        />
 
        {/* Settle Confirm Modal (Only for General) */}
-       {settleConfirm && (
+       {settleConfirm && typeof document !== 'undefined' && createPortal(
            <div className="fixed inset-0 bg-cocoa/60 z-[1000] flex flex-col items-center justify-end sm:justify-center sm:p-4 backdrop-blur-md animate-fade-in" onClick={() => setSettleConfirm(null)}>
-               <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-xs sm:rounded-[2.5rem] rounded-none p-6 shadow-2xl border-0 sm:border-4 sm:border-sage-dark text-center flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+               <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-xs sm:rounded-[2.5rem] rounded-none p-6 shadow-2xl border-0 sm:border-4 sm:border-sage-dark text-center flex flex-col justify-between overflow-hidden sm:my-auto" onClick={e => e.stopPropagation()}>
                    <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0 sm:hidden">
                        <h3 className="font-black text-lg text-cocoa">結算確認</h3>
                        <button onClick={() => setSettleConfirm(null)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
@@ -1190,7 +1193,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                        <button onClick={() => performToggle(settleConfirm.exp, settleConfirm.memberName)} className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all">確定繳清</button>
                    </div>
                </div>
-           </div>
+           </div>,
+           document.body
        )}
     </div>
   );

@@ -1,11 +1,12 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, Trash2 } from 'lucide-react';
 
 export const DeleteItemConfirmModal = ({ isOpen, onClose, onConfirm, title, zIndex = 'z-[70]' }: { isOpen: boolean, onClose: () => void, onConfirm: () => void, title: string, zIndex?: string }) => {
     if (!isOpen) return null;
-    return (
+    const modalContent = (
         <div className={`fixed inset-0 bg-cocoa/60 backdrop-blur-sm ${zIndex} flex items-center justify-center p-4 animate-fade-in`} onClick={onClose}>
-            <div className="bg-[#FAF8F2] w-full max-w-sm rounded-[2.5rem] p-6 shadow-2xl border-4 border-beige-dark flex flex-col justify-between overflow-hidden animate-scale-in" onClick={e => e.stopPropagation()}>
+            <div className="bg-[#FAF8F2] w-full max-w-sm rounded-[2.5rem] p-6 shadow-2xl border-4 border-beige-dark flex flex-col justify-between overflow-hidden animate-scale-in my-auto" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                     <h3 className="text-xl font-black text-cocoa">刪除項目</h3>
                     <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
@@ -26,4 +27,5 @@ export const DeleteItemConfirmModal = ({ isOpen, onClose, onConfirm, title, zInd
             </div>
         </div>
     );
+    return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 };
