@@ -9,7 +9,8 @@ export {
   processImage, 
   applyColorSharpening,
   compressBase64IfNeeded,
-  uploadOrCompressImage
+  uploadOrCompressImage,
+  calculateImageBudget
 } from './imageService';
 
 export type { ImageCompressionOptions as ProcessImageOptions } from './imageService';

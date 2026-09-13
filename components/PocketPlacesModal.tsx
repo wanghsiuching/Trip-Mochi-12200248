@@ -9,7 +9,7 @@ import {
 import { PocketItem, TripDay } from '../types';
 import { Lightbox } from './Lightbox';
 import { DeleteItemConfirmModal } from './modals/DeleteItemConfirmModal';
-import { compressImageToBase64, uploadOrCompressImage } from '../utils/imageService';
+import { compressImageToBase64, uploadOrCompressImage, calculateImageBudget, compressBase64IfNeeded } from '../utils/imageService';
 
 interface FormImageItem {
   id: string;
@@ -556,6 +556,8 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
     if (remaining <= 0) return;
 
     const filesToUpload = Array.from(files).slice(0, remaining);
+    const expectedTotal = currentCount + filesToUpload.length;
+    const uploadBudget = calculateImageBudget(expectedTotal);
 
     // 1. Create immediate placeholder items
     const newItems: FormImageItem[] = filesToUpload.map((file, idx) => {
@@ -584,7 +586,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
     const compressionPromises = filesToUpload.map(async (file, idx) => {
       const targetItem = newItems[idx];
       try {
-        const compressedOrUrl = await uploadOrCompressImage(file, tripId);
+        const compressedOrUrl = await uploadOrCompressImage(file, tripId, uploadBudget);
 
         if (compressedOrUrl && (compressedOrUrl.startsWith('data:image/') || compressedOrUrl.startsWith('http'))) {
           setFormImages(prev =>
@@ -625,9 +627,18 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
 
     try {
       // Filter only fully compressed base64 / valid URLs (never allow transient blob: URLs to database)
-      const finalImages = formImages
+      let finalImages = formImages
         .filter(img => img.isReady && img.url && (img.url.startsWith('data:image/') || img.url.startsWith('http')))
         .map(img => img.url);
+
+      // 防禦式總容量優化：若圖片總容量超過 650,000 字元，前端主動安全最佳化（維持 1200px 高清解析度）
+      const totalBase64Len = finalImages.reduce((sum, img) => sum + (img.startsWith('data:image/') ? img.length : 0), 0);
+      if (totalBase64Len > 650000 && finalImages.length > 0) {
+        const perImgBudget = Math.floor(600000 / finalImages.length);
+        finalImages = await Promise.all(
+          finalImages.map(img => compressBase64IfNeeded(img, 1200, perImgBudget))
+        );
+      }
 
       if (editingId) {
         const original = pocketItems.find(p => p.id === editingId);

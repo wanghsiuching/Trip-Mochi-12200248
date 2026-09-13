@@ -131,11 +131,28 @@ export const renderSteppedDownsample = (
 export interface ImageCompressionOptions {
   maxWidth?: number; // 預設 1200px (Full HD / 2K Retina 高清無損)
   maxHeight?: number;
-  quality?: number; // 預設 0.85 心理視覺黃金無損品質
+  quality?: number; // 預設 0.76 心理視覺黃金無損品質
   sharpen?: boolean;
   sharpenAmount?: number;
-  maxChars?: number; // 預設 350000 (~260KB) 充足保留細節，支援 Firestore 子文件架構
+  maxChars?: number; // 預設 160000 (~120KB) 充足保留細節，支援 Firestore 多圖安全架構
 }
+
+/**
+ * 依據預計照片總數量，計算智慧自適應容量預算
+ * 維持 1200px Retina 高清解析度與邊緣銳化，精準微調 WebP 心理視覺壓縮率
+ */
+export const calculateImageBudget = (totalCount: number): ImageCompressionOptions => {
+  if (totalCount <= 1) {
+    return { maxWidth: 1200, quality: 0.80, maxChars: 220000, sharpen: true, sharpenAmount: 0.08 };
+  } else if (totalCount <= 3) {
+    return { maxWidth: 1200, quality: 0.76, maxChars: 160000, sharpen: true, sharpenAmount: 0.08 };
+  } else if (totalCount <= 5) {
+    return { maxWidth: 1200, quality: 0.74, maxChars: 120000, sharpen: true, sharpenAmount: 0.08 };
+  } else {
+    // 6 ~ 10 張
+    return { maxWidth: 1200, quality: 0.70, maxChars: 72000, sharpen: true, sharpenAmount: 0.09 };
+  }
+};
 
 /**
  * 次世代智慧近無損壓縮：將 File 轉為高品質 Retina WebP/JPEG Base64
@@ -224,9 +241,9 @@ export const compressImageToBase64 = async (
             applyColorSharpening(ctx, canvas.width, canvas.height, options.sharpenAmount || 0.08);
           }
 
-          // 心理視覺 WebP 編碼 (預設 350000 字元上限，充足容納 1200px 高清細節)
-          const targetCharLimit = options.maxChars || 350000;
-          let quality = options.quality !== undefined ? options.quality : 0.85;
+          // 心理視覺 WebP 編碼 (預設 160000 字元上限，充足容納 1200px 高清細節)
+          const targetCharLimit = options.maxChars || 160000;
+          let quality = options.quality !== undefined ? options.quality : 0.76;
           let compressed = '';
           let isWebpSupported = false;
 
@@ -237,29 +254,27 @@ export const compressImageToBase64 = async (
                 return { data: webpCandidate, webp: true };
               }
             } catch {}
-            return { data: c.toDataURL('image/jpeg', Math.max(0.65, q - 0.03)), webp: false };
+            return { data: c.toDataURL('image/jpeg', Math.max(0.60, q - 0.03)), webp: false };
           };
 
           let encoded = encodeCanvas(canvas, quality);
           compressed = encoded.data;
           isWebpSupported = encoded.webp;
 
-          // 階梯式心理視覺品質微調 (0.85 -> 0.80 -> 0.75)
-          if (compressed.length > targetCharLimit) {
-            encoded = encodeCanvas(canvas, 0.80);
-            compressed = encoded.data;
-          }
-          if (compressed.length > targetCharLimit) {
-            encoded = encodeCanvas(canvas, 0.75);
+          // 階梯式心理視覺品質微調 (優先透過品質微調維持 1200px 高清解析度)
+          const qualitySteps = [0.74, 0.70, 0.66, 0.62, 0.58];
+          for (const q of qualitySteps) {
+            if (compressed.length <= targetCharLimit) break;
+            encoded = encodeCanvas(canvas, q);
             compressed = encoded.data;
           }
 
-          // 若品質調降後依然超出目標上限，執行溫和畫布縮放 (下限維持在 800px 以上，絕不毀滅式縮減)
+          // 若品質調降後依然超出目標上限，執行溫和畫布微調 (下限維持在 900px 以上，絕不毀滅式縮減)
           let currentWidth = targetWidth;
           let currentHeight = targetHeight;
-          while (compressed.length > targetCharLimit && currentWidth > 800 && currentHeight > 600) {
-            currentWidth = Math.round(currentWidth * 0.90);
-            currentHeight = Math.round(currentHeight * 0.90);
+          while (compressed.length > targetCharLimit && currentWidth > 900 && currentHeight > 675) {
+            currentWidth = Math.round(currentWidth * 0.92);
+            currentHeight = Math.round(currentHeight * 0.92);
 
             const scaleCanvas = document.createElement('canvas');
             scaleCanvas.width = currentWidth;
@@ -273,7 +288,7 @@ export const compressImageToBase64 = async (
               sCtx.drawImage(canvas, 0, 0, currentWidth, currentHeight);
               canvas = scaleCanvas;
               ctx = sCtx;
-              encoded = encodeCanvas(canvas, 0.72);
+              encoded = encodeCanvas(canvas, 0.65);
               compressed = encoded.data;
             } else {
               break;
@@ -300,7 +315,7 @@ export const compressImageToBase64 = async (
 export const compressBase64IfNeeded = async (
   base64Str: string, 
   maxDimension: number = 1200, 
-  maxChars: number = 320000
+  maxChars: number = 160000
 ): Promise<string> => {
   if (!base64Str || typeof base64Str !== 'string') return base64Str;
   if (!base64Str.startsWith('data:image/')) return base64Str;
@@ -323,9 +338,9 @@ export const compressBase64IfNeeded = async (
         }
 
         let canvas = renderSteppedDownsample(img, origWidth, origHeight, targetWidth, targetHeight);
-        let ctx = canvas.getContext('2d');
+        let ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
         if (!ctx) {
-          resolve(base64Str.slice(0, maxChars));
+          resolve(base64Str);
           return;
         }
 
@@ -336,27 +351,27 @@ export const compressBase64IfNeeded = async (
             const w = c.toDataURL('image/webp', q);
             if (w.startsWith('data:image/webp')) return w;
           } catch {}
-          return c.toDataURL('image/jpeg', Math.max(0.65, q - 0.03));
+          return c.toDataURL('image/jpeg', Math.max(0.60, q - 0.03));
         };
 
-        let result = encodeCanvas(canvas, 0.82);
-        if (result.length > maxChars) {
-          result = encodeCanvas(canvas, 0.76);
-        }
-        if (result.length > maxChars) {
-          result = encodeCanvas(canvas, 0.70);
+        // 階梯式心理視覺品質微調，優先維持 1200px 解析度
+        let result = encodeCanvas(canvas, 0.78);
+        const qualitySteps = [0.74, 0.70, 0.66, 0.62, 0.58];
+        for (const q of qualitySteps) {
+          if (result.length <= maxChars) break;
+          result = encodeCanvas(canvas, q);
         }
 
-        // 自適應縮減尺寸迴圈，僅在真正極端超量時才微幅調降，下限保證 800px
+        // 若品質調節至 0.58 依然超出目標預算（極少數極端複雜圖像），溫和微幅降維，下限保護在 900px 以上
         let curW = targetWidth;
         let curH = targetHeight;
-        while (result.length > maxChars && curW > 800) {
-          curW = Math.round(curW * 0.90);
-          curH = Math.round(curH * 0.90);
+        while (result.length > maxChars && curW > 900) {
+          curW = Math.round(curW * 0.92);
+          curH = Math.round(curH * 0.92);
           const sc = document.createElement('canvas');
           sc.width = curW;
           sc.height = curH;
-          const sCtx = sc.getContext('2d');
+          const sCtx = sc.getContext('2d', { alpha: false, willReadFrequently: true });
           if (sCtx) {
             sCtx.fillStyle = '#FFFFFF';
             sCtx.fillRect(0, 0, curW, curH);
@@ -364,18 +379,19 @@ export const compressBase64IfNeeded = async (
             sCtx.imageSmoothingQuality = 'high';
             sCtx.drawImage(canvas, 0, 0, curW, curH);
             canvas = sc;
-            result = encodeCanvas(canvas, 0.68);
+            result = encodeCanvas(canvas, 0.65);
           } else {
             break;
           }
         }
 
         resolve(result);
-      } catch {
-        resolve(base64Str.slice(0, maxChars));
+      } catch (err) {
+        console.warn('compressBase64IfNeeded error, fallback to original:', err);
+        resolve(base64Str);
       }
     };
-    img.onerror = () => resolve(base64Str.slice(0, maxChars));
+    img.onerror = () => resolve(base64Str);
     img.src = base64Str;
   });
 };
@@ -392,8 +408,8 @@ export const uploadOrCompressImage = async (
 ): Promise<string> => {
   const base64 = await compressImageToBase64(file, {
     maxWidth: 1200,
-    quality: 0.85,
-    maxChars: 350000,
+    quality: 0.76,
+    maxChars: 160000,
     sharpen: true,
     sharpenAmount: 0.08,
     ...options

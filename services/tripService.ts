@@ -449,16 +449,20 @@ export const savePocketItem = async (tripId: string, item: PocketItem): Promise<
   if (!tripId || !item || !item.id) return;
   return queueWrite(async () => {
     try {
-      // 1. Proactive image array and single image safety check (>380KB)
-      if (item.image && typeof item.image === 'string' && item.image.startsWith('data:image/') && item.image.length > 380000) {
-        item = { ...item, image: await compressBase64IfNeeded(item.image, 1200, 320000) };
+      const imgCount = (Array.isArray(item.images) ? item.images.length : 0) + (item.image ? 1 : 0);
+      const totalSafeBudget = 650000;
+      const perImageBudget = Math.floor(totalSafeBudget / Math.max(1, imgCount));
+
+      // 1. Proactive image array and single image safety check based on count budget
+      if (item.image && typeof item.image === 'string' && item.image.startsWith('data:image/') && item.image.length > perImageBudget) {
+        item = { ...item, image: await compressBase64IfNeeded(item.image, 1200, perImageBudget) };
       }
 
       if (Array.isArray(item.images) && item.images.length > 0) {
         const sanitizedImages: string[] = [];
         for (const img of item.images) {
-          if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 380000) {
-            const compressed = await compressBase64IfNeeded(img, 1200, 320000);
+          if (typeof img === 'string' && img.startsWith('data:image/') && img.length > perImageBudget) {
+            const compressed = await compressBase64IfNeeded(img, 1200, perImageBudget);
             sanitizedImages.push(compressed);
           } else {
             sanitizedImages.push(img);
@@ -469,11 +473,12 @@ export const savePocketItem = async (tripId: string, item: PocketItem): Promise<
 
       let cleaned = cleanData(item);
 
-      // 2. Multi-image document safety: If total size > 880KB, compress images further to prevent 1MB Firestore doc limit
+      // 2. Multi-image document safety: If total size > 700KB, compress images further to prevent 1MB Firestore doc limit
       const payloadSize = JSON.stringify(cleaned).length;
-      if (payloadSize > 880000 && Array.isArray(cleaned.images)) {
+      if (payloadSize > 700000 && Array.isArray(cleaned.images) && cleaned.images.length > 0) {
+        const tightenedBudget = Math.floor(550000 / cleaned.images.length);
         cleaned.images = await Promise.all(
-          cleaned.images.map((img: string) => compressBase64IfNeeded(img, 1000, 200000))
+          cleaned.images.map((img: string) => compressBase64IfNeeded(img, 1200, tightenedBudget))
         );
       }
 
@@ -482,15 +487,27 @@ export const savePocketItem = async (tripId: string, item: PocketItem): Promise<
       try {
         await setDoc(itemRef, cleaned);
       } catch (setErr: any) {
-        if (setErr?.message?.includes('size') || setErr?.message?.includes('1,048,576') || setErr?.code === 'resource-exhausted') {
-          console.warn("Firestore pocketItem size exceeded, applying emergency compression...", setErr);
-          if (Array.isArray(cleaned.images)) {
+        const errMsg = String(setErr?.message || '').toLowerCase();
+        const errCode = String(setErr?.code || '').toLowerCase();
+        const isSizeError = errMsg.includes('size') || errMsg.includes('1048576') || errMsg.includes('1,048,576') || 
+                            errMsg.includes('exceed') || errMsg.includes('too large') || 
+                            errCode === 'resource-exhausted' || errCode === 'invalid-argument';
+
+        if (isSizeError && Array.isArray(cleaned.images) && cleaned.images.length > 0) {
+          console.warn("Firestore pocketItem size exceeded, applying tier-1 emergency compression...", setErr);
+          const emergencyBudget = Math.floor(450000 / cleaned.images.length);
+          cleaned.images = await Promise.all(
+            cleaned.images.map((img: string) => compressBase64IfNeeded(img, 1100, emergencyBudget))
+          );
+          try {
+            await setDoc(itemRef, cleaned);
+          } catch (retryErr: any) {
+            console.warn("Tier-1 failed, applying tier-2 deep rescue compression...", retryErr);
+            const deepBudget = Math.floor(320000 / cleaned.images.length);
             cleaned.images = await Promise.all(
-              cleaned.images.map((img: string) => compressBase64IfNeeded(img, 900, 140000))
+              cleaned.images.map((img: string) => compressBase64IfNeeded(img, 960, deepBudget))
             );
             await setDoc(itemRef, cleaned);
-          } else {
-            throw setErr;
           }
         } else {
           throw setErr;
