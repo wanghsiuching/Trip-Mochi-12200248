@@ -648,12 +648,9 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
       if (editingId) {
         const original = pocketItems.find(p => p.id === editingId);
         if (original) {
-          const sanitizedOriginal = { ...original };
-          // 徹底移除舊版單圖欄位，避免同張照片重複佔用雙倍/三倍容量
-          delete (sanitizedOriginal as any).image;
-
-          await onUpdateItem({
-            ...sanitizedOriginal,
+          const cleanUpdatedItem: PocketItem = {
+            id: original.id,
+            createdAt: original.createdAt || Date.now(),
             category: formData.category,
             title: formData.title.trim(),
             location: formData.location.trim(),
@@ -664,7 +661,10 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
             assignedDate: formData.assignedDate,
             priceRange: formData.priceRange.trim() || undefined,
             images: finalImages,
-          });
+            isVisited: original.isVisited || false,
+          };
+
+          await onUpdateItem(cleanUpdatedItem);
         }
       } else {
         await onAddItem({

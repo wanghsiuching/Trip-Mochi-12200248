@@ -329,8 +329,14 @@ export const compressBase64IfNeeded = async (
   if (base64Str.length <= maxChars) return base64Str;
 
   return new Promise((resolve) => {
+    // Safety watchdog timer: never hang write queue indefinitely
+    const watchdogTimer = setTimeout(() => {
+      resolve(base64Str);
+    }, 6000);
+
     const img = new Image();
     img.onload = () => {
+      clearTimeout(watchdogTimer);
       try {
         const origWidth = img.naturalWidth || img.width || 1200;
         const origHeight = img.naturalHeight || img.height || 800;
@@ -356,25 +362,25 @@ export const compressBase64IfNeeded = async (
         const encodeCanvas = (c: HTMLCanvasElement, q: number) => {
           try {
             const w = c.toDataURL('image/webp', q);
-            if (w.startsWith('data:image/webp')) return w;
+            if (w && w.startsWith('data:image/webp')) return w;
           } catch {}
-          return c.toDataURL('image/jpeg', Math.max(0.40, q - 0.05));
+          return c.toDataURL('image/jpeg', Math.max(0.35, q - 0.05));
         };
 
         // 階梯式心理視覺品質微調，優先維持原尺寸清晰度
-        let result = encodeCanvas(canvas, 0.76);
-        const qualitySteps = [0.72, 0.68, 0.62, 0.56, 0.50, 0.44];
+        let result = encodeCanvas(canvas, 0.75);
+        const qualitySteps = [0.70, 0.65, 0.60, 0.55, 0.48, 0.42, 0.36];
         for (const q of qualitySteps) {
           if (result.length <= maxChars) break;
           result = encodeCanvas(canvas, q);
         }
 
-        // 若品質調節後依然超出目標預算，平滑降維直至完全符合預算門檻（下限安全保護在 450px 以上）
+        // 若品質調節後依然超出目標預算，平滑降維直至完全符合預算門檻（最低至 280px）
         let curW = targetWidth;
         let curH = targetHeight;
-        while (result.length > maxChars && curW > 450 && curH > 300) {
-          curW = Math.round(curW * 0.88);
-          curH = Math.round(curH * 0.88);
+        while (result.length > maxChars && curW > 280 && curH > 200) {
+          curW = Math.round(curW * 0.85);
+          curH = Math.round(curH * 0.85);
           const sc = document.createElement('canvas');
           sc.width = curW;
           sc.height = curH;
@@ -386,9 +392,9 @@ export const compressBase64IfNeeded = async (
             sCtx.imageSmoothingQuality = 'high';
             sCtx.drawImage(canvas, 0, 0, curW, curH);
             canvas = sc;
-            result = encodeCanvas(canvas, 0.60);
+            result = encodeCanvas(canvas, 0.55);
             if (result.length > maxChars) {
-              result = encodeCanvas(canvas, 0.50);
+              result = encodeCanvas(canvas, 0.42);
             }
           } else {
             break;
@@ -401,7 +407,10 @@ export const compressBase64IfNeeded = async (
         resolve(base64Str);
       }
     };
-    img.onerror = () => resolve(base64Str);
+    img.onerror = () => {
+      clearTimeout(watchdogTimer);
+      resolve(base64Str);
+    };
     img.src = base64Str;
   });
 };

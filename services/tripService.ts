@@ -5,6 +5,7 @@ import {
   getDoc, 
   deleteDoc,
   updateDoc,
+  deleteField,
   collection,
   getDocs,
   onSnapshot, 
@@ -14,7 +15,7 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { PocketItem, Journal, ScheduleItem } from '../types';
-import { compressBase64IfNeeded } from '../utils/imageService';
+import { compressBase64IfNeeded, calculateImageBudget } from '../utils/imageService';
 
 /**
  * Sorts schedule items reliably based on:
@@ -95,7 +96,13 @@ const cleanData = (obj: any): any => {
  */
 let writeQueue = Promise.resolve();
 export const queueWrite = <T>(op: () => Promise<T>): Promise<T> => {
-  const result = writeQueue.then(op, op);
+  const withTimeout = async (): Promise<T> => {
+    return Promise.race([
+      op(),
+      new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Write operation watchdog timeout')), 25000))
+    ]);
+  };
+  const result = writeQueue.then(withTimeout, withTimeout);
   writeQueue = result.then(() => {}, () => {});
   return result;
 };
@@ -479,49 +486,56 @@ export const savePocketItem = async (tripId: string, item: PocketItem): Promise<
         }
       }
 
-      let cleaned = cleanData({
-        ...item,
+      // Strictly format clean document according to PocketItem schema to strip any legacy bloated fields
+      const cleanedDoc: any = {
+        id: String(item.id),
+        title: String(item.title || ''),
+        category: item.category || 'spot',
+        location: item.location || '',
+        url: item.url || '',
+        notes: item.notes || '',
+        tag: item.tag || '',
+        rating: typeof item.rating === 'number' ? item.rating : 5,
+        assignedDate: item.assignedDate || '',
+        isVisited: Boolean(item.isVisited),
+        createdAt: item.createdAt || Date.now(),
+        updatedAt: Date.now(),
         images: sanitizedImages,
-      });
+      };
+      if (item.priceRange) {
+        cleanedDoc.priceRange = item.priceRange;
+      }
 
-      // 徹底刪除 legacy 單圖欄位，杜絕同一張照片重複寫入造成雙倍/三倍容量
-      delete (cleaned as any).image;
-
-      // 2. Multi-image document safety: If total size > 480KB, compress images further
-      const payloadSize = JSON.stringify(cleaned).length;
-      if (payloadSize > 480000 && Array.isArray(cleaned.images) && cleaned.images.length > 0) {
-        const tightenedBudget = Math.floor(400000 / cleaned.images.length);
-        cleaned.images = await Promise.all(
-          cleaned.images.map((img: string) => compressBase64IfNeeded(img, 1100, tightenedBudget))
+      // 2. Multi-image document safety: If total size > 420KB, compress images further to guarantee Firestore safety
+      let payloadSize = JSON.stringify(cleanedDoc).length;
+      if (payloadSize > 420000 && Array.isArray(cleanedDoc.images) && cleanedDoc.images.length > 0) {
+        const tightenedBudget = Math.floor(350000 / cleanedDoc.images.length);
+        cleanedDoc.images = await Promise.all(
+          cleanedDoc.images.map((img: string) => compressBase64IfNeeded(img, 1000, tightenedBudget))
         );
       }
 
       const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(item.id));
       
       try {
-        await setDoc(itemRef, cleaned);
+        // Complete overwrite removes any legacy bloated fields (like imageReferences or old image strings)
+        await setDoc(itemRef, cleanData(cleanedDoc));
       } catch (setErr: any) {
-        const errMsg = String(setErr?.message || '').toLowerCase();
-        const errCode = String(setErr?.code || '').toLowerCase();
-        const isSizeError = errMsg.includes('size') || errMsg.includes('1048576') || errMsg.includes('1,048,576') || 
-                            errMsg.includes('exceed') || errMsg.includes('too large') || 
-                            errCode === 'resource-exhausted' || errCode === 'invalid-argument';
-
-        if (isSizeError && Array.isArray(cleaned.images) && cleaned.images.length > 0) {
-          console.warn("Firestore pocketItem size exceeded, applying tier-1 emergency compression...", setErr);
-          const emergencyBudget = Math.floor(350000 / cleaned.images.length);
-          cleaned.images = await Promise.all(
-            cleaned.images.map((img: string) => compressBase64IfNeeded(img, 960, emergencyBudget))
+        console.warn("Firestore pocketItem write error, applying emergency deep compression rescue...", setErr);
+        if (Array.isArray(cleanedDoc.images) && cleanedDoc.images.length > 0) {
+          const emergencyBudget = Math.floor(220000 / cleanedDoc.images.length);
+          cleanedDoc.images = await Promise.all(
+            cleanedDoc.images.map((img: string) => compressBase64IfNeeded(img, 800, emergencyBudget))
           );
           try {
-            await setDoc(itemRef, cleaned);
+            await setDoc(itemRef, cleanData(cleanedDoc));
           } catch (retryErr: any) {
             console.warn("Tier-1 failed, applying tier-2 deep rescue compression...", retryErr);
-            const deepBudget = Math.floor(220000 / cleaned.images.length);
-            cleaned.images = await Promise.all(
-              cleaned.images.map((img: string) => compressBase64IfNeeded(img, 800, deepBudget))
+            const deepBudget = Math.floor(140000 / cleanedDoc.images.length);
+            cleanedDoc.images = await Promise.all(
+              cleanedDoc.images.map((img: string) => compressBase64IfNeeded(img, 600, deepBudget))
             );
-            await setDoc(itemRef, cleaned);
+            await setDoc(itemRef, cleanData(cleanedDoc));
           }
         } else {
           throw setErr;
