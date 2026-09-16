@@ -20,6 +20,8 @@ import {
 import { Lightbox } from './components/Lightbox';
 import { PocketPlacesModal } from './components/PocketPlacesModal';
 import { TransitLegChainView } from './components/TransitComponents';
+import { TransportCard } from './components/transport/TransportCard';
+import { scheduleItemToTransport } from './components/transport/adapters';
 import { BookingsView } from './components/BookingsView';
 import { ExpensesView } from './components/ExpensesView';
 import { JournalView } from './components/JournalView';
@@ -1022,127 +1024,15 @@ export default function App() {
                                         </div>
                                     )}
 
-                                    {item.type === 'flight' && item.flightDetails && (
-                                        <div className="bg-gradient-to-br from-cyan-50/80 via-sky-50/40 to-blue-50/50 p-3 rounded-2xl border border-cyan-200/80 space-y-2.5">
-                                            {/* Header: Airline & Flight Code */}
-                                            <div className="flex items-center justify-between gap-2 border-b border-cyan-200/60 pb-2">
-                                                <div className="flex items-center gap-1.5 min-w-0 flex-wrap">
-                                                    <div className="w-5 h-5 rounded-md bg-cyan-500 text-white flex items-center justify-center flex-shrink-0">
-                                                        <Plane size={12} />
-                                                    </div>
-                                                    <span className="text-xs sm:text-sm font-black text-cocoa break-words">
-                                                        {item.flightDetails.airline || '航班'}
-                                                    </span>
-                                                    {item.flightDetails.flightCode && (
-                                                        <span className="font-mono text-[11px] font-black bg-cyan-100/90 text-cyan-800 px-1.5 py-0.5 rounded border border-cyan-200 flex-shrink-0">
-                                                            {item.flightDetails.flightCode.toUpperCase()}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                {item.flightDetails.flightDuration && (
-                                                    <div className="flex items-center gap-1 text-[10px] font-bold text-cyan-800 bg-white/90 px-1.5 py-0.5 rounded border border-cyan-200 flex-shrink-0 font-mono">
-                                                        <Clock size={10} className="text-cyan-600"/>
-                                                        <span>{item.flightDetails.flightDuration}</span>
-                                                    </div>
-                                                )}
+                                    {/* Flight Details - Transport Component System */}
+                                    {item.type === 'flight' && item.flightDetails && (() => {
+                                        const transportModel = scheduleItemToTransport(item);
+                                        return transportModel ? (
+                                            <div className="pt-1" onClick={e => e.stopPropagation()}>
+                                                <TransportCard item={transportModel} defaultExpanded={false} />
                                             </div>
-
-                                            {/* Flight Route Boarding-Pass Box */}
-                                            <div className="bg-white/95 rounded-xl p-2.5 border border-cyan-100 space-y-1.5">
-                                                <div className="flex items-center justify-between gap-1 text-xs">
-                                                    {/* Departure */}
-                                                    <div className="flex-1 min-w-0 text-left">
-                                                        <div className="font-mono text-xs sm:text-sm font-black text-cyan-950 break-words" title={item.flightDetails.departureAirport}>
-                                                            {item.flightDetails.departureAirport?.toUpperCase() || 'DEP'}
-                                                        </div>
-                                                        {item.flightDetails.departureTime && (
-                                                            <div className="text-[10px] font-bold text-gray-500 flex items-center gap-1 mt-0.5">
-                                                                <span className="text-[8px] px-1 py-0.2 bg-gray-100 text-gray-600 rounded">起飛</span>
-                                                                <span className="font-mono">{item.flightDetails.departureTime}</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-
-                                                    {/* Arrow / Transit Center Indicator */}
-                                                    {item.flightDetails.transitAirport || item.flightDetails.transitCity ? (
-                                                        <div className="flex flex-col items-center px-1 flex-shrink-0">
-                                                            <div className="flex items-center gap-1">
-                                                                <span className="w-2.5 h-0.5 bg-amber-200"></span>
-                                                                <span className="text-[8px] font-black bg-amber-200 text-amber-900 px-1 py-0.2 rounded">
-                                                                    轉機
-                                                                </span>
-                                                                <span className="w-2.5 h-0.5 bg-amber-200"></span>
-                                                            </div>
-                                                            <span className="font-mono text-[11px] font-black text-amber-900 mt-0.5">
-                                                                {item.flightDetails.transitAirport?.toUpperCase()}
-                                                            </span>
-                                                            {item.flightDetails.transitDuration && (
-                                                                <span className="text-[8px] font-bold text-amber-700">
-                                                                    停 {item.flightDetails.transitDuration}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex flex-col items-center px-1 flex-shrink-0">
-                                                            <div className="flex items-center text-cyan-300">
-                                                                <span className="w-3 h-0.5 bg-cyan-200"></span>
-                                                                <Plane size={10} className="text-cyan-500 mx-0.5" />
-                                                                <span className="w-3 h-0.5 bg-cyan-200"></span>
-                                                            </div>
-                                                            <span className="text-[8px] font-bold text-cyan-600 mt-0.5">直飛</span>
-                                                        </div>
-                                                    )}
-
-                                                    {/* Arrival */}
-                                                    <div className="flex-1 min-w-0 text-right">
-                                                        <div className="font-mono text-xs sm:text-sm font-black text-cyan-950 break-words" title={item.flightDetails.arrivalAirport}>
-                                                            {item.flightDetails.arrivalAirport?.toUpperCase() || 'ARR'}
-                                                        </div>
-                                                        {item.flightDetails.arrivalTime && (
-                                                            <div className="text-[10px] font-bold text-gray-500 flex items-center justify-end gap-1 mt-0.5">
-                                                                <span className="font-mono">{item.flightDetails.arrivalTime}</span>
-                                                                <span className="text-[8px] px-1 py-0.2 bg-gray-100 text-gray-600 rounded">抵達</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                {/* Transit Detail Line if city or transit flight code exists */}
-                                                {(item.flightDetails.transitCity || item.flightDetails.transitFlightCode) && (
-                                                    <div className="pt-1.5 border-t border-dashed border-amber-100 flex items-center justify-between text-[10px] text-amber-900 flex-wrap gap-1">
-                                                        <span className="flex items-center gap-1 break-words flex-1 min-w-0">
-                                                            <span className="text-gray-400">轉機城市:</span>
-                                                            <span className="font-bold">{item.flightDetails.transitCity || item.flightDetails.transitAirport}</span>
-                                                        </span>
-                                                        {item.flightDetails.transitFlightCode && (
-                                                            <span className="font-mono font-bold text-amber-800 flex-shrink-0 ml-1">
-                                                                銜接: {item.flightDetails.transitFlightCode.toUpperCase()}
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            {/* Baggage & Cost */}
-                                            <div className="flex items-center justify-between text-[11px] font-bold text-gray-500 px-0.5 pt-0.5">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex items-center gap-1">
-                                                        <Luggage size={12} className="text-teal-600"/>
-                                                        <span>託運: {item.flightDetails.checkedBag || '--'}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <Briefcase size={12} className="text-orange-500"/>
-                                                        <span>手提: {item.flightDetails.carryOnBag || '--'}</span>
-                                                    </div>
-                                                </div>
-                                                {Number(item.flightDetails.cost) > 0 && (
-                                                    <div className="text-[11px] font-black text-sage font-mono">
-                                                        費用: {item.flightDetails.currency} {Number(item.flightDetails.cost).toLocaleString()}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
+                                        ) : null;
+                                    })()}
                                     {item.type === 'stay' && item.stayDetails && (
                                         <div className="bg-purple-50/30 p-3 rounded-2xl border border-purple-100/50 space-y-2">
                                             <div className="flex justify-between items-center border-b border-purple-100/50 pb-2">
@@ -1159,11 +1049,19 @@ export default function App() {
                                             {Number(item.stayDetails.cost) > 0 && <div className="text-right text-[10px] font-black text-sage">費用: {item.stayDetails.currency} {Number(item.stayDetails.cost).toLocaleString()}</div>}
                                         </div>
                                     )}
-                                    {item.type === 'transport' && item.transitDetails && (
-                                        <div className="pt-1">
-                                            <TransitLegChainView legs={item.transitDetails.legs} fare={item.transitDetails.fare} currencies={currencies} />
-                                        </div>
-                                    )}
+                                    {/* Transport Details - Transport Component System */}
+                                    {item.type === 'transport' && item.transitDetails && (() => {
+                                        const transportModel = scheduleItemToTransport(item);
+                                        return (
+                                            <div className="pt-1" onClick={e => e.stopPropagation()}>
+                                                {transportModel ? (
+                                                    <TransportCard item={transportModel} defaultExpanded={false} />
+                                                ) : (
+                                                    <TransitLegChainView legs={item.transitDetails.legs} fare={item.transitDetails.fare} currencies={currencies} />
+                                                )}
+                                            </div>
+                                        );
+                                    })()}
                                     {item.type === 'transport' && !item.transitDetails && item.carRental?.hasRental && (() => {
                                         const baseRental = Number(item.carRental.rentalCost) || 0;
                                         const baseFeePct = Number(item.carRental.serviceFeePercentage) || 0;
