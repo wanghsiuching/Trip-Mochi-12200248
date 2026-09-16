@@ -4,6 +4,7 @@ import { TransportItemModel } from './types';
 import { TransportHeader } from './TransportHeader';
 import { TransportRoute } from './TransportRoute';
 import { TransportDetails } from './TransportDetails';
+import { FlightTransportCard } from './FlightTransportCard';
 
 interface TransportCardProps {
   item: TransportItemModel;
@@ -23,6 +24,19 @@ export const TransportCard: React.FC<TransportCardProps> = ({
   className = '',
 }) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+
+  if (item.type === 'flight') {
+    return (
+      <FlightTransportCard
+        item={item}
+        defaultExpanded={defaultExpanded}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onOpenMap={onOpenMap}
+        className={className}
+      />
+    );
+  }
 
   const baggage = item.baggage;
   const cost = item.cost;

@@ -8,4 +8,5 @@ export * from './TransportRoute';
 export * from './TransportHeader';
 export * from './TransportDetails';
 export * from './TransportCard';
+export * from './FlightTransportCard';
 export * from './TransportTimeline';
