@@ -141,21 +141,26 @@ export const ShareTripModal: React.FC<ShareTripModalProps> = ({
         )}
 
         {/* Action Buttons */}
-        <div className="pt-4 border-t-2 border-beige-dark mt-3 flex gap-2.5 flex-shrink-0">
-          <button
-            type="button"
-            onClick={handleCopyOnly}
-            className="flex-1 py-3.5 bg-white text-cocoa font-black rounded-2xl border-2 border-beige-dark hover:bg-gray-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-sm text-sm"
-          >
-            <Copy size={16}/> 僅複製文字
-          </button>
-          <button
-            type="button"
-            onClick={handleShare}
-            className="flex-1 py-3.5 bg-sage hover:bg-sage-dark text-white font-black rounded-2xl border-2 border-sage-dark active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-hard-sm-sage text-sm"
-          >
-            <Send size={16}/> 分享 / 發送到 LINE
-          </button>
+        <div className="pt-3 border-t-2 border-beige-dark mt-2.5 flex flex-col gap-2 flex-shrink-0">
+          <div className="flex gap-2.5">
+            <button
+              type="button"
+              onClick={handleCopyOnly}
+              className="flex-1 py-3 bg-white text-cocoa font-black rounded-2xl border-2 border-beige-dark hover:bg-gray-50 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-sm text-sm cursor-pointer"
+            >
+              <Copy size={15}/> 僅複製文字
+            </button>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="flex-1 py-3 bg-sage hover:bg-sage-dark text-white font-black rounded-2xl border-2 border-sage-dark active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-hard-sm-sage text-sm cursor-pointer"
+            >
+              <Send size={15}/> 分享至 LINE
+            </button>
+          </div>
+          <p className="text-[10px] text-gray-400 text-center font-medium">
+            💡 手機網頁預覽若遇 401 錯誤，請點 AI Studio 右上方「Share (分享)」產出公開預覽網址
+          </p>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { BookingFlight, BookingCarRental, TransitLeg, TransitFareDetails, ScheduleItem } from '../../types';
+import { BookingFlight, BookingCarRental, TransitLeg, TransitFareDetails, ScheduleItem, BookingTrain, BookingTicket } from '../../types';
 import { TransportItemModel, TransportSegmentModel, LocationNode, TransferInfo, TransportType } from './types';
 
 /**
@@ -380,6 +380,7 @@ export const transitLegsToTransport = (
   }
 
   const primaryType: TransportType = segments.length > 0 ? segments[0].type : 'train';
+  const firstLeg = safeLegs[0];
   const primaryService = segments.map(s => s.serviceNumber).filter(Boolean).join(' → ') || (primaryType === 'train' ? '鐵路列車' : '大眾交通');
   
   // 計算總耗時
@@ -392,18 +393,31 @@ export const transitLegsToTransport = (
 
   const rawFareCost = fare?.discountedPrice !== undefined ? Number(fare.discountedPrice) : Number(fare?.originalPrice || 0);
 
+  // 組合座位字串
+  const seatParts: string[] = [];
+  if (firstLeg?.carriage) seatParts.push(`${firstLeg.carriage.includes('車') ? firstLeg.carriage : `${firstLeg.carriage} 車`}`);
+  if (firstLeg?.seat) seatParts.push(firstLeg.seat);
+  const derivedSeat = seatParts.length > 0 ? seatParts.join(' · ') : (fare?.passUsed === 'pass_free' ? 'Pass 全包' : (fare?.passUsed === 'pass_discount' ? '半價優惠' : undefined));
+
   return {
     id: itemId || `transit-${Date.now()}`,
     type: primaryType,
     title: title || (safeLegs.length > 0 ? `${safeLegs[0].fromStation} → ${safeLegs[safeLegs.length - 1].toStation}` : '交通移動'),
-    operator: primaryType === 'train' ? '鐵路運輸' : '大眾交通',
+    operator: firstLeg?.operator || (primaryType === 'train' ? '鐵路運輸' : '大眾交通'),
+    operatorSub: firstLeg?.operatorSub,
     serviceNumber: primaryService,
     totalDuration,
     segments,
     cost: rawFareCost,
     currency: fare?.currency || 'TWD',
-    seat: fare?.passUsed === 'pass_free' ? 'Pass 全包' : (fare?.passUsed === 'pass_discount' ? '半價優惠' : undefined),
-    note: fare?.notes,
+    seat: derivedSeat,
+    classType: firstLeg?.class || firstLeg?.classType,
+    platform: firstLeg?.platform || firstLeg?.departurePlatform,
+    carriage: firstLeg?.carriage,
+    departurePlatform: firstLeg?.departurePlatform || firstLeg?.platform,
+    arrivalPlatform: safeLegs[safeLegs.length - 1]?.arrivalPlatform,
+    bookingReference: firstLeg?.bookingReference,
+    note: fare?.notes || firstLeg?.note,
     rawTransitLegs: safeLegs,
     rawTransitFare: fare,
   };
@@ -550,5 +564,159 @@ export const scheduleItemToTransport = (item: ScheduleItem): TransportItemModel 
     return transitLegsToTransport(item.transitDetails.legs, item.transitDetails.fare, item.title, `schedule-transit-${item.id}`);
   }
 
+  if (item.type === 'transport' && (item as any).trainDetails) {
+    return trainBookingToTransport({ ...(item as any).trainDetails, id: item.id, title: item.title, note: item.notes || item.note });
+  }
+
   return null;
+};
+
+/**
+ * 將既有的 Booking 結構（如 BookingTrain, BookingTicket 或自訂鐵道預訂）
+ * 轉換為統一的 TransportItemModel，確保能與現有的 TransportCard 無縫接軌。
+ */
+export const trainBookingToTransport = (
+  booking: BookingTrain | (BookingTicket & Record<string, any>) | Record<string, any>
+): TransportItemModel => {
+  if (!booking) {
+    return {
+      id: `train-${Date.now()}`,
+      type: 'train',
+      segments: [],
+    };
+  }
+
+  const b = booking as any;
+  const depStation = b.fromStation || b.origin || b.departureStation || b.departure || '出發站';
+  const arrStation = b.toStation || b.dest || b.arrivalStation || b.arrival || '抵達站';
+  const depTime = b.departureTime || b.depTime || (b.date && b.date.length >= 16 ? b.date.slice(11, 16) : '') || '09:00';
+  const arrTime = b.arrivalTime || b.arrTime || (b.arrivalDate && b.arrivalDate.length >= 16 ? b.arrivalDate.slice(11, 16) : '') || '11:00';
+  const depDate = b.departureDate || (b.date ? b.date.slice(0, 10) : '');
+  const arrDate = b.arrivalDate || b.departureDate || depDate;
+
+  const duration = b.duration || calculateDurationBetweenTimes(depTime, arrTime) || '';
+  const operatorName = b.operator || b.company || '鐵路運輸';
+  const operatorSub = b.operatorSub || b.trainName || 'Rail';
+  const serviceNumber = b.serviceNumber || b.code || b.trainCode || b.name || 'TRAIN';
+
+  const segments: TransportSegmentModel[] = [];
+
+  const depNode: LocationNode = {
+    name: depStation,
+    code: depStation.length <= 4 ? depStation.toUpperCase() : undefined,
+    city: b.fromCity || b.originCity || '',
+    time: depTime,
+    date: depDate,
+    platform: b.platform ? (b.platform.includes('月台') || b.platform.includes('Track') ? b.platform : `月台 ${b.platform}`) : undefined,
+    timeZoneLabel: '發車時間',
+  };
+
+  const arrNode: LocationNode = {
+    name: arrStation,
+    code: arrStation.length <= 4 ? arrStation.toUpperCase() : undefined,
+    city: b.toCity || b.destCity || '',
+    time: arrTime,
+    date: arrDate,
+    platform: b.arrivalPlatform ? (b.arrivalPlatform.includes('月台') || b.arrivalPlatform.includes('Track') ? b.arrivalPlatform : `月台 ${b.arrivalPlatform}`) : undefined,
+    timeZoneLabel: '抵達時間',
+  };
+
+  // 判斷是否為中途轉乘路線
+  if (b.hasTransfer && (b.transferStation || b.transferCity)) {
+    const transferNode: LocationNode = {
+      name: b.transferStation || b.transferCity || '轉乘車站',
+      city: b.transferCity || '',
+      time: b.transferArrivalTime || '',
+      platform: b.transferPlatform ? `月台 ${b.transferPlatform}` : undefined,
+    };
+
+    segments.push({
+      id: `${b.id || 'train'}-seg-1`,
+      type: 'train',
+      operator: operatorName,
+      serviceNumber: serviceNumber,
+      departure: depNode,
+      arrival: transferNode,
+      duration: b.firstLegDuration,
+      transferAfter: {
+        location: transferNode,
+        duration: b.transferDuration || '轉乘 15m',
+        nextServiceNumber: b.transferTrainCode || '銜接列車',
+        nextTransportType: 'train',
+        transferType: 'train',
+        note: b.transferPlatform ? `至 ${b.transferPlatform} 月台換乘` : '站內轉乘',
+      },
+      details: {
+        carriage: b.carriage,
+        seat: b.seat,
+        classType: b.class || b.classType,
+        platform: b.platform,
+      }
+    });
+
+    segments.push({
+      id: `${b.id || 'train'}-seg-2`,
+      type: 'train',
+      operator: b.transferOperator || operatorName,
+      serviceNumber: b.transferTrainCode || '銜接班次',
+      departure: transferNode,
+      arrival: arrNode,
+      duration: b.secondLegDuration,
+      details: {
+        carriage: b.secondCarriage,
+        seat: b.secondSeat,
+        classType: b.secondClass || b.class || b.classType,
+        platform: b.transferPlatform,
+      }
+    });
+  } else {
+    // 直達列車
+    segments.push({
+      id: `${b.id || 'train'}-seg-direct`,
+      type: 'train',
+      operator: operatorName,
+      serviceNumber: serviceNumber,
+      duration: duration,
+      departure: depNode,
+      arrival: arrNode,
+      details: {
+        carriage: b.carriage,
+        seat: b.seat,
+        classType: b.class || b.classType,
+        platform: b.platform,
+        bookingReference: b.bookingReference,
+      }
+    });
+  }
+
+  // 組合座位與席別字串
+  const seatParts: string[] = [];
+  if (b.carriage) seatParts.push(`${b.carriage.includes('車') || b.carriage.includes('Car') ? b.carriage : `${b.carriage} 車`}`);
+  if (b.seat) seatParts.push(`${b.seat.includes('席') || b.seat.includes('號') || b.seat.includes('Seat') ? b.seat : `${b.seat} 號`}`);
+  const combinedSeat = seatParts.length > 0 ? seatParts.join(' · ') : (b.seat || undefined);
+
+  return {
+    id: `train-${b.id || Date.now()}`,
+    type: 'train',
+    title: b.trainName || `${depStation} ➔ ${arrStation}`,
+    operator: operatorName,
+    operatorSub: operatorSub,
+    serviceNumber: serviceNumber,
+    totalDuration: duration,
+    segments,
+    cost: typeof b.cost === 'number' ? b.cost : (typeof b.price === 'number' ? b.price : (b.cost ? Number(b.cost) : undefined)),
+    currency: b.currency || 'TWD',
+    hasServiceFee: b.hasServiceFee,
+    serviceFeePercentage: b.serviceFeePercentage,
+    seat: combinedSeat,
+    classType: b.class || b.classType || b.ticketType,
+    platform: b.platform,
+    carriage: b.carriage,
+    departurePlatform: b.platform,
+    arrivalPlatform: b.arrivalPlatform,
+    bookingReference: b.bookingReference || b.pnr || b.ref,
+    note: b.note || b.notes,
+    participants: b.participants,
+    rawBookingTrain: b,
+  };
 };

@@ -681,7 +681,10 @@ export default function App() {
   }
 
   const renderLanding = () => (
-    <div className="flex flex-col min-h-screen px-6 bg-beige relative overflow-hidden pt-12 items-center text-center">
+    <div 
+      className="flex flex-col min-h-screen px-6 bg-beige relative overflow-hidden items-center text-center pb-12"
+      style={{ paddingTop: 'max(3rem, calc(env(safe-area-inset-top) + 1.5rem))' }}
+    >
       <div className="mb-8 w-full flex justify-between items-end border-b-2 border-beige-dark pb-4">
          <div className="text-left"><h1 className="text-2xl font-black text-cocoa tracking-tight">我的旅遊手帳</h1><p className="text-gray-400 font-bold text-xs mt-1">準備好出發了嗎？</p></div>
       </div>
@@ -718,30 +721,50 @@ export default function App() {
 
   return (
     <div className={`min-h-screen ${THEME.colors.bg}`}>
-      <div className="max-w-md mx-auto min-h-screen relative shadow-2xl bg-beige overflow-hidden">
-        <header className="px-6 pt-12 pb-2 flex justify-between items-start bg-beige">
-          <div className="flex flex-col flex-1 min-w-0 pr-2">
-            <button onClick={handleBackToHome} className="flex items-center gap-1 text-sm font-bold text-gray-400 mb-3"><ChevronLeft size={16} strokeWidth={3}/> 返回首頁</button>
-            <h1 className="text-2xl sm:text-3xl font-black text-cocoa tracking-tight break-words leading-snug">{currentTripName}</h1>
-            <div className="flex items-center gap-2 mt-2 flex-wrap">
+      <div className="max-w-md mx-auto min-h-screen relative shadow-2xl bg-beige">
+        <header 
+          className="px-5 sm:px-6 pb-3 bg-beige pt-safe"
+          style={{ paddingTop: 'max(3.25rem, calc(env(safe-area-inset-top) + 1.25rem))' }}
+        >
+          {/* Top navigation row: Back button on left, Settings button on right */}
+          <div className="flex items-center justify-between w-full mb-2.5">
+            <button 
+              onClick={handleBackToHome} 
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/90 hover:bg-white rounded-xl border border-beige-dark text-xs font-black text-cocoa shadow-sm transition-all active:scale-95 cursor-pointer"
+            >
+              <ChevronLeft size={16} strokeWidth={3}/> 返回首頁
+            </button>
+            {activeTab === 'schedule' && (
               <button 
                 type="button"
-                onClick={() => setIsShareTripModalOpen(true)}
-                className="text-xs font-black text-sage bg-white hover:bg-sage/10 px-3 py-1.5 rounded-xl border-2 border-beige-dark hover:border-sage flex items-center gap-1.5 shadow-hard-sm transition-all active:scale-95 group cursor-pointer"
-                title="分享行程"
+                onClick={() => setIsSettingsModalOpen(true)} 
+                className="p-2 bg-white rounded-xl shadow-sm border border-beige-dark text-gray-500 hover:text-sage transition-all active:scale-95 cursor-pointer flex items-center justify-center"
+                title="行程設定"
               >
-                <Share2 size={13} strokeWidth={2.5} className="group-hover:rotate-12 transition-transform"/> 分享行程
+                <Settings size={18} strokeWidth={2.5} />
               </button>
-              {isTripLoading && (
-                <span className="text-[11px] font-bold text-sage bg-white/90 border border-sage/30 px-2.5 py-1 rounded-xl flex items-center gap-1.5 shadow-sm">
-                  <Loader2 size={12} className="animate-spin text-sage" /> 同步手帳中...
-                </span>
-              )}
-            </div>
+            )}
           </div>
-          <div className="flex items-center gap-3 pt-6 flex-shrink-0">
-            {activeTab === 'schedule' && (
-              <button onClick={() => setIsSettingsModalOpen(true)} className="p-3 bg-white rounded-full shadow-hard-sm border-2 border-beige-dark text-gray-400 hover:text-sage"><Settings size={20} strokeWidth={2.5} /></button>
+
+          {/* Full-width Title */}
+          <h1 className="text-xl sm:text-2xl font-black text-cocoa tracking-tight break-words leading-snug">
+            {currentTripName}
+          </h1>
+
+          {/* Action Row */}
+          <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+            <button 
+              type="button"
+              onClick={() => setIsShareTripModalOpen(true)}
+              className="text-xs font-black text-sage bg-white hover:bg-sage/10 px-3 py-1.5 rounded-xl border-2 border-beige-dark hover:border-sage flex items-center gap-1.5 shadow-hard-sm transition-all active:scale-95 group cursor-pointer"
+              title="分享行程"
+            >
+              <Share2 size={13} strokeWidth={2.5} className="group-hover:rotate-12 transition-transform"/> 分享行程
+            </button>
+            {isTripLoading && (
+              <span className="text-[11px] font-bold text-sage bg-white/90 border border-sage/30 px-2.5 py-1 rounded-xl flex items-center gap-1.5 shadow-sm">
+                <Loader2 size={12} className="animate-spin text-sage" /> 同步手帳中...
+              </span>
             )}
           </div>
         </header>
@@ -749,7 +772,10 @@ export default function App() {
         <main className="min-h-[calc(100vh-160px)]">
           {activeTab === 'schedule' && (
             <div className="space-y-6 pb-24 relative">
-              <div className="lg:hidden sticky top-0 z-30 bg-beige/85 backdrop-blur-md border-b border-[#E0E5D5]/50 px-4 pb-2 pt-1">
+              <div 
+                className="lg:hidden sticky z-30 bg-beige/90 backdrop-blur-md border-b border-[#E0E5D5]/70 px-4 pb-2 pt-2"
+                style={{ top: 'env(safe-area-inset-top, 0px)' }}
+              >
                  <div className="flex items-center justify-between mb-2 px-1">
                     <button onClick={() => setIsEditDayModalOpen(true)} className="text-sm font-black text-cocoa flex items-center gap-1.5"><CalendarCheck size={14} className="text-sage" /> 行程日期 <Edit3 size={10} className="text-gray-300"/></button>
                     <div className="flex items-center gap-2 flex-wrap justify-end min-w-0">{tripDays.length > 1 && <button onClick={() => setIsDeleteDayModalOpen(true)} className="p-1.5 bg-red-100 text-red-500 rounded-full border border-red-200 flex-shrink-0"><Trash2 size={12} /></button>}<button onClick={() => setIsEditDayModalOpen(true)} className="text-[10px] font-bold px-2.5 py-1 rounded-full border bg-white border-[#E0E5D5] text-cocoa flex items-center gap-1 shadow-sm max-w-full text-left leading-tight"><span className="break-words">{currentFruit} {currentLocation}</span></button></div>
@@ -959,32 +985,34 @@ export default function App() {
                                             <h3 className="text-base sm:text-lg font-black text-cocoa leading-snug break-words">{item.title}</h3>
                                          </div>
                                     </div>
-                                    <div className="flex flex-col gap-1 flex-shrink-0">
-                                      <button 
-                                        type="button"
-                                        onClick={(e) => { e.stopPropagation(); handleRequestMoveItem(index, 'up'); }} 
-                                        disabled={index === 0} 
-                                        title="向上調換順序"
-                                        className={`p-1.5 rounded-full border border-beige-dark transition-all ${index === 0 ? 'opacity-0 pointer-events-none' : 'text-gray-400 hover:bg-sage hover:text-white active:scale-90 hover:border-sage shadow-sm'}`}
-                                      >
-                                        <ChevronUp size={13} strokeWidth={2.5} />
-                                      </button>
-                                      <button 
-                                        type="button"
-                                        onClick={(e) => { e.stopPropagation(); handleRequestMoveItem(index, 'down'); }} 
-                                        disabled={index === currentDayScheduleItems.length - 1} 
-                                        title="向下調換順序"
-                                        className={`p-1.5 rounded-full border border-beige-dark transition-all ${index === currentDayScheduleItems.length - 1 ? 'opacity-0 pointer-events-none' : 'text-gray-400 hover:bg-sage hover:text-white active:scale-90 hover:border-sage shadow-sm'}`}
-                                      >
-                                        <ChevronDown size={13} strokeWidth={2.5} />
-                                      </button>
+                                    <div className="flex items-center gap-1 flex-shrink-0 self-start">
+                                      {index > 0 && (
+                                        <button 
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); handleRequestMoveItem(index, 'up'); }} 
+                                          title="向上調換順序"
+                                          className="p-1 rounded-full border border-beige-dark text-gray-400 hover:bg-sage hover:text-white active:scale-90 hover:border-sage shadow-2xs transition-all"
+                                        >
+                                          <ChevronUp size={12} strokeWidth={2.5} />
+                                        </button>
+                                      )}
+                                      {index < currentDayScheduleItems.length - 1 && (
+                                        <button 
+                                          type="button"
+                                          onClick={(e) => { e.stopPropagation(); handleRequestMoveItem(index, 'down'); }} 
+                                          title="向下調換順序"
+                                          className="p-1 rounded-full border border-beige-dark text-gray-400 hover:bg-sage hover:text-white active:scale-90 hover:border-sage shadow-2xs transition-all"
+                                        >
+                                          <ChevronDown size={12} strokeWidth={2.5} />
+                                        </button>
+                                      )}
                                       <button 
                                         type="button"
                                         onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id); }} 
                                         title="刪除此項目"
-                                        className="p-1.5 rounded-full border border-beige-dark text-gray-300 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all active:scale-90 shadow-sm"
+                                        className="p-1 rounded-full border border-beige-dark text-gray-300 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all active:scale-90 shadow-2xs ml-0.5"
                                       >
-                                        <Trash2 size={13} strokeWidth={2.5} />
+                                        <Trash2 size={12} strokeWidth={2.5} />
                                       </button>
                                     </div>
                                 </div>

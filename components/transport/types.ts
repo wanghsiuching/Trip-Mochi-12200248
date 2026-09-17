@@ -1,14 +1,6 @@
-import { BookingFlight, BookingCarRental, TransitLeg, TransitFareDetails } from '../../types';
+import { BookingFlight, BookingCarRental, TransitLeg, TransitFareDetails, BookingTrain, TransportType } from '../../types';
 
-export type TransportType =
-  | 'flight'       // 航班 (國際/國內)
-  | 'train'        // 火車 / 鐵道 / 高鐵
-  | 'bus'          // 長途巴士 / 市區公車
-  | 'ferry'        // 渡輪 / 遊船
-  | 'car'          // 租車 / 自駕
-  | 'shuttle'      // 接駁車 / 機場專車
-  | 'walk'         // 步行 / 徒步轉乘
-  | 'cable_car';   // 纜車 / 登山鐵道
+export type { TransportType };
 
 /**
  * 地點節點 (LocationNode)
@@ -109,12 +101,17 @@ export interface TransportItemModel {
   };
   seat?: string;
   classType?: string;
+  platform?: string;
+  carriage?: string;
+  departurePlatform?: string;
+  arrivalPlatform?: string;
   bookingReference?: string;
   note?: string;
   participants?: string[];
   
   // 原始關聯資料引用 (完全向下相容，不破壞舊資料)
   rawBookingFlight?: BookingFlight;
+  rawBookingTrain?: BookingTrain;
   rawTransitLegs?: TransitLeg[];
   rawTransitFare?: TransitFareDetails;
   rawCarRental?: BookingCarRental;

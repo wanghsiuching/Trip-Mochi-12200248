@@ -2,8 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Trip Mochi</title>
+    <meta name="description" content="A cute, aesthetic travel planner for organizing schedules, bookings, and trip details with a soft, journal-like design." />
+    <meta property="og:title" content="Trip Mochi" />
+    <meta property="og:description" content="A cute, aesthetic travel planner for organizing schedules, bookings, and trip details with a soft, journal-like design." />
     <!-- App & Bookmark Icons (Backpack + Footprints) -->
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="icon" type="image/png" href="/icon.png" />
@@ -18,6 +21,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700;900&display=swap" rel="stylesheet">
     <style>
+      :root {
+        --sat: env(safe-area-inset-top, 0px);
+        --sab: env(safe-area-inset-bottom, 0px);
+      }
       body {
         font-family: 'Zen Maru Gothic', sans-serif !important;
         background-color: #F7F4EB;
@@ -32,6 +39,17 @@
       .no-scrollbar {
         -ms-overflow-style: none;
         scrollbar-width: none;
+      }
+
+      /* Safe Area for Mobile (iPhone Notch / Dynamic Island / Status Bar) */
+      .pt-safe {
+        padding-top: max(1.25rem, env(safe-area-inset-top));
+      }
+      .pb-safe {
+        padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+      }
+      .top-safe {
+        top: env(safe-area-inset-top, 0px);
       }
 
       /* Custom Animations */

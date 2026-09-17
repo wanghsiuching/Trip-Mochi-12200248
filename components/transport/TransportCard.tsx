@@ -5,6 +5,7 @@ import { TransportHeader } from './TransportHeader';
 import { TransportRoute } from './TransportRoute';
 import { TransportDetails } from './TransportDetails';
 import { FlightTransportCard } from './FlightTransportCard';
+import { TrainTransportCard } from './TrainTransportCard';
 
 interface TransportCardProps {
   item: TransportItemModel;
@@ -28,6 +29,19 @@ export const TransportCard: React.FC<TransportCardProps> = ({
   if (item.type === 'flight') {
     return (
       <FlightTransportCard
+        item={item}
+        defaultExpanded={defaultExpanded}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        onOpenMap={onOpenMap}
+        className={className}
+      />
+    );
+  }
+
+  if (item.type === 'train') {
+    return (
+      <TrainTransportCard
         item={item}
         defaultExpanded={defaultExpanded}
         onEdit={onEdit}
@@ -100,6 +114,34 @@ export const TransportCard: React.FC<TransportCardProps> = ({
       {/* 3. 摘要快捷資訊列 (Level 4/5 輕量預覽) */}
       <div className="mt-1 pt-2.5 border-t border-[#F5F2EA] flex items-center justify-between text-[11px] font-bold text-[#7A7162] flex-wrap gap-2">
         <div className="flex items-center gap-2.5 flex-wrap">
+          {(item.platform || item.departurePlatform) && (
+            <span className="flex items-center gap-1 text-[#4A443B]">
+              <span className="text-[#8C6219]">🚉</span>
+              <span>{item.platform || item.departurePlatform}</span>
+            </span>
+          )}
+
+          {item.carriage && (
+            <span className="flex items-center gap-1 text-[#4A443B]">
+              <span className="text-[#4A6351]">🚃</span>
+              <span>{item.carriage.includes('車') ? item.carriage : `${item.carriage}車`}</span>
+            </span>
+          )}
+
+          {seat && (
+            <span className="flex items-center gap-1 text-[#4A443B]">
+              <span>💺</span>
+              <span>{seat}</span>
+            </span>
+          )}
+
+          {item.classType && !seat && (
+            <span className="flex items-center gap-1 text-[#4A443B]">
+              <span className="text-[#3E7B62]">🎫</span>
+              <span>{item.classType}</span>
+            </span>
+          )}
+
           {baggage?.checked && (
             <span className="flex items-center gap-1 text-[#4A443B]">
               <Luggage size={12} className="text-[#3E7B62]" />
@@ -113,13 +155,6 @@ export const TransportCard: React.FC<TransportCardProps> = ({
               <span>手提 {baggage.carryOn}</span>
             </span>
           )}
-
-          {seat && (
-            <span className="flex items-center gap-1 text-[#4A443B]">
-              <span>💺</span>
-              <span>{seat}</span>
-            </span>
-          )}
         </div>
 
         {cost !== undefined && cost > 0 && (
@@ -131,19 +166,19 @@ export const TransportCard: React.FC<TransportCardProps> = ({
       </div>
 
       {/* 4. 詳細資訊展開區塊 (Level 5) */}
-      {isExpanded && (
-        <TransportDetails
-          item={item}
-          onOpenMap={onOpenMap}
-        />
-      )}
+      <TransportDetails
+        item={item}
+        onOpenMap={onOpenMap}
+        expanded={isExpanded}
+        isCollapsible={false}
+      />
 
       {/* 5. 展開 / 收合 切換按鈕 */}
       <div className="mt-2.5 pt-1.5 flex justify-center">
         <button
           type="button"
           onClick={() => setIsExpanded(!isExpanded)}
-          className="text-xs font-black text-[#8C806F] hover:text-[#4A4235] flex items-center gap-1 px-3 py-1 rounded-full hover:bg-[#F7F4EE] transition-colors"
+          className="text-xs font-black text-[#8C806F] hover:text-[#4A4235] flex items-center gap-1 px-3 py-1 rounded-full hover:bg-[#F7F4EE] transition-colors cursor-pointer"
         >
           <span>{isExpanded ? '收合詳細資訊' : '查看詳細資訊'}</span>
           {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}

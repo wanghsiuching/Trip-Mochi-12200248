@@ -13,6 +13,20 @@ export type UniversalTransportType =
   | 'flight'        // 國內航班
   | 'walk';         // 步行/轉乘
 
+// 統一交通類型 (相容 TransportCard 與跨交通架構)
+export type TransportType = 
+  | 'train'        // 火車 / 鐵道 / 高鐵
+  | 'flight'       // 航班 (國際/國內)
+  | 'bus'          // 長途巴士 / 市區公車
+  | 'ferry'        // 渡輪 / 遊船
+  | 'boat'         // 船舶
+  | 'car'          // 租車 / 自駕
+  | 'shuttle'      // 接駁車 / 機場專車
+  | 'walk'         // 步行 / 徒步轉乘
+  | 'cable_car'    // 纜車 / 登山鐵道
+  | 'high_speed'   // 高鐵 / 新幹線
+  | 'subway';      // 地鐵 / 捷運
+
 // 通用通行證/交通卡類型
 export type TransitPassType = 
   | 'pass_free'        // 類 STP / JR Pass（通票涵蓋，實付 0 或僅需訂位費）
@@ -31,6 +45,22 @@ export interface TransitLeg {
   serviceNumber?: string;     // 車次/航班號 (e.g., Nozomi 21 / RE 452)
   transportType: UniversalTransportType;
   platform?: string;          // 月台/閘口 (e.g., Track 14)
+  
+  // 火車 / 鐵道專屬與擴充欄位
+  carriage?: string;          // 車廂 (e.g., "Car 4", "4車")
+  car?: string;               // 車廂簡寫
+  seat?: string;              // 座位 (e.g., "12A", "指定席 4車12A")
+  class?: string;             // 席級/車廂等級 (e.g., "1st Class", "一等座", "普通車廂")
+  classType?: string;         // 席別 (向下相容)
+  ticketType?: string;        // 票種 (e.g., "指定席", "自由席", "早鳥票")
+  departurePlatform?: string; // 出發月台 (e.g., "Track 3")
+  arrivalPlatform?: string;   // 抵達月台 (e.g., "Track 2B")
+  operator?: string;          // 營運公司 (e.g., "SBB", "JR East", "SNCF", "Trenitalia")
+  operatorSub?: string;       // 次要營運名稱 (e.g., "Swiss Federal Railways")
+  direction?: string;         // 行車方向 / 終點站 (e.g., "for Milano Centrale")
+  duration?: string;          // 行車時間 (e.g., "1h 45m")
+  bookingReference?: string;  // 訂位代碼 / PNR
+  note?: string;              // 備註說明
 }
 
 // 額外加價項目 (如：指定席、劃位費、行李托運、觀光列車附加費等)
@@ -412,6 +442,42 @@ export interface BookingTicket {
   currency: string;
   participants: string[];
   note?: string;
+}
+
+export interface BookingTrain {
+  id: number | string;
+  trainName?: string;          // 列車名稱 (如：歐洲之星 Eurostar, 冰河列車 Glacier Express, 新幹線 Nozomi)
+  operator?: string;           // 營運商 (如：SBB, SNCF, JR, 台灣高鐵, Trenitalia)
+  operatorSub?: string;        // 次要營運名稱 (如：Swiss Federal Railways)
+  code?: string;               // 車次編號 (如：IC 8, TGV 9576, G123)
+  serviceNumber?: string;      // 車次號
+  fromStation: string;         // 出發車站 (如：Zürich HB, 東京站)
+  toStation: string;           // 抵達車站 (如：Interlaken Ost, 京都站)
+  departureDate?: string;      // 出發日期 (YYYY-MM-DD)
+  departureTime?: string;      // 出發時間 (HH:mm)
+  arrivalDate?: string;        // 抵達日期 (YYYY-MM-DD)
+  arrivalTime?: string;        // 抵達時間 (HH:mm)
+  duration?: string;           // 行駛時間 (如：2h 15m)
+  platform?: string;           // 出發月台 (如：Track 4, 3號月台)
+  arrivalPlatform?: string;    // 抵達月台
+  carriage?: string;           // 車廂 (如：Car 6, 7號車)
+  seat?: string;               // 座位 (如：14A, 14B)
+  class?: string;              // 席位等別 (如：一等席 1st Class, 二等席 2nd Class, 商務艙)
+  classType?: string;          // 席別 (向下相容)
+  ticketType?: string;         // 票種 (如：指定席、自由席、Pass+劃位票)
+  bookingReference?: string;   // 訂位代碼 / PNR
+  cost?: number;               // 費用
+  currency?: string;           // 幣別
+  hasServiceFee?: boolean;     // 是否含手續費
+  serviceFeePercentage?: number; // 手續費百分比
+  participants?: string[];     // 參與人
+  note?: string;               // 備註說明
+  hasTransfer?: boolean;       // 是否需中途轉車
+  transferStation?: string;    // 轉乘車站
+  transferDuration?: string;   // 轉乘候車時間
+  transferTrainCode?: string;  // 轉乘班次編號
+  transferPlatform?: string;   // 轉乘月台
+  isPotential?: boolean;       // 預算參考標記
 }
 
 export const THEME = {
