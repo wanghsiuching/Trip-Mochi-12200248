@@ -25,7 +25,7 @@ export const LocationNodeView: React.FC<LocationNodeViewProps> = ({
     <div className={`flex flex-col min-w-0 ${isRight ? 'items-end text-right' : 'items-start text-left'}`}>
       {/* 城市與機場/車站代碼 (Level 3) */}
       <div className={`flex items-baseline gap-1.5 flex-wrap ${isRight ? 'justify-end' : 'justify-start'}`}>
-        <span className="text-sm sm:text-base font-black text-[#2D2A26] tracking-tight truncate max-w-[120px] sm:max-w-[160px]">
+        <span className="text-sm sm:text-base font-black text-[#2D2A26] tracking-tight break-words">
           {cityName}
         </span>
         {isCodeDistinct && (

@@ -23,7 +23,7 @@ export const TransferNode: React.FC<TransferNodeProps> = ({ transfer, primaryTyp
 
         {/* 城市名稱 */}
         {location.city && location.city !== location.code && (
-          <span className="text-[10px] sm:text-[11px] font-bold text-[#7E5E26] truncate max-w-[100px]">
+          <span className="text-[10px] sm:text-[11px] font-bold text-[#7E5E26] break-words">
             {location.city}
           </span>
         )}

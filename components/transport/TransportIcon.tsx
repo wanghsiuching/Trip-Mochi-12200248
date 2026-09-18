@@ -13,6 +13,9 @@ export const getTransportMeta = (type: TransportType) => {
     case 'flight':
       return {
         label: '航班',
+        categoryName: '航班',
+        defaultOperator: '民航航班',
+        emoji: '✈️',
         color: '#2E5A44',      // 森林沉穩綠 / 深鼠尾草
         bgColor: 'bg-[#2E5A44]',
         bgLight: 'bg-[#EBF3EE]',
@@ -23,6 +26,9 @@ export const getTransportMeta = (type: TransportType) => {
     case 'train':
       return {
         label: '鐵路',
+        categoryName: '列車',
+        defaultOperator: '鐵路運輸',
+        emoji: '🚆',
         color: '#8B3A3A',      // 沉穩酒紅/瑞士鐵道紅
         bgColor: 'bg-[#8B3A3A]',
         bgLight: 'bg-[#FDF2F2]',
@@ -30,19 +36,52 @@ export const getTransportMeta = (type: TransportType) => {
         borderColor: 'border-[#8B3A3A]',
         icon: Train,
       };
+    case 'high_speed':
+      return {
+        label: '高鐵',
+        categoryName: '高鐵',
+        defaultOperator: '高速鐵路',
+        emoji: '🚄',
+        color: '#4338CA',      // 靛藍
+        bgColor: 'bg-[#4338CA]',
+        bgLight: 'bg-[#EEF2FF]',
+        textColor: 'text-[#4338CA]',
+        borderColor: 'border-[#4338CA]',
+        icon: Train,
+      };
+    case 'subway':
+      return {
+        label: '地鐵',
+        categoryName: '地鐵',
+        defaultOperator: '捷運地鐵',
+        emoji: '🚇',
+        color: '#1D4ED8',      // 藍
+        bgColor: 'bg-[#1D4ED8]',
+        bgLight: 'bg-[#EFF6FF]',
+        textColor: 'text-[#1D4ED8]',
+        borderColor: 'border-[#1D4ED8]',
+        icon: Train,
+      };
     case 'bus':
       return {
         label: '巴士',
-        color: '#3B6E8C',      // 湖水藍
-        bgColor: 'bg-[#3B6E8C]',
-        bgLight: 'bg-[#F0F7FA]',
-        textColor: 'text-[#3B6E8C]',
-        borderColor: 'border-[#3B6E8C]',
+        categoryName: '巴士',
+        defaultOperator: '公路巴士',
+        emoji: '🚌',
+        color: '#2B6E6A',      // 綠翡翠/湖水深青
+        bgColor: 'bg-[#2B6E6A]',
+        bgLight: 'bg-[#EFF9F7]',
+        textColor: 'text-[#2B6E6A]',
+        borderColor: 'border-[#2B6E6A]',
         icon: Bus,
       };
     case 'ferry':
+    case 'boat':
       return {
         label: '渡輪',
+        categoryName: '渡輪',
+        defaultOperator: '水上渡輪',
+        emoji: '🚢',
         color: '#1E6B7B',      // 海洋青
         bgColor: 'bg-[#1E6B7B]',
         bgLight: 'bg-[#EBF7F9]',
@@ -53,6 +92,9 @@ export const getTransportMeta = (type: TransportType) => {
     case 'car':
       return {
         label: '自駕',
+        categoryName: '自駕',
+        defaultOperator: '租車自駕',
+        emoji: '🚗',
         color: '#5C5470',      // 沉穩紫灰
         bgColor: 'bg-[#5C5470]',
         bgLight: 'bg-[#F3F2F7]',
@@ -63,6 +105,9 @@ export const getTransportMeta = (type: TransportType) => {
     case 'shuttle':
       return {
         label: '接駁',
+        categoryName: '接駁',
+        defaultOperator: '接駁專車',
+        emoji: '🚐',
         color: '#A06D3B',      // 暖琥珀
         bgColor: 'bg-[#A06D3B]',
         bgLight: 'bg-[#FAF3EB]',
@@ -73,6 +118,9 @@ export const getTransportMeta = (type: TransportType) => {
     case 'cable_car':
       return {
         label: '纜車',
+        categoryName: '纜車',
+        defaultOperator: '登山纜車',
+        emoji: '🚡',
         color: '#9C5B3E',      // 赤陶土色
         bgColor: 'bg-[#9C5B3E]',
         bgLight: 'bg-[#FAF1EC]',
@@ -84,6 +132,9 @@ export const getTransportMeta = (type: TransportType) => {
     default:
       return {
         label: '步行',
+        categoryName: '步行',
+        defaultOperator: '徒步健行',
+        emoji: '🚶',
         color: '#5C6B5E',      // 溫和灰綠
         bgColor: 'bg-[#5C6B5E]',
         bgLight: 'bg-[#F1F4F1]',

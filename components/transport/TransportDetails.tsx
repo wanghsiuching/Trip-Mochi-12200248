@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { TransportItemModel, TransportSegmentModel } from './types';
 import { defaultMapProvider } from './MapProvider';
+import { getTransportMeta } from './TransportIcon';
 
 interface TransportDetailsProps {
   item: TransportItemModel;
@@ -51,6 +52,7 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
   const baggage = item.baggage;
   const cost = item.cost;
   const currency = item.currency || 'TWD';
+  const meta = getTransportMeta(item.type);
   const isTrain = item.type === 'train';
 
   const handleOpenMap = () => {
@@ -75,8 +77,8 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
           className="w-full flex items-center justify-between px-3 py-2 bg-[#F9F7F2] hover:bg-[#F3EFE6] active:scale-[0.99] rounded-xl border border-[#EAE3D5] text-xs font-black text-[#5C5447] transition-all cursor-pointer shadow-2xs"
         >
           <span className="flex items-center gap-1.5">
-            <span>{isTrain ? '🚆' : (item.type === 'flight' ? '✈️' : '🗺️')}</span>
-            <span>{isOpen ? '收合詳細乘車資訊' : (isTrain ? '展開詳細鐵路資訊 (月台 / 車廂 / 座位)' : '展開詳細乘車與行程資訊')}</span>
+            <span>{meta.emoji}</span>
+            <span>{isOpen ? `收合詳細${meta.label}資訊` : `展開詳細${meta.label}資訊 (站點 / 席別 / 費用)`}</span>
           </span>
           <ChevronDown 
             size={14} 
@@ -95,25 +97,28 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
         {segments.length > 1 && (
           <div className="space-y-2 bg-[#FAF7F2] p-3 rounded-2xl border border-[#EBE4D8]">
             <div className="text-[11px] font-black text-[#7A6F5C] uppercase tracking-wider mb-1 flex items-center justify-between">
-              <span>{isTrain ? '鐵道轉乘分段明細' : '航程分段明細'}</span>
+              <span>{meta.label}分段與轉乘明細</span>
               <span className="text-[10px] text-[#A69B89] font-mono">共 {segments.length} 段</span>
             </div>
 
-            {segments.map((seg: TransportSegmentModel, index: number) => (
+            {segments.map((seg: TransportSegmentModel, index: number) => {
+              const segMeta = getTransportMeta(seg.type || item.type);
+              return (
               <div key={seg.id || index} className="space-y-1.5 pb-2.5 border-b border-[#E8E0D2] last:border-b-0 last:pb-0">
                 <div className="flex items-center justify-between font-black text-[#2D2A26] flex-wrap gap-1">
                   <div className="flex items-center gap-1.5 min-w-0">
                     <span className="w-4 h-4 rounded-full bg-[#E5DDD0] text-[#5A5040] flex items-center justify-center text-[10px] flex-shrink-0">
                       {index + 1}
                     </span>
-                    <span className="truncate">{seg.operator || item.operator}</span>
+                    <span className="text-xs flex-shrink-0">{segMeta.emoji}</span>
+                    <span className="break-words">{seg.operator || item.operator}</span>
                     <span className="font-mono text-[#7A6540] bg-[#EFE9DD] px-1.5 py-0.5 rounded text-[10px] font-bold">
                       {seg.serviceNumber}
                     </span>
                   </div>
                   {seg.duration && (
                     <span className="font-mono text-[10px] text-[#8C806F] flex-shrink-0">
-                      {isTrain ? `乘車 ${seg.duration}` : `飛行 ${seg.duration}`}
+                      {seg.type === 'flight' ? `飛行 ${seg.duration}` : `時長 ${seg.duration}`}
                     </span>
                   )}
                 </div>
@@ -121,7 +126,7 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
                 {/* 出發與抵達時間點 (適應 375px-412px 手機螢幕) */}
                 <div className="flex items-center justify-between text-[11px] text-[#6E6454] pl-2 sm:pl-5 font-mono gap-1">
                   <div className="min-w-0 flex-1">
-                    <div className="font-bold text-[#2D2A26] truncate">{seg.departure.city || seg.departure.name}</div>
+                    <div className="font-bold text-[#2D2A26] break-words leading-tight">{seg.departure.city || seg.departure.name}</div>
                     <div className="flex items-center gap-1 text-[10px] text-[#8C8272]">
                       {seg.departure.time && <span className="text-[#1F1C18] font-black">{seg.departure.time}</span>}
                       {seg.departure.platform && <span className="text-[#7A6340] font-bold">({seg.departure.platform})</span>}
@@ -131,7 +136,7 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
                   <ArrowRight size={12} className="text-[#A39886] flex-shrink-0 mx-1" />
 
                   <div className="min-w-0 flex-1 text-right">
-                    <div className="font-bold text-[#2D2A26] truncate">{seg.arrival.city || seg.arrival.name}</div>
+                    <div className="font-bold text-[#2D2A26] break-words leading-tight">{seg.arrival.city || seg.arrival.name}</div>
                     <div className="flex items-center justify-end gap-1 text-[10px] text-[#8C8272]">
                       {seg.arrival.time && <span className="text-[#1F1C18] font-black">{seg.arrival.time}</span>}
                       {seg.arrival.platform && <span className="text-[#7A6340] font-bold">({seg.arrival.platform})</span>}
@@ -142,7 +147,7 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
                 {/* 轉機/轉乘停留提示 */}
                 {seg.transferAfter && (
                   <div className="mt-1 ml-2 sm:ml-5 p-2 bg-[#FFF9ED] border border-[#F2E4C9] rounded-xl text-[10px] text-[#8C6219] flex items-center justify-between flex-wrap gap-1">
-                    <span className="truncate">
+                    <span className="break-words">
                       轉乘站：<strong>{seg.transferAfter.location.name || seg.transferAfter.location.city}</strong>
                       {seg.transferAfter.location.platform ? ` (${seg.transferAfter.location.platform})` : ''}
                     </span>
@@ -150,7 +155,8 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -162,7 +168,7 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
               <span className="text-[#8C6219] text-xs font-black flex-shrink-0">🚉</span>
               <div className="flex flex-col min-w-0">
                 <span className="text-[10px] text-[#8C8272] font-bold">發車月台</span>
-                <span className="text-[11px] font-black text-[#2D2A26] truncate">
+                <span className="text-[11px] font-black text-[#2D2A26] break-words">
                   {item.platform || item.departurePlatform}
                 </span>
               </div>
@@ -177,7 +183,7 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
                 <span className="text-[10px] text-[#8C8272] font-bold">
                   {item.carriage ? '車廂 / 座位' : '座位號碼'}
                 </span>
-                <span className="text-[11px] font-black text-[#2D2A26] truncate">
+                <span className="text-[11px] font-black text-[#2D2A26] break-words">
                   {[
                     item.carriage ? (item.carriage.includes('車') ? item.carriage : `${item.carriage}車`) : '',
                     item.seat
@@ -193,7 +199,7 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
               <span className="text-[#3E7B62] text-xs font-black flex-shrink-0">🎫</span>
               <div className="flex flex-col min-w-0">
                 <span className="text-[10px] text-[#8C8272] font-bold">席位 / 等別</span>
-                <span className="text-[11px] font-black text-[#2D2A26] truncate">{item.classType}</span>
+                <span className="text-[11px] font-black text-[#2D2A26] break-words">{item.classType}</span>
               </div>
             </div>
           )}
@@ -204,7 +210,7 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
               <Hash size={13} className="text-[#7A6F5C] flex-shrink-0" />
               <div className="flex flex-col min-w-0">
                 <span className="text-[10px] text-[#8C8272] font-bold">訂位代號 (PNR)</span>
-                <span className="text-[11px] font-black font-mono text-[#2D2A26] truncate">
+                <span className="text-[11px] font-black font-mono text-[#2D2A26] break-all">
                   {item.bookingReference}
                 </span>
               </div>
@@ -217,7 +223,7 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
               <Luggage size={13} className="text-[#3E7B62] flex-shrink-0" />
               <div className="flex flex-col min-w-0">
                 <span className="text-[10px] text-[#8C8272] font-bold">託運行李</span>
-                <span className="text-[11px] font-black text-[#2D2A26] truncate">{baggage.checked}</span>
+                <span className="text-[11px] font-black text-[#2D2A26] break-words">{baggage.checked}</span>
               </div>
             </div>
           )}
@@ -228,7 +234,7 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
               <Briefcase size={13} className="text-[#C47D3B] flex-shrink-0" />
               <div className="flex flex-col min-w-0">
                 <span className="text-[10px] text-[#8C8272] font-bold">手提行李</span>
-                <span className="text-[11px] font-black text-[#2D2A26] truncate">{baggage.carryOn}</span>
+                <span className="text-[11px] font-black text-[#2D2A26] break-words">{baggage.carryOn}</span>
               </div>
             </div>
           )}
@@ -239,7 +245,7 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
           <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-[#EAE5DA]">
             <div className="flex items-center gap-1.5 text-[#5C5447] font-bold">
               <DollarSign size={13} className="text-[#3E7B62]" />
-              <span>{isTrain ? '車票費用' : '機票 / 交通費用'}</span>
+              <span>{isTrain ? '車票費用' : (item.type === 'flight' ? '機票費用' : `${meta.label}費用`)}</span>
             </div>
             <div className="text-right">
               <span className="font-mono text-sm font-black text-[#2E5A44]">
@@ -269,7 +275,7 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
           <div className="flex items-center gap-2 text-[11px] text-[#7A7162] px-1">
             <Users size={12} className="text-[#8C806F] flex-shrink-0" />
             <span className="font-bold flex-shrink-0">同行成員：</span>
-            <span className="font-medium truncate">{item.participants.join(', ')}</span>
+            <span className="font-medium break-words">{item.participants.join(', ')}</span>
           </div>
         )}
 

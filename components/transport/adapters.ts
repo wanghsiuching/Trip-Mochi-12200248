@@ -1,5 +1,6 @@
 import { BookingFlight, BookingCarRental, TransitLeg, TransitFareDetails, ScheduleItem, BookingTrain, BookingTicket } from '../../types';
 import { TransportItemModel, TransportSegmentModel, LocationNode, TransferInfo, TransportType } from './types';
+import { getTransportMeta } from './TransportIcon';
 
 /**
  * 輔助解析時間 (HH:mm) 差距為可讀字串 (例如 "1h 20m")
@@ -299,13 +300,20 @@ const mapUniversalTypeToTransportType = (type: string): TransportType => {
   switch (type) {
     case 'train':
     case 'high_speed':
+    case 'subway':
       return 'train';
     case 'bus':
       return 'bus';
     case 'boat':
+    case 'ferry':
       return 'ferry';
     case 'cable_car':
       return 'cable_car';
+    case 'car':
+    case 'taxi':
+      return 'car';
+    case 'shuttle':
+      return 'shuttle';
     case 'walk':
       return 'walk';
     case 'flight':
@@ -364,11 +372,15 @@ export const transitLegsToTransport = (
 
     const duration = calculateDurationBetweenTimes(leg.departureTime, leg.arrivalTime);
 
+    const meta = getTransportMeta(transportType);
+    const categoryName = meta.categoryName || meta.label || '交通';
+    const defaultOperator = meta.defaultOperator || '大眾運輸';
+
     segments.push({
       id: leg.id || `leg-${i}`,
       type: transportType,
-      operator: transportType === 'train' ? '鐵道列車' : (transportType === 'bus' ? '巴士' : '交通工具'),
-      serviceNumber: leg.serviceNumber || (transportType === 'train' ? '列車' : '班次'),
+      operator: leg.operator || defaultOperator,
+      serviceNumber: leg.serviceNumber || categoryName,
       duration,
       departure: depNode,
       arrival: arrNode,
@@ -380,8 +392,9 @@ export const transitLegsToTransport = (
   }
 
   const primaryType: TransportType = segments.length > 0 ? segments[0].type : 'train';
+  const primaryMeta = getTransportMeta(primaryType);
   const firstLeg = safeLegs[0];
-  const primaryService = segments.map(s => s.serviceNumber).filter(Boolean).join(' → ') || (primaryType === 'train' ? '鐵路列車' : '大眾交通');
+  const primaryService = segments.map(s => s.serviceNumber).filter(Boolean).join(' → ') || primaryMeta.categoryName;
   
   // 計算總耗時
   let totalDuration = '';
@@ -403,7 +416,7 @@ export const transitLegsToTransport = (
     id: itemId || `transit-${Date.now()}`,
     type: primaryType,
     title: title || (safeLegs.length > 0 ? `${safeLegs[0].fromStation} → ${safeLegs[safeLegs.length - 1].toStation}` : '交通移動'),
-    operator: firstLeg?.operator || (primaryType === 'train' ? '鐵路運輸' : '大眾交通'),
+    operator: firstLeg?.operator || primaryMeta.defaultOperator,
     operatorSub: firstLeg?.operatorSub,
     serviceNumber: primaryService,
     totalDuration,
@@ -568,6 +581,10 @@ export const scheduleItemToTransport = (item: ScheduleItem): TransportItemModel 
     return trainBookingToTransport({ ...(item as any).trainDetails, id: item.id, title: item.title, note: item.notes || item.note });
   }
 
+  if (item.type === 'transport' && item.carRental) {
+    return carRentalToTransport(item.carRental as any);
+  }
+
   return null;
 };
 
@@ -587,6 +604,10 @@ export const trainBookingToTransport = (
   }
 
   const b = booking as any;
+  const rawType = b.transportType || b.type;
+  const detectedType: TransportType = rawType ? mapUniversalTypeToTransportType(rawType) : 'train';
+  const meta = getTransportMeta(detectedType);
+
   const depStation = b.fromStation || b.origin || b.departureStation || b.departure || '出發站';
   const arrStation = b.toStation || b.dest || b.arrivalStation || b.arrival || '抵達站';
   const depTime = b.departureTime || b.depTime || (b.date && b.date.length >= 16 ? b.date.slice(11, 16) : '') || '09:00';
@@ -595,9 +616,9 @@ export const trainBookingToTransport = (
   const arrDate = b.arrivalDate || b.departureDate || depDate;
 
   const duration = b.duration || calculateDurationBetweenTimes(depTime, arrTime) || '';
-  const operatorName = b.operator || b.company || '鐵路運輸';
-  const operatorSub = b.operatorSub || b.trainName || 'Rail';
-  const serviceNumber = b.serviceNumber || b.code || b.trainCode || b.name || 'TRAIN';
+  const operatorName = b.operator || b.company || meta.defaultOperator;
+  const operatorSub = b.operatorSub || b.trainName || '';
+  const serviceNumber = b.serviceNumber || b.code || b.trainCode || b.name || meta.categoryName;
 
   const segments: TransportSegmentModel[] = [];
 
@@ -670,10 +691,10 @@ export const trainBookingToTransport = (
       }
     });
   } else {
-    // 直達列車
+    // 直達列車 / 運具
     segments.push({
-      id: `${b.id || 'train'}-seg-direct`,
-      type: 'train',
+      id: `${b.id || 'transport'}-seg-direct`,
+      type: detectedType,
       operator: operatorName,
       serviceNumber: serviceNumber,
       duration: duration,
@@ -696,8 +717,8 @@ export const trainBookingToTransport = (
   const combinedSeat = seatParts.length > 0 ? seatParts.join(' · ') : (b.seat || undefined);
 
   return {
-    id: `train-${b.id || Date.now()}`,
-    type: 'train',
+    id: `${detectedType}-${b.id || Date.now()}`,
+    type: detectedType,
     title: b.trainName || `${depStation} ➔ ${arrStation}`,
     operator: operatorName,
     operatorSub: operatorSub,

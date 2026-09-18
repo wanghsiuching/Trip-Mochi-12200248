@@ -62,7 +62,7 @@ export const TransportHeader: React.FC<TransportHeaderProps> = ({
 
           {/* 營運商名稱 */}
           {(operator || operatorSub) && (
-            <div className="flex items-center gap-1 text-xs text-[#7A7162] font-bold truncate">
+            <div className="flex items-center gap-1 text-xs text-[#7A7162] font-bold flex-wrap break-words">
               {operator && <span>{operator}</span>}
               {operatorSub && (
                 <span className="text-[11px] font-normal text-[#998F7F] hidden sm:inline">

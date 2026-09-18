@@ -39,18 +39,18 @@ export const TransportCard: React.FC<TransportCardProps> = ({
     );
   }
 
-  if (item.type === 'train') {
-    return (
-      <TrainTransportCard
-        item={item}
-        defaultExpanded={defaultExpanded}
-        onEdit={onEdit}
-        onDelete={onDelete}
-        onOpenMap={onOpenMap}
-        className={className}
-      />
-    );
-  }
+  // 對於鐵路、纜車、渡輪、巴士、自駕、接駁等所有地面與水上/纜索交通，
+  // 使用完整具備時刻、月台/碼頭、路線軌跡、中途轉乘站與詳細收合資訊的 TrainTransportCard
+  return (
+    <TrainTransportCard
+      item={item}
+      defaultExpanded={defaultExpanded}
+      onEdit={onEdit}
+      onDelete={onDelete}
+      onOpenMap={onOpenMap}
+      className={className}
+    />
+  );
 
   const baggage = item.baggage;
   const cost = item.cost;

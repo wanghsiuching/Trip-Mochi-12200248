@@ -12,7 +12,8 @@ import {
   Edit3,
   Trash2,
   MapPin,
-  FileText
+  FileText,
+  Ticket
 } from 'lucide-react';
 import { TransportItemModel, TransportSegmentModel } from './types';
 import { getAirlineEnName, resolveAirportDisplay } from './airlineMap';
@@ -106,8 +107,10 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
     ? `${depTerminal} / ${depGate}`
     : (depTerminal ? `${depTerminal}` : (depGate ? `登機門 ${depGate}` : (nextFlightCode ? `接 ${nextFlightCode}` : '')));
 
-  // 備註內容
-  const noteText = item.note || item.rawBookingFlight?.note || (hasTransfer ? `轉機停留 ${transitDuration}` : '');
+  // 席別艙等與座位
+  const seatClassText = item.classType 
+    ? (item.seat ? `${item.classType} (${item.seat})` : item.classType) 
+    : (item.seat ? `座位 ${item.seat}` : (item.bookingReference ? `訂位 ${item.bookingReference}` : '標準客艙'));
 
   // 外部地圖導航
   const handleOpenMap = () => {
@@ -167,24 +170,24 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
             <Plane size={20} className="transform rotate-45" />
           </div>
 
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              {/* 航空公司中文名 (粗體黑字) */}
-              <span className="text-base sm:text-lg font-black text-[#2D241E] tracking-tight truncate">
+          <div className="flex flex-col min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* 航空公司中文名 (粗體黑字 - 完整顯示不截斷) */}
+              <span className="text-base sm:text-lg font-black text-[#2D241E] tracking-tight break-words">
                 {airlineName}
               </span>
 
-              {/* 航班代碼膠囊 EY899 (粗體大字級、柔和綠色背景、膠囊形狀、充足內距、醒目可辨) */}
+              {/* 航班代碼膠囊 EY899 */}
               {flightNumber && (
-                <span className="bg-[#E5ECE7] text-[#3D5645] font-black text-xs sm:text-sm px-3 sm:px-3.5 py-0.5 sm:py-1 rounded-full font-mono flex-shrink-0">
+                <span className="bg-[#E5ECE7] text-[#3D5645] font-black text-xs sm:text-sm px-2.5 sm:px-3.5 py-0.5 sm:py-1 rounded-full font-mono flex-shrink-0">
                   {flightNumber}
                 </span>
               )}
             </div>
 
-            {/* 航空公司英文名稱 (次要灰字) */}
+            {/* 航空公司英文名稱 (次要灰字 - 完整顯示不截斷) */}
             {airlineEn && (
-              <span className="text-xs sm:text-[13px] font-semibold text-[#8C827A] truncate mt-0.5">
+              <span className="text-xs sm:text-[13px] font-semibold text-[#8C827A] mt-0.5 break-words">
                 {airlineEn}
               </span>
             )}
@@ -245,12 +248,12 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
         </div>
 
         {/* 航程三區主結構 (左右時間特大、中間細虛線與飛機貫穿) */}
-        <div className="flex items-center justify-between gap-2 relative">
+        <div className="flex items-start justify-between gap-2 relative">
           {/* 左側：出發地與超大出發時間 */}
-          <div className="flex-1 min-w-0 max-w-[38%] text-left">
+          <div className="flex-1 min-w-0 text-left">
             {/* 城市與代碼：桃園 TPE */}
             <div className="flex items-baseline gap-1.5 flex-wrap">
-              <span className="text-lg sm:text-2xl font-black text-[#2A1E17] tracking-tight truncate">
+              <span className="text-lg sm:text-2xl font-black text-[#2A1E17] tracking-tight break-words">
                 {depDisplay.city}
               </span>
               <span className="text-sm sm:text-base font-black font-mono text-[#3D322B] tracking-wider">
@@ -258,19 +261,19 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
               </span>
             </div>
 
-            {/* 次要站名：台北・桃園國際機場 */}
-            <div className="text-xs text-[#7D736A] font-medium truncate mt-0.5 max-w-full" title={depDisplay.subName}>
+            {/* 次要站名：台北・桃園國際機場 (完整顯示全部文字，絕不省略) */}
+            <div className="text-xs text-[#7D736A] font-medium mt-0.5 break-words leading-snug" title={depDisplay.subName}>
               {depDisplay.subName}
             </div>
 
             {/* 超大出發時間 17:40 */}
-            <div className="text-3xl sm:text-4xl font-black text-[#2A1E17] font-sans tracking-tight mt-1.5 leading-none">
+            <div className="text-2xl sm:text-3xl font-black text-[#2A1E17] font-sans tracking-tight mt-1.5 leading-none">
               {depTime}
             </div>
           </div>
 
           {/* 中央：轉機節點 (TRANSFER NODE) / 虛線航線引導 */}
-          <div className="flex-[1.2] flex flex-col items-center justify-center relative px-1">
+          <div className="flex-shrink-0 flex flex-col items-center justify-center relative px-1 max-w-[100px] sm:max-w-[130px]">
             {hasTransfer ? (
               <div className="w-full flex flex-col items-center justify-center relative">
                 {/* 左右連貫細虛線航線 + 中央小飛機 (淡綠灰細線) */}
@@ -285,14 +288,14 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
                   {transitDisplay.code}
                 </span>
 
-                {/* 轉機城市名 阿布達比 */}
-                <span className="text-xs font-semibold text-[#7D736A] leading-tight">
+                {/* 轉機城市名 阿布達比 (完整顯示) */}
+                <span className="text-xs font-semibold text-[#7D736A] leading-tight break-words text-center">
                   {transitDisplay.city}
                 </span>
 
                 {/* 停留時間標籤 停 1h20m */}
                 {transitDuration && (
-                  <span className="bg-[#F5EAD8] text-[#8C6D41] text-[10px] sm:text-[11px] font-black px-2.5 py-0.5 rounded-md mt-1 shadow-2xs">
+                  <span className="bg-[#F5EAD8] text-[#8C6D41] text-[10px] sm:text-[11px] font-black px-2 py-0.5 rounded-md mt-1 shadow-2xs whitespace-nowrap">
                     停 {transitDuration}
                   </span>
                 )}
@@ -301,11 +304,11 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
               /* 直飛航線展示 */
               <div className="w-full flex flex-col items-center justify-center py-2">
                 <div className="w-full flex items-center justify-center gap-1.5 relative">
-                  <div className="flex-1 h-0 border-b-2 border-dashed border-[#CFD8D2]"></div>
+                  <div className="w-6 sm:w-10 h-0 border-b-2 border-dashed border-[#CFD8D2]"></div>
                   <div className="w-7 h-7 rounded-full bg-[#EEF4F0] border border-[#D5E2D9] flex items-center justify-center text-[#4A6351] shadow-2xs flex-shrink-0">
                     <Plane size={14} className="transform rotate-45" />
                   </div>
-                  <div className="flex-1 h-0 border-b-2 border-dashed border-[#CFD8D2]"></div>
+                  <div className="w-6 sm:w-10 h-0 border-b-2 border-dashed border-[#CFD8D2]"></div>
                 </div>
                 <span className="text-[11px] font-bold text-[#55695B] mt-1">
                   直達無中停
@@ -315,10 +318,10 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
           </div>
 
           {/* 右側：抵達地與超大抵達時間 */}
-          <div className="flex-1 min-w-0 max-w-[38%] text-right flex flex-col items-end">
+          <div className="flex-1 min-w-0 text-right flex flex-col items-end">
             {/* 城市與代碼：蘇黎世 ZRH */}
             <div className="flex items-baseline justify-end gap-1.5 flex-wrap">
-              <span className="text-lg sm:text-2xl font-black text-[#2A1E17] tracking-tight truncate">
+              <span className="text-lg sm:text-2xl font-black text-[#2A1E17] tracking-tight break-words">
                 {arrDisplay.city}
               </span>
               <span className="text-sm sm:text-base font-black font-mono text-[#3D322B] tracking-wider">
@@ -326,13 +329,13 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
               </span>
             </div>
 
-            {/* 次要站名：蘇黎世國際機場 */}
-            <div className="text-xs text-[#7D736A] font-medium truncate mt-0.5 max-w-full text-right" title={arrDisplay.subName}>
+            {/* 次要站名：蘇黎世國際機場 (完整顯示全部文字，絕不省略) */}
+            <div className="text-xs text-[#7D736A] font-medium mt-0.5 break-words leading-snug text-right" title={arrDisplay.subName}>
               {arrDisplay.subName}
             </div>
 
             {/* 超大抵達時間 12:00 (與 17:40 等大對齊) */}
-            <div className="text-3xl sm:text-4xl font-black text-[#2A1E17] font-sans tracking-tight mt-1.5 leading-none">
+            <div className="text-2xl sm:text-3xl font-black text-[#2A1E17] font-sans tracking-tight mt-1.5 leading-none">
               {arrTime}
             </div>
           </div>
@@ -340,16 +343,16 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* 三、下方中繼資訊區 (三欄式結構，手機 375px 自動折行絕不水平捲動)            */}
+      {/* 三、下方中繼資訊區 (三欄式結構，手機 375px 自動折行絕不水平捲動，全部文字完整顯示) */}
       {/* ========================================================================= */}
       <div className="pt-3 border-t border-[#F0EBE3] grid grid-cols-3 gap-2 text-left">
         {/* 欄位 1：轉機城市 */}
         <div className="flex flex-col min-w-0 pr-1">
           <div className="flex items-center gap-1 text-[11px] font-bold text-[#8C827A]">
             <Plane size={11} className="transform rotate-45 text-[#8C827A] flex-shrink-0" />
-            <span className="truncate">{hasTransfer ? '轉機城市' : '航線模式'}</span>
+            <span>{hasTransfer ? '轉機城市' : '航線模式'}</span>
           </div>
-          <div className="text-xs sm:text-sm font-black text-[#2D241E] mt-0.5 truncate">
+          <div className="text-xs sm:text-sm font-black text-[#2D241E] mt-0.5 break-words leading-snug">
             {hasTransfer ? `${transitDisplay.city} ${transitDisplay.code}` : '直飛航程'}
           </div>
         </div>
@@ -358,21 +361,21 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
         <div className="flex flex-col min-w-0 px-1 border-x border-[#F0EBE3]">
           <div className="flex items-center gap-1 text-[11px] font-bold text-[#8C827A]">
             <FileText size={11} className="text-[#8C827A] flex-shrink-0" />
-            <span className="truncate">{terminalGateText ? '航廈 / 登機口' : (nextFlightCode ? '銜接班次' : '席別艙等')}</span>
+            <span>航廈 / 登機門</span>
           </div>
-          <div className="text-xs sm:text-sm font-black text-[#2D241E] mt-0.5 truncate">
-            {terminalGateText || (nextFlightCode ? nextFlightCode : (item.classType || '標準客艙'))}
+          <div className="text-xs sm:text-sm font-black text-[#2D241E] mt-0.5 break-words leading-snug">
+            {terminalGateText || (nextFlightCode ? `銜接 ${nextFlightCode}` : '依機場公告')}
           </div>
         </div>
 
-        {/* 欄位 3：備註 */}
+        {/* 欄位 3：席別艙等 (移除重複備註，避免與卡片下方備註重複) */}
         <div className="flex flex-col min-w-0 pl-1">
           <div className="flex items-center gap-1 text-[11px] font-bold text-[#8C827A]">
-            <Luggage size={11} className="text-[#8C827A] flex-shrink-0" />
-            <span className="truncate">備註</span>
+            <Ticket size={11} className="text-[#8C827A] flex-shrink-0" />
+            <span>席別艙等</span>
           </div>
-          <div className="text-xs sm:text-sm font-black text-[#2D241E] mt-0.5 truncate" title={noteText}>
-            {noteText || (hasTransfer ? `轉機停留 ${transitDuration}` : '直達航班')}
+          <div className="text-xs sm:text-sm font-black text-[#2D241E] mt-0.5 break-words leading-snug">
+            {seatClassText}
           </div>
         </div>
       </div>
