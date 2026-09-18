@@ -771,7 +771,7 @@ export default function App() {
 
         <main className="min-h-[calc(100vh-160px)]">
           {activeTab === 'schedule' && (
-            <div className="space-y-6 pb-24 relative">
+            <div className="space-y-6 pb-36 relative">
               <div 
                 className="lg:hidden sticky z-30 bg-beige/90 backdrop-blur-md border-b border-[#E0E5D5]/70 px-4 pb-2 pt-2"
                 style={{ top: 'env(safe-area-inset-top, 0px)' }}
@@ -1187,7 +1187,15 @@ export default function App() {
                   </div>
                   )}
                </div>
-               <button onClick={() => { setEditingItem(null); setIsAddModalOpen(true); }} className="fixed bottom-24 right-5 bg-cocoa text-white shadow-hard-sage active:translate-y-1 active:shadow-none z-30 flex items-center gap-2 px-4 py-3 rounded-[2rem] border-2 border-cocoa"><Plus size={20} strokeWidth={3} /><span className="font-bold tracking-widest text-base">新增</span></button>
+               <button 
+                 onClick={() => { setEditingItem(null); setIsAddModalOpen(true); }} 
+                 className="fixed right-5 bg-cocoa text-white shadow-hard-sage hover:bg-cocoa/90 active:translate-y-1 active:shadow-none z-[45] flex items-center gap-2 px-4 py-3 rounded-[2rem] border-2 border-cocoa cursor-pointer transition-transform"
+                 style={{ bottom: 'calc(max(0.5rem, env(safe-area-inset-bottom, 0px)) + 4.75rem)' }}
+                 title="新增行程項目"
+               >
+                 <Plus size={20} strokeWidth={3} />
+                 <span className="font-bold tracking-widest text-base">新增</span>
+               </button>
             </div>
           )}
           {activeTab === 'bookings' && (<BookingsView flights={bookingFlights} accommodations={bookingAccommodations} carRentals={bookingCarRentals} tickets={bookingTickets} currencies={currencies} members={members} onAddFlight={handleAddFlight} onUpdateFlight={handleUpdateFlight} onDeleteFlight={handleDeleteFlight} onAddAccommodation={(a) => addTripItem(currentTripId, 'accommodations', a)} onUpdateAccommodation={(a) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.map(x => x.id === a.id ? a : x))} onDeleteAccommodation={(id) => updateTripField(currentTripId, 'accommodations', bookingAccommodations.filter(x => x.id !== id))} onAddCar={handleAddCar} onUpdateCar={handleUpdateCar} onDeleteCar={handleDeleteCar} onAddTicket={(t) => addTripItem(currentTripId, 'tickets', t)} onUpdateTicket={(t) => updateTripField(currentTripId, 'tickets', bookingTickets.map(x => x.id === t.id ? t : x))} onDeleteTicket={(id) => updateTripField(currentTripId, 'tickets', bookingTickets.filter(x => x.id !== id))} />)}

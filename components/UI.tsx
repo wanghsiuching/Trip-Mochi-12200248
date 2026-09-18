@@ -67,18 +67,29 @@ export const BottomNav = ({ activeTab, setTab }: { activeTab: Tab, setTab: (t: T
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 w-full bg-beige/95 backdrop-blur-md border-t-2 border-beige-dark pb-safe pt-2 z-40">
-      <div className="flex overflow-x-auto no-scrollbar px-4 pb-2 gap-2 max-w-md mx-auto">
+    <div 
+      className="fixed bottom-0 left-0 w-full bg-beige/95 backdrop-blur-md border-t-2 border-beige-dark z-40 transition-all"
+      style={{ paddingBottom: 'max(0.35rem, env(safe-area-inset-bottom, 0px))' }}
+    >
+      <div className="flex items-center justify-around sm:justify-center px-2 pt-1.5 pb-1 gap-1 max-w-md mx-auto">
         {tabs.map((tab) => {
           const isActive = activeTab === tab.id;
           return (
-            <button key={tab.id} onClick={() => setTab(tab.id as Tab)}
-              className={`flex-shrink-0 flex flex-col items-center justify-center w-14 transition-all duration-300 ${isActive ? '-translate-y-2' : ''}`}
+            <button 
+              key={tab.id} 
+              onClick={() => setTab(tab.id as Tab)}
+              className={`flex-1 sm:flex-initial sm:w-14 flex flex-col items-center justify-center transition-all duration-200 ${isActive ? '-translate-y-1' : 'active:scale-95'}`}
             >
-              <div className={`p-3 rounded-2xl transition-all duration-300 mb-1 border-2 ${isActive ? 'bg-sage border-sage text-white shadow-hard-sage' : 'bg-white border-transparent text-gray-400'}`}>
-                <tab.icon size={20} strokeWidth={isActive ? 3 : 2.5} />
+              <div className={`p-2 rounded-xl transition-all duration-200 mb-0.5 border-2 ${
+                isActive 
+                  ? 'bg-sage border-sage text-white shadow-hard-sm-sage' 
+                  : 'bg-white border-transparent text-gray-400 hover:text-cocoa'
+              }`}>
+                <tab.icon size={19} strokeWidth={isActive ? 2.8 : 2.2} />
               </div>
-              <span className={`text-[10px] font-bold ${isActive ? 'text-sage' : 'text-gray-400'}`}>{tab.label}</span>
+              <span className={`text-[10px] font-bold tracking-tight ${isActive ? 'text-sage' : 'text-gray-400'}`}>
+                {tab.label}
+              </span>
             </button>
           );
         })}
