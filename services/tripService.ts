@@ -90,19 +90,49 @@ const cleanData = (obj: any): any => {
 };
 
 /**
- * Sequential write queue to serialize outgoing Firestore writes.
+ * Sequential write queue to serialize outgoing Firestore writes with throttling and backoff.
  * Prevents overlapping concurrent writes from exceeding Firestore's HTTP/2 write stream
- * capacity ("Write stream exhausted maximum allowed queued writes").
+ * capacity ("Write stream exhausted maximum allowed queued writes") and handles temporary rate limits.
  */
 let writeQueue = Promise.resolve();
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 export const queueWrite = <T>(op: () => Promise<T>): Promise<T> => {
-  const withTimeout = async (): Promise<T> => {
-    return Promise.race([
-      op(),
-      new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Write operation watchdog timeout')), 25000))
-    ]);
+  const executeWithRetry = async (): Promise<T> => {
+    let attempts = 0;
+    const maxAttempts = 3;
+    let backoff = 1000;
+
+    while (true) {
+      try {
+        const result = await Promise.race([
+          op(),
+          new Promise<T>((_, reject) => setTimeout(() => reject(new Error('Write operation watchdog timeout')), 30000))
+        ]);
+        // Inter-write pacing to prevent stream buffer exhaustion
+        await delay(120);
+        return result;
+      } catch (err: any) {
+        attempts++;
+        const isResourceExhausted = 
+          err?.code === 'resource-exhausted' || 
+          err?.message?.includes('resource-exhausted') ||
+          err?.message?.includes('Write stream exhausted') ||
+          err?.message?.includes('overloading the backend') ||
+          err?.code === 'unavailable';
+
+        if (isResourceExhausted && attempts < maxAttempts) {
+          console.warn(`Firestore write stream throttled: backing off for ${backoff}ms before retry (attempt ${attempts}/${maxAttempts})...`);
+          await delay(backoff);
+          backoff *= 2;
+          continue;
+        }
+        throw err;
+      }
+    }
   };
-  const result = writeQueue.then(withTimeout, withTimeout);
+
+  const result = writeQueue.then(executeWithRetry, executeWithRetry);
   writeQueue = result.then(() => {}, () => {});
   return result;
 };
@@ -387,30 +417,19 @@ export const saveScheduleItem = async (tripId: string, item: ScheduleItem): Prom
       }
 
       const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(item.id));
-      const tripRef = doc(db, 'trips', tripId);
-
-      const batch = writeBatch(db);
-      batch.set(itemRef, cleaned);
-      batch.set(tripRef, {
-        scheduleOrder: arrayUnion(String(item.id))
-      }, { merge: true });
 
       try {
-        await batch.commit();
+        await setDoc(itemRef, cleaned);
       } catch (setErr: any) {
-        // Automatic recovery if Firestore throws maximum document size exceeded error
-        if (setErr?.message?.includes('size') || setErr?.message?.includes('1,048,576') || setErr?.code === 'resource-exhausted') {
+        // Automatic recovery ONLY if Firestore throws maximum document size exceeded error
+        const isSizeError = setErr?.message?.includes('size') || setErr?.message?.includes('1,048,576') || setErr?.message?.includes('too large');
+        if (isSizeError) {
           console.warn("Firestore size exceeded, applying emergency image compression...", setErr);
           if (Array.isArray(cleaned.images)) {
             cleaned.images = await Promise.all(
               cleaned.images.map((img: string) => compressBase64IfNeeded(img, 900, 140000))
             );
-            const retryBatch = writeBatch(db);
-            retryBatch.set(itemRef, cleaned);
-            retryBatch.set(tripRef, {
-              scheduleOrder: arrayUnion(String(item.id))
-            }, { merge: true });
-            await retryBatch.commit();
+            await setDoc(itemRef, cleaned);
           } else {
             throw setErr;
           }
@@ -433,15 +452,7 @@ export const deleteScheduleItem = async (tripId: string, itemId: string): Promis
   return queueWrite(async () => {
     try {
       const itemRef = doc(db, 'trips', tripId, 'scheduleItems', String(itemId));
-      const tripRef = doc(db, 'trips', tripId);
-
-      const batch = writeBatch(db);
-      batch.delete(itemRef);
-      batch.set(tripRef, {
-        scheduleOrder: arrayRemove(String(itemId))
-      }, { merge: true });
-
-      await batch.commit();
+      await deleteDoc(itemRef);
     } catch (err) {
       console.error("Failed to delete schedule item from subcollection:", err);
       throw err;
@@ -521,8 +532,9 @@ export const savePocketItem = async (tripId: string, item: PocketItem): Promise<
         // Complete overwrite removes any legacy bloated fields (like imageReferences or old image strings)
         await setDoc(itemRef, cleanData(cleanedDoc));
       } catch (setErr: any) {
-        console.warn("Firestore pocketItem write error, applying emergency deep compression rescue...", setErr);
-        if (Array.isArray(cleanedDoc.images) && cleanedDoc.images.length > 0) {
+        const isSizeError = setErr?.message?.includes('size') || setErr?.message?.includes('1,048,576') || setErr?.message?.includes('too large');
+        if (isSizeError && Array.isArray(cleanedDoc.images) && cleanedDoc.images.length > 0) {
+          console.warn("Firestore pocketItem size exceeded, applying emergency compression...", setErr);
           const emergencyBudget = Math.floor(220000 / cleanedDoc.images.length);
           cleanedDoc.images = await Promise.all(
             cleanedDoc.images.map((img: string) => compressBase64IfNeeded(img, 800, emergencyBudget))
@@ -541,24 +553,6 @@ export const savePocketItem = async (tripId: string, item: PocketItem): Promise<
           throw setErr;
         }
       }
-
-      // Clean up legacy item from root document if it exists in trip.pocketItems
-      try {
-        const tripRef = doc(db, 'trips', tripId);
-        const tripSnap = await getDoc(tripRef);
-        if (tripSnap.exists()) {
-          const data = tripSnap.data();
-          if (Array.isArray(data.pocketItems)) {
-            const hasInRoot = data.pocketItems.some((p: any) => String(p?.id) === String(item.id));
-            if (hasInRoot) {
-              const filtered = data.pocketItems.filter((p: any) => String(p?.id) !== String(item.id));
-              await updateDoc(tripRef, { pocketItems: filtered });
-            }
-          }
-        }
-      } catch (cleanRootErr) {
-        console.warn("Cleanup of root pocketItems skipped:", cleanRootErr);
-      }
     } catch (err) {
       console.error("Failed to save pocket item to subcollection:", err);
       throw err;
@@ -567,7 +561,7 @@ export const savePocketItem = async (tripId: string, item: PocketItem): Promise<
 };
 
 /**
- * Deletes a single pocket item from subcollection and removes from root doc if present
+ * Deletes a single pocket item from subcollection
  */
 export const deletePocketItem = async (tripId: string, itemId: string): Promise<void> => {
   if (!tripId || !itemId) return;
@@ -575,23 +569,6 @@ export const deletePocketItem = async (tripId: string, itemId: string): Promise<
     try {
       const itemRef = doc(db, 'trips', tripId, 'pocketItems', String(itemId));
       await deleteDoc(itemRef);
-
-      // Also clean up from root document if it exists in trip.pocketItems
-      try {
-        const tripRef = doc(db, 'trips', tripId);
-        const tripSnap = await getDoc(tripRef);
-        if (tripSnap.exists()) {
-          const data = tripSnap.data();
-          if (Array.isArray(data.pocketItems)) {
-            const filtered = data.pocketItems.filter((p: any) => String(p?.id) !== String(itemId));
-            if (filtered.length !== data.pocketItems.length) {
-              await updateDoc(tripRef, { pocketItems: filtered });
-            }
-          }
-        }
-      } catch (cleanErr) {
-        console.warn("Could not clean root pocketItems array (non-fatal):", cleanErr);
-      }
     } catch (err) {
       console.error("Failed to delete pocket item from subcollection:", err);
       throw err;
@@ -632,7 +609,8 @@ export const saveJournalItem = async (tripId: string, journal: Journal): Promise
       try {
         await setDoc(itemRef, cleaned);
       } catch (setErr: any) {
-        if (setErr?.message?.includes('size') || setErr?.message?.includes('1,048,576') || setErr?.code === 'resource-exhausted') {
+        const isSizeError = setErr?.message?.includes('size') || setErr?.message?.includes('1,048,576') || setErr?.message?.includes('too large');
+        if (isSizeError) {
           console.warn("Firestore journal size exceeded, applying emergency compression...", setErr);
           if (Array.isArray(cleaned.images)) {
             cleaned.images = await Promise.all(
