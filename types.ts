@@ -493,3 +493,70 @@ export const THEME = {
     overshoot: 'transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)]',
   }
 };
+
+// ==========================================
+// Trip Mochi 路線模型 (Route Points & Segments)
+// ==========================================
+
+export type RoutePointSource = 
+  | 'manual_map'            // 1. 使用者在 Trip Mochi 地圖上點擊 (最高優先級)
+  | 'existing_manual_gps'   // 2. 使用者原本手動輸入的 GPS
+  | 'google_url_coordinate' // 3. Google Maps URL 明確包含之座標
+  | 'other';                // 4. 其他合法解析來源
+
+export type RouteTransportType = 
+  | 'WALK'
+  | 'TRAIN'
+  | 'SUBWAY'
+  | 'BUS'
+  | 'TRAM'
+  | 'FERRY'
+  | 'TAXI'
+  | 'CAR'
+  | 'RENTAL_CAR'
+  | 'FLIGHT'
+  | 'OTHER';
+
+export interface RoutePoint {
+  id: string;
+  dayId: string;              // 日期 / Day 標籤 (e.g. "2026-10-24")
+  sequence: number;           // 每日重新從 1 起算 (1-based: ①, ②, ③, ④...)
+  title: string;              // 點位名稱
+  latitude: number;           // 緯度
+  longitude: number;          // 經度
+  linkedScheduleItemId?: string; // 關聯之 Schedule Item ID (不複製整個物件)
+  isConfirmed: boolean;       // 座標是否已確認 (只有 confirmed 才能匯出)
+  source: RoutePointSource;   // 座標來源 (manual_map 優先級最高)
+  address?: string;           // 僅供參考之地址
+  notes?: string;             // 備註說明
+}
+
+export interface RouteSegment {
+  id: string;
+  dayId: string;
+  fromPointId: string;
+  toPointId: string;
+  transportType: RouteTransportType;
+}
+
+export interface TransportTypeMeta {
+  type: RouteTransportType;
+  label: string;
+  emoji: string;
+  googleMode: 'walking' | 'transit' | 'driving' | 'bicycling';
+}
+
+export const ROUTE_TRANSPORT_CONFIG: Record<RouteTransportType, TransportTypeMeta> = {
+  WALK: { type: 'WALK', label: '步行', emoji: '🚶', googleMode: 'walking' },
+  SUBWAY: { type: 'SUBWAY', label: '地鐵/捷運', emoji: '🚇', googleMode: 'transit' },
+  TRAIN: { type: 'TRAIN', label: '火車/鐵道', emoji: '🚆', googleMode: 'transit' },
+  BUS: { type: 'BUS', label: '公車/巴士', emoji: '🚌', googleMode: 'transit' },
+  TRAM: { type: 'TRAM', label: '路面電車', emoji: '🚊', googleMode: 'transit' },
+  FERRY: { type: 'FERRY', label: '渡輪/遊船', emoji: '⛴️', googleMode: 'transit' },
+  TAXI: { type: 'TAXI', label: '計程車', emoji: '🚕', googleMode: 'driving' },
+  CAR: { type: 'CAR', label: '自駕', emoji: '🚗', googleMode: 'driving' },
+  RENTAL_CAR: { type: 'RENTAL_CAR', label: '租車', emoji: '🚙', googleMode: 'driving' },
+  FLIGHT: { type: 'FLIGHT', label: '航班', emoji: '✈️', googleMode: 'transit' },
+  OTHER: { type: 'OTHER', label: '其他', emoji: '📍', googleMode: 'walking' },
+};
+

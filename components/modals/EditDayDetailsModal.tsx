@@ -61,8 +61,15 @@ export const EditDayDetailsModal = ({
     
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={onClose}>
-            <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div 
+          className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-center p-3 sm:p-4 animate-fade-in" 
+          onClick={onClose}
+          style={{
+            paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))',
+            paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))',
+          }}
+        >
+            <div className="bg-[#FAF8F2] w-full max-w-md max-h-[90vh] max-h-[90dvh] rounded-3xl sm:rounded-[2.5rem] p-5 sm:p-6 shadow-2xl border-2 sm:border-4 border-beige-dark flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                     <h3 className="text-xl font-black text-cocoa">編輯行程資訊</h3>
                     <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
@@ -70,7 +77,7 @@ export const EditDayDetailsModal = ({
                     </button>
                 </div>
                 
-                <div className="overflow-y-auto custom-scroll flex-1 py-4 space-y-4">
+                <div className="overflow-y-auto custom-scroll flex-1 min-h-0 py-4 space-y-4 pr-1">
                     <div className="w-14 h-14 bg-sage-light rounded-full flex items-center justify-center mx-auto text-sage border-2 border-white shadow-sm">
                         <Edit3 size={24} />
                     </div>

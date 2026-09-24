@@ -52,6 +52,25 @@
         top: env(safe-area-inset-top, 0px);
       }
 
+      /* Custom Scrollbar */
+      .custom-scroll {
+        -webkit-overflow-scrolling: touch;
+      }
+      .custom-scroll::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      .custom-scroll::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scroll::-webkit-scrollbar-thumb {
+        background: rgba(90, 77, 65, 0.2);
+        border-radius: 9999px;
+      }
+      .custom-scroll::-webkit-scrollbar-thumb:hover {
+        background: rgba(90, 77, 65, 0.4);
+      }
+
       /* Custom Animations */
       @keyframes float-fly {
         0%, 100% { transform: translateY(0) rotate(-5deg); }
@@ -126,7 +145,6 @@
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body>
     <div id="root"></div>

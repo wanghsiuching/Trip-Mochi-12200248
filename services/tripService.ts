@@ -277,6 +277,30 @@ export const duplicateTrip = async (originalTripId: string): Promise<string> => 
     } catch (subErr) {
       console.warn("Failed to copy subcollection journals:", subErr);
     }
+
+    // Also copy subcollection mapPoints if any
+    try {
+      const mapPointsCol = collection(db, 'trips', originalTripId, 'mapPoints');
+      const mapPointsSnap = await getDocs(mapPointsCol);
+      for (const ptDoc of mapPointsSnap.docs) {
+        const ptData = ptDoc.data();
+        await setDoc(doc(db, 'trips', newCode, 'mapPoints', ptDoc.id), { ...ptData, tripId: newCode });
+      }
+    } catch (subErr) {
+      console.warn("Failed to copy subcollection mapPoints:", subErr);
+    }
+
+    // Also copy subcollection mapSegments if any
+    try {
+      const mapSegmentsCol = collection(db, 'trips', originalTripId, 'mapSegments');
+      const mapSegmentsSnap = await getDocs(mapSegmentsCol);
+      for (const segDoc of mapSegmentsSnap.docs) {
+        const segData = segDoc.data();
+        await setDoc(doc(db, 'trips', newCode, 'mapSegments', segDoc.id), { ...segData, tripId: newCode });
+      }
+    } catch (subErr) {
+      console.warn("Failed to copy subcollection mapSegments:", subErr);
+    }
     
     return newCode;
   } catch (error) {

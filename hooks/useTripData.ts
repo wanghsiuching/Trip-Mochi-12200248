@@ -54,6 +54,37 @@ export const useTripData = (currentTripId: string) => {
     }
   };
 
+  /**
+   * 專門更新 Schedule Item 的精確地圖座標 (手動定位 -> 永久儲存)
+   */
+  const handleUpdateItemLocation = async (
+    itemId: string,
+    coords: { lat: number; lng: number },
+    confirmed: boolean = true
+  ): Promise<void> => {
+    const target = scheduleItems.find(i => String(i.id) === String(itemId));
+    if (!target) return;
+
+    const updatedItem: ScheduleItem = {
+      ...target,
+      latitude: coords.lat,
+      longitude: coords.lng,
+      gps: { lat: String(coords.lat), lng: String(coords.lng) },
+      locationSource: 'manual_map',
+      locationConfirmed: confirmed,
+    };
+
+    // 樂觀更新前端狀態，即時反映地圖繪製
+    setScheduleItems(prev => prev.map(item => String(item.id) === String(itemId) ? updatedItem : item));
+
+    try {
+      await saveScheduleItem(currentTripId, updatedItem);
+    } catch (err) {
+      console.error("Failed to persist manual location to Firestore:", err);
+      throw err;
+    }
+  };
+
   const confirmDeleteItem = (itemToDelete: string | null, onDeleted?: () => void) => {
     if (!itemToDelete) return;
     const targetId = String(itemToDelete);
@@ -251,6 +282,7 @@ export const useTripData = (currentTripId: string) => {
     handleAddDay,
     confirmDeleteDay,
     handleUpdateDayDetails,
-    handleSwapLogic
+    handleSwapLogic,
+    handleUpdateItemLocation
   };
 };

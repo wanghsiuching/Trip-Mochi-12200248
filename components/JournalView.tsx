@@ -547,8 +547,18 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
 
       {/* Add / Edit Journal Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-cocoa/60 z-[150] flex flex-col items-center justify-end sm:justify-center sm:p-4 backdrop-blur-sm animate-fade-in" onClick={() => setShowModal(false)}>
-            <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-lg sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div 
+          className="fixed inset-0 bg-cocoa/60 z-[150] flex flex-col items-center justify-center p-3 sm:p-4 backdrop-blur-sm animate-fade-in" 
+          onClick={() => setShowModal(false)}
+          style={{
+            paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))',
+            paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))',
+          }}
+        >
+            <div 
+              className="bg-[#FAF8F2] w-full max-w-lg max-h-[90vh] max-h-[90dvh] rounded-3xl sm:rounded-[2.5rem] p-4 sm:p-6 shadow-2xl border-2 sm:border-4 border-beige-dark flex flex-col overflow-hidden" 
+              onClick={e => e.stopPropagation()}
+            >
                 <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                     <h3 className="font-black text-xl text-cocoa flex items-center gap-2">
                       <PenTool size={20} className="text-sage" />
@@ -559,7 +569,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                     </button>
                 </div>
                 
-                <div className="overflow-y-auto custom-scroll flex-1 py-4 space-y-4">
+                <div className="overflow-y-auto custom-scroll flex-1 min-h-0 py-4 space-y-4 pr-1 overscroll-contain">
                     <DateTimePickerField
                         label="記錄日期與時間"
                         value={form.date}
@@ -681,11 +691,11 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                     </div>
                 </div>
 
-                <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
+                <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0 bg-[#FAF8F2]">
                     <button 
                       type="button"
                       onClick={() => setShowModal(false)} 
-                      className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold hover:bg-gray-50 border-2 border-beige-dark transition-colors"
+                      className="flex-1 py-3.5 sm:py-4 rounded-2xl bg-white text-gray-400 font-bold hover:bg-gray-50 border-2 border-beige-dark transition-colors"
                     >
                       取消
                     </button>
@@ -693,7 +703,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                       type="button"
                       onClick={handleSave} 
                       disabled={(!form.content && formImages.length === 0) || isSaving || formImages.some(img => !img.isReady)}
-                      className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 disabled:bg-gray-400 disabled:border-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                      className="flex-1 py-3.5 sm:py-4 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all disabled:opacity-50 disabled:bg-gray-400 disabled:border-gray-400 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
                     >
                       {isSaving ? (
                         <>
@@ -719,9 +729,16 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
 
       {/* Delete Confirmation Modal */}
       {deletingId && (
-        <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[200] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={() => setDeletingId(null)}>
-            <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-sm sm:rounded-[2.5rem] rounded-none p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
-                 <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0 sm:hidden">
+        <div 
+          className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[200] flex flex-col items-center justify-center p-4 animate-fade-in" 
+          onClick={() => setDeletingId(null)}
+          style={{
+            paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))',
+            paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))',
+          }}
+        >
+            <div className="bg-[#FAF8F2] w-full max-w-sm max-h-[90vh] max-h-[90dvh] rounded-3xl sm:rounded-[2.5rem] p-6 shadow-2xl border-2 sm:border-4 border-beige-dark flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+                 <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                      <h3 className="font-black text-lg text-cocoa">刪除確認</h3>
                      <button onClick={() => setDeletingId(null)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
                          <X size={18} />
@@ -735,8 +752,8 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                      <p className="text-gray-400 font-bold text-center text-sm leading-relaxed">確定要刪除這篇日誌嗎？日誌與照片將會一併移除。</p>
                  </div>
                  <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
-                    <button onClick={() => setDeletingId(null)} className="flex-1 py-4 rounded-2xl font-bold text-gray-400 bg-white border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
-                    <button onClick={confirmDelete} className="flex-1 py-4 rounded-2xl font-bold text-white bg-red-400 hover:bg-red-500 shadow-hard-sm border-2 border-red-500 active:translate-y-1 active:shadow-none transition-all">刪除</button>
+                    <button onClick={() => setDeletingId(null)} className="flex-1 py-3.5 sm:py-4 rounded-2xl font-bold text-gray-400 bg-white border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+                    <button onClick={confirmDelete} className="flex-1 py-3.5 sm:py-4 rounded-2xl font-bold text-white bg-red-400 hover:bg-red-500 shadow-hard-sm border-2 border-red-500 active:translate-y-1 active:shadow-none transition-all">刪除</button>
                 </div>
             </div>
         </div>

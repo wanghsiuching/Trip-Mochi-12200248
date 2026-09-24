@@ -784,9 +784,16 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={onClose}>
+    <div 
+      className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-center p-3 sm:p-4 animate-fade-in" 
+      onClick={onClose}
+      style={{
+        paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))',
+        paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))',
+      }}
+    >
       <div 
-        className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-2xl sm:rounded-[2.5rem] rounded-none shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col overflow-hidden"
+        className="bg-[#FAF8F2] w-full max-w-2xl max-h-[92vh] max-h-[92dvh] rounded-3xl sm:rounded-[2.5rem] shadow-2xl border-2 sm:border-4 border-beige-dark flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Header with Switchable Tabs */}
@@ -1219,9 +1226,16 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
 
       {/* Add / Edit Item Sub-Modal */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[80] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={() => setIsFormOpen(false)}>
+        <div 
+          className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[80] flex flex-col items-center justify-center p-3 sm:p-4 animate-fade-in" 
+          onClick={() => setIsFormOpen(false)}
+          style={{
+            paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))',
+            paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))',
+          }}
+        >
           <div 
-            className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-lg sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden"
+            className="bg-[#FAF8F2] w-full max-w-lg max-h-[90vh] max-h-[90dvh] rounded-3xl sm:rounded-[2.5rem] p-5 sm:p-6 shadow-2xl border-2 sm:border-4 border-beige-dark flex flex-col justify-between overflow-hidden"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
@@ -1243,8 +1257,8 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
               </button>
             </div>
 
-            <form onSubmit={handleSaveForm} className="flex flex-col h-full overflow-hidden justify-between">
-              <div className="space-y-4 overflow-y-auto custom-scroll flex-1 py-4 pr-1">
+            <form onSubmit={handleSaveForm} className="flex flex-col h-full min-h-0 overflow-hidden justify-between">
+              <div className="space-y-4 overflow-y-auto custom-scroll flex-1 min-h-0 py-4 pr-1">
               {/* Category selector */}
               <div>
                 <label className="text-xs font-black text-gray-400 block mb-1.5 uppercase">類型</label>

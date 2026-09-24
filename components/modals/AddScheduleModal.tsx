@@ -603,11 +603,18 @@ export const AddScheduleModal = ({
 
   return (
     <>
-      <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-50 flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={onClose}>
-        <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-xl sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+      <div 
+        className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-3 sm:p-4 animate-fade-in" 
+        onClick={onClose}
+        style={{
+          paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))',
+          paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))',
+        }}
+      >
+        <div className="bg-[#FAF8F2] w-full max-w-xl max-h-[92vh] max-h-[92dvh] rounded-3xl sm:rounded-[2.5rem] p-5 sm:p-6 shadow-2xl border-2 sm:border-4 border-beige-dark flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
           
           {step === 'category' ? (
-            <div className="flex flex-col h-full justify-between overflow-y-auto custom-scroll">
+            <div className="flex flex-col h-full min-h-0 justify-between overflow-y-auto custom-scroll">
               <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                 <h3 className="text-xl font-black text-cocoa tracking-wider">選擇項目類型</h3>
                 <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors"><X size={18}/></button>
@@ -625,7 +632,7 @@ export const AddScheduleModal = ({
               </div>
             </div>
           ) : (
-            <div className="flex flex-col h-full overflow-hidden">
+            <div className="flex flex-col h-full min-h-0 overflow-hidden">
                <div className="flex items-center justify-between pb-3 border-b-2 border-beige-dark flex-shrink-0 mb-3">
                   <button onClick={() => !initialData && setStep('category')} className={`text-gray-400 font-bold text-sm ${initialData ? 'opacity-0 pointer-events-none' : 'hover:text-sage'}`}>← 返回種類</button>
                   <h3 className="text-xl font-black text-cocoa tracking-wider">{initialData ? '編輯項目' : '輸入細節'}</h3>
@@ -644,7 +651,7 @@ export const AddScheduleModal = ({
                   </div>
                </div>
 
-               <div className="space-y-4 overflow-y-auto custom-scroll flex-1 pr-1 pb-4">
+               <div className="space-y-4 overflow-y-auto custom-scroll flex-1 min-h-0 pr-1 pb-4">
                {/* Basic Info */}
              <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm">
                 <label className="text-xs font-bold text-gray-400 block mb-1">標題</label>

@@ -110,14 +110,21 @@ export const TripSettingsModal = ({
 
     return (
       <>
-        <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={onClose}>
-            <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-lg sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div 
+          className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-center p-3 sm:p-4 animate-fade-in" 
+          onClick={onClose}
+          style={{
+            paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))',
+            paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))',
+          }}
+        >
+            <div className="bg-[#FAF8F2] w-full max-w-lg max-h-[92vh] max-h-[92dvh] rounded-3xl sm:rounded-[2.5rem] p-5 sm:p-6 shadow-2xl border-2 sm:border-4 border-beige-dark flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                     <h3 className="text-xl font-black text-cocoa flex items-center gap-2"><Settings size={20} className="text-sage"/> 行程設定</h3>
                     <button onClick={onClose} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors"><X size={18}/></button>
                 </div>
 
-                <div className="overflow-y-auto custom-scroll flex-1 py-4 pr-1 space-y-6">
+                <div className="overflow-y-auto custom-scroll flex-1 min-h-0 py-4 pr-1 space-y-6">
                     {/* Trip Code Section */}
                     {tripId && (
                         <div className="bg-white border-2 border-beige-dark p-4 rounded-2xl shadow-sm">

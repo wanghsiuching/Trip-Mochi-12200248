@@ -36,8 +36,15 @@ export const ScheduleDetailModal = ({
     const openMap = (location: string) => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(location)}`, '_blank');
 
     return (
-        <div className="fixed inset-0 bg-cocoa/60 z-[100] flex flex-col items-center justify-end sm:justify-center sm:p-4 backdrop-blur-sm animate-fade-in" onClick={onClose}>
-            <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-lg sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark relative overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+        <div 
+          className="fixed inset-0 bg-cocoa/60 z-[100] flex flex-col items-center justify-center p-3 sm:p-4 backdrop-blur-sm animate-fade-in" 
+          onClick={onClose}
+          style={{
+            paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))',
+            paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))',
+          }}
+        >
+            <div className="bg-[#FAF8F2] w-full max-w-lg max-h-[92vh] max-h-[92dvh] rounded-3xl sm:rounded-[2.5rem] p-5 sm:p-6 shadow-2xl border-2 sm:border-4 border-beige-dark relative overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="flex justify-between items-start pb-3 border-b-2 border-beige-dark flex-shrink-0 gap-2">
                     <div className="flex items-start gap-3 flex-1 min-w-0">
@@ -55,7 +62,7 @@ export const ScheduleDetailModal = ({
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                         {onDelete && (
                             <button 
-                                type="button"
+                                type="button" 
                                 onClick={() => onDelete(item)} 
                                 className="p-2 bg-red-50 hover:bg-red-100 text-red-500 rounded-full border border-red-200 shadow-xs transition-colors"
                                 title="刪除此項目"
@@ -67,7 +74,7 @@ export const ScheduleDetailModal = ({
                     </div>
                 </div>
 
-                <div className="overflow-y-auto custom-scroll flex-1 space-y-4 pr-1">
+                <div className="overflow-y-auto custom-scroll flex-1 min-h-0 space-y-4 pr-1">
                     {/* Location */}
                     <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark shadow-sm flex items-center justify-between">
                         <div className="flex items-center gap-2 text-sm font-bold text-gray-500 flex-1 min-w-0">

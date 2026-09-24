@@ -27,6 +27,7 @@ import { ExpensesView } from './components/ExpensesView';
 import { JournalView } from './components/JournalView';
 import { PlanningView } from './components/PlanningView';
 import { MembersView } from './components/MembersView';
+import { TripRouteMap } from './components/TripRouteMap';
 import { createTrip, joinTripByCode, subscribeToTrip, addTripItem, updateTripField, duplicateTrip, sortScheduleItems } from './services/tripService';
 import { getCachedTrip, setCachedTrip, clearCachedTrip } from './utils/tripCache';
 import { 
@@ -37,7 +38,8 @@ import {
   usePlanningData, 
   usePocketItemsData, 
   useMembersData, 
-  useModalState 
+  useModalState,
+  useRouteData
 } from './hooks';
 
 export default function App() {
@@ -192,6 +194,24 @@ export default function App() {
     handleEditClick,
     handleDeleteItemClick
   } = useModalState();
+
+  // 行程次視圖模式：'timeline' (手帳清單) | 'routemap' (路線地圖 & 導航)
+  const [scheduleSubView, setScheduleSubView] = useState<'timeline' | 'routemap'>('timeline');
+
+  // Google Maps 手動路線資料管理
+  const {
+    routePoints,
+    routeSegments,
+    canUndo: canUndoRoute,
+    undo: undoRoute,
+    addRoutePoint,
+    updatePointCoordinate,
+    updatePointDetails,
+    movePoint: moveRoutePoint,
+    deletePoint: deleteRoutePoint,
+    updateSegmentTransport,
+    importItemToDayRoute,
+  } = useRouteData(currentTripId);
 
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longPressTriggeredAtRef = useRef<number>(0);
@@ -767,10 +787,62 @@ export default function App() {
               </span>
             )}
           </div>
+
+          {/* Schedule View Toggle: 📋 行程手帳 vs 🗺️ 路線地圖 & 導航 */}
+          {activeTab === 'schedule' && (
+            <div className="flex bg-white/90 p-1 rounded-2xl border-2 border-beige-dark shadow-hard-sm gap-1 mt-3">
+              <button 
+                type="button"
+                onClick={() => setScheduleSubView('timeline')}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  scheduleSubView === 'timeline'
+                    ? 'bg-sage text-white shadow-hard-sm-sage'
+                    : 'text-gray-400 hover:text-cocoa'
+                }`}
+              >
+                <BookOpen size={13} strokeWidth={2.5} />
+                <span>📋 行程手帳</span>
+              </button>
+              <button 
+                type="button"
+                onClick={() => setScheduleSubView('routemap')}
+                className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  scheduleSubView === 'routemap'
+                    ? 'bg-sage text-white shadow-hard-sm-sage'
+                    : 'text-gray-400 hover:text-cocoa'
+                }`}
+              >
+                <MapPin size={13} strokeWidth={2.5} />
+                <span>🗺️ 路線地圖 & 導航</span>
+              </button>
+            </div>
+          )}
         </header>
 
         <main className="min-h-[calc(100vh-160px)]">
-          {activeTab === 'schedule' && (
+          {activeTab === 'schedule' && scheduleSubView === 'routemap' && (
+            <div className="px-3 sm:px-4 pt-3">
+              <TripRouteMap
+                dates={dates}
+                selectedDate={selectedDate}
+                onSelectDate={(newDate) => setSelectedDate(newDate)}
+                dayScheduleItems={currentDayScheduleItems}
+                routePoints={routePoints}
+                routeSegments={routeSegments}
+                canUndo={canUndoRoute}
+                onUndo={undoRoute}
+                onAddPoint={addRoutePoint}
+                onUpdatePointCoord={updatePointCoordinate}
+                onUpdatePointDetails={updatePointDetails}
+                onMovePoint={moveRoutePoint}
+                onDeletePoint={deleteRoutePoint}
+                onUpdateSegmentTransport={updateSegmentTransport}
+                onImportItem={importItemToDayRoute}
+              />
+            </div>
+          )}
+
+          {activeTab === 'schedule' && scheduleSubView === 'timeline' && (
             <div className="space-y-6 pb-36 relative">
               <div 
                 className="lg:hidden sticky z-30 bg-beige/90 backdrop-blur-md border-b border-[#E0E5D5]/70 px-4 pb-2 pt-2"
@@ -890,6 +962,25 @@ export default function App() {
                </div>
 
                <div className="px-2.5 sm:px-4 pt-2">
+                  {/* 路線地圖與 Google Maps 快捷導航入口 */}
+                  <button
+                    type="button"
+                    onClick={() => setScheduleSubView('routemap')}
+                    className="w-full mb-3 p-3 rounded-2xl bg-white hover:bg-sage/10 border-2 border-beige-dark hover:border-sage text-cocoa hover:text-sage text-xs font-black flex items-center justify-between shadow-hard-sm transition-all active:scale-[0.98] cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-sage/20 text-sage flex items-center justify-center font-black text-xs">
+                        🗺️
+                      </span>
+                      <span>查看 Day {dates.find(d => d.date === selectedDate)?.dayNum || 1} 路線地圖與 Google Maps 導航</span>
+                    </span>
+                    <span className="text-[10px] font-bold text-sage bg-sage/15 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      {routePoints.filter(p => p.dayId === selectedDate).length > 0
+                        ? `${routePoints.filter(p => p.dayId === selectedDate).length} 站導航 →`
+                        : '在地圖標記 →'}
+                    </span>
+                  </button>
+
                   {isTripLoading && currentDayScheduleItems.length === 0 ? (
                     <div className="space-y-4 py-3 pl-4 sm:pl-6 animate-pulse">
                       {[1, 2, 3].map(i => (
