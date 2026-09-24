@@ -277,30 +277,6 @@ export const duplicateTrip = async (originalTripId: string): Promise<string> => 
     } catch (subErr) {
       console.warn("Failed to copy subcollection journals:", subErr);
     }
-
-    // Also copy subcollection mapPoints if any
-    try {
-      const mapPointsCol = collection(db, 'trips', originalTripId, 'mapPoints');
-      const mapPointsSnap = await getDocs(mapPointsCol);
-      for (const ptDoc of mapPointsSnap.docs) {
-        const ptData = ptDoc.data();
-        await setDoc(doc(db, 'trips', newCode, 'mapPoints', ptDoc.id), { ...ptData, tripId: newCode });
-      }
-    } catch (subErr) {
-      console.warn("Failed to copy subcollection mapPoints:", subErr);
-    }
-
-    // Also copy subcollection mapSegments if any
-    try {
-      const mapSegmentsCol = collection(db, 'trips', originalTripId, 'mapSegments');
-      const mapSegmentsSnap = await getDocs(mapSegmentsCol);
-      for (const segDoc of mapSegmentsSnap.docs) {
-        const segData = segDoc.data();
-        await setDoc(doc(db, 'trips', newCode, 'mapSegments', segDoc.id), { ...segData, tripId: newCode });
-      }
-    } catch (subErr) {
-      console.warn("Failed to copy subcollection mapSegments:", subErr);
-    }
     
     return newCode;
   } catch (error) {
@@ -389,13 +365,28 @@ export const joinTripByCode = async (code: string): Promise<any> => {
     const journalMap = new Map<string, Journal>();
     if (Array.isArray(data.journals)) {
       for (const item of data.journals) {
-        if (item && item.id) journalMap.set(String(item.id), item);
+        if (item && item.id) {
+          const photos = (Array.isArray(item.photos) && item.photos.length > 0)
+            ? item.photos
+            : (Array.isArray((item as any).images) && (item as any).images.length > 0)
+            ? (item as any).images
+            : [];
+          journalMap.set(String(item.id), { ...item, photos });
+        }
       }
     }
     if (journalSnap) {
       for (const d of journalSnap.docs) {
         const item = d.data() as Journal;
-        if (item && item.id) journalMap.set(String(item.id), item);
+        if (item && item.id) {
+          const prev = journalMap.get(String(item.id));
+          const photos = (Array.isArray(item.photos) && item.photos.length > 0)
+            ? item.photos
+            : (Array.isArray((item as any).images) && (item as any).images.length > 0)
+            ? (item as any).images
+            : (prev?.photos || []);
+          journalMap.set(String(item.id), { ...(prev || {}), ...item, photos });
+        }
       }
     }
     const finalJournals = Array.from(journalMap.values());
@@ -607,25 +598,35 @@ export const saveJournalItem = async (tripId: string, journal: Journal): Promise
   if (!tripId || !journal || !journal.id) return;
   return queueWrite(async () => {
     try {
-      if (Array.isArray(journal.images) && journal.images.length > 0) {
-        const sanitizedImages: string[] = [];
-        for (const img of journal.images) {
-          if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 380000) {
-            sanitizedImages.push(await compressBase64IfNeeded(img, 1200, 320000));
+      // Gather photos from both photos and legacy images fields
+      const rawPhotos = Array.isArray(journal.photos) && journal.photos.length > 0
+        ? journal.photos
+        : Array.isArray((journal as any).images) && (journal as any).images.length > 0
+        ? (journal as any).images
+        : [];
+
+      if (rawPhotos.length > 0) {
+        const sanitizedPhotos: string[] = [];
+        for (const img of rawPhotos) {
+          if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 250000) {
+            sanitizedPhotos.push(await compressBase64IfNeeded(img, 1200, 200000));
           } else {
-            sanitizedImages.push(img);
+            sanitizedPhotos.push(img);
           }
         }
-        journal = { ...journal, images: sanitizedImages };
+        journal = { ...journal, photos: sanitizedPhotos, images: sanitizedPhotos } as any;
       }
 
       let cleaned = cleanData(journal);
 
+      // Check total estimated payload size (journal subcollection doc limit is 1,048,576 bytes)
       const payloadSize = JSON.stringify(cleaned).length;
-      if (payloadSize > 880000 && Array.isArray(cleaned.images)) {
-        cleaned.images = await Promise.all(
-          cleaned.images.map((img: string) => compressBase64IfNeeded(img, 1000, 200000))
+      if (payloadSize > 820000 && Array.isArray(cleaned.photos) && cleaned.photos.length > 0) {
+        const perImageBudget = Math.floor(650000 / cleaned.photos.length);
+        cleaned.photos = await Promise.all(
+          cleaned.photos.map((img: string) => compressBase64IfNeeded(img, 1000, perImageBudget))
         );
+        cleaned.images = cleaned.photos;
       }
 
       const itemRef = doc(db, 'trips', tripId, 'journals', String(journal.id));
@@ -636,10 +637,14 @@ export const saveJournalItem = async (tripId: string, journal: Journal): Promise
         const isSizeError = setErr?.message?.includes('size') || setErr?.message?.includes('1,048,576') || setErr?.message?.includes('too large');
         if (isSizeError) {
           console.warn("Firestore journal size exceeded, applying emergency compression...", setErr);
-          if (Array.isArray(cleaned.images)) {
-            cleaned.images = await Promise.all(
-              cleaned.images.map((img: string) => compressBase64IfNeeded(img, 900, 140000))
+          const targetArray = Array.isArray(cleaned.photos) && cleaned.photos.length > 0 ? cleaned.photos : cleaned.images;
+          if (Array.isArray(targetArray) && targetArray.length > 0) {
+            const emergencyBudget = Math.floor(450000 / targetArray.length);
+            const compressed = await Promise.all(
+              targetArray.map((img: string) => compressBase64IfNeeded(img, 850, emergencyBudget))
             );
+            cleaned.photos = compressed;
+            cleaned.images = compressed;
             await setDoc(itemRef, cleaned);
           } else {
             throw setErr;
@@ -762,13 +767,24 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
       if (Array.isArray(currentTripData.journals)) {
         for (const item of currentTripData.journals) {
           if (item && item.id) {
-            journalMap.set(String(item.id), item);
+            const photos = (Array.isArray(item.photos) && item.photos.length > 0)
+              ? item.photos
+              : (Array.isArray((item as any).images) && (item as any).images.length > 0)
+              ? (item as any).images
+              : [];
+            journalMap.set(String(item.id), { ...item, photos });
           }
         }
       }
       for (const item of subcollectionJournals) {
         if (item && item.id) {
-          journalMap.set(String(item.id), item);
+          const prev = journalMap.get(String(item.id));
+          const photos = (Array.isArray(item.photos) && item.photos.length > 0)
+            ? item.photos
+            : (Array.isArray((item as any).images) && (item as any).images.length > 0)
+            ? (item as any).images
+            : (prev?.photos || []);
+          journalMap.set(String(item.id), { ...(prev || {}), ...item, photos });
         }
       }
       const finalJournals = Array.from(journalMap.values());

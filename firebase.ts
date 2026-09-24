@@ -49,12 +49,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 // Initialize Firestore with pure in-memory cache to prevent WriteStream queue exhaustion
-// and enable auto-detect long polling to prevent HTTP/2 write stream buffering issues in containerized/iframe environments
+// and force long polling immediately to eliminate the 15-20s probe timeout delay in iframes and proxies
 let db: ReturnType<typeof getFirestore>;
 try {
   db = initializeFirestore(app, {
     localCache: memoryLocalCache(),
-    experimentalAutoDetectLongPolling: true
+    experimentalForceLongPolling: true
   });
 } catch (err) {
   console.warn('Memory local cache init fallback:', err);

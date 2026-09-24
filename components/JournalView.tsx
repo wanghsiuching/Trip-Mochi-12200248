@@ -318,7 +318,11 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                         const currentAuthorId = commentAuthors[journal.id] || members[0]?.id;
                         const currentAuthor = members.find(m => m.id === currentAuthorId);
                         const journalAuthorMember = members.find(mem => mem.name === journal.author);
-                        const photos = journal.photos || [];
+                        const photos = (Array.isArray(journal.photos) && journal.photos.length > 0)
+                          ? journal.photos
+                          : (Array.isArray((journal as any).images) && (journal as any).images.length > 0)
+                          ? (journal as any).images
+                          : [];
                         
                         return (
                         <div key={journal.id} className="bg-white rounded-[2rem] p-5 shadow-hard-sm border-2 border-beige-dark flex flex-col relative group hover:-translate-y-1 transition-transform duration-300">
@@ -363,6 +367,8 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                                       src={photos[0]} 
                                       alt="日誌照片" 
                                       referrerPolicy="no-referrer"
+                                      loading="eager"
+                                      decoding="async"
                                       className="w-full h-full object-cover group-hover/single:scale-105 transition-transform duration-300" 
                                     />
                                   </div>
@@ -378,6 +384,8 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                                           src={p} 
                                           alt={`照片 ${idx + 1}`} 
                                           referrerPolicy="no-referrer"
+                                          loading="eager"
+                                          decoding="async"
                                           className="w-full h-full object-cover group-hover/photo:scale-105 transition-transform duration-300" 
                                         />
                                       </div>
@@ -395,6 +403,8 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                                           src={p} 
                                           alt={`照片 ${idx + 1}`} 
                                           referrerPolicy="no-referrer"
+                                          loading="eager"
+                                          decoding="async"
                                           className="w-full h-full object-cover group-hover/photo:scale-105 transition-transform duration-300" 
                                         />
                                       </div>
@@ -412,6 +422,8 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
                                           src={p} 
                                           alt={`照片 ${idx + 1}`} 
                                           referrerPolicy="no-referrer"
+                                          loading="eager"
+                                          decoding="async"
                                           className="w-full h-full object-cover group-hover/photo:scale-105 transition-transform duration-300" 
                                         />
                                         {idx === 2 && photos.length > 3 && (
