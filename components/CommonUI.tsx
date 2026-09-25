@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Calendar, Ticket, Wallet, BookOpen, CheckSquare, Users, Plane, Map } from 'lucide-react';
+import { Calendar, Ticket, Wallet, BookOpen, CheckSquare, Users, Plane } from 'lucide-react';
 import { Tab, THEME } from '../types';
 
 export const Card = ({ children, className = '', onClick }: { children?: React.ReactNode, className?: string, onClick?: () => void }) => (
@@ -59,7 +59,6 @@ export const BoardingPass = () => (
 export const BottomNav = ({ activeTab, setTab }: { activeTab: Tab, setTab: (t: Tab) => void }) => {
   const tabs = [
     { id: 'schedule', icon: Calendar, label: '行程' },
-    { id: 'map', icon: Map, label: '路線' },
     { id: 'bookings', icon: Ticket, label: '預訂' },
     { id: 'expense', icon: Wallet, label: '記帳' },
     { id: 'journal', icon: BookOpen, label: '日誌' },
