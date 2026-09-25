@@ -18,6 +18,9 @@ export default defineConfig(({ mode }) => {
           includeAssets: ['icon.jpg', 'icon.png', 'icon.svg', 'apple-touch-icon.png'],
           workbox: {
             maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+            skipWaiting: true,
+            clientsClaim: true,
+            cleanupOutdatedCaches: true,
           },
           manifest: {
             name: 'Trip Mochi',
