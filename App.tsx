@@ -4,18 +4,18 @@ import {
   MapPin, ArrowRight, Plane, Plus, X, Copy, BookOpen, ChevronLeft, Trash2,
   ChevronUp, ChevronDown, Navigation, StickyNote, Settings, AlertCircle, 
   CalendarCheck, Coins, Edit3, Users, Luggage, Briefcase, Bed, Car, Coffee, Utensils, ShoppingBag, Fuel, Ticket, Clock,
-  Train, Camera, Compass, Share2, Loader2, Bookmark, Layers
+  Train, Camera, Compass, Share2, Loader2, Bookmark, Layers, Lightbulb, Eye
 } from 'lucide-react';
 
 import { 
-  Tab, ViewState, ScheduleItem, SavedTrip, Currency, Member, THEME, TripDay,
+  Tab, ViewState, ScheduleItem, SavedTrip, Currency, Member, THEME, TripDay, TripTipItem,
   BookingFlight, BookingAccommodation, BookingCarRental, BookingTicket, Expense, Journal, TodoItem,
   PocketItem, TravelDocument
 } from './types';
 import { BottomNav } from './components/CommonUI';
 import { 
   AddScheduleModal, CreateTripModal, DeleteConfirmModal, SearchErrorModal, DeleteItemConfirmModal, TripSettingsModal, PotentialExpensesModal, EditDayDetailsModal, DeleteDayConfirmModal, BackupConfirmModal, ScheduleDetailModal, SwapDaysConfirmModal,
-  ShareTripModal, MoveItemConfirmModal
+  ShareTripModal, MoveItemConfirmModal, DayTipModal, TripTipsCenterModal, DeleteTipConfirmModal
 } from './components/modals';
 import { Lightbox } from './components/Lightbox';
 import { PocketPlacesModal } from './components/PocketPlacesModal';
@@ -226,6 +226,57 @@ export default function App() {
   const currentLocation = currentDayObj?.location || '旅行地點';
   const currentFruit = currentDayObj?.fruit || '🍎';
 
+  // 旅遊 TIP 系統狀態
+  const [isDayTipModalOpen, setIsDayTipModalOpen] = useState(false);
+  const [isTipsCenterOpen, setIsTipsCenterOpen] = useState(false);
+  const [tipsCenterInitialTab, setTipsCenterInitialTab] = useState<'daily' | 'general' | 'photos'>('daily');
+  const [tripTips, setTripTips] = useState<TripTipItem[]>([]);
+  const [dayTipToDeleteDate, setDayTipToDeleteDate] = useState<string | null>(null);
+
+  const currentDayIndex = tripDays.findIndex(d => d.date === selectedDate);
+  const currentDayNumber = currentDayIndex >= 0 ? currentDayIndex + 1 : 1;
+  const hasCurrentDayTip = Boolean(
+    currentDayObj && (
+      (currentDayObj.tip && currentDayObj.tip.trim().length > 0) ||
+      (currentDayObj.tipTitle && currentDayObj.tipTitle.trim().length > 0) ||
+      (Array.isArray(currentDayObj.tipPhotos) && currentDayObj.tipPhotos.length > 0)
+    )
+  );
+  const hasCurrentDayTipPhotos = Boolean(
+    Array.isArray(currentDayObj?.tipPhotos) && currentDayObj.tipPhotos.length > 0
+  );
+
+  const handleSaveDayTip = useCallback((date: string, tipTitle: string, tip: string, tipPhotos: string[]) => {
+    setTripDays(prev => {
+      const updated = prev.map(d => {
+        if (d.date === date) {
+          return {
+            ...d,
+            tipTitle: tipTitle.trim(),
+            tip: tip.trim(),
+            tipPhotos: tipPhotos
+          };
+        }
+        return d;
+      });
+      if (currentTripId) {
+        updateTripField(currentTripId, 'tripDays', updated).catch(err => {
+          console.error('Failed to update tripDays tip:', err);
+        });
+      }
+      return updated;
+    });
+  }, [currentTripId, setTripDays]);
+
+  const handleUpdateTripTips = useCallback((newTips: TripTipItem[]) => {
+    setTripTips(newTips);
+    if (currentTripId) {
+      updateTripField(currentTripId, 'tripTips', newTips).catch(err => {
+        console.error('Failed to update tripTips:', err);
+      });
+    }
+  }, [currentTripId]);
+
   const getACFruit = (str: string) => {
       const fruits = ['🍎', '🍊', '🍐', '🍑', '🍒', '🥥'];
       if (!str) return '✈️';
@@ -314,6 +365,7 @@ export default function App() {
     if (Array.isArray(data.currencies)) setCurrencies(data.currencies);
     if (Array.isArray(data.members)) setMembers(data.members);
     if (Array.isArray(data.pocketItems)) setPocketItems(data.pocketItems);
+    if (Array.isArray(data.tripTips)) setTripTips(data.tripTips);
   }, [
     setTripDays,
     setSelectedDate,
@@ -345,6 +397,7 @@ export default function App() {
     setCurrencies([]);
     setMembers([]);
     setPocketItems([]);
+    setTripTips([]);
   }, [
     setTripDays,
     setSelectedDate,
@@ -777,6 +830,20 @@ export default function App() {
             >
               <Share2 size={13} strokeWidth={2.5} className="group-hover:rotate-12 transition-transform"/> 分享行程
             </button>
+            <button 
+              type="button"
+              onClick={() => { setTipsCenterInitialTab('daily'); setIsTipsCenterOpen(true); }}
+              className="text-xs font-black text-amber-900 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-xl border-2 border-amber-200/90 hover:border-amber-400 flex items-center gap-1.5 shadow-hard-sm transition-all active:scale-95 group cursor-pointer"
+              title="全旅程 TIP 中心 (每日摘要、通用須知、照片圖庫)"
+            >
+              <Lightbulb size={13} strokeWidth={2.5} className="text-amber-500 fill-amber-400 group-hover:scale-110 transition-transform"/> 
+              <span>旅程 TIP 中心</span>
+              {tripTips.length > 0 && (
+                <span className="bg-amber-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-mono leading-none">
+                  {tripTips.length}
+                </span>
+              )}
+            </button>
             {isTripLoading && (
               <span className="text-[11px] font-bold text-sage bg-white/90 border border-sage/30 px-2.5 py-1 rounded-xl flex items-center gap-1.5 shadow-sm">
                 <Loader2 size={12} className="animate-spin text-sage" /> 同步手帳中...
@@ -793,8 +860,37 @@ export default function App() {
                 style={{ top: 'env(safe-area-inset-top, 0px)' }}
               >
                  <div className="flex items-center justify-between mb-2 px-1">
-                    <button onClick={() => setIsEditDayModalOpen(true)} className="text-sm font-black text-cocoa flex items-center gap-1.5"><CalendarCheck size={14} className="text-sage" /> 行程日期 <Edit3 size={10} className="text-gray-300"/></button>
-                    <div className="flex items-center gap-2 flex-wrap justify-end min-w-0">{tripDays.length > 1 && <button onClick={() => setIsDeleteDayModalOpen(true)} className="p-1.5 bg-red-100 text-red-500 rounded-full border border-red-200 flex-shrink-0"><Trash2 size={12} /></button>}<button onClick={() => setIsEditDayModalOpen(true)} className="text-[10px] font-bold px-2.5 py-1 rounded-full border bg-white border-[#E0E5D5] text-cocoa flex items-center gap-1 shadow-sm max-w-full text-left leading-tight"><span className="break-words">{currentFruit} {currentLocation}</span></button></div>
+                    <div className="flex items-center gap-1.5">
+                      <button onClick={() => setIsEditDayModalOpen(true)} className="text-sm font-black text-cocoa flex items-center gap-1.5 hover:text-sage transition-colors">
+                        <CalendarCheck size={14} className="text-sage" /> 行程日期 <Edit3 size={10} className="text-gray-300"/>
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setIsDayTipModalOpen(true)}
+                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-black border transition-all flex items-center gap-1 shadow-xs active:scale-95 ${
+                          hasCurrentDayTip 
+                            ? 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 shadow-sm' 
+                            : 'bg-white/90 text-gray-500 border-dashed border-[#E0E5D5] hover:border-amber-400 hover:text-amber-700'
+                        }`}
+                        title="編輯與檢視今日旅遊 TIP 摘要及照片"
+                      >
+                        <Lightbulb size={11} className={hasCurrentDayTip ? "text-amber-600 fill-amber-400" : "text-amber-500"} />
+                        <span>{hasCurrentDayTip ? '今日 TIP' : '+ 今日 TIP'}</span>
+                        {hasCurrentDayTipPhotos && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block animate-pulse"></span>
+                        )}
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap justify-end min-w-0">
+                      {tripDays.length > 1 && (
+                        <button onClick={() => setIsDeleteDayModalOpen(true)} className="p-1.5 bg-red-100 text-red-500 rounded-full border border-red-200 flex-shrink-0" title="刪除此天">
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                      <button onClick={() => setIsEditDayModalOpen(true)} className="text-[10px] font-bold px-2.5 py-1 rounded-full border bg-white border-[#E0E5D5] text-cocoa flex items-center gap-1 shadow-sm max-w-full text-left leading-tight">
+                        <span className="break-words">{currentFruit} {currentLocation}</span>
+                      </button>
+                    </div>
                  </div>
                  
                  {isTripLoading && dates.length === 0 ? (
@@ -906,6 +1002,61 @@ export default function App() {
                </div>
 
                <div className="px-2.5 sm:px-4 pt-2">
+                  {/* 今日旅遊 TIP 摘要卡片 (Daily TIP Summary Card) */}
+                  {hasCurrentDayTip && currentDayObj && (
+                    <div className="mb-4 bg-gradient-to-br from-amber-50/95 via-orange-50/50 to-white rounded-2xl border-2 border-amber-200/90 p-3.5 shadow-hard-sm relative overflow-hidden transition-all hover:border-amber-300">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-lg bg-amber-400 text-white flex items-center justify-center shadow-xs flex-shrink-0">
+                            <Lightbulb size={13} className="fill-white" />
+                          </div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[10px] font-black text-amber-800 uppercase tracking-wider bg-amber-100/90 px-2 py-0.5 rounded-md border border-amber-200/60">
+                              Day {currentDayNumber} TIP 摘要
+                            </span>
+                            {currentDayObj.tipTitle && (
+                              <h4 className="text-xs sm:text-sm font-black text-cocoa">{currentDayObj.tipTitle}</h4>
+                            )}
+                          </div>
+                        </div>
+                        <button 
+                          type="button"
+                          onClick={() => setIsDayTipModalOpen(true)}
+                          className="text-[11px] font-black text-amber-800 bg-white hover:bg-amber-100/80 border border-amber-200 px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-2xs transition-all active:scale-95 cursor-pointer flex-shrink-0"
+                          title="編輯今日 TIP"
+                        >
+                          <Edit3 size={11} />
+                          <span>編輯</span>
+                        </button>
+                      </div>
+
+                      {currentDayObj.tip && (
+                        <p className="text-xs font-bold text-[#5c4a38] leading-relaxed whitespace-pre-wrap pl-8 mb-2.5">
+                          {currentDayObj.tip}
+                        </p>
+                      )}
+
+                      {/* 相片縮圖 (點擊可放大預覽) */}
+                      {currentDayObj.tipPhotos && currentDayObj.tipPhotos.length > 0 && (
+                        <div className="pl-8 flex items-center gap-2 overflow-x-auto no-scrollbar py-1">
+                          {currentDayObj.tipPhotos.map((photo, pIdx) => (
+                            <div 
+                              key={pIdx}
+                              onClick={() => setLightboxState({ images: currentDayObj.tipPhotos || [], index: pIdx })}
+                              className="w-14 h-14 rounded-xl border border-amber-200/80 overflow-hidden flex-shrink-0 cursor-pointer shadow-xs hover:opacity-90 active:scale-95 transition-all bg-white relative group"
+                              title="點擊查看相片"
+                            >
+                              <img src={photo} alt={`Day ${currentDayNumber} Tip Photo ${pIdx + 1}`} className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                <Eye size={12} className="text-white drop-shadow" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {isTripLoading && currentDayScheduleItems.length === 0 ? (
                     <div className="space-y-4 py-3 pl-4 sm:pl-6 animate-pulse">
                       {[1, 2, 3].map(i => (
@@ -1328,6 +1479,42 @@ export default function App() {
           onUpdateItem={handleUpdatePocketItem}
           onDeleteItem={handleDeletePocketItem}
           onAddToSchedule={handleAddToScheduleFromPocket}
+        />
+        <DayTipModal
+          isOpen={isDayTipModalOpen}
+          onClose={() => setIsDayTipModalOpen(false)}
+          day={currentDayObj || null}
+          dayNum={currentDayNumber}
+          onSaveDayTip={handleSaveDayTip}
+          onOpenTipsCenter={() => {
+            setIsDayTipModalOpen(false);
+            setTipsCenterInitialTab('daily');
+            setIsTipsCenterOpen(true);
+          }}
+          onOpenLightbox={(images, index) => setLightboxState({ images, index })}
+        />
+        <TripTipsCenterModal
+          isOpen={isTipsCenterOpen}
+          onClose={() => setIsTipsCenterOpen(false)}
+          tripDays={tripDays}
+          tripTips={tripTips}
+          onUpdateTripTips={handleUpdateTripTips}
+          onUpdateDayTip={handleSaveDayTip}
+          onOpenLightbox={(images, index) => setLightboxState({ images, index })}
+          initialTab={tipsCenterInitialTab}
+        />
+        <DeleteTipConfirmModal
+          isOpen={!!dayTipToDeleteDate}
+          onClose={() => setDayTipToDeleteDate(null)}
+          onConfirm={() => {
+            if (dayTipToDeleteDate) {
+              handleSaveDayTip(dayTipToDeleteDate, '', '', []);
+              setDayTipToDeleteDate(null);
+            }
+          }}
+          title={`Day ${currentDayNumber} (${currentDayObj?.location || '當日'}) 旅遊 TIP`}
+          subtitle="確定要清空今天的所有備忘筆記與相片嗎？"
+          zIndex="z-[80]"
         />
         <BottomNav activeTab={activeTab} setTab={setActiveTab} />
         {lightboxState && (

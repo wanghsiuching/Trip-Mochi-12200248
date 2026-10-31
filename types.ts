@@ -124,6 +124,22 @@ export interface TripDay {
   date: string; // YYYY-MM-DD
   location: string;
   fruit?: string; // Icon for the day
+  tip?: string; // 每日旅遊小提醒 / TIP 摘要內容
+  tipTitle?: string; // 每日 TIP 標題 (例如 "高山防寒與少女峰換票須知")
+  tipPhotos?: string[]; // 每日 TIP 附帶的照片 (支援多張，可放大檢視)
+}
+
+export interface TripTipItem {
+  id: string;
+  tripId?: string;
+  date?: string; // YYYY-MM-DD: 若為特定日期行程 TIP，為該天日期；若為空或 'global'，為全域通用須知
+  title: string;
+  content: string;
+  category?: 'general' | 'transport' | 'weather' | 'ticket' | 'shopping' | 'food' | 'custom';
+  images?: string[]; // 上傳照片 (支援多張)
+  pinned?: boolean;
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 export interface TripDate extends TripDay {

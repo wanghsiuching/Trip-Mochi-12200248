@@ -14,3 +14,6 @@ export { SwapDaysConfirmModal } from './SwapDaysConfirmModal';
 export { ShareTripModal } from './ShareTripModal';
 export { MoveItemConfirmModal } from './MoveItemConfirmModal';
 export { ExportPdfModal } from './ExportPdfModal';
+export { DayTipModal } from './DayTipModal';
+export { TripTipsCenterModal } from './TripTipsCenterModal';
+export { DeleteTipConfirmModal } from './DeleteTipConfirmModal';
