@@ -859,37 +859,57 @@ export default function App() {
                 className="lg:hidden sticky z-30 bg-beige/90 backdrop-blur-md border-b border-[#E0E5D5]/70 px-4 pb-2 pt-2"
                 style={{ top: 'env(safe-area-inset-top, 0px)' }}
               >
-                 <div className="flex items-center justify-between mb-2 px-1">
-                    <div className="flex items-center gap-1.5">
-                      <button onClick={() => setIsEditDayModalOpen(true)} className="text-sm font-black text-cocoa flex items-center gap-1.5 hover:text-sage transition-colors">
-                        <CalendarCheck size={14} className="text-sage" /> 行程日期 <Edit3 size={10} className="text-gray-300"/>
+                 <div className="flex items-center justify-between gap-1.5 mb-2 px-1 flex-nowrap overflow-x-auto no-scrollbar">
+                    {/* Left: 行程日期標題與今日 TIP 按鈕 */}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <button 
+                        type="button"
+                        onClick={() => setIsEditDayModalOpen(true)} 
+                        className="text-xs sm:text-sm font-black text-cocoa flex items-center gap-1 hover:text-sage transition-colors whitespace-nowrap cursor-pointer flex-shrink-0"
+                        title="編輯行程日期與地點"
+                      >
+                        <CalendarCheck size={14} className="text-sage flex-shrink-0" />
+                        <span className="whitespace-nowrap">行程日期</span>
+                        <Edit3 size={10} className="text-gray-300 flex-shrink-0" />
                       </button>
                       <button 
                         type="button"
                         onClick={() => setIsDayTipModalOpen(true)}
-                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-black border transition-all flex items-center gap-1 shadow-xs active:scale-95 ${
+                        className={`px-2 py-0.5 rounded-full text-[11px] font-black border transition-all flex items-center gap-1 shadow-xs active:scale-95 whitespace-nowrap flex-shrink-0 cursor-pointer ${
                           hasCurrentDayTip 
                             ? 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 shadow-sm' 
                             : 'bg-white/90 text-gray-500 border-dashed border-[#E0E5D5] hover:border-amber-400 hover:text-amber-700'
                         }`}
                         title="編輯與檢視今日旅遊 TIP 摘要及照片"
                       >
-                        <Lightbulb size={11} className={hasCurrentDayTip ? "text-amber-600 fill-amber-400" : "text-amber-500"} />
-                        <span>{hasCurrentDayTip ? '今日 TIP' : '+ 今日 TIP'}</span>
+                        <Lightbulb size={11} className={hasCurrentDayTip ? "text-amber-600 fill-amber-400 flex-shrink-0" : "text-amber-500 flex-shrink-0"} />
+                        <span className="whitespace-nowrap">{hasCurrentDayTip ? '今日 TIP' : '+ 今日 TIP'}</span>
                         {hasCurrentDayTipPhotos && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block animate-pulse"></span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block animate-pulse flex-shrink-0"></span>
                         )}
                       </button>
                     </div>
-                    <div className="flex items-center gap-2 flex-wrap justify-end min-w-0">
+
+                    {/* Right: 當日主題/地點標籤（完整顯示，絕無 ... 省略符號）與刪除天按鈕 */}
+                    <div className="flex items-center gap-1.5 justify-end flex-shrink-0">
+                      <button 
+                        type="button"
+                        onClick={() => setIsEditDayModalOpen(true)} 
+                        className="text-[10px] sm:text-[11px] font-bold px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border bg-white border-[#E0E5D5] text-cocoa flex items-center gap-1 shadow-2xs hover:border-sage transition-colors cursor-pointer whitespace-nowrap flex-shrink-0"
+                        title={`${currentFruit} ${currentLocation || '行程地點'}`}
+                      >
+                        <span className="whitespace-nowrap">{currentFruit} {currentLocation || '行程地點'}</span>
+                      </button>
                       {tripDays.length > 1 && (
-                        <button onClick={() => setIsDeleteDayModalOpen(true)} className="p-1.5 bg-red-100 text-red-500 rounded-full border border-red-200 flex-shrink-0" title="刪除此天">
-                          <Trash2 size={12} />
+                        <button 
+                          type="button"
+                          onClick={() => setIsDeleteDayModalOpen(true)} 
+                          className="w-6 h-6 rounded-full bg-red-50 hover:bg-red-100 text-red-500 border border-red-200 flex items-center justify-center flex-shrink-0 transition-colors shadow-2xs active:scale-95 cursor-pointer" 
+                          title="刪除此天"
+                        >
+                          <Trash2 size={11} />
                         </button>
                       )}
-                      <button onClick={() => setIsEditDayModalOpen(true)} className="text-[10px] font-bold px-2.5 py-1 rounded-full border bg-white border-[#E0E5D5] text-cocoa flex items-center gap-1 shadow-sm max-w-full text-left leading-tight">
-                        <span className="break-words">{currentFruit} {currentLocation}</span>
-                      </button>
                     </div>
                  </div>
                  

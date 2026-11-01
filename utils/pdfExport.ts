@@ -976,9 +976,9 @@ export const generateTripPdfHtml = (data: TripExportData): string => {
         page-break-before: always;
         break-before: page;
       }
-      .section-card, .day-container, .booking-item {
-        page-break-inside: avoid;
-        break-inside: avoid;
+      .section-card, .day-container, .booking-item, .schedule-timeline-item, .pocket-card, .checklist-card, tr, .category-row, .member-total-box, .member-breakdown-card, .stat-badge {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
     }
 
@@ -2295,21 +2295,34 @@ export const exportTripToPdfFile = async (
       windowWidth: 800,
     });
 
-    onProgress?.('正在封裝生成 A4 PDF 檔案...', 88);
+    onProgress?.('正在智能計算 A4 頁面與卡片防裁切邊界...', 82);
     const pdf = new jsPDF('p', 'mm', 'a4');
     const pdfWidth = 210;
     const pdfHeight = 297;
 
-    // 計算每頁對應的 canvas 高度 (依照 A4 寬高比 297 / 210)
+    // 計算每頁對應的標準 canvas 高度 (依照 A4 寬高比 297 / 210)
     const pageCanvasHeight = (canvas.width * pdfHeight) / pdfWidth;
-    const totalPages = Math.ceil(canvas.height / pageCanvasHeight);
 
-    for (let page = 0; page < totalPages; page++) {
-      if (page > 0) {
-        pdf.addPage();
+    // 蒐集不可被中途裁切的卡片元素，進行智能邊界避讓
+    const domToCanvasRatio = canvas.width / (container.offsetWidth || 800);
+    const containerTop = container.getBoundingClientRect().top;
+    const avoidCutElements = container.querySelectorAll(
+      '.journal-cover, .section-card, .day-container, .schedule-timeline-item, .booking-item, .pocket-card, .checklist-card, tr, .category-row, .member-total-box, .member-overview-card'
+    );
+
+    const protectedZones: { top: number; bottom: number }[] = [];
+    avoidCutElements.forEach(el => {
+      const rect = el.getBoundingClientRect();
+      const elTop = (rect.top - containerTop) * domToCanvasRatio;
+      const elBottom = (rect.bottom - containerTop) * domToCanvasRatio;
+      // 只要區塊高度小於單頁高 85%，就納入防切保護
+      if (elBottom - elTop < pageCanvasHeight * 0.85) {
+        protectedZones.push({ top: elTop, bottom: elBottom });
       }
+    });
 
-      // 切割每一頁 canvas
+    // 智能分頁渲染器
+    const renderSliceToPdf = (sourceY: number, sliceHeight: number) => {
       const pageCanvas = document.createElement('canvas');
       pageCanvas.width = canvas.width;
       pageCanvas.height = pageCanvasHeight;
@@ -2319,18 +2332,50 @@ export const exportTripToPdfFile = async (
         pageCtx.fillStyle = '#FAF8F2';
         pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvasHeight);
 
-        const sourceY = page * pageCanvasHeight;
-        const sourceHeight = Math.min(pageCanvasHeight, canvas.height - sourceY);
-
         pageCtx.drawImage(
           canvas,
-          0, sourceY, canvas.width, sourceHeight,
-          0, 0, canvas.width, sourceHeight
+          0, sourceY, canvas.width, sliceHeight,
+          0, 0, canvas.width, sliceHeight
         );
 
         const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.95);
         pdf.addImage(pageImgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
       }
+    };
+
+    let currentY = 0;
+    let pageIndex = 0;
+
+    while (currentY < canvas.height) {
+      if (pageIndex > 0) {
+        pdf.addPage();
+      }
+
+      let targetEnd = currentY + pageCanvasHeight;
+
+      if (targetEnd >= canvas.height) {
+        // 最後一頁
+        const sliceHeight = canvas.height - currentY;
+        renderSliceToPdf(currentY, sliceHeight);
+        break;
+      }
+
+      // 檢查 targetEnd 是否正好切到了任何受保護區塊
+      const cutZone = protectedZones.find(z => z.top < targetEnd && z.bottom > targetEnd);
+      let actualEnd = targetEnd;
+
+      if (cutZone) {
+        // 如果該區塊距本頁開頭超過 30% 頁高，就將切頁點提前到該區塊前，將整個區塊留到下一頁頂部
+        if (cutZone.top - currentY > pageCanvasHeight * 0.3) {
+          actualEnd = Math.floor(cutZone.top) - 6; // 預留 6px 留白
+        }
+      }
+
+      const sliceHeight = actualEnd - currentY;
+      renderSliceToPdf(currentY, sliceHeight);
+
+      currentY = actualEnd;
+      pageIndex++;
     }
 
     onProgress?.('正在儲存 PDF 檔案...', 98);
