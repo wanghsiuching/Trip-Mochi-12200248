@@ -1,5 +1,5 @@
-
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Member, ScheduleItem, Currency, Expense } from '../types';
 import { User, PenTool, X, Lock, Plus, Info, DollarSign, Navigation, Calendar, ArrowRight, CheckCircle2, Clock, Edit2, Trash2, Sparkles, Smile } from 'lucide-react';
 import { AvatarPickerModal } from './AvatarPickerModal';
@@ -183,7 +183,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
   const financial = selectedMemberId ? calculateMemberCosts(selectedMemberId) : { totalPotential: 0, breakdown: [] };
 
   return (
-    <div className="space-y-6 p-4 lg:p-0 pb-24 lg:pb-0 h-full overflow-y-auto custom-scroll animate-scale-in">
+    <div className="space-y-6 p-4 lg:p-0 pb-24 lg:pb-0 h-full overflow-y-auto custom-scroll animate-fade-in">
         <div className="flex justify-between items-center px-1">
             <div>
               <h2 className="text-xl font-black text-cocoa flex items-center gap-2">
@@ -245,14 +245,17 @@ export const MembersView: React.FC<MembersViewProps> = ({
         </div>
 
         {/* Member Details Modal */}
-        {selectedMemberId && selectedMemberData && (
-            <div className="fixed inset-0 bg-cocoa/60 z-[150] flex flex-col items-center justify-end sm:justify-center sm:p-4 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedMemberId(null)}>
-                <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-lg sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col overflow-hidden relative" onClick={e => e.stopPropagation()}>
+        {selectedMemberId && selectedMemberData && createPortal(
+            <div className="fixed inset-0 bg-cocoa/60 z-[300] flex flex-col items-center justify-end sm:justify-center sm:p-4 backdrop-blur-sm animate-fade-in" onClick={() => setSelectedMemberId(null)}>
+                <div 
+                  className="bg-[#FAF8F2] w-full h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:max-w-lg sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col overflow-hidden relative pt-[max(1.25rem,calc(env(safe-area-inset-top)+0.5rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom)+0.5rem))]" 
+                  onClick={e => e.stopPropagation()}
+                >
                     <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                         <div className="flex items-center gap-2">
                             <span className="text-xs font-black text-sage bg-sage-light/60 px-2.5 py-1 rounded-full">成員詳細資料</span>
                         </div>
-                        <button onClick={() => setSelectedMemberId(null)} className="p-2.5 bg-white rounded-full text-gray-400 border border-beige-dark shadow-sm hover:text-red-400 transition-colors active:scale-95"><X size={18}/></button>
+                        <button onClick={() => setSelectedMemberId(null)} className="p-2.5 bg-white rounded-full text-gray-400 border border-beige-dark shadow-sm hover:text-red-400 transition-colors active:scale-95 cursor-pointer"><X size={18}/></button>
                     </div>
                     
                     <div className="overflow-y-auto custom-scroll flex-1 py-4 pr-1 space-y-5">
@@ -269,7 +272,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                                     />
                                 </div>
                                 <button 
-                                  className="absolute -bottom-1 -right-1 bg-sage text-white p-2.5 rounded-full border-2 border-white shadow-md hover:bg-sage-dark transition-all text-xs flex items-center gap-1"
+                                  className="absolute -bottom-1 -right-1 bg-sage text-white p-2.5 rounded-full border-2 border-white shadow-md hover:bg-sage-dark transition-all text-xs flex items-center gap-1 cursor-pointer"
                                   title="更換可愛頭像"
                                 >
                                   <Smile size={16} strokeWidth={2.5} />
@@ -278,14 +281,14 @@ export const MembersView: React.FC<MembersViewProps> = ({
                             
                             <div className="flex items-center gap-2 mt-3">
                                <h3 className="text-2xl font-black text-cocoa flex items-center gap-2">{selectedMemberData.name}</h3>
-                               <button onClick={() => handleEditInit(selectedMemberData)} className="p-2 bg-white rounded-xl border border-beige-dark text-gray-400 hover:text-sage transition-colors shadow-sm" title="編輯名稱">
+                               <button onClick={() => handleEditInit(selectedMemberData)} className="p-2 bg-white rounded-xl border border-beige-dark text-gray-400 hover:text-sage transition-colors shadow-sm cursor-pointer" title="編輯名稱">
                                  <Edit2 size={15} />
                                </button>
                             </div>
 
                             <button 
                               onClick={handleOpenAvatarPickerForSelected}
-                              className="mt-2.5 text-xs font-black text-sage bg-white hover:bg-sage-light/40 px-3.5 py-1.5 rounded-full border border-sage/40 shadow-xs flex items-center gap-1.5 transition-all active:scale-95"
+                              className="mt-2.5 text-xs font-black text-sage bg-white hover:bg-sage-light/40 px-3.5 py-1.5 rounded-full border border-sage/40 shadow-xs flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
                             >
                               <Sparkles size={14} />
                               <span>更換可愛人臉頭像</span>
@@ -328,28 +331,29 @@ export const MembersView: React.FC<MembersViewProps> = ({
                                 setPasswordInput('');
                                 setShowPasswordModal(true);
                             }}
-                            className="text-xs font-bold text-red-400 hover:text-red-600 transition-colors flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-50 border border-red-200"
+                            className="text-xs font-bold text-red-400 hover:text-red-600 transition-colors flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-50 border border-red-200 cursor-pointer"
                         >
                             <Trash2 size={13} /> 刪除成員
                         </button>
                         <button
                             onClick={() => setSelectedMemberId(null)}
-                            className="px-6 py-2.5 bg-sage text-white font-black rounded-xl text-xs shadow-sm hover:bg-sage-dark transition-all"
+                            className="px-6 py-2.5 bg-sage text-white font-black rounded-xl text-xs shadow-sm hover:bg-sage-dark transition-all cursor-pointer"
                         >
                             關閉
                         </button>
                     </div>
                 </div>
-            </div>
+            </div>,
+            document.body
         )}
 
         {/* Password Modal */}
-        {showPasswordModal && (
+        {showPasswordModal && createPortal(
             <div className="fixed inset-0 bg-cocoa/60 z-[400] flex flex-col items-center justify-end sm:justify-center sm:p-4 backdrop-blur-sm animate-fade-in" onClick={() => setShowPasswordModal(false)}>
-                <div className={`bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-sm sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden ${passwordShake ? 'animate-shake' : ''}`} onClick={e => e.stopPropagation()}>
+                <div className={`bg-[#FAF8F2] w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-sm sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden pt-[max(1.25rem,calc(env(safe-area-inset-top)+0.5rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom)+0.5rem))] ${passwordShake ? 'animate-shake' : ''}`} onClick={e => e.stopPropagation()}>
                     <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0 sm:hidden">
                         <h3 className="font-black text-lg text-cocoa">權限確認</h3>
-                        <button onClick={() => setShowPasswordModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                        <button onClick={() => setShowPasswordModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors cursor-pointer">
                             <X size={18}/>
                         </button>
                     </div>
@@ -360,22 +364,23 @@ export const MembersView: React.FC<MembersViewProps> = ({
                         <input type="password" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="0000" className="w-full max-w-xs mx-auto text-center bg-white border-2 border-beige-dark p-3.5 rounded-2xl outline-none text-xl font-bold shadow-sm" autoFocus />
                     </div>
                     <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
-                        <button onClick={() => setShowPasswordModal(false)} className="flex-1 py-4 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
-                        <button onClick={handlePasswordConfirm} className="flex-1 py-4 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all">確認</button>
+                        <button onClick={() => setShowPasswordModal(false)} className="flex-1 py-4 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors cursor-pointer">取消</button>
+                        <button onClick={handlePasswordConfirm} className="flex-1 py-4 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all cursor-pointer">確認</button>
                     </div>
                 </div>
-            </div>
+            </div>,
+            document.body
         )}
 
         {/* Add / Edit Member Modal */}
-        {showMemberModal && (
-            <div className="fixed inset-0 bg-cocoa/60 z-[300] flex flex-col items-center justify-end sm:justify-center sm:p-4 backdrop-blur-sm animate-fade-in" onClick={() => setShowMemberModal(false)}>
-                <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+        {showMemberModal && createPortal(
+            <div className="fixed inset-0 bg-cocoa/60 z-[350] flex flex-col items-center justify-end sm:justify-center sm:p-4 backdrop-blur-sm animate-fade-in" onClick={() => setShowMemberModal(false)}>
+                <div className="bg-[#FAF8F2] w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col overflow-hidden pt-[max(1.25rem,calc(env(safe-area-inset-top)+0.5rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom)+0.5rem))]" onClick={e => e.stopPropagation()}>
                     <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                         <h3 className="font-black text-lg text-cocoa">
                           {pendingAction?.type === 'edit' ? '編輯成員資料' : '新增行程成員'}
                         </h3>
-                        <button onClick={() => setShowMemberModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
+                        <button onClick={() => setShowMemberModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors cursor-pointer">
                           <X size={16} />
                         </button>
                     </div>
@@ -402,7 +407,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                           <button
                             type="button"
                             onClick={handleOpenAvatarPickerForForm}
-                            className="mt-3 text-xs font-black text-sage bg-sage-light/70 hover:bg-sage-light px-4 py-1.5 rounded-full border border-sage/40 flex items-center gap-1.5 transition-all shadow-xs"
+                            className="mt-3 text-xs font-black text-sage bg-sage-light/70 hover:bg-sage-light px-4 py-1.5 rounded-full border border-sage/40 flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
                           >
                             <Sparkles size={14} />
                             <span>挑選可愛頭像</span>
@@ -423,15 +428,16 @@ export const MembersView: React.FC<MembersViewProps> = ({
                     </div>
                     
                     <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0 bg-[#FAF8F2]">
-                      <button onClick={() => setShowMemberModal(false)} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-black border-2 border-beige-dark hover:bg-gray-50 transition-all text-sm">
+                      <button onClick={() => setShowMemberModal(false)} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-black border-2 border-beige-dark hover:bg-gray-50 transition-all text-sm cursor-pointer">
                         取消
                       </button>
-                      <button onClick={handleSaveMember} className="flex-1 py-3.5 rounded-2xl bg-sage hover:bg-sage-dark text-white font-black shadow-hard-sage border-2 border-sage-dark transition-all text-sm">
+                      <button onClick={handleSaveMember} className="flex-1 py-3.5 rounded-2xl bg-sage hover:bg-sage-dark text-white font-black shadow-hard-sage border-2 border-sage-dark transition-all text-sm cursor-pointer">
                         儲存
                       </button>
                     </div>
                 </div>
-            </div>
+            </div>,
+            document.body
         )}
 
         {/* Cute Avatar Picker Modal */}

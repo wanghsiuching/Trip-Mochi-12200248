@@ -228,7 +228,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
   };
 
   return (
-    <div className="w-full lg:p-0 animate-scale-in">
+    <div className="w-full lg:p-0 animate-fade-in">
         <div className="sticky top-0 z-30 bg-beige/95 backdrop-blur-md px-4 py-3 border-b border-beige-dark/50 mb-5 lg:static lg:bg-transparent lg:p-0 lg:border-none lg:mb-6">
             <div className="bg-white p-1.5 rounded-full flex text-sm font-bold text-gray-400 border-2 border-beige-dark shadow-sm w-full max-w-lg mx-auto lg:mx-0">
                 {[

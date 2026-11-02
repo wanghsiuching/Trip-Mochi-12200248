@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Shuffle, Check, Sparkles } from 'lucide-react';
 import { AVATAR_CATEGORIES, CUTE_AVATARS, getDefaultMemberAvatar } from '../constants/avatars';
 
@@ -38,13 +39,13 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
     onClose();
   };
 
-  return (
+  return createPortal(
     <div 
       className="fixed inset-0 bg-cocoa/60 z-[500] flex flex-col items-center justify-end sm:justify-center sm:p-4 backdrop-blur-sm animate-fade-in"
       onClick={onClose}
     >
       <div 
-        className="bg-[#FBF9F2] w-full h-full sm:h-auto sm:max-h-[94vh] sm:max-w-xl sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl flex flex-col relative overflow-hidden border-0 sm:border-4 sm:border-beige-dark"
+        className="bg-[#FBF9F2] w-full h-[100dvh] sm:h-auto sm:max-h-[94vh] sm:max-w-xl sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl flex flex-col relative overflow-hidden border-0 sm:border-4 sm:border-beige-dark pt-[max(1.25rem,calc(env(safe-area-inset-top)+0.5rem))] pb-[max(1.25rem,calc(env(safe-area-inset-bottom)+0.5rem))]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Header */}
@@ -173,6 +174,7 @@ export const AvatarPickerModal: React.FC<AvatarPickerModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

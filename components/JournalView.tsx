@@ -272,7 +272,7 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
   const sortedDates = Object.keys(groupedJournals).sort((a, b) => b.localeCompare(a));
 
   return (
-    <div className="w-full lg:p-0 animate-scale-in">
+    <div className="w-full lg:p-0 animate-fade-in">
       {/* Lightbox for viewing photos */}
       {lightboxImages && (
         <Lightbox
