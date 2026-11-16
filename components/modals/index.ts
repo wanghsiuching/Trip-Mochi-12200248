@@ -17,3 +17,4 @@ export { ExportPdfModal } from './ExportPdfModal';
 export { DayTipModal } from './DayTipModal';
 export { TripTipsCenterModal } from './TripTipsCenterModal';
 export { DeleteTipConfirmModal } from './DeleteTipConfirmModal';
+export { PhotoUploadSection } from './PhotoUploadSection';

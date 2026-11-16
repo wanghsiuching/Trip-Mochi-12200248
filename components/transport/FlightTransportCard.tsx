@@ -13,7 +13,8 @@ import {
   Trash2,
   MapPin,
   FileText,
-  Ticket
+  Ticket,
+  Camera
 } from 'lucide-react';
 import { TransportItemModel, TransportSegmentModel } from './types';
 import { getAirlineEnName, resolveAirportDisplay } from './airlineMap';
@@ -25,6 +26,7 @@ interface FlightTransportCardProps {
   onEdit?: (item: TransportItemModel) => void;
   onDelete?: (item: TransportItemModel) => void;
   onOpenMap?: () => void;
+  onOpenLightbox?: (images: string[], index: number) => void;
   className?: string;
 }
 
@@ -34,6 +36,7 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
   onEdit,
   onDelete,
   onOpenMap,
+  onOpenLightbox,
   className = '',
 }) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
@@ -123,13 +126,58 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
     }
   };
 
+  const images = item.images || [];
+  const photoPlacement = item.photoPlacement || 'middle';
+  const photoOffsetY = item.photoOffsetY ?? 50;
+
+  const renderPhotoBanner = (isTopBanner: boolean) => {
+    if (images.length === 0) return null;
+    return (
+      <div
+        className={
+          isTopBanner
+            ? 'relative w-full h-44 sm:h-56 overflow-hidden border-b border-[#EAE5DC] group/photo cursor-pointer bg-gray-100'
+            : 'relative w-full rounded-2xl overflow-hidden border border-[#EAE5DC] shadow-sm group/photo cursor-pointer bg-gray-100 mt-3.5'
+        }
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpenLightbox?.(images, 0);
+        }}
+      >
+        <img
+          src={images[0]}
+          alt={item.title || airlineName}
+          className={`w-full ${isTopBanner ? 'h-full' : 'h-44 sm:h-56'} object-cover transition-transform duration-500 group-hover/photo:scale-105`}
+          style={{ objectPosition: `center ${photoOffsetY}%` }}
+          referrerPolicy="no-referrer"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-end justify-between p-3 text-white">
+          <span className="text-xs font-black drop-shadow-md">點擊查看大圖</span>
+          <span className="text-[11px] font-bold bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full drop-shadow-md flex items-center gap-1">
+            <Camera size={12} /> {images.length > 1 ? `${images.length} 張相片` : '相片'}
+          </span>
+        </div>
+        {images.length > 1 && (
+          <div className="absolute bottom-2.5 right-2.5 bg-cocoa/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm flex items-center gap-1 border border-white/20">
+            <Camera size={11} />
+            <span>1/{images.length}</span>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div
-      className={`w-full bg-white rounded-[28px] sm:rounded-[32px] border border-[#EAE5DC] shadow-[0_4px_24px_rgba(0,0,0,0.03)] hover:shadow-[0_6px_28px_rgba(0,0,0,0.05)] transition-all p-5 sm:p-6 relative select-none ${className}`}
+      className={`w-full bg-white rounded-[28px] sm:rounded-[32px] border border-[#EAE5DC] shadow-[0_4px_24px_rgba(0,0,0,0.03)] hover:shadow-[0_6px_28px_rgba(0,0,0,0.05)] transition-all overflow-hidden relative select-none ${className}`}
     >
-      {/* 編輯 / 刪除操作 (次要按鈕，右上角優雅懸浮，不破壞主要資訊階層) */}
-      {(onEdit || onDelete) && (
-        <div className="absolute top-4 right-4 flex items-center gap-1 z-20">
+      {/* 卡片頂部封面橫幅 */}
+      {photoPlacement === 'top' && renderPhotoBanner(true)}
+
+      <div className="p-5 sm:p-6 relative">
+        {/* 編輯 / 刪除操作 (次要按鈕，右上角優雅懸浮，不破壞主要資訊階層) */}
+        {(onEdit || onDelete) && (
+          <div className="absolute top-4 right-4 flex items-center gap-1 z-20">
           {onEdit && (
             <button
               type="button"
@@ -380,6 +428,9 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
         </div>
       </div>
 
+      {/* 卡片中間相片橫幅 (預設) */}
+      {photoPlacement === 'middle' && renderPhotoBanner(false)}
+
       {/* ========================================================================= */}
       {/* 四、最底層獨立行李條 (Baggage Information Bar 嚴格對齊圖片 2)                */}
       {/* ========================================================================= */}
@@ -508,6 +559,10 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
           </div>
         </div>
       )}
+
+        {/* 卡片最底相片橫幅 */}
+        {photoPlacement === 'bottom' && renderPhotoBanner(false)}
+      </div>
     </div>
   );
 };

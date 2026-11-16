@@ -163,6 +163,9 @@ export const bookingFlightToTransport = (flight: BookingFlight): TransportItemMo
     },
     note: flight.note,
     participants: flight.participants,
+    images: flight.images,
+    photoPlacement: flight.photoPlacement,
+    photoOffsetY: flight.photoOffsetY,
     rawBookingFlight: flight,
   };
 

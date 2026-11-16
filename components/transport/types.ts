@@ -108,6 +108,9 @@ export interface TransportItemModel {
   bookingReference?: string;
   note?: string;
   participants?: string[];
+  images?: string[];
+  photoPlacement?: 'top' | 'middle' | 'bottom';
+  photoOffsetY?: number;
   
   // 原始關聯資料引用 (完全向下相容，不破壞舊資料)
   rawBookingFlight?: BookingFlight;

@@ -13,6 +13,7 @@ interface TransportCardProps {
   onEdit?: (item: TransportItemModel) => void;
   onDelete?: (item: TransportItemModel) => void;
   onOpenMap?: () => void;
+  onOpenLightbox?: (images: string[], index: number) => void;
   className?: string;
 }
 
@@ -22,6 +23,7 @@ export const TransportCard: React.FC<TransportCardProps> = ({
   onEdit,
   onDelete,
   onOpenMap,
+  onOpenLightbox,
   className = '',
 }) => {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
@@ -34,6 +36,7 @@ export const TransportCard: React.FC<TransportCardProps> = ({
         onEdit={onEdit}
         onDelete={onDelete}
         onOpenMap={onOpenMap}
+        onOpenLightbox={onOpenLightbox}
         className={className}
       />
     );

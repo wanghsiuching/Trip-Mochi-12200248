@@ -396,6 +396,9 @@ export interface BookingFlight {
   returnTransitDuration?: string;// 回程轉機停留時間
   returnTransitFlightCode?: string; // 回程第二段/銜接航班號
   isPotential?: boolean;         // 列入潛在花費 (預算參考)
+  images?: string[];
+  photoPlacement?: 'top' | 'middle' | 'bottom';
+  photoOffsetY?: number;
 }
 
 export interface BookingAccommodation {
@@ -421,6 +424,9 @@ export interface BookingAccommodation {
   participants: string[];
   pax?: number;
   photos?: string[];
+  images?: string[];
+  photoPlacement?: 'top' | 'middle' | 'bottom';
+  photoOffsetY?: number;
   note: string;
   isPotential?: boolean;         // 列入潛在花費 (預算參考)
 }
@@ -448,6 +454,9 @@ export interface BookingCarRental {
   participants: string[];
   hasRental: boolean;
   isPotential?: boolean;         // 列入潛在花費 (預算參考)
+  images?: string[];
+  photoPlacement?: 'top' | 'middle' | 'bottom';
+  photoOffsetY?: number;
 }
 
 export interface BookingTicket {

@@ -1,17 +1,21 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Plane, Bed, Car, Plus, MapPin, Compass, House, PenTool, Briefcase, 
   Info, Luggage, Navigation, Leaf, Link as LinkIcon, ExternalLink, X, 
   Calendar as CalendarIcon, ArrowRightLeft, Users, Clock, DollarSign, 
-  Trash2, Moon, Sparkles, Building, CheckCircle2, TrendingUp, HelpCircle
+  Trash2, Moon, Sparkles, Building, CheckCircle2, TrendingUp, HelpCircle, Camera
 } from 'lucide-react';
 import { BookingFlight, BookingAccommodation, BookingCarRental, BookingTicket, Currency, Member } from '../types';
-import { ToggleSwitch } from './modals';
+import { ToggleSwitch, PhotoUploadSection } from './modals';
 import { DateTimePickerField, TimePickerField, DatePickerField } from './TimePickerComponents';
 import { TransportCard } from './transport/TransportCard';
 import { bookingFlightToTransport } from './transport/adapters';
+import { Lightbox } from './Lightbox';
 
 interface BookingsViewProps {
+  tripId?: string;
+  onOpenLightbox?: (images: string[], index: number) => void;
   flights: BookingFlight[];
   accommodations: BookingAccommodation[];
   carRentals: BookingCarRental[];
@@ -33,6 +37,7 @@ interface BookingsViewProps {
 }
 
 export const BookingsView: React.FC<BookingsViewProps> = ({ 
+    tripId, onOpenLightbox,
     flights, accommodations, carRentals, tickets, currencies, members,
     onAddFlight, onUpdateFlight, onDeleteFlight, 
     onUpdateAccommodation, onDeleteAccommodation, onAddAccommodation, 
@@ -49,6 +54,62 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   
   const [showCarModal, setShowCarModal] = useState(false);
   const [editingCar, setEditingCar] = useState<BookingCarRental | null>(null);
+
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [localLightbox, setLocalLightbox] = useState<{ images: string[]; index: number } | null>(null);
+
+  const openLightbox = (images: string[], index: number) => {
+    if (onOpenLightbox) {
+      onOpenLightbox(images, index);
+    } else {
+      setLocalLightbox({ images, index });
+    }
+  };
+
+  const renderBookingPhotoBanner = (
+    images: string[],
+    title: string,
+    offsetY: number = 50,
+    variant: 'top' | 'middle' | 'bottom' = 'middle'
+  ) => {
+    if (!images || images.length === 0) return null;
+    const containerClass =
+      variant === 'top'
+        ? 'relative w-full h-44 sm:h-56 overflow-hidden border-b-2 border-beige-dark group/photo cursor-pointer bg-gray-100'
+        : variant === 'bottom'
+          ? 'relative w-full rounded-2xl overflow-hidden border-2 border-beige-dark shadow-sm group/photo cursor-pointer bg-gray-100 mt-2'
+          : 'relative w-full rounded-2xl overflow-hidden border-2 border-beige-dark shadow-sm group/photo cursor-pointer bg-gray-100';
+
+    return (
+      <div
+        className={containerClass}
+        onClick={(e) => {
+          e.stopPropagation();
+          openLightbox(images, 0);
+        }}
+      >
+        <img
+          src={images[0]}
+          alt={title}
+          className={`w-full ${variant === 'top' ? 'h-full' : 'h-44 sm:h-56'} object-cover transition-transform duration-500 group-hover/photo:scale-105`}
+          style={{ objectPosition: `center ${offsetY}%` }}
+          referrerPolicy="no-referrer"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-end justify-between p-3 text-white">
+          <span className="text-xs font-black drop-shadow-md">點擊查看大圖</span>
+          <span className="text-[11px] font-bold bg-black/40 backdrop-blur-md px-2 py-0.5 rounded-full drop-shadow-md flex items-center gap-1">
+            <Camera size={12} /> {images.length > 1 ? `${images.length} 張相片` : '相片'}
+          </span>
+        </div>
+        {images.length > 1 && (
+          <div className="absolute bottom-2.5 right-2.5 bg-cocoa/75 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-sm flex items-center gap-1 border border-white/20">
+            <Camera size={11} />
+            <span>1/{images.length}</span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Helper for Cost Calculation
   const calculateTotal = (cost: number, hasFee: boolean, feePct: number) => {
@@ -84,8 +145,14 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
   // --- Flight Logic ---
   const openFlightEdit = (flight?: BookingFlight) => {
+      setIsUploadingPhoto(false);
       if (flight) {
-          setEditingFlight({ ...flight });
+          setEditingFlight({
+              ...flight,
+              images: flight.images || [],
+              photoPlacement: flight.photoPlacement || 'middle',
+              photoOffsetY: flight.photoOffsetY ?? 50
+          });
       } else {
           const newFlight: BookingFlight = {
               id: Date.now(),
@@ -117,7 +184,10 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
               participants: members.map(m => m.id),
               note: '',
               departureAirport: '',
-              arrivalAirport: ''
+              arrivalAirport: '',
+              images: [],
+              photoPlacement: 'middle',
+              photoOffsetY: 50
           };
           setEditingFlight(newFlight);
       }
@@ -167,9 +237,18 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   };
 
   const openAccEdit = (acc?: BookingAccommodation) => {
+      setIsUploadingPhoto(false);
       if(acc) {
           const stayNights = calculateStayNights(acc.checkInDate, acc.checkOutDate, acc.nights);
-          setEditingAcc({ ...acc, nights: stayNights, photos: acc.photos || [] });
+          const existingImages = (acc.images && acc.images.length > 0) ? acc.images : (acc.photos || []);
+          setEditingAcc({
+              ...acc,
+              nights: stayNights,
+              photos: existingImages,
+              images: existingImages,
+              photoPlacement: acc.photoPlacement || 'middle',
+              photoOffsetY: acc.photoOffsetY ?? 50
+          });
       } else {
           const today = new Date();
           today.setHours(15, 0, 0, 0);
@@ -204,6 +283,9 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
               participants: members.map(m => m.id),
               pax: 2,
               photos: [],
+              images: [],
+              photoPlacement: 'middle',
+              photoOffsetY: 50,
               note: '',
               isPotential: false
           });
@@ -214,7 +296,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   const saveAcc = () => {
       if(!editingAcc) return;
       const stayNights = calculateStayNights(editingAcc.checkInDate, editingAcc.checkOutDate, editingAcc.nights);
-      const accToSave = { ...editingAcc, nights: stayNights };
+      const syncedImages = editingAcc.images || editingAcc.photos || [];
+      const accToSave = { ...editingAcc, nights: stayNights, images: syncedImages, photos: syncedImages };
       if(accommodations.find(a => a.id === editingAcc.id)) {
           onUpdateAccommodation(accToSave);
       } else {
@@ -270,8 +353,14 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
   // --- Car Logic ---
   const openCarEdit = (car?: BookingCarRental) => {
+      setIsUploadingPhoto(false);
       if (car) {
-          setEditingCar({ ...car });
+          setEditingCar({
+              ...car,
+              images: car.images || [],
+              photoPlacement: car.photoPlacement || 'middle',
+              photoOffsetY: car.photoOffsetY ?? 50
+          });
       } else {
           const initialCar: BookingCarRental = { 
               id: Date.now(),
@@ -281,7 +370,10 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
               gps: '', url: '', note: '', 
               price: 0, currency: 'TWD', hasServiceFee: false, serviceFeePercentage: 0, 
               pax: 4, participants: members.map(m => m.id),
-              hasRental: true
+              hasRental: true,
+              images: [],
+              photoPlacement: 'middle',
+              photoOffsetY: 50
           };
           setEditingCar(initialCar);
       }
@@ -367,6 +459,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                                 defaultExpanded={false}
                                                 onEdit={() => openFlightEdit(flight)}
                                                 onDelete={() => onDeleteFlight(Number(flight.id))}
+                                                onOpenLightbox={openLightbox}
                                             />
                                         ))}
                                     </div>
@@ -413,131 +506,145 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                         const checkInDisplay = new Date(acc.checkInDate).toLocaleDateString('zh-TW', {month:'numeric', day:'numeric'}) + ' ' + new Date(acc.checkInDate).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                         const checkOutDisplay = new Date(acc.checkOutDate).toLocaleDateString('zh-TW', {month:'numeric', day:'numeric'}) + ' ' + new Date(acc.checkOutDate).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                         const hasAddress = !!(acc.address && acc.address.trim());
+                        const accImages = (acc.images && acc.images.length > 0) ? acc.images : (acc.photos || []);
+                        const accPlacement = acc.photoPlacement || 'middle';
+                        const accOffsetY = acc.photoOffsetY ?? 50;
                         return (
                         <div 
                             key={acc.id} 
                             onClick={() => openAccEdit(acc)} 
-                            className="bg-white rounded-[2rem] p-5 sm:p-6 shadow-sm hover:shadow-md border-2 border-beige-dark flex flex-col transition-all cursor-pointer group active:scale-[0.995] relative space-y-4"
+                            className="bg-white rounded-[2rem] shadow-sm hover:shadow-md border-2 border-beige-dark flex flex-col transition-all cursor-pointer group active:scale-[0.995] relative overflow-hidden"
                         >
-                            {/* Card Top Category & Duration Pills */}
-                            <div className="flex items-center justify-between gap-2">
-                                <div className="flex flex-wrap gap-1.5 items-center">
-                                    <div className="bg-beige-light px-3 py-1 rounded-full text-xs font-black text-cocoa border border-beige-dark flex items-center gap-1.5 shadow-2xs">
-                                        <Leaf size={12} className="text-sage"/>
-                                        {acc.platform || '住宿預訂'}
-                                    </div>
-                                    {acc.city && (
-                                        <div className="bg-purple-600 text-white px-2.5 py-0.5 rounded-full text-[11px] font-black shadow-2xs">
-                                            {acc.city}
-                                        </div>
-                                    )}
-                                    {acc.isPotential && (
-                                        <div className="bg-amber-500 text-white px-2.5 py-0.5 rounded-full text-[11px] font-black shadow-2xs flex items-center gap-1">
-                                            <Sparkles size={11} /> 潛在預算
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-xs font-black border border-purple-200 shadow-2xs flex items-center gap-1">
-                                    <Moon size={12} /> {stayNights} 晚
-                                </div>
-                            </div>
+                            {/* 頂部封面橫幅 */}
+                            {accPlacement === 'top' && renderBookingPhotoBanner(accImages, acc.name || '住宿相片', accOffsetY, 'top')}
 
-                            {/* Card Title & Cost */}
-                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
-                                <div>
-                                    <h3 className="text-xl font-black text-cocoa leading-snug group-hover:text-purple-700 transition-colors">
-                                        {acc.name || '未命名住宿'}
-                                    </h3>
-                                    {acc.ref && (
-                                        <div className="flex items-center gap-2 text-xs font-bold text-gray-400 mt-0.5">
-                                            <span>確認碼: {acc.ref}</span>
+                            <div className="p-5 sm:p-6 space-y-4">
+                                {/* Card Top Category & Duration Pills */}
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex flex-wrap gap-1.5 items-center">
+                                        <div className="bg-beige-light px-3 py-1 rounded-full text-xs font-black text-cocoa border border-beige-dark flex items-center gap-1.5 shadow-2xs">
+                                            <Leaf size={12} className="text-sage"/>
+                                            {acc.platform || '住宿預訂'}
                                         </div>
-                                    )}
-                                </div>
-                                <div className="sm:text-right">
-                                    <div className="text-2xl font-black text-cocoa font-mono">{acc.currency} {totalCost.toLocaleString()}</div>
-                                    {acc.currency !== 'TWD' && (
-                                        <div className="text-xs font-bold text-sage font-mono">≈ NT$ {Math.round(totalCost * getExchangeRate(acc.currency)).toLocaleString()}</div>
-                                    )}
-                                    <div className="text-[10px] font-bold text-gray-400">總金額 {acc.hasServiceFee ? `(含稅 ${acc.serviceFeePercentage}%)` : '(含稅)'}</div>
-                                </div>
-                            </div>
-
-                            {/* Check-in & Check-out time badge */}
-                            <div className="bg-gray-50/80 rounded-2xl p-3.5 border border-beige-dark flex justify-between items-center relative">
-                                <div className="text-center pl-2">
-                                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">入住時間</div>
-                                    <div className="text-xs sm:text-sm font-black text-cocoa">{checkInDisplay}</div>
-                                </div>
-                                <div className="flex-1 border-b-2 border-dashed border-gray-300 mx-3 sm:mx-6 relative top-[-6px]">
-                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-50 px-2 text-purple-400">
-                                        <House size={14}/>
-                                    </div>
-                                </div>
-                                <div className="text-center pr-2">
-                                    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">退房時間</div>
-                                    <div className="text-xs sm:text-sm font-black text-cocoa">{checkOutDisplay}</div>
-                                </div>
-                            </div>
-
-                            {/* Location & Map Search Row - strictly bound to address field */}
-                            <div className="space-y-2.5 pt-1">
-                                {hasAddress ? (
-                                    <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-purple-50/50 border border-purple-100 text-xs font-bold text-cocoa flex-wrap sm:flex-nowrap">
-                                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                                            <MapPin size={14} className="text-purple-600 flex-shrink-0"/>
-                                            <span className="break-words flex-1 leading-snug">{acc.address}</span>
-                                        </div>
-                                        <button 
-                                            onClick={(e) => {
-                                                e.stopPropagation(); 
-                                                openMapNav({ address: acc.address });
-                                            }} 
-                                            className="px-2.5 py-1 rounded-lg bg-white hover:bg-purple-100 text-purple-700 border border-purple-200 shadow-2xs text-[11px] font-black flex items-center gap-1 flex-shrink-0 transition-colors"
-                                            title="開啟地圖或直接導航"
-                                        >
-                                            <Navigation size={12}/> 地圖搜尋
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-gray-50/80 border border-gray-200 text-xs font-bold text-gray-400">
-                                        <div className="flex items-center gap-2 flex-1 min-w-0">
-                                            <MapPin size={14} className="text-gray-400 flex-shrink-0"/>
-                                            <span className="break-words italic">尚未設定地址 (點擊卡片編輯)</span>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Note */}
-                                {acc.note && (
-                                    <div className="flex items-start gap-2 text-xs font-bold text-amber-700 bg-amber-50 p-2.5 rounded-xl border border-amber-100">
-                                        <Info size={13} className="flex-shrink-0 mt-0.5 text-amber-500"/>
-                                        <span>{acc.note}</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Card Footer with Members and Per-person Split */}
-                            <div className="pt-3 border-t-2 border-dashed border-beige-dark flex justify-between items-center">
-                                <div className="flex items-center gap-2">
-                                    <div className="flex -space-x-2">
-                                        {acc.participants.slice(0, 3).map((pid, i) => (
-                                            <div key={i} className="w-6 h-6 rounded-full bg-purple-100 border-2 border-white flex items-center justify-center text-[10px] font-black text-purple-700 shadow-xs">
-                                                {members.find(m => m.id === pid)?.name[0] || '人'}
+                                        {acc.city && (
+                                            <div className="bg-purple-600 text-white px-2.5 py-0.5 rounded-full text-[11px] font-black shadow-2xs">
+                                                {acc.city}
                                             </div>
-                                        ))}
-                                        {(acc.participants.length > 3) && (
-                                            <div className="w-6 h-6 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[8px] font-bold text-gray-500">
-                                                +{acc.participants.length - 3}
+                                        )}
+                                        {acc.isPotential && (
+                                            <div className="bg-amber-500 text-white px-2.5 py-0.5 rounded-full text-[11px] font-black shadow-2xs flex items-center gap-1">
+                                                <Sparkles size={11} /> 潛在預算
                                             </div>
                                         )}
                                     </div>
-                                    <span className="text-[10px] font-bold text-gray-400">{acc.participants.length} 人分攤</span>
+                                    <div className="bg-purple-50 text-purple-700 px-3 py-1 rounded-full text-xs font-black border border-purple-200 shadow-2xs flex items-center gap-1">
+                                        <Moon size={12} /> {stayNights} 晚
+                                    </div>
                                 </div>
-                                <div className="text-right">
-                                    <div className="text-[10px] font-bold text-gray-400 uppercase">每人分攤金額</div>
-                                    <div className="text-base font-black text-sage font-mono">{acc.currency} {perPerson.toLocaleString()}</div>
+
+                                {/* Card Title & Cost */}
+                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
+                                    <div>
+                                        <h3 className="text-xl font-black text-cocoa leading-snug group-hover:text-purple-700 transition-colors">
+                                            {acc.name || '未命名住宿'}
+                                        </h3>
+                                        {acc.ref && (
+                                            <div className="flex items-center gap-2 text-xs font-bold text-gray-400 mt-0.5">
+                                                <span>確認碼: {acc.ref}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="sm:text-right">
+                                        <div className="text-2xl font-black text-cocoa font-mono">{acc.currency} {totalCost.toLocaleString()}</div>
+                                        {acc.currency !== 'TWD' && (
+                                            <div className="text-xs font-bold text-sage font-mono">≈ NT$ {Math.round(totalCost * getExchangeRate(acc.currency)).toLocaleString()}</div>
+                                        )}
+                                        <div className="text-[10px] font-bold text-gray-400">總金額 {acc.hasServiceFee ? `(含稅 ${acc.serviceFeePercentage}%)` : '(含稅)'}</div>
+                                    </div>
                                 </div>
+
+                                {/* Check-in & Check-out time badge */}
+                                <div className="bg-gray-50/80 rounded-2xl p-3.5 border border-beige-dark flex justify-between items-center relative">
+                                    <div className="text-center pl-2">
+                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">入住時間</div>
+                                        <div className="text-xs sm:text-sm font-black text-cocoa">{checkInDisplay}</div>
+                                    </div>
+                                    <div className="flex-1 border-b-2 border-dashed border-gray-300 mx-3 sm:mx-6 relative top-[-6px]">
+                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-50 px-2 text-purple-400">
+                                            <House size={14}/>
+                                        </div>
+                                    </div>
+                                    <div className="text-center pr-2">
+                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">退房時間</div>
+                                        <div className="text-xs sm:text-sm font-black text-cocoa">{checkOutDisplay}</div>
+                                    </div>
+                                </div>
+
+                                {/* 卡片中間相片橫幅 (預設) */}
+                                {accPlacement === 'middle' && renderBookingPhotoBanner(accImages, acc.name || '住宿相片', accOffsetY, 'middle')}
+
+                                {/* Location & Map Search Row - strictly bound to address field */}
+                                <div className="space-y-2.5 pt-1">
+                                    {hasAddress ? (
+                                        <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-purple-50/50 border border-purple-100 text-xs font-bold text-cocoa flex-wrap sm:flex-nowrap">
+                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                <MapPin size={14} className="text-purple-600 flex-shrink-0"/>
+                                                <span className="break-words flex-1 leading-snug">{acc.address}</span>
+                                            </div>
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.stopPropagation(); 
+                                                    openMapNav({ address: acc.address });
+                                                }} 
+                                                className="px-2.5 py-1 rounded-lg bg-white hover:bg-purple-100 text-purple-700 border border-purple-200 shadow-2xs text-[11px] font-black flex items-center gap-1 flex-shrink-0 transition-colors"
+                                                title="開啟地圖或直接導航"
+                                            >
+                                                <Navigation size={12}/> 地圖搜尋
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-gray-50/80 border border-gray-200 text-xs font-bold text-gray-400">
+                                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                <MapPin size={14} className="text-gray-400 flex-shrink-0"/>
+                                                <span className="break-words italic">尚未設定地址 (點擊卡片編輯)</span>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Note */}
+                                    {acc.note && (
+                                        <div className="flex items-start gap-2 text-xs font-bold text-amber-700 bg-amber-50 p-2.5 rounded-xl border border-amber-100">
+                                            <Info size={13} className="flex-shrink-0 mt-0.5 text-amber-500"/>
+                                            <span>{acc.note}</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Card Footer with Members and Per-person Split */}
+                                <div className="pt-3 border-t-2 border-dashed border-beige-dark flex justify-between items-center">
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex -space-x-2">
+                                            {acc.participants.slice(0, 3).map((pid, i) => (
+                                                <div key={i} className="w-6 h-6 rounded-full bg-purple-100 border-2 border-white flex items-center justify-center text-[10px] font-black text-purple-700 shadow-xs">
+                                                    {members.find(m => m.id === pid)?.name[0] || '人'}
+                                                </div>
+                                            ))}
+                                            {(acc.participants.length > 3) && (
+                                                <div className="w-6 h-6 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center text-[8px] font-bold text-gray-500">
+                                                    +{acc.participants.length - 3}
+                                                </div>
+                                            )}
+                                        </div>
+                                        <span className="text-[10px] font-bold text-gray-400">{acc.participants.length} 人分攤</span>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="text-[10px] font-bold text-gray-400 uppercase">每人分攤金額</div>
+                                        <div className="text-base font-black text-sage font-mono">{acc.currency} {perPerson.toLocaleString()}</div>
+                                    </div>
+                                </div>
+
+                                {/* 卡片最底相片橫幅 */}
+                                {accPlacement === 'bottom' && renderBookingPhotoBanner(accImages, acc.name || '住宿相片', accOffsetY, 'bottom')}
                             </div>
                         </div>
                     )})}
@@ -565,24 +672,35 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                        </div>
                    )}
 
-                   {carRentals.map((car) => (
+                   {carRentals.map((car) => {
+                       const carImages = car.images || [];
+                       const carPlacement = car.photoPlacement || 'middle';
+                       const carOffsetY = car.photoOffsetY ?? 50;
+                       return (
                        <div key={car.id} className="w-full bg-white rounded-[2.5rem] overflow-hidden shadow-hard-sm border-2 border-beige-dark flex flex-col group relative mb-6">
-                            <div className="bg-blue-50 p-6 border-b-2 border-dashed border-blue-100 flex justify-between items-center relative">
-                                <div className="flex items-center gap-3">
-                                    <div className="p-3 bg-white rounded-2xl shadow-sm text-blue-500"><Car size={24}/></div>
-                                    <div>
+                            {/* 頂部封面橫幅 */}
+                            {carPlacement === 'top' && renderBookingPhotoBanner(carImages, car.company || '租車相片', carOffsetY, 'top')}
+
+                            <div className="bg-blue-50 p-6 border-b-2 border-dashed border-blue-100 flex justify-between items-center relative gap-3">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="p-3 bg-white rounded-2xl shadow-sm text-blue-500 flex-shrink-0"><Car size={24}/></div>
+                                    <div className="min-w-0">
                                         <span className="text-[10px] font-black text-blue-400 tracking-widest uppercase block mb-0.5">租車資訊</span>
-                                        <h3 className="text-2xl font-black text-cocoa leading-none">{car.company}</h3>
+                                        <h3 className="text-2xl font-black text-cocoa leading-none break-words">{car.company || '未命名租車'}</h3>
                                     </div>
                                 </div>
-                                <div className="text-right">
-                                    <span className="bg-white text-blue-500 px-3 py-1 rounded-full text-xs font-black shadow-sm border border-blue-100">{car.platform || '租車'}</span>
-                                    <div className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">{car.carModel}</div>
+                                <div className="flex items-center gap-2.5 flex-shrink-0">
+                                    <div className="text-right">
+                                        <span className="bg-white text-blue-500 px-3 py-1 rounded-full text-xs font-black shadow-sm border border-blue-100">{car.platform || '租車'}</span>
+                                        <div className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wider">{car.carModel}</div>
+                                    </div>
+                                    <button onClick={() => openCarEdit(car)} className="w-8 h-8 rounded-full bg-white border-2 border-beige-dark text-gray-400 flex items-center justify-center hover:bg-blue-500 hover:border-blue-500 hover:text-white transition-all shadow-sm flex-shrink-0 cursor-pointer" title="編輯租車">
+                                        <PenTool size={14}/>
+                                    </button>
                                 </div>
                             </div>
 
                             <div className="p-6">
-                                <button onClick={() => openCarEdit(car)} className="absolute top-4 right-6 w-8 h-8 rounded-full bg-white border-2 border-beige-dark text-gray-300 flex items-center justify-center hover:bg-blue-500 hover:border-blue-500 hover:text-white transition-all shadow-sm z-20"><PenTool size={14}/></button>
                                 <div className="flex items-center justify-between mb-6 relative">
                                     <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-100 -z-0"></div>
                                     <div className="bg-white z-10 pr-4">
@@ -627,6 +745,13 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                     </div>
                                 </div>
 
+                                {/* 卡片中間相片橫幅 (預設) */}
+                                {carPlacement === 'middle' && carImages.length > 0 && (
+                                    <div className="mb-6">
+                                        {renderBookingPhotoBanner(carImages, car.company || '租車相片', carOffsetY, 'middle')}
+                                    </div>
+                                )}
+
                                 <div className="flex gap-2 mb-6">
                                     {car.gps && (
                                         <button onClick={() => openNav('', car.gps)} className="flex-1 py-2 bg-white border-2 border-beige-dark rounded-xl text-xs font-bold text-sage flex items-center justify-center gap-1 hover:bg-sage hover:text-white transition-colors">
@@ -657,16 +782,23 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* 卡片最底相片橫幅 */}
+                                {carPlacement === 'bottom' && carImages.length > 0 && (
+                                    <div className="mt-4">
+                                        {renderBookingPhotoBanner(carImages, car.company || '租車相片', carOffsetY, 'bottom')}
+                                    </div>
+                                )}
                             </div>
                        </div>
-                   ))}
+                   );})}
                </div>
             )}
         </div>
 
-        {showFlightModal && editingFlight && (
+        {showFlightModal && editingFlight && createPortal(
             <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[150] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={() => setShowFlightModal(false)}>
-                <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="bg-[#FAF8F2] w-full h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
                     <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                         <h3 className="font-black text-xl text-cocoa">{flights.find(f => f.id === editingFlight.id) ? '編輯航班' : '新增航班'}</h3>
                         <button onClick={() => setShowFlightModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
@@ -914,6 +1046,21 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             </div>
                         </div>
 
+                        <PhotoUploadSection
+                            images={editingFlight.images || []}
+                            photoPlacement={editingFlight.photoPlacement || 'middle'}
+                            photoOffsetY={editingFlight.photoOffsetY ?? 50}
+                            tripId={tripId}
+                            inputId="flight-photo-upload"
+                            middleLabel="卡片中間"
+                            middleDesc="置於航程與行李條之間（預設）"
+                            bottomDesc="置於卡片最底部（詳情區塊下方）"
+                            onChangeImages={(images) => setEditingFlight({ ...editingFlight, images })}
+                            onChangePlacement={(photoPlacement) => setEditingFlight({ ...editingFlight, photoPlacement })}
+                            onChangeOffsetY={(photoOffsetY) => setEditingFlight({ ...editingFlight, photoOffsetY })}
+                            onUploadingChange={setIsUploadingPhoto}
+                        />
+
                         <div>
                             <label className="text-[10px] font-bold text-gray-400 ml-1">備註</label>
                             <textarea value={editingFlight.note} onChange={e => setEditingFlight({...editingFlight, note: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold h-20 text-cocoa placeholder:text-gray-300" placeholder="例如：在 2 航廈集合..."></textarea>
@@ -927,15 +1074,16 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             </button>
                         )}
                         <button onClick={() => setShowFlightModal(false)} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
-                        <button onClick={saveFlight} className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all">保存</button>
+                        <button onClick={saveFlight} disabled={isUploadingPhoto} className={`flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all ${isUploadingPhoto ? 'opacity-50 cursor-not-allowed' : ''}`}>保存</button>
                     </div>
                 </div>
-            </div>
+            </div>,
+            document.body
         )}
 
-        {showAccModal && editingAcc && (
+        {showAccModal && editingAcc && createPortal(
             <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[150] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={() => setShowAccModal(false)}>
-                <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="bg-[#FAF8F2] w-full h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
                     <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                         <h3 className="font-black text-xl text-cocoa">{editingAcc.id && accommodations.find(a => a.id === editingAcc.id) ? '編輯住宿' : '新增住宿'}</h3>
                         <button onClick={() => setShowAccModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
@@ -1039,6 +1187,21 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             <div><label className="text-[10px] font-bold text-gray-400 block mb-2">分攤成員</label><div className="flex flex-wrap gap-2">{members.map(m => (<button key={m.id} onClick={() => toggleAccParticipant(m.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${editingAcc.participants.includes(m.id) ? 'bg-sage text-white border-sage' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{m.name}</button>))}</div></div>
                         </div>
 
+                        <PhotoUploadSection
+                            images={editingAcc.images || editingAcc.photos || []}
+                            photoPlacement={editingAcc.photoPlacement || 'middle'}
+                            photoOffsetY={editingAcc.photoOffsetY ?? 50}
+                            tripId={tripId}
+                            inputId="acc-photo-upload"
+                            middleLabel="卡片中間"
+                            middleDesc="置於入住時間與地址之間（預設）"
+                            bottomDesc="置於卡片最底部（分攤明細下方）"
+                            onChangeImages={(images) => setEditingAcc({ ...editingAcc, images, photos: images })}
+                            onChangePlacement={(photoPlacement) => setEditingAcc({ ...editingAcc, photoPlacement })}
+                            onChangeOffsetY={(photoOffsetY) => setEditingAcc({ ...editingAcc, photoOffsetY })}
+                            onUploadingChange={setIsUploadingPhoto}
+                        />
+
                         <div><label className="text-[10px] font-bold text-gray-400 ml-1">備註</label><textarea value={editingAcc.note} onChange={e => setEditingAcc({...editingAcc, note: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold h-20 text-cocoa"></textarea></div>
                     </div>
                     <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
@@ -1053,15 +1216,16 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             </button>
                         )}
                         <button onClick={() => setShowAccModal(false)} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
-                        <button onClick={saveAcc} className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all">保存</button>
+                        <button onClick={saveAcc} disabled={isUploadingPhoto} className={`flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all ${isUploadingPhoto ? 'opacity-50 cursor-not-allowed' : ''}`}>保存</button>
                     </div>
                 </div>
-            </div>
+            </div>,
+            document.body
         )}
 
-        {showCarModal && editingCar && (
+        {showCarModal && editingCar && createPortal(
             <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[150] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={() => setShowCarModal(false)}>
-                <div className="bg-[#FAF8F2] w-full h-full sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="bg-[#FAF8F2] w-full h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
                     <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
                         <h3 className="font-black text-xl text-cocoa">{carRentals.find(c => c.id === editingCar.id) ? '編輯租車' : '新增租車'}</h3>
                         <button onClick={() => setShowCarModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
@@ -1140,6 +1304,21 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             <div><label className="text-[10px] font-bold text-gray-400 block mb-2">分攤成員</label><div className="flex flex-wrap gap-2">{members.map(m => (<button key={m.id} onClick={() => toggleCarParticipant(m.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${editingCar.participants?.includes(m.id) ? 'bg-sage text-white border-sage' : 'bg-gray-50 text-gray-400 border-gray-200'}`}>{m.name}</button>))}</div></div>
                         </div>
 
+                        <PhotoUploadSection
+                            images={editingCar.images || []}
+                            photoPlacement={editingCar.photoPlacement || 'middle'}
+                            photoOffsetY={editingCar.photoOffsetY ?? 50}
+                            tripId={tripId}
+                            inputId="car-photo-upload"
+                            middleLabel="卡片中間"
+                            middleDesc="置於取還車地點下方（預設）"
+                            bottomDesc="置於卡片最底部（分攤明細下方）"
+                            onChangeImages={(images) => setEditingCar({ ...editingCar, images })}
+                            onChangePlacement={(photoPlacement) => setEditingCar({ ...editingCar, photoPlacement })}
+                            onChangeOffsetY={(photoOffsetY) => setEditingCar({ ...editingCar, photoOffsetY })}
+                            onUploadingChange={setIsUploadingPhoto}
+                        />
+
                         <div><label className="text-[10px] font-bold text-gray-400 ml-1">備註</label><textarea value={editingCar.note} onChange={e => setEditingCar({...editingCar, note: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold h-20 text-cocoa"></textarea></div>
                     </div>
                     <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
@@ -1149,10 +1328,19 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             </button>
                         )}
                         <button onClick={() => setShowCarModal(false)} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
-                        <button onClick={saveCar} className="flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all">保存</button>
+                        <button onClick={saveCar} disabled={isUploadingPhoto} className={`flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all ${isUploadingPhoto ? 'opacity-50 cursor-not-allowed' : ''}`}>保存</button>
                     </div>
                 </div>
-            </div>
+            </div>,
+            document.body
+        )}
+
+        {localLightbox && (
+            <Lightbox
+                images={localLightbox.images}
+                initialIndex={localLightbox.index}
+                onClose={() => setLocalLightbox(null)}
+            />
         )}
     </div>
   );
