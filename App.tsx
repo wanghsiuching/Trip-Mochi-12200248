@@ -1201,7 +1201,7 @@ export default function App() {
                                 <div className={`flex justify-between items-start gap-2 ${!isUnassignedLocation ? 'mb-2.5' : ''}`}>
                                     <div className="flex items-start gap-3 flex-1 min-w-0">
                                          <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl ${iconColorClass} border flex items-center justify-center shadow-2xs flex-shrink-0`}>
-                                           <IconComp size={19} strokeWidth={2.5} />
+                                           <IconComp size={19} strokeWidth={2.5} className={item.type === 'flight' ? 'transform rotate-45' : ''} />
                                          </div>
                                          <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-1.5 mb-1 flex-wrap">

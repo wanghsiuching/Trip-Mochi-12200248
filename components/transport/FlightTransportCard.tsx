@@ -347,7 +347,7 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
                     {/* 中央虛線 + 小飛機 */}
                     <div className="w-10 sm:w-16 flex-shrink-0 flex items-center justify-center pt-2 gap-1">
                       <div className="flex-1 h-0 border-b-2 border-dashed border-[#CFD8D2]" />
-                      <Plane size={13} className="text-[#566B5D] transform rotate-90 flex-shrink-0" />
+                      <Plane size={13} className="text-[#566B5D] transform rotate-45 flex-shrink-0" />
                       <div className="flex-1 h-0 border-b-2 border-dashed border-[#CFD8D2]" />
                     </div>
 
@@ -478,7 +478,7 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
                     {/* 中央虛線 + 小飛機 */}
                     <div className="w-10 sm:w-16 flex-shrink-0 flex items-center justify-center pt-2 gap-1">
                       <div className="flex-1 h-0 border-b-2 border-dashed border-[#CFD8D2]" />
-                      <Plane size={13} className="text-[#566B5D] transform rotate-90 flex-shrink-0" />
+                      <Plane size={13} className="text-[#566B5D] transform rotate-45 flex-shrink-0" />
                       <div className="flex-1 h-0 border-b-2 border-dashed border-[#CFD8D2]" />
                     </div>
 
@@ -553,7 +553,7 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
                   {/* 中央虛線 + 小飛機 */}
                   <div className="w-10 sm:w-16 flex-shrink-0 flex items-center justify-center pt-2 gap-1">
                     <div className="flex-1 h-0 border-b-2 border-dashed border-[#CFD8D2]" />
-                    <Plane size={13} className="text-[#566B5D] transform rotate-90 flex-shrink-0" />
+                    <Plane size={13} className="text-[#566B5D] transform rotate-45 flex-shrink-0" />
                     <div className="flex-1 h-0 border-b-2 border-dashed border-[#CFD8D2]" />
                   </div>
 
