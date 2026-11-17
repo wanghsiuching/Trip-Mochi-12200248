@@ -854,9 +854,9 @@ export default function App() {
 
         <main className="min-h-[calc(100vh-160px)]">
           {activeTab === 'schedule' && (
-            <div className="space-y-6 pb-36 relative">
+            <div className="pb-36 relative">
               <div 
-                className="lg:hidden sticky z-30 bg-beige/90 backdrop-blur-md border-b border-[#E0E5D5]/70 px-4 pb-2 pt-2"
+                className="lg:hidden sticky z-30 bg-beige/90 backdrop-blur-md border-b border-[#E0E5D5]/70 px-4 pb-2 pt-2 mb-4"
                 style={{ top: 'env(safe-area-inset-top, 0px)' }}
               >
                  <div className="flex items-center justify-between gap-1.5 mb-2 px-1 flex-nowrap overflow-x-auto no-scrollbar">
@@ -1094,45 +1094,82 @@ export default function App() {
                       </div>
                     </div>
                   ) : (
-                    <div className="relative border-l-2 border-beige-dark ml-2.5 sm:ml-3 space-y-6 py-2">
+                    <div className="relative border-l-2 border-[#E4DEC9] ml-2.5 sm:ml-3 space-y-4 py-1">
                       {currentDayScheduleItems.length === 0 && (<div className="pl-6 text-gray-400 font-bold italic py-10">此日期尚無行程，點擊右下角新增！</div>)}
                       {currentDayScheduleItems.map((item, index) => {
-                      let icon = MapPin; let colorClass = 'bg-gray-100 text-gray-500';
-                      if (item.type === 'food') { icon = Utensils; colorClass = 'bg-orange-100 text-orange-500'; }
-                      if (item.type === 'transport') { icon = Train; colorClass = 'bg-blue-100 text-blue-500'; }
-                      if (item.type === 'stay') { icon = Bed; colorClass = 'bg-purple-100 text-purple-500'; }
-                      if (item.type === 'spot') { icon = Camera; colorClass = 'bg-green-100 text-green-600'; }
-                      if (item.type === 'flight') { icon = Plane; colorClass = 'bg-cyan-100 text-cyan-600'; }
+                      let icon = MapPin;
+                      let catLabel = '行程';
+                      let iconColorClass = 'bg-[#F5F2EA] text-[#6E6053] border-[#E6E1D3]';
+                      let pillColorClass = 'bg-[#F5F2EA] text-[#6E6053] border-[#E6E1D3]';
+                      if (item.type === 'food') {
+                        icon = Utensils;
+                        catLabel = '美食';
+                        iconColorClass = 'bg-orange-50 text-orange-500 border-orange-200/80';
+                        pillColorClass = 'bg-orange-50 text-orange-700 border-orange-200/80';
+                      }
+                      if (item.type === 'transport') {
+                        icon = Train;
+                        catLabel = '交通';
+                        iconColorClass = 'bg-sky-50 text-sky-600 border-sky-200/80';
+                        pillColorClass = 'bg-sky-50 text-sky-700 border-sky-200/80';
+                      }
+                      if (item.type === 'stay') {
+                        icon = Bed;
+                        catLabel = '住宿';
+                        iconColorClass = 'bg-purple-50 text-purple-500 border-purple-200/80';
+                        pillColorClass = 'bg-purple-50 text-purple-700 border-purple-200/80';
+                      }
+                      if (item.type === 'spot') {
+                        icon = Camera;
+                        catLabel = '景點';
+                        iconColorClass = 'bg-[#EAF3EC] text-[#4A6F52] border-[#D3E5D8]';
+                        pillColorClass = 'bg-[#EEF6F0] text-[#3F6347] border-[#D3E5D8]';
+                      }
+                      if (item.type === 'flight') {
+                        icon = Plane;
+                        catLabel = '航班';
+                        iconColorClass = 'bg-[#E5F0E8] text-[#4A6F52] border-[#CBE0D1]';
+                        pillColorClass = 'bg-[#EEF6F0] text-[#3F6347] border-[#D3E5D8]';
+                      }
                       const IconComp = icon;
                       const partIds = item.type === 'flight' ? item.flightDetails?.participants : item.type === 'stay' ? item.stayDetails?.participants : item.type === 'transport' ? (item.transitDetails?.participants || item.carRental?.participants) : (item.type === 'spot' || item.type === 'food') ? item.spotDetails?.participants : [];
                       const participantNames = getMemberNames(partIds);
-                      const fruitIcon = getScheduleIcon(item.id);
                       const isHighlighted = highlightScheduleItemId === item.id;
+                      const hasMiddlePhoto = Boolean(item.images && item.images.length > 0 && (!item.photoPlacement || item.photoPlacement === 'middle'));
+                      const hasBottomPhoto = Boolean(item.images && item.images.length > 0 && item.photoPlacement === 'bottom');
+                      const hasFlightBlock = item.type === 'flight' && Boolean(item.flightDetails);
+                      const hasStayBlock = item.type === 'stay' && Boolean(item.stayDetails);
+                      const hasTransitBlock = item.type === 'transport' && Boolean(item.transitDetails);
+                      const hasCarBlock = item.type === 'transport' && !item.transitDetails && Boolean(item.carRental?.hasRental);
+                      const hasTicketBlock = (item.type === 'spot' || item.type === 'food') && Boolean(item.spotDetails?.hasTicket);
+                      const hasLowerContent = hasMiddlePhoto || hasBottomPhoto || hasFlightBlock || hasStayBlock || hasTransitBlock || hasCarBlock || hasTicketBlock || Boolean(item.notes?.trim()) || Boolean(participantNames);
+                      const isUnassignedLocation = !item.location || item.location === '未指定地點';
+
                       return (
                         <div 
                           key={item.id} 
                           id={`schedule-item-${item.id}`}
-                          className={`relative pl-3.5 sm:pl-4 group mb-6 transition-all duration-500 scroll-mt-24 ${
+                          className={`relative pl-3.5 sm:pl-4 group transition-all duration-500 scroll-mt-24 ${
                             isHighlighted ? 'scale-[1.02] z-20' : ''
                           }`}
                         >
                           <div className={`absolute -left-[7px] top-6 z-10 w-3 h-3 rounded-full bg-white border-2 shadow-sm flex items-center justify-center transition-colors ${
-                            isHighlighted ? 'border-sage ring-4 ring-sage/30' : 'border-sage'
+                            isHighlighted ? 'border-sage ring-4 ring-sage/30' : 'border-[#4A6F52]'
                           }`}>
-                              <div className="w-1 h-1 rounded-full bg-sage"></div>
+                              <div className="w-1 h-1 rounded-full bg-[#4A6F52]"></div>
                           </div>
                           <div 
                             onClick={() => setViewingItem(item)} 
-                            className={`bg-white rounded-[1.75rem] shadow-hard-sm border-2 overflow-hidden relative transition-all cursor-pointer hover:border-sage group-hover:-translate-y-1 ${
+                            className={`bg-white rounded-[26px] shadow-[0_3px_14px_rgba(90,77,65,0.04)] border overflow-hidden relative transition-all cursor-pointer hover:border-sage group-hover:-translate-y-0.5 ${
                               isHighlighted 
                                 ? 'border-sage ring-4 ring-sage/50 ring-offset-2 shadow-hard-sage animate-pulse' 
-                                : 'border-beige-dark'
+                                : 'border-[#E6E0D2]'
                             }`}
                           >
                             {/* 卡片頂部封面橫幅 (Top Cover Banner) */}
                             {item.images && item.images.length > 0 && item.photoPlacement === 'top' && (
                                 <div 
-                                    className="relative w-full h-44 sm:h-56 overflow-hidden border-b-2 border-beige-dark group/photo cursor-pointer bg-gray-100"
+                                    className="relative w-full h-44 sm:h-56 overflow-hidden border-b border-[#EAE4D4] group/photo cursor-pointer bg-gray-100"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         setLightboxState({ images: item.images!, index: 0 });
@@ -1161,15 +1198,23 @@ export default function App() {
                             )}
 
                             <div className="p-3.5 sm:p-4">
-                                <div className="flex justify-between items-start mb-3 gap-2">
-                                    <div className="flex items-start gap-2.5 flex-1 min-w-0">
-                                         <div className={`p-2.5 rounded-xl ${colorClass} border-2 border-white shadow-sm flex-shrink-0`}><IconComp size={20} strokeWidth={2.5} /></div>
+                                <div className={`flex justify-between items-start gap-2 ${!isUnassignedLocation ? 'mb-2.5' : ''}`}>
+                                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                                         <div className={`w-10 h-10 sm:w-11 sm:h-11 rounded-2xl ${iconColorClass} border flex items-center justify-center shadow-2xs flex-shrink-0`}>
+                                           <IconComp size={19} strokeWidth={2.5} />
+                                         </div>
                                          <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                                                <span className="font-mono text-xs font-black text-white bg-sage px-2 py-0.5 rounded-md shadow-sm">{item.time}</span>
-                                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider">{item.type}</span>
+                                                <span className="font-sans tabular-nums text-xs font-black text-white bg-sage px-2.5 py-0.5 rounded-full shadow-2xs leading-tight">
+                                                  {item.time}
+                                                </span>
+                                                <span className={`font-sans text-[11px] font-black px-2 py-0.5 rounded-full border leading-tight ${pillColorClass}`}>
+                                                  {catLabel}
+                                                </span>
                                             </div>
-                                            <h3 className="text-base sm:text-lg font-black text-cocoa leading-snug break-words">{item.title}</h3>
+                                            <h3 className="font-sans text-base sm:text-lg font-black text-cocoa leading-snug break-words">
+                                              {item.title}
+                                            </h3>
                                          </div>
                                     </div>
                                     <div className="flex items-center gap-1 flex-shrink-0 self-start">
@@ -1178,7 +1223,7 @@ export default function App() {
                                           type="button"
                                           onClick={(e) => { e.stopPropagation(); handleRequestMoveItem(index, 'up'); }} 
                                           title="向上調換順序"
-                                          className="p-1 rounded-full border border-beige-dark text-gray-400 hover:bg-sage hover:text-white active:scale-90 hover:border-sage shadow-2xs transition-all"
+                                          className="p-1.5 rounded-full border border-[#E6E1D3] bg-[#FAF8F2] text-[#8A7D70] hover:bg-sage hover:text-white active:scale-90 hover:border-sage shadow-2xs transition-all"
                                         >
                                           <ChevronUp size={12} strokeWidth={2.5} />
                                         </button>
@@ -1188,7 +1233,7 @@ export default function App() {
                                           type="button"
                                           onClick={(e) => { e.stopPropagation(); handleRequestMoveItem(index, 'down'); }} 
                                           title="向下調換順序"
-                                          className="p-1 rounded-full border border-beige-dark text-gray-400 hover:bg-sage hover:text-white active:scale-90 hover:border-sage shadow-2xs transition-all"
+                                          className="p-1.5 rounded-full border border-[#E6E1D3] bg-[#FAF8F2] text-[#8A7D70] hover:bg-sage hover:text-white active:scale-90 hover:border-sage shadow-2xs transition-all"
                                         >
                                           <ChevronDown size={12} strokeWidth={2.5} />
                                         </button>
@@ -1197,16 +1242,36 @@ export default function App() {
                                         type="button"
                                         onClick={(e) => { e.stopPropagation(); setItemToDelete(item.id); }} 
                                         title="刪除此項目"
-                                        className="p-1 rounded-full border border-beige-dark text-gray-300 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all active:scale-90 shadow-2xs ml-0.5"
+                                        className="p-1.5 rounded-full border border-[#E6E1D3] bg-[#FAF8F2] text-[#B3A697] hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all active:scale-90 shadow-2xs"
                                       >
                                         <Trash2 size={12} strokeWidth={2.5} />
                                       </button>
                                     </div>
                                 </div>
-                                <div className="flex items-center text-gray-500 text-xs sm:text-sm gap-2 font-bold bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 w-full"><MapPin size={15} className="text-sage flex-shrink-0" /><span className="break-words flex-1 leading-snug">{item.location}</span><button onClick={(e) => { e.stopPropagation(); openMap(item.location); }} className="p-1.5 bg-white rounded-lg text-cocoa hover:text-white hover:bg-sage shadow-sm border border-gray-200 transition-colors flex-shrink-0"><Navigation size={12} strokeWidth={2.5} /></button></div>
+                                {!isUnassignedLocation && (
+                                  <div className="pt-2.5 border-t border-[#F2ECE0] flex items-center justify-between gap-2 w-full">
+                                    <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                      <MapPin size={14} className="text-[#4A6F52] flex-shrink-0" />
+                                      <span className="font-sans text-xs sm:text-sm font-bold text-[#6E6053] break-words leading-snug">
+                                        {item.location}
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); openMap(item.location); }}
+                                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#EEF6F0] hover:bg-sage text-[#3F6347] hover:text-white rounded-full text-[11px] font-black border border-[#D3E5D8] transition-colors flex-shrink-0 shadow-2xs font-sans"
+                                      title="開啟地圖導航"
+                                    >
+                                      <Navigation size={11} strokeWidth={2.5} />
+                                      <span>導航</span>
+                                    </button>
+                                  </div>
+                                )}
                             </div>
-                            <div className="relative w-full h-0 border-t-2 border-dashed border-beige-dark flex justify-between items-center"><div className="absolute -left-3 -top-3 w-6 h-6 bg-beige rounded-full border-r-2 border-beige-dark"></div><div className="absolute -right-3 -top-3 w-6 h-6 bg-beige rounded-full border-l-2 border-beige-dark"></div></div>
-                            <div className="bg-[#FAF9F6] p-3.5 sm:p-4">
+                            {hasLowerContent && (
+                              <>
+                                <div className="border-t border-dashed border-[#EAE4D4] mx-4" />
+                                <div className="bg-[#FAF8F2]/50 p-3 sm:p-4">
                                 <div className="space-y-3">
                                     {/* 景點 / 行程相片大圖圖式（顯示在虛線下方） */}
                                     {item.images && item.images.length > 0 && (!item.photoPlacement || item.photoPlacement === 'middle') && (
@@ -1301,7 +1366,7 @@ export default function App() {
                                                 <div className="pt-1 mt-1 border-t border-dashed border-blue-200/50 space-y-1">
                                                     <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 italic">
                                                         <span>基本租金</span>
-                                                        <span className="font-mono">{item.carRental.rentalCurrency} {Math.round(baseWithFee).toLocaleString()}</span>
+                                                        <span className="font-sans tabular-nums">{item.carRental.rentalCurrency} {Math.round(baseWithFee).toLocaleString()}</span>
                                                     </div>
                                                     {item.carRental.expenses?.map((exp, idx) => {
                                                         const expAmt = Number(exp.amount) || 0;
@@ -1310,29 +1375,29 @@ export default function App() {
                                                         return (
                                                             <div key={idx} className="flex justify-between items-center text-[10px] font-bold text-gray-400 italic">
                                                                 <span>• {exp.name}</span>
-                                                                <span className="font-mono">{exp.currency || item.carRental?.rentalCurrency} {Math.round(expTotal).toLocaleString()}</span>
+                                                                <span className="font-sans tabular-nums">{exp.currency || item.carRental?.rentalCurrency} {Math.round(expTotal).toLocaleString()}</span>
                                                             </div>
                                                         );
                                                     })}
                                                     <div className="flex justify-between items-center text-[11px] font-black text-blue-600 pt-1 border-t border-blue-100 mt-1">
                                                         <span>租車總計金額</span>
-                                                        <span className="font-mono">{item.carRental.rentalCurrency} {Math.round(grandTotal).toLocaleString()}</span>
+                                                        <span className="font-sans tabular-nums">{item.carRental.rentalCurrency} {Math.round(grandTotal).toLocaleString()}</span>
                                                     </div>
                                                 </div>
                                             </div>
                                         );
                                     })()}
                                     {(item.type === 'spot' || item.type === 'food') && item.spotDetails?.hasTicket && (
-                                        <div className="bg-white p-3 rounded-2xl border border-beige-dark flex justify-between items-center">
-                                            <div className="flex items-center gap-2"><Ticket size={14} className="text-sage"/><span className="text-xs font-bold text-cocoa">{item.type === 'food' ? '餐飲支出' : '預訂門票'}</span></div>
-                                            <span className="text-sm font-black text-sage font-mono">{item.spotDetails.currency} {Number(item.spotDetails.ticketCost).toLocaleString()}</span>
+                                        <div className="bg-white p-3 rounded-2xl border border-[#EAE4D4] flex justify-between items-center">
+                                            <div className="flex items-center gap-2"><Ticket size={14} className="text-sage"/><span className="text-xs font-bold text-cocoa font-sans">{item.type === 'food' ? '餐飲支出' : '預訂門票'}</span></div>
+                                            <span className="text-sm font-black text-sage font-sans tabular-nums">{item.spotDetails.currency} {Number(item.spotDetails.ticketCost).toLocaleString()}</span>
                                         </div>
                                     )}
                                     {item.notes && (
-                                        <div className="flex gap-2 items-start bg-yellow-50/50 p-2.5 rounded-xl border border-yellow-100/50"><StickyNote size={15} className="text-yellow-500 mt-0.5 flex-shrink-0" /><p className="text-[11pt] font-medium text-cocoa whitespace-pre-wrap leading-relaxed">{item.notes}</p></div>
+                                        <div className="flex gap-2 items-start bg-yellow-50/50 p-2.5 rounded-xl border border-yellow-100/50"><StickyNote size={15} className="text-yellow-500 mt-0.5 flex-shrink-0" /><p className="text-[11pt] font-medium text-cocoa font-sans whitespace-pre-wrap leading-relaxed">{item.notes}</p></div>
                                     )}
                                     {participantNames && (
-                                        <div className="mt-2 pt-2 border-t border-dashed border-gray-200 flex items-start gap-2"><Users size={12} className="text-gray-400 mt-0.5" /><div className="flex flex-col"><span className="text-[9px] font-black text-gray-400 uppercase">MEMBERS</span><span className="text-xs font-bold text-cocoa">{participantNames}</span></div></div>
+                                        <div className="mt-2 pt-2 border-t border-dashed border-[#EAE4D4] flex items-start gap-2"><Users size={12} className="text-gray-400 mt-0.5" /><div className="flex flex-col"><span className="text-[9px] font-black text-gray-400 uppercase font-sans">分攤成員</span><span className="text-xs font-bold text-cocoa font-sans">{participantNames}</span></div></div>
                                     )}
 
                                     {/* 景點 / 行程相片大圖圖式（顯示在卡片最底部） */}
@@ -1367,6 +1432,8 @@ export default function App() {
                                     )}
                                 </div>
                             </div>
+                              </>
+                            )}
                           </div>
                         </div>
                       );

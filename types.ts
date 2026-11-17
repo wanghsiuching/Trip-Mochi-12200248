@@ -171,8 +171,12 @@ export interface FlightDetails {
   hasTransit?: boolean;
   transitAirport?: string;
   transitCity?: string;
+  transitArrivalTime?: string;
+  transitDepartureTime?: string;
   transitDuration?: string;
   transitFlightCode?: string;
+  firstLegDuration?: string;
+  secondLegDuration?: string;
   flightDuration?: string;
   checkedBag?: string;
   carryOnBag?: string;
@@ -386,15 +390,23 @@ export interface BookingFlight {
   hasTransit?: boolean;
   transitAirport?: string;       // 轉機機場代碼 (如：AUH, HKG, DXB)
   transitCity?: string;          // 轉機城市 (如：阿布達比, 香港)
+  transitArrivalTime?: string;   // 轉機抵達時間 (如：05:30)
+  transitDepartureTime?: string; // 轉機起飛時間 (如：08:15)
   transitDuration?: string;      // 轉機停留時間 (如：2h 15m)
   transitFlightCode?: string;    // 第二段/銜接航班號 (如：EY073)
+  firstLegDuration?: string;     // 第一段飛行時間 (如：9h 30m)
+  secondLegDuration?: string;    // 第二段飛行時間 (如：6h 45m)
 
   // 回程轉機資訊 (Return Transit)
   hasReturnTransit?: boolean;
-  returnTransitAirport?: string; // 回程轉機機場代碼
-  returnTransitCity?: string;    // 回程轉機城市
-  returnTransitDuration?: string;// 回程轉機停留時間
-  returnTransitFlightCode?: string; // 回程第二段/銜接航班號
+  returnTransitAirport?: string;       // 回程轉機機場代碼
+  returnTransitCity?: string;          // 回程轉機城市
+  returnTransitArrivalTime?: string;   // 回程轉機抵達時間
+  returnTransitDepartureTime?: string; // 回程轉機起飛時間
+  returnTransitDuration?: string;      // 回程轉機停留時間
+  returnTransitFlightCode?: string;    // 回程第二段/銜接航班號
+  returnFirstLegDuration?: string;     // 回程第一段飛行時間
+  returnSecondLegDuration?: string;    // 回程第二段飛行時間
   isPotential?: boolean;         // 列入潛在花費 (預算參考)
   images?: string[];
   photoPlacement?: 'top' | 'middle' | 'bottom';

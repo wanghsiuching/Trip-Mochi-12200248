@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Camera, Upload, Loader2, X, Star, ArrowLeft, ArrowRight, Check, Move } from 'lucide-react';
-import { uploadOrCompressImage } from '../../utils/imageService';
+import { uploadOrCompressImage, calculateImageBudget, balanceImagesForDocument } from '../../utils/imageService';
 
 interface PhotoUploadSectionProps {
   images: string[];
@@ -46,13 +46,33 @@ export const PhotoUploadSection: React.FC<PhotoUploadSectionProps> = ({
     setUploadProgressText(`1/${files.length}`);
 
     try {
+      const expectedTotal = images.length + files.length;
+      const uploadBudget = calculateImageBudget(expectedTotal);
       const newImages: string[] = [];
+      let failedCount = 0;
+
       for (let i = 0; i < files.length; i++) {
         setUploadProgressText(`${i + 1}/${files.length}`);
-        const compressedOrUrl = await uploadOrCompressImage(files[i], tripId);
-        newImages.push(compressedOrUrl);
+        try {
+          const compressedOrUrl = await uploadOrCompressImage(files[i], tripId, uploadBudget);
+          if (compressedOrUrl) {
+            newImages.push(compressedOrUrl);
+          }
+        } catch (singleErr) {
+          failedCount++;
+          console.warn(`第 ${i + 1} 張圖片處理失敗:`, singleErr);
+        }
       }
-      onChangeImages([...images, ...newImages]);
+
+      if (newImages.length > 0) {
+        const combined = [...images, ...newImages];
+        const balanced = await balanceImagesForDocument(combined, 680000);
+        onChangeImages(balanced);
+      }
+
+      if (failedCount > 0) {
+        alert(`有 ${failedCount} 張圖片無法讀取或格式不支援，其餘照片已保留`);
+      }
     } catch (err) {
       console.error('圖片處理失敗', err);
       alert('圖片處理失敗，請重試');
@@ -93,11 +113,15 @@ export const PhotoUploadSection: React.FC<PhotoUploadSectionProps> = ({
           <Camera size={14} className="text-sage" />
           <span>{label}</span>
         </label>
-        {images.length > 0 && (
-          <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
-            已選 {images.length} 張相片
-          </span>
-        )}
+        {images.length > 0 && (() => {
+          const base64Bytes = images.reduce((sum, img) => sum + (typeof img === 'string' && img.startsWith('data:image/') ? Math.round(img.length * 0.75) : 0), 0);
+          const kbText = base64Bytes > 0 ? ` · 約 ${Math.max(1, Math.round(base64Bytes / 1024))} KB` : '';
+          return (
+            <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+              已選 {images.length} 張相片{kbText}
+            </span>
+          );
+        })()}
       </div>
 
       <input

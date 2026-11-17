@@ -37,8 +37,14 @@ export const bookingFlightToTransport = (flight: BookingFlight): TransportItemMo
 
   // 1. 去程 (Outbound)
   const outboundSegments: TransportSegmentModel[] = [];
-  const depTime = flight.depTime || (flight.date ? flight.date.slice(11, 16) : '');
-  const arrTime = flight.arrTime || (flight.arrivalDate ? flight.arrivalDate.slice(11, 16) : '');
+  const parsedDepFromDate = flight.date && flight.date.includes('T') ? flight.date.slice(11, 16) : '';
+  const parsedArrFromDate = flight.arrivalDate && flight.arrivalDate.includes('T') ? flight.arrivalDate.slice(11, 16) : '';
+  const depTime = (parsedDepFromDate && parsedDepFromDate !== '00:00')
+    ? parsedDepFromDate
+    : ((flight.depTime && flight.depTime !== '00:00') ? flight.depTime : (parsedDepFromDate || flight.depTime || ''));
+  const arrTime = (parsedArrFromDate && parsedArrFromDate !== '00:00')
+    ? parsedArrFromDate
+    : ((flight.arrTime && flight.arrTime !== '00:00') ? flight.arrTime : (parsedArrFromDate || flight.arrTime || ''));
   const depDate = flight.date ? flight.date.slice(0, 10) : '';
   const arrDate = flight.arrivalDate ? flight.arrivalDate.slice(0, 10) : '';
 
@@ -46,7 +52,7 @@ export const bookingFlightToTransport = (flight: BookingFlight): TransportItemMo
     name: flight.originCity || flight.origin || '出發地',
     code: (flight.origin || flight.departureAirport || 'DEP').toUpperCase(),
     city: flight.originCity || '',
-    time: depTime || '17:40',
+    time: depTime,
     date: depDate,
     timeZoneLabel: '出發時間',
   };
@@ -55,7 +61,7 @@ export const bookingFlightToTransport = (flight: BookingFlight): TransportItemMo
     name: flight.destCity || flight.dest || '目的地',
     code: (flight.dest || flight.arrivalAirport || 'ARR').toUpperCase(),
     city: flight.destCity || '',
-    time: arrTime || '12:00',
+    time: arrTime,
     date: arrDate,
     timeZoneLabel: '抵達時間',
   };
@@ -64,17 +70,22 @@ export const bookingFlightToTransport = (flight: BookingFlight): TransportItemMo
 
   if (hasTransit && (flight.transitAirport || flight.transitCity)) {
     // 兩段式航班 (例如 EY899 經由 AUH 轉至 ZRH)
+    const transitArrTime = flight.transitArrivalTime || '';
+    const transitDepTime = flight.transitDepartureTime || '';
+    const autoTransitDuration = calculateDurationBetweenTimes(transitArrTime, transitDepTime);
     const transitNode: LocationNode = {
       name: flight.transitCity || flight.transitAirport || '轉機地',
       code: (flight.transitAirport || 'TRN').toUpperCase(),
       city: flight.transitCity || '',
-      time: '',
+      time: transitArrTime,
       timeZoneLabel: '轉機節點',
     };
 
     const transferInfo: TransferInfo = {
       location: transitNode,
-      duration: flight.transitDuration || '1h 20m',
+      arrivalTime: transitArrTime,
+      departureTime: transitDepTime,
+      duration: flight.transitDuration || autoTransitDuration || '',
       nextServiceNumber: flight.transitFlightCode?.toUpperCase() || '',
       nextOperator: flight.airline || '',
       nextTransportType: 'flight',
@@ -89,9 +100,9 @@ export const bookingFlightToTransport = (flight: BookingFlight): TransportItemMo
       operator: flight.airline || '航空公司',
       serviceNumber: flight.code?.toUpperCase() || 'FLIGHT',
       departure: originNode,
-      arrival: transitNode,
+      arrival: { ...transitNode, time: transitArrTime },
       transferAfter: transferInfo,
-      duration: '',
+      duration: flight.firstLegDuration || '',
       details: {
         baggage: {
           checked: flight.checkedBag || flight.baggage,
@@ -109,9 +120,9 @@ export const bookingFlightToTransport = (flight: BookingFlight): TransportItemMo
       type: 'flight',
       operator: flight.airline || '航空公司',
       serviceNumber: (flight.transitFlightCode || flight.code || 'FLIGHT').toUpperCase(),
-      departure: transitNode,
+      departure: { ...transitNode, time: transitDepTime },
       arrival: destNode,
-      duration: '',
+      duration: flight.secondLegDuration || '',
       details: {
         baggage: {
           checked: flight.checkedBag || flight.baggage,
@@ -150,7 +161,7 @@ export const bookingFlightToTransport = (flight: BookingFlight): TransportItemMo
     title: `${flight.airline} ${flight.code}`.trim(),
     operator: flight.airline || '航空公司',
     serviceNumber: flight.code?.toUpperCase() || 'FLIGHT',
-    totalDuration: flight.duration || (hasTransit ? '17h 30m' : ''),
+    totalDuration: flight.duration || '',
     directionType: flight.tripType === 'roundtrip' ? 'outbound' : 'oneway',
     segments: outboundSegments,
     cost: flight.cost,
@@ -200,16 +211,22 @@ export const bookingFlightToTransport = (flight: BookingFlight): TransportItemMo
     const hasReturnTransit = Boolean(flight.hasReturnTransit || flight.returnTransitAirport || flight.returnTransitCity);
 
     if (hasReturnTransit && (flight.returnTransitAirport || flight.returnTransitCity)) {
+      const retTransitArrTime = flight.returnTransitArrivalTime || '';
+      const retTransitDepTime = flight.returnTransitDepartureTime || '';
+      const autoRetDuration = calculateDurationBetweenTimes(retTransitArrTime, retTransitDepTime);
       const retTransitNode: LocationNode = {
         name: flight.returnTransitCity || flight.returnTransitAirport || '回程轉機地',
         code: (flight.returnTransitAirport || 'TRN').toUpperCase(),
         city: flight.returnTransitCity || '',
+        time: retTransitArrTime,
         timeZoneLabel: '轉機節點',
       };
 
       const retTransferInfo: TransferInfo = {
         location: retTransitNode,
-        duration: flight.returnTransitDuration || '2h 15m',
+        arrivalTime: retTransitArrTime,
+        departureTime: retTransitDepTime,
+        duration: flight.returnTransitDuration || autoRetDuration || '',
         nextServiceNumber: flight.returnTransitFlightCode?.toUpperCase() || '',
         nextOperator: flight.airline || '',
         nextTransportType: 'flight',
@@ -223,9 +240,9 @@ export const bookingFlightToTransport = (flight: BookingFlight): TransportItemMo
         operator: flight.airline || '航空公司',
         serviceNumber: flight.code?.toUpperCase() || 'FLIGHT',
         departure: retOriginNode,
-        arrival: retTransitNode,
+        arrival: { ...retTransitNode, time: retTransitArrTime },
         transferAfter: retTransferInfo,
-        duration: '',
+        duration: flight.returnFirstLegDuration || '',
         details: {
           baggage: {
             checked: flight.checkedBag || flight.baggage,
@@ -240,9 +257,9 @@ export const bookingFlightToTransport = (flight: BookingFlight): TransportItemMo
         type: 'flight',
         operator: flight.airline || '航空公司',
         serviceNumber: (flight.returnTransitFlightCode || flight.code || 'FLIGHT').toUpperCase(),
-        departure: retTransitNode,
+        departure: { ...retTransitNode, time: retTransitDepTime },
         arrival: retDestNode,
-        duration: '',
+        duration: flight.returnSecondLegDuration || '',
         details: {
           baggage: {
             checked: flight.checkedBag || flight.baggage,
@@ -519,9 +536,14 @@ export const scheduleItemToTransport = (item: ScheduleItem): TransportItemModel 
 
     const segments: TransportSegmentModel[] = [];
     if (f.hasTransit && (f.transitAirport || f.transitCity)) {
+      const transitArrTime = f.transitArrivalTime || '';
+      const transitDepTime = f.transitDepartureTime || '';
+      const autoTransitDuration = calculateDurationBetweenTimes(transitArrTime, transitDepTime);
       const transitNode: LocationNode = {
         name: f.transitCity || f.transitAirport || '轉機地',
         code: f.transitAirport?.toUpperCase() || 'TRN',
+        city: f.transitCity || '',
+        time: transitArrTime,
       };
       segments.push({
         id: `${item.id}-seg-1`,
@@ -529,10 +551,13 @@ export const scheduleItemToTransport = (item: ScheduleItem): TransportItemModel 
         operator: f.airline || '航空公司',
         serviceNumber: f.flightCode || 'FLIGHT',
         departure: originNode,
-        arrival: transitNode,
+        arrival: { ...transitNode, time: transitArrTime },
+        duration: f.firstLegDuration || '',
         transferAfter: {
           location: transitNode,
-          duration: f.transitDuration || '轉機',
+          arrivalTime: transitArrTime,
+          departureTime: transitDepTime,
+          duration: f.transitDuration || autoTransitDuration || '',
           nextServiceNumber: f.transitFlightCode,
           transferType: 'flight',
         },
@@ -542,8 +567,9 @@ export const scheduleItemToTransport = (item: ScheduleItem): TransportItemModel 
         type: 'flight',
         operator: f.airline || '航空公司',
         serviceNumber: f.transitFlightCode || f.flightCode || 'FLIGHT',
-        departure: transitNode,
+        departure: { ...transitNode, time: transitDepTime },
         arrival: destNode,
+        duration: f.secondLegDuration || '',
       });
     } else {
       segments.push({

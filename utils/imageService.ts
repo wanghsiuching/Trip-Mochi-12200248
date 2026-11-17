@@ -149,11 +149,11 @@ export const calculateImageBudget = (totalCount: number): ImageCompressionOption
   } else if (totalCount <= 3) {
     return { maxWidth: 1200, quality: 0.74, maxChars: 150000, sharpen: true, sharpenAmount: 0.08 };
   } else if (totalCount <= 5) {
-    return { maxWidth: 1200, quality: 0.70, maxChars: 95000, sharpen: true, sharpenAmount: 0.08 };
+    return { maxWidth: 1100, quality: 0.70, maxChars: 110000, sharpen: true, sharpenAmount: 0.08 };
   } else {
-    // 6 ~ 10 張 (總容量嚴格控制在 460000 字元內，為 Firestore 1MB 預留 50% 以上充裕空間)
-    const perChar = Math.floor(460000 / Math.max(6, totalCount));
-    return { maxWidth: 1100, quality: 0.68, maxChars: perChar, sharpen: true, sharpenAmount: 0.09 };
+    // 6 ~ 10+ 張：總容量嚴格控制在 ~620000 字元內，單一文件遠低於 Firestore 1MB 上限且維持清晰度
+    const perChar = Math.max(42000, Math.floor(600000 / Math.max(6, totalCount)));
+    return { maxWidth: 1000, quality: 0.68, maxChars: perChar, sharpen: true, sharpenAmount: 0.08 };
   }
 };
 
@@ -442,11 +442,18 @@ export const uploadOrCompressImage = async (
       const res = await fetch(base64);
       const blob = await res.blob();
       
-      const snapshot = await uploadBytes(storageRef, blob, {
-        contentType: 'image/webp',
-        cacheControl: 'public, max-age=31536000',
-      });
-      const downloadUrl = await getDownloadURL(snapshot.ref);
+      const uploadTask = async () => {
+        const snapshot = await uploadBytes(storageRef, blob, {
+          contentType: 'image/webp',
+          cacheControl: 'public, max-age=31536000',
+        });
+        return await getDownloadURL(snapshot.ref);
+      };
+
+      const downloadUrl = await Promise.race([
+        uploadTask(),
+        new Promise<string>((_, reject) => setTimeout(() => reject(new Error('Storage upload timeout')), 5000))
+      ]);
       return downloadUrl;
     } catch (storageErr) {
       console.warn('Firebase Storage upload fallback to ultra-compact Base64:', storageErr);
@@ -454,6 +461,41 @@ export const uploadOrCompressImage = async (
   }
 
   return base64;
+};
+
+/**
+ * 平衡多張 Base64 圖片總容量，確保單一項目內所有照片合計安全低於 Firestore 1MB 限制（支援 8~12 張圖片）
+ */
+export const balanceImagesForDocument = async (
+  images: string[],
+  maxTotalChars: number = 680000
+): Promise<string[]> => {
+  if (!Array.isArray(images) || images.length === 0) return [];
+  const base64Indices: number[] = [];
+  let totalBase64Chars = 0;
+
+  images.forEach((img, idx) => {
+    if (typeof img === 'string' && img.startsWith('data:image/')) {
+      base64Indices.push(idx);
+      totalBase64Chars += img.length;
+    }
+  });
+
+  if (totalBase64Chars <= maxTotalChars || base64Indices.length === 0) {
+    return images;
+  }
+
+  const perImageBudget = Math.max(32000, Math.floor(maxTotalChars / base64Indices.length));
+  const targetMaxDim = base64Indices.length >= 6 ? 960 : 1100;
+
+  return Promise.all(
+    images.map((img) => {
+      if (typeof img === 'string' && img.startsWith('data:image/') && img.length > perImageBudget) {
+        return compressBase64IfNeeded(img, targetMaxDim, perImageBudget);
+      }
+      return Promise.resolve(img);
+    })
+  );
 };
 
 /**

@@ -15,7 +15,38 @@ import {
   writeBatch
 } from 'firebase/firestore';
 import { PocketItem, Journal, ScheduleItem } from '../types';
-import { compressBase64IfNeeded, calculateImageBudget } from '../utils/imageService';
+import { compressBase64IfNeeded, calculateImageBudget, balanceImagesForDocument } from '../utils/imageService';
+
+const BOOKING_SUBCOLLECTIONS = new Set(['flights', 'accommodations', 'carRentals']);
+
+const sanitizeBookingItemForFirestore = async (collectionName: string, item: any): Promise<any> => {
+  if (!item) return item;
+  const copy: any = { ...item };
+
+  // Normalize images & avoid storing duplicate photos + images arrays on Accommodation
+  let rawImages: string[] = [];
+  if (Array.isArray(copy.images) && copy.images.length > 0) {
+    rawImages = copy.images.filter(Boolean);
+  } else if (collectionName === 'accommodations' && Array.isArray(copy.photos) && copy.photos.length > 0) {
+    rawImages = copy.photos.filter(Boolean);
+  }
+
+  if (collectionName === 'accommodations') {
+    delete copy.photos;
+  }
+
+  if (rawImages.length > 0) {
+    copy.images = await balanceImagesForDocument(rawImages, 680000);
+  } else {
+    copy.images = [];
+  }
+
+  let cleaned = cleanData(copy);
+  if (JSON.stringify(cleaned).length > 880000 && Array.isArray(cleaned.images) && cleaned.images.length > 0) {
+    cleaned.images = await balanceImagesForDocument(cleaned.images, 500000);
+  }
+  return cleaned;
+};
 
 /**
  * Sorts schedule items reliably based on:
@@ -277,6 +308,19 @@ export const duplicateTrip = async (originalTripId: string): Promise<string> => 
     } catch (subErr) {
       console.warn("Failed to copy subcollection journals:", subErr);
     }
+
+    // Also copy booking subcollections (flights, accommodations, carRentals) if any
+    for (const bookingColName of ['flights', 'accommodations', 'carRentals']) {
+      try {
+        const bookingCol = collection(db, 'trips', originalTripId, bookingColName);
+        const bookingSnap = await getDocs(bookingCol);
+        for (const bookingDoc of bookingSnap.docs) {
+          await setDoc(doc(db, 'trips', newCode, bookingColName, bookingDoc.id), bookingDoc.data());
+        }
+      } catch (subErr) {
+        console.warn(`Failed to copy subcollection ${bookingColName}:`, subErr);
+      }
+    }
     
     return newCode;
   } catch (error) {
@@ -297,13 +341,19 @@ export const joinTripByCode = async (code: string): Promise<any> => {
     const scheduleCol = collection(db, 'trips', cleanCode, 'scheduleItems');
     const pocketCol = collection(db, 'trips', cleanCode, 'pocketItems');
     const journalCol = collection(db, 'trips', cleanCode, 'journals');
+    const flightsCol = collection(db, 'trips', cleanCode, 'flights');
+    const accCol = collection(db, 'trips', cleanCode, 'accommodations');
+    const carCol = collection(db, 'trips', cleanCode, 'carRentals');
 
-    // Run main document and all 3 subcollections in parallel for lightning-fast loading
-    const [snap, scheduleSnap, pocketSnap, journalSnap] = await Promise.all([
+    // Run main document and all subcollections in parallel for lightning-fast loading
+    const [snap, scheduleSnap, pocketSnap, journalSnap, flightsSnap, accSnap, carSnap] = await Promise.all([
       getDoc(tripRef),
       getDocs(scheduleCol).catch(e => { console.warn("Subcollection read fallback (schedule):", e); return null; }),
       getDocs(pocketCol).catch(e => { console.warn("Subcollection read fallback (pocket):", e); return null; }),
-      getDocs(journalCol).catch(e => { console.warn("Subcollection read fallback (journal):", e); return null; })
+      getDocs(journalCol).catch(e => { console.warn("Subcollection read fallback (journal):", e); return null; }),
+      getDocs(flightsCol).catch(e => { console.warn("Subcollection read fallback (flights):", e); return null; }),
+      getDocs(accCol).catch(e => { console.warn("Subcollection read fallback (accommodations):", e); return null; }),
+      getDocs(carCol).catch(e => { console.warn("Subcollection read fallback (carRentals):", e); return null; })
     ]);
 
     if (!snap.exists()) {
@@ -392,6 +442,27 @@ export const joinTripByCode = async (code: string): Promise<any> => {
     const finalJournals = Array.from(journalMap.values());
     finalJournals.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     data.journals = finalJournals;
+
+    // 4. Merge booking subcollections (flights, accommodations, carRentals) with legacy root arrays
+    const mergeBookingSnap = (legacyArr: any[], subSnap: any) => {
+      const map = new Map<string, any>();
+      if (Array.isArray(legacyArr)) {
+        for (const item of legacyArr) {
+          if (item && item.id !== undefined) map.set(String(item.id), item);
+        }
+      }
+      if (subSnap) {
+        for (const d of subSnap.docs) {
+          const item = d.data();
+          if (item && item.id !== undefined) map.set(String(item.id), item);
+        }
+      }
+      return Array.from(map.values()).sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
+    };
+
+    data.flights = mergeBookingSnap(data.flights, flightsSnap);
+    data.accommodations = mergeBookingSnap(data.accommodations, accSnap);
+    data.carRentals = mergeBookingSnap(data.carRentals, carSnap);
 
     return data;
   } catch (error: any) {
@@ -686,17 +757,26 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
     const scheduleColRef = collection(db, 'trips', tripId, 'scheduleItems');
     const pocketColRef = collection(db, 'trips', tripId, 'pocketItems');
     const journalColRef = collection(db, 'trips', tripId, 'journals');
+    const flightsColRef = collection(db, 'trips', tripId, 'flights');
+    const accColRef = collection(db, 'trips', tripId, 'accommodations');
+    const carColRef = collection(db, 'trips', tripId, 'carRentals');
     
     let currentTripData: any = null;
     let subcollectionScheduleItems: ScheduleItem[] = [];
     let subcollectionPocketItems: PocketItem[] = [];
     let subcollectionJournals: Journal[] = [];
+    let subcollectionFlights: any[] = [];
+    let subcollectionAccommodations: any[] = [];
+    let subcollectionCarRentals: any[] = [];
 
     // Track initial resolution of all subscriptions to prevent emitting premature empty arrays
     let hasTripDoc = false;
     let hasScheduleCol = false;
     let hasPocketCol = false;
     let hasJournalCol = false;
+    let hasFlightsCol = false;
+    let hasAccCol = false;
+    let hasCarCol = false;
     let initialSyncComplete = false;
     let initialSyncTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -809,6 +889,30 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
         combined.journals = finalJournals;
       }
 
+      // 4. Merge booking subcollections (flights, accommodations, carRentals) with legacy root arrays
+      const mergeBookingList = (legacyList: any[], subList: any[]) => {
+        const map = new Map<string, any>();
+        if (Array.isArray(legacyList)) {
+          for (const item of legacyList) {
+            if (item && item.id !== undefined) map.set(String(item.id), item);
+          }
+        }
+        for (const item of subList) {
+          if (item && item.id !== undefined) map.set(String(item.id), item);
+        }
+        return Array.from(map.values()).sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
+      };
+
+      if (hasFlightsCol || (Array.isArray(currentTripData.flights) && currentTripData.flights.length > 0)) {
+        combined.flights = mergeBookingList(currentTripData.flights, subcollectionFlights);
+      }
+      if (hasAccCol || (Array.isArray(currentTripData.accommodations) && currentTripData.accommodations.length > 0)) {
+        combined.accommodations = mergeBookingList(currentTripData.accommodations, subcollectionAccommodations);
+      }
+      if (hasCarCol || (Array.isArray(currentTripData.carRentals) && currentTripData.carRentals.length > 0)) {
+        combined.carRentals = mergeBookingList(currentTripData.carRentals, subcollectionCarRentals);
+      }
+
       onUpdate(combined);
     };
 
@@ -818,7 +922,7 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
         return;
       }
       // Check if all essential initial snapshots have arrived
-      if (hasTripDoc && hasScheduleCol && hasPocketCol && hasJournalCol) {
+      if (hasTripDoc && hasScheduleCol && hasPocketCol && hasJournalCol && hasFlightsCol && hasAccCol && hasCarCol) {
         if (initialSyncTimer) {
           clearTimeout(initialSyncTimer);
           initialSyncTimer = null;
@@ -875,12 +979,40 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
       console.error("Real-time sync error (journal subcollection):", error);
     });
 
+    // 5. Subscribe to booking subcollections (flights, accommodations, carRentals)
+    const unsubFlights = onSnapshot(flightsColRef, (colSnap) => {
+      hasFlightsCol = true;
+      subcollectionFlights = colSnap.docs.map(d => d.data());
+      tryInitialNotify();
+    }, (error) => {
+      console.error("Real-time sync error (flights subcollection):", error);
+    });
+
+    const unsubAcc = onSnapshot(accColRef, (colSnap) => {
+      hasAccCol = true;
+      subcollectionAccommodations = colSnap.docs.map(d => d.data());
+      tryInitialNotify();
+    }, (error) => {
+      console.error("Real-time sync error (accommodations subcollection):", error);
+    });
+
+    const unsubCar = onSnapshot(carColRef, (colSnap) => {
+      hasCarCol = true;
+      subcollectionCarRentals = colSnap.docs.map(d => d.data());
+      tryInitialNotify();
+    }, (error) => {
+      console.error("Real-time sync error (carRentals subcollection):", error);
+    });
+
     return () => {
       if (initialSyncTimer) clearTimeout(initialSyncTimer);
       unsubTrip();
       unsubSchedule();
       unsubPocket();
       unsubJournal();
+      unsubFlights();
+      unsubAcc();
+      unsubCar();
     };
   } catch (error) {
     console.error("Failed to subscribe to trip:", error);
@@ -891,23 +1023,52 @@ export const subscribeToTrip = (tripId: string, onUpdate: (data: any) => void) =
 /**
  * Adds an item to a specific collection or array field in the trip document atomically.
  */
-export const addTripItem = async (tripId: string, collectionName: string, item: any): Promise<void> => {
-  if (!tripId) return;
+export const saveBookingItem = async (tripId: string, collectionName: string, item: any): Promise<void> => {
+  if (!tripId || !item || item.id === undefined) return;
   return queueWrite(async () => {
     try {
-      if (collectionName === 'scheduleItems') {
-        await saveScheduleItem(tripId, item);
-        return;
+      const cleaned = await sanitizeBookingItemForFirestore(collectionName, item);
+      const itemRef = doc(db, 'trips', tripId, collectionName, String(item.id));
+      try {
+        await setDoc(itemRef, cleaned);
+      } catch (setErr: any) {
+        const isSizeError = setErr?.message?.includes('size') || setErr?.message?.includes('1,048,576') || setErr?.message?.includes('too large');
+        if (isSizeError && Array.isArray(cleaned.images) && cleaned.images.length > 0) {
+          console.warn(`Firestore ${collectionName} size exceeded, applying emergency image compression...`, setErr);
+          cleaned.images = await balanceImagesForDocument(cleaned.images, 350000);
+          await setDoc(itemRef, cleaned);
+        } else {
+          throw setErr;
+        }
       }
-      if (collectionName === 'pocketItems') {
-        await savePocketItem(tripId, item);
-        return;
-      }
-      if (collectionName === 'journals') {
-        await saveJournalItem(tripId, item);
-        return;
-      }
+    } catch (err) {
+      console.error(`Failed to save ${collectionName} item to subcollection:`, err);
+      throw err;
+    }
+  });
+};
 
+export const addTripItem = async (tripId: string, collectionName: string, item: any): Promise<void> => {
+  if (!tripId) return;
+  if (collectionName === 'scheduleItems') {
+    await saveScheduleItem(tripId, item);
+    return;
+  }
+  if (collectionName === 'pocketItems') {
+    await savePocketItem(tripId, item);
+    return;
+  }
+  if (collectionName === 'journals') {
+    await saveJournalItem(tripId, item);
+    return;
+  }
+  if (BOOKING_SUBCOLLECTIONS.has(collectionName)) {
+    await saveBookingItem(tripId, collectionName, item);
+    return;
+  }
+
+  return queueWrite(async () => {
+    try {
       const tripRef = doc(db, 'trips', tripId);
       const cleanedItem = cleanData(item);
       await setDoc(tripRef, {
@@ -1212,6 +1373,48 @@ export const updateTripField = async (tripId: string, field: string, value: any)
         batch.set(tripRef, { journals: [] }, { merge: true });
 
         await batch.commit();
+        return;
+      }
+
+      // If updating booking collections (flights, accommodations, carRentals), store each item in its subcollection
+      if (BOOKING_SUBCOLLECTIONS.has(field) && Array.isArray(value)) {
+        const bookingColRef = collection(db, 'trips', tripId, field);
+        const existingSnap = await getDocs(bookingColRef);
+        const existingMap = new Map<string, string>();
+        for (const d of existingSnap.docs) {
+          existingMap.set(d.id, JSON.stringify(d.data()));
+        }
+        const newIds = new Set(value.map(v => String(v.id)));
+
+        const batch = writeBatch(db);
+        let batchCount = 0;
+
+        for (const existingDoc of existingSnap.docs) {
+          if (!newIds.has(existingDoc.id)) {
+            batch.delete(existingDoc.ref);
+            batchCount++;
+          }
+        }
+
+        for (const item of value) {
+          if (item && item.id !== undefined) {
+            const sanitized = await sanitizeBookingItemForFirestore(field, item);
+            const itemId = String(item.id);
+            if (existingMap.get(itemId) !== JSON.stringify(sanitized)) {
+              const itemRef = doc(db, 'trips', tripId, field, itemId);
+              batch.set(itemRef, sanitized);
+              batchCount++;
+            }
+          }
+        }
+
+        const tripRef = doc(db, 'trips', tripId);
+        batch.set(tripRef, { [field]: [] }, { merge: true });
+        batchCount++;
+
+        if (batchCount > 0) {
+          await batch.commit();
+        }
         return;
       }
 

@@ -22,18 +22,18 @@ interface BookingsViewProps {
   tickets: BookingTicket[];
   currencies: Currency[];
   members: Member[];
-  onAddFlight: (flight: BookingFlight) => void;
-  onUpdateFlight: (flight: BookingFlight) => void;
-  onDeleteFlight: (id: number) => void;
-  onUpdateAccommodation: (acc: BookingAccommodation) => void;
-  onDeleteAccommodation: (id: number) => void;
-  onAddAccommodation: (acc: BookingAccommodation) => void;
-  onAddCar: (car: BookingCarRental) => void;
-  onUpdateCar: (car: BookingCarRental) => void;
-  onDeleteCar: (id: number) => void;
-  onAddTicket: (ticket: BookingTicket) => void;
-  onUpdateTicket: (ticket: BookingTicket) => void;
-  onDeleteTicket: (id: number) => void;
+  onAddFlight: (flight: BookingFlight) => Promise<void> | void;
+  onUpdateFlight: (flight: BookingFlight) => Promise<void> | void;
+  onDeleteFlight: (id: number) => Promise<void> | void;
+  onUpdateAccommodation: (acc: BookingAccommodation) => Promise<void> | void;
+  onDeleteAccommodation: (id: number) => Promise<void> | void;
+  onAddAccommodation: (acc: BookingAccommodation) => Promise<void> | void;
+  onAddCar: (car: BookingCarRental) => Promise<void> | void;
+  onUpdateCar: (car: BookingCarRental) => Promise<void> | void;
+  onDeleteCar: (id: number) => Promise<void> | void;
+  onAddTicket: (ticket: BookingTicket) => Promise<void> | void;
+  onUpdateTicket: (ticket: BookingTicket) => Promise<void> | void;
+  onDeleteTicket: (id: number) => Promise<void> | void;
 }
 
 export const BookingsView: React.FC<BookingsViewProps> = ({ 
@@ -56,6 +56,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   const [editingCar, setEditingCar] = useState<BookingCarRental | null>(null);
 
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [localLightbox, setLocalLightbox] = useState<{ images: string[]; index: number } | null>(null);
 
   const openLightbox = (images: string[], index: number) => {
@@ -144,36 +146,74 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   };
 
   // --- Flight Logic ---
+  const toLocalDateTimeStr = (d: Date) => {
+      const pad = (n: number) => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const normalizeDateTimeInput = (val?: string, fallbackTime?: string) => {
+      if (!val) return '';
+      if (val.includes('T')) return val.slice(0, 16);
+      if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+          const t = fallbackTime && /^\d{2}:\d{2}$/.test(fallbackTime) ? fallbackTime : '09:00';
+          return `${val}T${t}`;
+      }
+      return val;
+  };
+
   const openFlightEdit = (flight?: BookingFlight) => {
       setIsUploadingPhoto(false);
+      setIsSaving(false);
+      setSaveError(null);
       if (flight) {
+          const normDate = normalizeDateTimeInput(flight.date, flight.depTime);
+          const normArrivalDate = normalizeDateTimeInput(flight.arrivalDate || flight.date, flight.arrTime);
+          const normReturnDate = normalizeDateTimeInput(flight.returnDate);
+          const normReturnArrivalDate = normalizeDateTimeInput(flight.returnArrivalDate);
+          const parsedDep = normDate.includes('T') ? normDate.slice(11, 16) : '';
+          const parsedArr = normArrivalDate.includes('T') ? normArrivalDate.slice(11, 16) : '';
+          const resolvedDepTime = (parsedDep && parsedDep !== '00:00')
+              ? parsedDep
+              : ((flight.depTime && flight.depTime !== '00:00') ? flight.depTime : parsedDep);
+          const resolvedArrTime = (parsedArr && parsedArr !== '00:00')
+              ? parsedArr
+              : ((flight.arrTime && flight.arrTime !== '00:00') ? flight.arrTime : parsedArr);
+
           setEditingFlight({
               ...flight,
+              date: resolvedDepTime && normDate ? `${normDate.slice(0, 10)}T${resolvedDepTime}` : normDate,
+              arrivalDate: resolvedArrTime && normArrivalDate ? `${normArrivalDate.slice(0, 10)}T${resolvedArrTime}` : normArrivalDate,
+              returnDate: normReturnDate,
+              returnArrivalDate: normReturnArrivalDate,
+              depTime: resolvedDepTime || '',
+              arrTime: resolvedArrTime || '',
               images: flight.images || [],
               photoPlacement: flight.photoPlacement || 'middle',
               photoOffsetY: flight.photoOffsetY ?? 50
           });
       } else {
+          const nowLocal = toLocalDateTimeStr(new Date());
+          const nowTime = nowLocal.slice(11, 16);
           const newFlight: BookingFlight = {
               id: Date.now(),
               airline: '',
               code: '',
-              date: new Date().toISOString().slice(0, 16),
-              arrivalDate: new Date().toISOString().slice(0, 16),
+              date: nowLocal,
+              arrivalDate: nowLocal,
               origin: 'TPE',
               originCity: '台北',
               dest: 'PUS',
               destCity: '釜山',
-              depTime: '00:00',
-              arrTime: '00:00',
-              duration: '2h 0m',
-              returnDuration: '2h 30m',
+              depTime: nowTime,
+              arrTime: nowTime,
+              duration: '',
+              returnDuration: '',
               aircraft: '',
               checkedBag: '',
               carryOnBag: '',
               baggage: '',
               color: 'bg-blue-500', 
-              purchaseDate: new Date().toISOString().split('T')[0],
+              purchaseDate: nowLocal.slice(0, 10),
               platform: '',
               type: '來回', 
               tripType: 'roundtrip',
@@ -194,21 +234,48 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
       setShowFlightModal(true);
   };
 
-  const saveFlight = () => {
-      if(editingFlight) {
-          if (flights.find(f => f.id === editingFlight.id)) {
-             onUpdateFlight(editingFlight);
+  const saveFlight = async () => {
+      if (!editingFlight || isSaving || isUploadingPhoto) return;
+      setIsSaving(true);
+      setSaveError(null);
+      try {
+          const syncedFlight: BookingFlight = {
+              ...editingFlight,
+              depTime: editingFlight.date?.includes('T')
+                  ? editingFlight.date.slice(11, 16)
+                  : (editingFlight.depTime || ''),
+              arrTime: editingFlight.arrivalDate?.includes('T')
+                  ? editingFlight.arrivalDate.slice(11, 16)
+                  : (editingFlight.arrTime || ''),
+          };
+          if (flights.find(f => String(f.id) === String(syncedFlight.id))) {
+             await onUpdateFlight(syncedFlight);
           } else {
-             onAddFlight(editingFlight);
+             await onAddFlight(syncedFlight);
           }
           setShowFlightModal(false);
+      } catch (err: any) {
+          console.error('保存航班失敗:', err);
+          setSaveError(err?.message || '儲存失敗，若相片過多或檔案過大請嘗試減少張數後再試。');
+      } finally {
+          setIsSaving(false);
       }
   };
 
-  const deleteFlight = () => {
-      if (editingFlight && window.confirm('確定刪除此航班？')) {
-          onDeleteFlight(editingFlight.id);
-          setShowFlightModal(false);
+  const deleteFlight = async () => {
+      if (!editingFlight || isSaving) return;
+      if (window.confirm('確定刪除此航班？')) {
+          setIsSaving(true);
+          setSaveError(null);
+          try {
+              await onDeleteFlight(editingFlight.id);
+              setShowFlightModal(false);
+          } catch (err: any) {
+              console.error('刪除航班失敗:', err);
+              setSaveError(err?.message || '刪除失敗，請稍後再試。');
+          } finally {
+              setIsSaving(false);
+          }
       }
   };
 
@@ -238,13 +305,15 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
   const openAccEdit = (acc?: BookingAccommodation) => {
       setIsUploadingPhoto(false);
+      setIsSaving(false);
+      setSaveError(null);
       if(acc) {
           const stayNights = calculateStayNights(acc.checkInDate, acc.checkOutDate, acc.nights);
           const existingImages = (acc.images && acc.images.length > 0) ? acc.images : (acc.photos || []);
           setEditingAcc({
               ...acc,
               nights: stayNights,
-              photos: existingImages,
+              photos: undefined,
               images: existingImages,
               photoPlacement: acc.photoPlacement || 'middle',
               photoOffsetY: acc.photoOffsetY ?? 50
@@ -282,7 +351,6 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
               serviceFeePercentage: 0,
               participants: members.map(m => m.id),
               pax: 2,
-              photos: [],
               images: [],
               photoPlacement: 'middle',
               photoOffsetY: 50,
@@ -293,17 +361,26 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
       setShowAccModal(true);
   };
 
-  const saveAcc = () => {
-      if(!editingAcc) return;
-      const stayNights = calculateStayNights(editingAcc.checkInDate, editingAcc.checkOutDate, editingAcc.nights);
-      const syncedImages = editingAcc.images || editingAcc.photos || [];
-      const accToSave = { ...editingAcc, nights: stayNights, images: syncedImages, photos: syncedImages };
-      if(accommodations.find(a => a.id === editingAcc.id)) {
-          onUpdateAccommodation(accToSave);
-      } else {
-          onAddAccommodation(accToSave);
+  const saveAcc = async () => {
+      if (!editingAcc || isSaving || isUploadingPhoto) return;
+      setIsSaving(true);
+      setSaveError(null);
+      try {
+          const stayNights = calculateStayNights(editingAcc.checkInDate, editingAcc.checkOutDate, editingAcc.nights);
+          const syncedImages = editingAcc.images || editingAcc.photos || [];
+          const accToSave: BookingAccommodation = { ...editingAcc, nights: stayNights, images: syncedImages, photos: undefined };
+          if (accommodations.find(a => a.id === editingAcc.id)) {
+              await onUpdateAccommodation(accToSave);
+          } else {
+              await onAddAccommodation(accToSave);
+          }
+          setShowAccModal(false);
+      } catch (err: any) {
+          console.error('保存住宿失敗:', err);
+          setSaveError(err?.message || '儲存失敗，若相片過多或檔案過大請嘗試減少張數後再試。');
+      } finally {
+          setIsSaving(false);
       }
-      setShowAccModal(false);
   };
 
   const toggleAccParticipant = (id: string) => {
@@ -354,6 +431,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
   // --- Car Logic ---
   const openCarEdit = (car?: BookingCarRental) => {
       setIsUploadingPhoto(false);
+      setIsSaving(false);
+      setSaveError(null);
       if (car) {
           setEditingCar({
               ...car,
@@ -380,20 +459,39 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
       setShowCarModal(true);
   };
 
-  const saveCar = () => {
-      if (!editingCar) return;
-      if (carRentals.find(c => c.id === editingCar.id)) {
-          onUpdateCar(editingCar);
-      } else {
-          onAddCar(editingCar);
+  const saveCar = async () => {
+      if (!editingCar || isSaving || isUploadingPhoto) return;
+      setIsSaving(true);
+      setSaveError(null);
+      try {
+          if (carRentals.find(c => c.id === editingCar.id)) {
+              await onUpdateCar(editingCar);
+          } else {
+              await onAddCar(editingCar);
+          }
+          setShowCarModal(false);
+      } catch (err: any) {
+          console.error('保存租車失敗:', err);
+          setSaveError(err?.message || '儲存失敗，若相片過多或檔案過大請嘗試減少張數後再試。');
+      } finally {
+          setIsSaving(false);
       }
-      setShowCarModal(false);
   };
 
-  const deleteCar = () => {
-      if (editingCar && window.confirm('確定刪除此租車紀錄？')) {
-          onDeleteCar(editingCar.id);
-          setShowCarModal(false);
+  const deleteCar = async () => {
+      if (!editingCar || isSaving) return;
+      if (window.confirm('確定刪除此租車紀錄？')) {
+          setIsSaving(true);
+          setSaveError(null);
+          try {
+              await onDeleteCar(editingCar.id);
+              setShowCarModal(false);
+          } catch (err: any) {
+              console.error('刪除租車失敗:', err);
+              setSaveError(err?.message || '刪除失敗，請稍後再試。');
+          } finally {
+              setIsSaving(false);
+          }
       }
   };
 
@@ -436,11 +534,11 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
         <div className="px-4 pb-20 lg:p-0 lg:pb-0 min-h-[50vh]">
             {subTab === 'flight' && (
                 <div className="space-y-4 animate-scale-in">
-                    <div className="mb-4 lg:mb-6 lg:flex lg:justify-end">
+                    <div className="mb-4">
                         <button 
                             type="button"
                             onClick={() => openFlightEdit()} 
-                            className="w-full lg:w-auto lg:px-6 py-3 rounded-2xl border-2 border-dashed border-gray-300 text-gray-400 font-black hover:bg-white hover:border-sage transition-all flex items-center justify-center gap-2"
+                            className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-300 text-gray-400 font-black hover:bg-white hover:border-sage transition-all flex items-center justify-center gap-2 cursor-pointer"
                         >
                             <Plus size={16}/> 新增機票
                         </button>
@@ -483,8 +581,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
             {/* Accommodation Tab */}
             {subTab === 'hotel' && (
                 <div className="animate-scale-in">
-                    <div className="mb-4 lg:mb-6 lg:flex lg:justify-end">
-                        <button onClick={() => openAccEdit()} className="w-full lg:w-auto lg:px-6 py-3 rounded-2xl border-2 border-dashed border-gray-300 text-gray-400 font-black hover:bg-white hover:border-sage transition-all flex items-center justify-center gap-2">
+                    <div className="mb-4">
+                        <button onClick={() => openAccEdit()} className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-300 text-gray-400 font-black hover:bg-white hover:border-sage transition-all flex items-center justify-center gap-2 cursor-pointer">
                             <Plus size={16}/> 新增住宿
                         </button>
                     </div>
@@ -656,10 +754,10 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
             {/* Car Rental Tab */}
             {subTab === 'car' && (
                <div className="animate-scale-in">
-                   <div className="mb-4 lg:mb-6 lg:flex lg:justify-end">
+                   <div className="mb-4">
                         <button 
                             onClick={() => openCarEdit()}
-                            className="w-full lg:w-auto lg:px-6 py-3 rounded-2xl border-2 border-dashed border-gray-300 text-gray-400 font-black hover:bg-white hover:border-sage transition-all flex items-center justify-center gap-2"
+                            className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-300 text-gray-400 font-black hover:bg-white hover:border-sage transition-all flex items-center justify-center gap-2 cursor-pointer"
                         >
                             <Plus size={16}/> 新增租車
                         </button>
@@ -800,7 +898,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
             <div className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[150] flex flex-col items-center justify-end sm:justify-center sm:p-4 animate-fade-in" onClick={() => setShowFlightModal(false)}>
                 <div className="bg-[#FAF8F2] w-full h-[100dvh] sm:h-auto sm:max-h-[92vh] sm:max-w-md sm:rounded-[2.5rem] rounded-none p-5 sm:p-6 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-6 shadow-2xl border-0 sm:border-4 sm:border-beige-dark flex flex-col justify-between overflow-hidden" onClick={e => e.stopPropagation()}>
                     <div className="flex justify-between items-center pb-3 border-b-2 border-beige-dark flex-shrink-0">
-                        <h3 className="font-black text-xl text-cocoa">{flights.find(f => f.id === editingFlight.id) ? '編輯航班' : '新增航班'}</h3>
+                        <h3 className="font-black text-xl text-cocoa">{flights.find(f => String(f.id) === String(editingFlight.id)) ? '編輯航班' : '新增航班'}</h3>
                         <button onClick={() => setShowFlightModal(false)} className="p-2 bg-white rounded-full text-gray-400 hover:text-red-400 border border-beige-dark shadow-sm transition-colors">
                             <X size={18} />
                         </button>
@@ -820,23 +918,31 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                         </div>
 
                         <div className="grid grid-cols-2 gap-2">
-                            <input value={editingFlight.airline} onChange={e => setEditingFlight({...editingFlight, airline: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="航空公司 (EVA)"/>
-                            <input value={editingFlight.code} onChange={e => setEditingFlight({...editingFlight, code: e.target.value.toUpperCase()})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-black text-cocoa uppercase text-sm" placeholder="航班號 (BR123)"/>
+                            <input autoComplete="off" value={editingFlight.airline} onChange={e => setEditingFlight({...editingFlight, airline: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="航空公司 (如 阿聯酋航空)"/>
+                            <input autoComplete="off" value={editingFlight.code} onChange={e => setEditingFlight({...editingFlight, code: e.target.value.toUpperCase()})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-black text-cocoa uppercase text-sm" placeholder="航班號 (如 EK367)"/>
                         </div>
 
                         <div className="space-y-3">
                             <DateTimePickerField
                                 label="去程出發 (Departure)"
                                 value={editingFlight.date}
-                                onChange={val => setEditingFlight({...editingFlight, date: val})}
+                                onChange={val => setEditingFlight({
+                                    ...editingFlight,
+                                    date: val,
+                                    depTime: val?.includes('T') ? val.slice(11, 16) : ''
+                                })}
                                 themeColor="cyan"
                                 icon={Plane}
                             />
 
                             <DateTimePickerField
                                 label="去程抵達 (Arrival)"
-                                value={editingFlight.arrivalDate || editingFlight.date}
-                                onChange={val => setEditingFlight({...editingFlight, arrivalDate: val})}
+                                value={editingFlight.arrivalDate || ''}
+                                onChange={val => setEditingFlight({
+                                    ...editingFlight,
+                                    arrivalDate: val,
+                                    arrTime: val?.includes('T') ? val.slice(11, 16) : ''
+                                })}
                                 themeColor="cyan"
                                 icon={Clock}
                             />
@@ -868,22 +974,22 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             <div className="flex gap-2">
                                 <div className="flex-[1]">
                                     <label className="text-[9px] font-bold text-gray-400 ml-1">代碼 (如 TPE)</label>
-                                    <input value={editingFlight.origin} onChange={e => setEditingFlight({...editingFlight, origin: e.target.value.toUpperCase()})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-black text-cocoa uppercase mb-1 text-center" placeholder="TPE"/>
+                                    <input autoComplete="off" value={editingFlight.origin} onChange={e => setEditingFlight({...editingFlight, origin: e.target.value.toUpperCase()})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-black text-cocoa uppercase mb-1 text-center" placeholder="TPE"/>
                                 </div>
                                 <div className="flex-[2]">
                                     <label className="text-[9px] font-bold text-gray-400 ml-1">出發城市</label>
-                                    <input value={editingFlight.originCity} onChange={e => setEditingFlight({...editingFlight, originCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-beige-dark font-bold text-cocoa outline-none text-sm" placeholder="例如：台北"/>
+                                    <input autoComplete="off" value={editingFlight.originCity} onChange={e => setEditingFlight({...editingFlight, originCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-beige-dark font-bold text-cocoa outline-none text-sm" placeholder="例如：台北"/>
                                 </div>
                             </div>
                             <div className="text-center text-gray-300 font-bold text-xs">⬇</div>
                             <div className="flex gap-2">
                                 <div className="flex-[1]">
                                     <label className="text-[9px] font-bold text-gray-400 ml-1">代碼 (如 ZRH)</label>
-                                    <input value={editingFlight.dest} onChange={e => setEditingFlight({...editingFlight, dest: e.target.value.toUpperCase()})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-black text-cocoa uppercase mb-1 text-center" placeholder="ZRH"/>
+                                    <input autoComplete="off" value={editingFlight.dest} onChange={e => setEditingFlight({...editingFlight, dest: e.target.value.toUpperCase()})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-black text-cocoa uppercase mb-1 text-center" placeholder="ZRH"/>
                                 </div>
                                 <div className="flex-[2]">
                                     <label className="text-[9px] font-bold text-gray-400 ml-1">抵達城市</label>
-                                    <input value={editingFlight.destCity} onChange={e => setEditingFlight({...editingFlight, destCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-beige-dark font-bold text-cocoa outline-none text-sm" placeholder="例如：蘇黎世"/>
+                                    <input autoComplete="off" value={editingFlight.destCity} onChange={e => setEditingFlight({...editingFlight, destCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-beige-dark font-bold text-cocoa outline-none text-sm" placeholder="例如：蘇黎世"/>
                                 </div>
                             </div>
                         </div>
@@ -900,7 +1006,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                     onChange={(checked) => setEditingFlight({
                                         ...editingFlight, 
                                         hasTransit: checked,
-                                        ...(!checked ? { transitAirport: '', transitCity: '', transitDuration: '', transitFlightCode: '' } : {})
+                                        ...(!checked ? { transitAirport: '', transitCity: '', transitArrivalTime: '', transitDepartureTime: '', transitDuration: '', transitFlightCode: '', firstLegDuration: '', secondLegDuration: '' } : {})
                                     })} 
                                     label={editingFlight.hasTransit || !!editingFlight.transitAirport ? "有轉機" : "直飛/無轉機"} 
                                     colorClass="bg-amber-400" 
@@ -911,22 +1017,46 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                 <div className="space-y-2 pt-2 border-t border-amber-200/60">
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
-                                            <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">轉機機場代碼 (如 AUH)</label>
-                                            <input value={editingFlight.transitAirport || ''} onChange={e => setEditingFlight({...editingFlight, transitAirport: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="AUH"/>
+                                            <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">轉機機場代碼 (如 DXB)</label>
+                                            <input autoComplete="off" value={editingFlight.transitAirport || ''} onChange={e => setEditingFlight({...editingFlight, transitAirport: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="DXB"/>
                                         </div>
                                         <div>
-                                            <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">轉機城市 (如 阿布達比)</label>
-                                            <input value={editingFlight.transitCity || ''} onChange={e => setEditingFlight({...editingFlight, transitCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="阿布達比"/>
+                                            <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">轉機城市 (如 杜拜)</label>
+                                            <input autoComplete="off" value={editingFlight.transitCity || ''} onChange={e => setEditingFlight({...editingFlight, transitCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="杜拜"/>
                                         </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <TimePickerField
+                                            label="轉機抵達時間"
+                                            value={editingFlight.transitArrivalTime || ''}
+                                            onChange={val => setEditingFlight({...editingFlight, transitArrivalTime: val})}
+                                            className="!border !border-amber-200 !p-2.5 !rounded-xl !shadow-xs"
+                                        />
+                                        <TimePickerField
+                                            label="轉機起飛時間"
+                                            value={editingFlight.transitDepartureTime || ''}
+                                            onChange={val => setEditingFlight({...editingFlight, transitDepartureTime: val})}
+                                            className="!border !border-amber-200 !p-2.5 !rounded-xl !shadow-xs"
+                                        />
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
                                             <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">轉機停留時間</label>
-                                            <input value={editingFlight.transitDuration || ''} onChange={e => setEditingFlight({...editingFlight, transitDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：2h 30m"/>
+                                            <input autoComplete="off" value={editingFlight.transitDuration || ''} onChange={e => setEditingFlight({...editingFlight, transitDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：3h 25m"/>
                                         </div>
                                         <div>
                                             <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">銜接航班號 (可選)</label>
-                                            <input value={editingFlight.transitFlightCode || ''} onChange={e => setEditingFlight({...editingFlight, transitFlightCode: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="EY073"/>
+                                            <input autoComplete="off" value={editingFlight.transitFlightCode || ''} onChange={e => setEditingFlight({...editingFlight, transitFlightCode: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="EK087"/>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">第 1 段飛行時間 (可選)</label>
+                                            <input autoComplete="off" value={editingFlight.firstLegDuration || ''} onChange={e => setEditingFlight({...editingFlight, firstLegDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：9h 30m"/>
+                                        </div>
+                                        <div>
+                                            <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">第 2 段飛行時間 (可選)</label>
+                                            <input autoComplete="off" value={editingFlight.secondLegDuration || ''} onChange={e => setEditingFlight({...editingFlight, secondLegDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：6h 45m"/>
                                         </div>
                                     </div>
                                 </div>
@@ -946,7 +1076,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         onChange={(checked) => setEditingFlight({
                                             ...editingFlight, 
                                             hasReturnTransit: checked,
-                                            ...(!checked ? { returnTransitAirport: '', returnTransitCity: '', returnTransitDuration: '', returnTransitFlightCode: '' } : {})
+                                            ...(!checked ? { returnTransitAirport: '', returnTransitCity: '', returnTransitArrivalTime: '', returnTransitDepartureTime: '', returnTransitDuration: '', returnTransitFlightCode: '', returnFirstLegDuration: '', returnSecondLegDuration: '' } : {})
                                         })} 
                                         label={editingFlight.hasReturnTransit || !!editingFlight.returnTransitAirport ? "有轉機" : "直飛/無轉機"} 
                                         colorClass="bg-amber-400" 
@@ -957,22 +1087,46 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                     <div className="space-y-2 pt-2 border-t border-amber-200/60">
                                         <div className="grid grid-cols-2 gap-2">
                                             <div>
-                                                <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">回程轉機機場 (如 AUH)</label>
-                                                <input value={editingFlight.returnTransitAirport || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitAirport: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="AUH"/>
+                                                <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">回程轉機機場 (如 DXB)</label>
+                                                <input autoComplete="off" value={editingFlight.returnTransitAirport || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitAirport: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="DXB"/>
                                             </div>
                                             <div>
                                                 <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">回程轉機城市</label>
-                                                <input value={editingFlight.returnTransitCity || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="阿布達比"/>
+                                                <input autoComplete="off" value={editingFlight.returnTransitCity || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="杜拜"/>
                                             </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <TimePickerField
+                                                label="回程轉機抵達時間"
+                                                value={editingFlight.returnTransitArrivalTime || ''}
+                                                onChange={val => setEditingFlight({...editingFlight, returnTransitArrivalTime: val})}
+                                                className="!border !border-amber-200 !p-2.5 !rounded-xl !shadow-xs"
+                                            />
+                                            <TimePickerField
+                                                label="回程轉機起飛時間"
+                                                value={editingFlight.returnTransitDepartureTime || ''}
+                                                onChange={val => setEditingFlight({...editingFlight, returnTransitDepartureTime: val})}
+                                                className="!border !border-amber-200 !p-2.5 !rounded-xl !shadow-xs"
+                                            />
                                         </div>
                                         <div className="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">回程轉機停留時間</label>
-                                                <input value={editingFlight.returnTransitDuration || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：2h 30m"/>
+                                                <input autoComplete="off" value={editingFlight.returnTransitDuration || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：2h 30m"/>
                                             </div>
                                             <div>
                                                 <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">回程銜接航班號 (可選)</label>
-                                                <input value={editingFlight.returnTransitFlightCode || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitFlightCode: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="EY898"/>
+                                                <input autoComplete="off" value={editingFlight.returnTransitFlightCode || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitFlightCode: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="EK366"/>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div>
+                                                <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">回程第 1 段飛行時間 (可選)</label>
+                                                <input autoComplete="off" value={editingFlight.returnFirstLegDuration || ''} onChange={e => setEditingFlight({...editingFlight, returnFirstLegDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：6h 30m"/>
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">回程第 2 段飛行時間 (可選)</label>
+                                                <input autoComplete="off" value={editingFlight.returnSecondLegDuration || ''} onChange={e => setEditingFlight({...editingFlight, returnSecondLegDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：8h 30m"/>
                                             </div>
                                         </div>
                                     </div>
@@ -982,13 +1136,13 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
                         <div className="flex gap-2">
                             <div className="flex-[1]">
-                                <label className="text-[10px] font-bold text-gray-400 ml-1 block mb-1">去程時間</label>
-                                <input value={editingFlight.duration} onChange={e => setEditingFlight({...editingFlight, duration: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="2h 30m"/>
+                                <label className="text-[10px] font-bold text-gray-400 ml-1 block mb-1">去程總飛行時間 (可選)</label>
+                                <input autoComplete="off" value={editingFlight.duration} onChange={e => setEditingFlight({...editingFlight, duration: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="例如：16h 40m"/>
                             </div>
                             {editingFlight.tripType === 'roundtrip' && (
                                 <div className="flex-[1]">
-                                    <label className="text-[10px] font-bold text-gray-400 ml-1 block mb-1">回程時間</label>
-                                    <input value={editingFlight.returnDuration || ''} onChange={e => setEditingFlight({...editingFlight, returnDuration: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="2h 30m"/>
+                                    <label className="text-[10px] font-bold text-gray-400 ml-1 block mb-1">回程總飛行時間 (可選)</label>
+                                    <input autoComplete="off" value={editingFlight.returnDuration || ''} onChange={e => setEditingFlight({...editingFlight, returnDuration: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="例如：15h 20m"/>
                                 </div>
                             )}
                         </div>
@@ -1067,14 +1221,21 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                         </div>
                     </div>
 
+                    {saveError && (
+                        <div className="mt-2 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-bold flex items-center justify-between gap-2">
+                            <span>{saveError}</span>
+                            <button type="button" onClick={() => setSaveError(null)} className="text-red-400 hover:text-red-600"><X size={14}/></button>
+                        </div>
+                    )}
+
                     <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
-                        {editingFlight.id && flights.find(f => f.id === editingFlight.id) && (
-                            <button onClick={deleteFlight} type="button" className="px-5 py-3.5 rounded-2xl bg-red-50 text-red-400 font-bold border-2 border-red-100 flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
+                        {editingFlight.id && flights.find(f => String(f.id) === String(editingFlight.id)) && (
+                            <button onClick={deleteFlight} disabled={isSaving} type="button" className={`px-5 py-3.5 rounded-2xl bg-red-50 text-red-400 font-bold border-2 border-red-100 flex items-center justify-center gap-2 hover:bg-red-100 transition-colors ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                 <Trash2 size={18}/> 刪除
                             </button>
                         )}
-                        <button onClick={() => setShowFlightModal(false)} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
-                        <button onClick={saveFlight} disabled={isUploadingPhoto} className={`flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all ${isUploadingPhoto ? 'opacity-50 cursor-not-allowed' : ''}`}>保存</button>
+                        <button onClick={() => setShowFlightModal(false)} disabled={isSaving} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+                        <button onClick={saveFlight} disabled={isUploadingPhoto || isSaving} className={`flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all ${(isUploadingPhoto || isSaving) ? 'opacity-50 cursor-not-allowed' : ''}`}>{isSaving ? '保存中...' : '保存'}</button>
                     </div>
                 </div>
             </div>,
@@ -1196,7 +1357,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             middleLabel="卡片中間"
                             middleDesc="置於入住時間與地址之間（預設）"
                             bottomDesc="置於卡片最底部（分攤明細下方）"
-                            onChangeImages={(images) => setEditingAcc({ ...editingAcc, images, photos: images })}
+                            onChangeImages={(images) => setEditingAcc({ ...editingAcc, images, photos: undefined })}
                             onChangePlacement={(photoPlacement) => setEditingAcc({ ...editingAcc, photoPlacement })}
                             onChangeOffsetY={(photoOffsetY) => setEditingAcc({ ...editingAcc, photoOffsetY })}
                             onUploadingChange={setIsUploadingPhoto}
@@ -1204,19 +1365,35 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
                         <div><label className="text-[10px] font-bold text-gray-400 ml-1">備註</label><textarea value={editingAcc.note} onChange={e => setEditingAcc({...editingAcc, note: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold h-20 text-cocoa"></textarea></div>
                     </div>
+                    {saveError && (
+                        <div className="mt-2 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-bold flex items-center justify-between gap-2">
+                            <span>{saveError}</span>
+                            <button type="button" onClick={() => setSaveError(null)} className="text-red-400 hover:text-red-600"><X size={14}/></button>
+                        </div>
+                    )}
                     <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
                         {editingAcc.id && accommodations.find(a => a.id === editingAcc.id) && (
-                            <button onClick={() => {
+                            <button onClick={async () => {
+                                if (isSaving) return;
                                 if (window.confirm('確定刪除此住宿紀錄？')) {
-                                    onDeleteAccommodation(editingAcc.id);
-                                    setShowAccModal(false);
+                                    setIsSaving(true);
+                                    setSaveError(null);
+                                    try {
+                                        await onDeleteAccommodation(editingAcc.id);
+                                        setShowAccModal(false);
+                                    } catch (err: any) {
+                                        console.error('刪除住宿失敗:', err);
+                                        setSaveError(err?.message || '刪除失敗，請稍後再試。');
+                                    } finally {
+                                        setIsSaving(false);
+                                    }
                                 }
-                            }} type="button" className="px-5 py-3.5 rounded-2xl bg-red-50 text-red-400 font-bold border-2 border-red-100 flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
+                            }} disabled={isSaving} type="button" className={`px-5 py-3.5 rounded-2xl bg-red-50 text-red-400 font-bold border-2 border-red-100 flex items-center justify-center gap-2 hover:bg-red-100 transition-colors ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                 <Trash2 size={18}/> 刪除
                             </button>
                         )}
-                        <button onClick={() => setShowAccModal(false)} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
-                        <button onClick={saveAcc} disabled={isUploadingPhoto} className={`flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all ${isUploadingPhoto ? 'opacity-50 cursor-not-allowed' : ''}`}>保存</button>
+                        <button onClick={() => setShowAccModal(false)} disabled={isSaving} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+                        <button onClick={saveAcc} disabled={isUploadingPhoto || isSaving} className={`flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all ${(isUploadingPhoto || isSaving) ? 'opacity-50 cursor-not-allowed' : ''}`}>{isSaving ? '保存中...' : '保存'}</button>
                     </div>
                 </div>
             </div>,
@@ -1321,14 +1498,20 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
 
                         <div><label className="text-[10px] font-bold text-gray-400 ml-1">備註</label><textarea value={editingCar.note} onChange={e => setEditingCar({...editingCar, note: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold h-20 text-cocoa"></textarea></div>
                     </div>
+                    {saveError && (
+                        <div className="mt-2 px-3 py-2 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-bold flex items-center justify-between gap-2">
+                            <span>{saveError}</span>
+                            <button type="button" onClick={() => setSaveError(null)} className="text-red-400 hover:text-red-600"><X size={14}/></button>
+                        </div>
+                    )}
                     <div className="flex gap-3 pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
                         {carRentals.find(c => c.id === editingCar.id) && (
-                            <button onClick={deleteCar} type="button" className="px-5 py-3.5 rounded-2xl bg-red-50 text-red-400 font-bold border-2 border-red-100 flex items-center justify-center gap-2 hover:bg-red-100 transition-colors">
+                            <button onClick={deleteCar} disabled={isSaving} type="button" className={`px-5 py-3.5 rounded-2xl bg-red-50 text-red-400 font-bold border-2 border-red-100 flex items-center justify-center gap-2 hover:bg-red-100 transition-colors ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}>
                                 <Trash2 size={18}/> 刪除
                             </button>
                         )}
-                        <button onClick={() => setShowCarModal(false)} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
-                        <button onClick={saveCar} disabled={isUploadingPhoto} className={`flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all ${isUploadingPhoto ? 'opacity-50 cursor-not-allowed' : ''}`}>保存</button>
+                        <button onClick={() => setShowCarModal(false)} disabled={isSaving} className="flex-1 py-3.5 rounded-2xl bg-white text-gray-400 font-bold border-2 border-beige-dark hover:bg-gray-50 transition-colors">取消</button>
+                        <button onClick={saveCar} disabled={isUploadingPhoto || isSaving} className={`flex-1 py-3.5 rounded-2xl bg-sage text-white font-bold shadow-hard-sage border-2 border-sage-dark active:translate-y-1 active:shadow-none transition-all ${(isUploadingPhoto || isSaving) ? 'opacity-50 cursor-not-allowed' : ''}`}>{isSaving ? '保存中...' : '保存'}</button>
                     </div>
                 </div>
             </div>,

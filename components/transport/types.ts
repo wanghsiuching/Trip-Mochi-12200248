@@ -27,6 +27,8 @@ export interface LocationNode {
  */
 export interface TransferInfo {
   location: LocationNode;       // 轉機/轉乘地點 (例如: AUH 阿布達比, Bern 伯恩)
+  arrivalTime?: string;         // 抵達轉機點時間 (例如: "05:30")
+  departureTime?: string;       // 從轉機點起飛/出發時間 (例如: "08:15")
   duration?: string;            // 停留/轉乘時間 (例如: "1h 20m", "18m")
   nextServiceNumber?: string;   // 銜接代碼 (例如: "EY143", "IC 6")
   nextOperator?: string;        // 銜接營運商 (例如: "阿提哈德航空", "SBB")

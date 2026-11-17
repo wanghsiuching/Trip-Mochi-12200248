@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { ItemType, ScheduleItem, Currency, Member, ExpenseItem, TransitLeg, TransitFareDetails } from '../../types';
 import { TransitLegEditor } from '../TransitComponents';
-import { DateTimePickerField } from '../TimePickerComponents';
+import { DateTimePickerField, TimePickerField } from '../TimePickerComponents';
 import { ToggleSwitch } from './ToggleSwitch';
 import { DeleteItemConfirmModal } from './DeleteItemConfirmModal';
 import { getExchangeRate, POPULAR_CURRENCIES } from '../../utils/currency';
@@ -107,8 +107,12 @@ export const AddScheduleModal = ({
   const [flightHasTransit, setFlightHasTransit] = useState(false);
   const [flightTransitAirport, setFlightTransitAirport] = useState('');
   const [flightTransitCity, setFlightTransitCity] = useState('');
+  const [flightTransitArrivalTime, setFlightTransitArrivalTime] = useState('');
+  const [flightTransitDepartureTime, setFlightTransitDepartureTime] = useState('');
   const [flightTransitDuration, setFlightTransitDuration] = useState('');
   const [flightTransitFlightCode, setFlightTransitFlightCode] = useState('');
+  const [flightFirstLegDuration, setFlightFirstLegDuration] = useState('');
+  const [flightSecondLegDuration, setFlightSecondLegDuration] = useState('');
   const [flightDuration, setFlightDuration] = useState('');
   const [flightParticipants, setFlightParticipants] = useState<string[]>([]);
   const [isFlightPotential, setIsFlightPotential] = useState(false);
@@ -203,8 +207,12 @@ export const AddScheduleModal = ({
             setFlightHasTransit(initialData.flightDetails.hasTransit || !!initialData.flightDetails.transitAirport || !!initialData.flightDetails.transitCity);
             setFlightTransitAirport(initialData.flightDetails.transitAirport || '');
             setFlightTransitCity(initialData.flightDetails.transitCity || '');
+            setFlightTransitArrivalTime(initialData.flightDetails.transitArrivalTime || '');
+            setFlightTransitDepartureTime(initialData.flightDetails.transitDepartureTime || '');
             setFlightTransitDuration(initialData.flightDetails.transitDuration || '');
             setFlightTransitFlightCode(initialData.flightDetails.transitFlightCode || '');
+            setFlightFirstLegDuration(initialData.flightDetails.firstLegDuration || '');
+            setFlightSecondLegDuration(initialData.flightDetails.secondLegDuration || '');
             setFlightDuration(initialData.flightDetails.flightDuration || '');
             setFlightCheckedBag(initialData.flightDetails.checkedBag || '');
             setFlightCarryOnBag(initialData.flightDetails.carryOnBag || '');
@@ -222,8 +230,12 @@ export const AddScheduleModal = ({
             setFlightHasTransit(false);
             setFlightTransitAirport('');
             setFlightTransitCity('');
+            setFlightTransitArrivalTime('');
+            setFlightTransitDepartureTime('');
             setFlightTransitDuration('');
             setFlightTransitFlightCode('');
+            setFlightFirstLegDuration('');
+            setFlightSecondLegDuration('');
             setFlightDuration('');
             setFlightParticipants(members.map(m => m.id));
         }
@@ -343,7 +355,7 @@ export const AddScheduleModal = ({
         // Reset Logic
         setStep('category'); setTitle(''); setItemDate(currentDate || ''); setTime('09:00'); setLocation(''); setNotes(''); setGpsInput('');
         // Reset Category Specifics
-        setFlightAirline(''); setFlightCode(''); setFlightDepDate(currentDate || ''); setFlightDepTime('09:00'); setFlightArrDate(currentDate || ''); setFlightArrTime('12:00'); setFlightDepAirport(''); setFlightArrAirport(''); setFlightHasTransit(false); setFlightTransitAirport(''); setFlightTransitCity(''); setFlightTransitDuration(''); setFlightTransitFlightCode(''); setFlightDuration(''); setFlightCheckedBag(''); setFlightCarryOnBag(''); setFlightCost(''); setFlightCurrency('TWD'); setFlightHasServiceFee(false); setFlightServiceFeePercentage(''); setFlightParticipants(members.map(m => m.id)); setIsFlightPotential(false);
+        setFlightAirline(''); setFlightCode(''); setFlightDepDate(currentDate || ''); setFlightDepTime('09:00'); setFlightArrDate(currentDate || ''); setFlightArrTime('12:00'); setFlightDepAirport(''); setFlightArrAirport(''); setFlightHasTransit(false); setFlightTransitAirport(''); setFlightTransitCity(''); setFlightTransitArrivalTime(''); setFlightTransitDepartureTime(''); setFlightTransitDuration(''); setFlightTransitFlightCode(''); setFlightFirstLegDuration(''); setFlightSecondLegDuration(''); setFlightDuration(''); setFlightCheckedBag(''); setFlightCarryOnBag(''); setFlightCost(''); setFlightCurrency('TWD'); setFlightHasServiceFee(false); setFlightServiceFeePercentage(''); setFlightParticipants(members.map(m => m.id)); setIsFlightPotential(false);
         setCheckIn('15:00'); setCheckOut('11:00'); setCheckInDate(currentDate || ''); setCheckInTime('15:00'); setCheckOutDate(currentDate || ''); setCheckOutTime('11:00'); setHasBreakfast(false); setHasDinner(false); setStayCost(''); setStayCurrency('TWD'); setStayHasServiceFee(false); setStayServiceFeePercentage(''); setStayParticipants(members.map(m => m.id)); setIsStayPotential(false);
         setTransportMode('transit');
         setTransitLegs([
@@ -478,8 +490,12 @@ export const AddScheduleModal = ({
             hasTransit: flightHasTransit || !!flightTransitAirport || !!flightTransitCity,
             transitAirport: flightTransitAirport,
             transitCity: flightTransitCity,
+            transitArrivalTime: flightTransitArrivalTime,
+            transitDepartureTime: flightTransitDepartureTime,
             transitDuration: flightTransitDuration,
             transitFlightCode: flightTransitFlightCode,
+            firstLegDuration: flightFirstLegDuration,
+            secondLegDuration: flightSecondLegDuration,
             flightDuration: flightDuration,
             checkedBag: flightCheckedBag, carryOnBag: flightCarryOnBag,
             cost: Number(flightCost) || 0, currency: flightCurrency, hasServiceFee: flightHasServiceFee, serviceFeePercentage: flightHasServiceFee ? (Number(flightServiceFeePercentage) || 0) : undefined, participants: flightParticipants, isPotential: isFlightPotential
@@ -693,8 +709,8 @@ export const AddScheduleModal = ({
                       <div className="bg-cyan-50/50 p-3 rounded-2xl border-2 border-cyan-100 space-y-3">
                           {/* ... flight inputs ... */}
                           <div className="grid grid-cols-2 gap-2">
-                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">航空公司</label><input value={flightAirline} onChange={e => setFlightAirline(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: EVA"/></div>
-                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">航班代碼</label><input value={flightCode} onChange={e => setFlightCode(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: BR123"/></div>
+                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">航空公司</label><input autoComplete="off" value={flightAirline} onChange={e => setFlightAirline(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: 阿聯酋航空"/></div>
+                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">航班代碼</label><input autoComplete="off" value={flightCode} onChange={e => setFlightCode(e.target.value.toUpperCase())} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: EK367"/></div>
                           </div>
                           {/* Route/Times */}
                           <div className="space-y-3">
@@ -746,8 +762,12 @@ export const AddScheduleModal = ({
                                           if (!checked) {
                                               setFlightTransitAirport('');
                                               setFlightTransitCity('');
+                                              setFlightTransitArrivalTime('');
+                                              setFlightTransitDepartureTime('');
                                               setFlightTransitDuration('');
                                               setFlightTransitFlightCode('');
+                                              setFlightFirstLegDuration('');
+                                              setFlightSecondLegDuration('');
                                           }
                                       }} 
                                       label={flightHasTransit || !!flightTransitAirport ? "有轉機" : "直飛 / 無轉機"} 
@@ -759,22 +779,46 @@ export const AddScheduleModal = ({
                                   <div className="space-y-2 pt-2 border-t border-amber-200/60">
                                       <div className="grid grid-cols-2 gap-2">
                                           <div className="bg-white p-2.5 rounded-xl border border-amber-200 shadow-xs">
-                                              <label className="text-[9px] font-bold text-amber-800 block mb-0.5">轉機機場代碼 (如 AUH)</label>
-                                              <input value={flightTransitAirport} onChange={e => setFlightTransitAirport(e.target.value.toUpperCase())} className="w-full font-mono text-sm font-black text-cocoa outline-none bg-transparent" placeholder="AUH"/>
+                                              <label className="text-[9px] font-bold text-amber-800 block mb-0.5">轉機機場代碼 (如 DXB)</label>
+                                              <input autoComplete="off" value={flightTransitAirport} onChange={e => setFlightTransitAirport(e.target.value.toUpperCase())} className="w-full font-sans tabular-nums text-sm font-black text-cocoa outline-none bg-transparent" placeholder="DXB"/>
                                           </div>
                                           <div className="bg-white p-2.5 rounded-xl border border-amber-200 shadow-xs">
-                                              <label className="text-[9px] font-bold text-amber-800 block mb-0.5">轉機城市 (如 阿布達比)</label>
-                                              <input value={flightTransitCity} onChange={e => setFlightTransitCity(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="阿布達比"/>
+                                              <label className="text-[9px] font-bold text-amber-800 block mb-0.5">轉機城市 (如 杜拜)</label>
+                                              <input autoComplete="off" value={flightTransitCity} onChange={e => setFlightTransitCity(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="杜拜"/>
                                           </div>
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                          <TimePickerField
+                                              label="轉機抵達時間"
+                                              value={flightTransitArrivalTime}
+                                              onChange={setFlightTransitArrivalTime}
+                                              className="!border !border-amber-200 !p-2.5 !rounded-xl !shadow-xs"
+                                          />
+                                          <TimePickerField
+                                              label="轉機起飛時間"
+                                              value={flightTransitDepartureTime}
+                                              onChange={setFlightTransitDepartureTime}
+                                              className="!border !border-amber-200 !p-2.5 !rounded-xl !shadow-xs"
+                                          />
                                       </div>
                                       <div className="grid grid-cols-2 gap-2">
                                           <div className="bg-white p-2.5 rounded-xl border border-amber-200 shadow-xs">
                                               <label className="text-[9px] font-bold text-amber-800 block mb-0.5">轉機時間 / 停留時長</label>
-                                              <input value={flightTransitDuration} onChange={e => setFlightTransitDuration(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="如：2h 15m 或 3小時"/>
+                                              <input autoComplete="off" value={flightTransitDuration} onChange={e => setFlightTransitDuration(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="如：3h 25m"/>
                                           </div>
                                           <div className="bg-white p-2.5 rounded-xl border border-amber-200 shadow-xs">
                                               <label className="text-[9px] font-bold text-amber-800 block mb-0.5">銜接航班號 (可選)</label>
-                                              <input value={flightTransitFlightCode} onChange={e => setFlightTransitFlightCode(e.target.value.toUpperCase())} className="w-full font-mono text-sm font-black text-cocoa outline-none bg-transparent" placeholder="EY073"/>
+                                              <input autoComplete="off" value={flightTransitFlightCode} onChange={e => setFlightTransitFlightCode(e.target.value.toUpperCase())} className="w-full font-sans tabular-nums text-sm font-black text-cocoa outline-none bg-transparent" placeholder="EK087"/>
+                                          </div>
+                                      </div>
+                                      <div className="grid grid-cols-2 gap-2">
+                                          <div className="bg-white p-2.5 rounded-xl border border-amber-200 shadow-xs">
+                                              <label className="text-[9px] font-bold text-amber-800 block mb-0.5">第 1 段飛行時間 (可選)</label>
+                                              <input autoComplete="off" value={flightFirstLegDuration} onChange={e => setFlightFirstLegDuration(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="如：9h 30m"/>
+                                          </div>
+                                          <div className="bg-white p-2.5 rounded-xl border border-amber-200 shadow-xs">
+                                              <label className="text-[9px] font-bold text-amber-800 block mb-0.5">第 2 段飛行時間 (可選)</label>
+                                              <input autoComplete="off" value={flightSecondLegDuration} onChange={e => setFlightSecondLegDuration(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="如：6h 45m"/>
                                           </div>
                                       </div>
                                   </div>
