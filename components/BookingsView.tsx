@@ -664,8 +664,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                 {/* Check-in & Check-out time badge */}
                                 <div className="bg-gray-50/80 rounded-2xl p-3.5 border border-beige-dark flex justify-between items-center relative">
                                     <div className="text-center pl-2">
-                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">入住時間</div>
-                                        <div className="text-xs sm:text-sm font-black text-cocoa">{checkInDisplay}</div>
+                                        <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">入住時間</div>
+                                        <div className="text-[15px] sm:text-base font-black text-cocoa font-sans tabular-nums tracking-tight">{checkInDisplay}</div>
                                     </div>
                                     <div className="flex-1 border-b-2 border-dashed border-gray-300 mx-3 sm:mx-6 relative top-[-6px]">
                                         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-50 px-2 text-purple-400">
@@ -673,8 +673,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         </div>
                                     </div>
                                     <div className="text-center pr-2">
-                                        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">退房時間</div>
-                                        <div className="text-xs sm:text-sm font-black text-cocoa">{checkOutDisplay}</div>
+                                        <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">退房時間</div>
+                                        <div className="text-[15px] sm:text-base font-black text-cocoa font-sans tabular-nums tracking-tight">{checkOutDisplay}</div>
                                     </div>
                                 </div>
 
@@ -802,8 +802,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                 <div className="flex items-center justify-between mb-6 relative">
                                     <div className="absolute top-1/2 left-0 w-full h-0.5 bg-gray-100 -z-0"></div>
                                     <div className="bg-white z-10 pr-4">
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1">取車時間</span>
-                                        <div className="text-sm font-black text-cocoa">
+                                        <span className="text-[11px] font-bold text-gray-400 uppercase block mb-1">取車時間</span>
+                                        <div className="text-[15px] sm:text-base font-black text-cocoa font-sans tabular-nums tracking-tight">
                                             {new Date(car.pickupDate).toLocaleString('zh-TW', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})}
                                         </div>
                                     </div>
@@ -813,8 +813,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         </div>
                                     </div>
                                     <div className="bg-white z-10 pl-4 text-right">
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase block mb-1">還車時間</span>
-                                        <div className="text-sm font-black text-cocoa">
+                                        <span className="text-[11px] font-bold text-gray-400 uppercase block mb-1">還車時間</span>
+                                        <div className="text-[15px] sm:text-base font-black text-cocoa font-sans tabular-nums tracking-tight">
                                             {new Date(car.returnDate).toLocaleString('zh-TW', {month:'numeric', day:'numeric', hour:'2-digit', minute:'2-digit'})}
                                         </div>
                                     </div>

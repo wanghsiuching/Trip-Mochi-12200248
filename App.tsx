@@ -242,9 +242,6 @@ export default function App() {
       (Array.isArray(currentDayObj.tipPhotos) && currentDayObj.tipPhotos.length > 0)
     )
   );
-  const hasCurrentDayTipPhotos = Boolean(
-    Array.isArray(currentDayObj?.tipPhotos) && currentDayObj.tipPhotos.length > 0
-  );
 
   const handleSaveDayTip = useCallback((date: string, tipTitle: string, tip: string, tipPhotos: string[]) => {
     setTripDays(prev => {
@@ -860,7 +857,7 @@ export default function App() {
                 style={{ top: 'env(safe-area-inset-top, 0px)' }}
               >
                  <div className="flex items-center justify-between gap-1.5 mb-2 px-1 flex-nowrap overflow-x-auto no-scrollbar">
-                    {/* Left: 行程日期標題與今日 TIP 按鈕 */}
+                    {/* Left: 行程日期標題 */}
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       <button 
                         type="button"
@@ -871,22 +868,6 @@ export default function App() {
                         <CalendarCheck size={14} className="text-sage flex-shrink-0" />
                         <span className="whitespace-nowrap">行程日期</span>
                         <Edit3 size={10} className="text-gray-300 flex-shrink-0" />
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => setIsDayTipModalOpen(true)}
-                        className={`px-2 py-0.5 rounded-full text-[11px] font-black border transition-all flex items-center gap-1 shadow-xs active:scale-95 whitespace-nowrap flex-shrink-0 cursor-pointer ${
-                          hasCurrentDayTip 
-                            ? 'bg-amber-100 text-amber-900 border-amber-300 hover:bg-amber-200 shadow-sm' 
-                            : 'bg-white/90 text-gray-500 border-dashed border-[#E0E5D5] hover:border-amber-400 hover:text-amber-700'
-                        }`}
-                        title="編輯與檢視今日旅遊 TIP 摘要及照片"
-                      >
-                        <Lightbulb size={11} className={hasCurrentDayTip ? "text-amber-600 fill-amber-400 flex-shrink-0" : "text-amber-500 flex-shrink-0"} />
-                        <span className="whitespace-nowrap">{hasCurrentDayTip ? '今日 TIP' : '+ 今日 TIP'}</span>
-                        {hasCurrentDayTipPhotos && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block animate-pulse flex-shrink-0"></span>
-                        )}
                       </button>
                     </div>
 
@@ -1204,15 +1185,15 @@ export default function App() {
                                            <IconComp size={19} strokeWidth={2.5} className={item.type === 'flight' ? 'transform rotate-45' : ''} />
                                          </div>
                                          <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                                                <span className="font-sans tabular-nums text-xs font-black text-white bg-sage px-2.5 py-0.5 rounded-full shadow-2xs leading-tight">
+                                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                                                <span className="font-sans tabular-nums text-[15px] font-black text-white bg-sage px-3 py-0.5 rounded-full shadow-2xs leading-tight tracking-tight">
                                                   {item.time}
                                                 </span>
-                                                <span className={`font-sans text-[11px] font-black px-2 py-0.5 rounded-full border leading-tight ${pillColorClass}`}>
+                                                <span className={`font-sans text-[15px] font-black px-2.5 py-0.5 rounded-full border leading-tight tracking-tight ${pillColorClass}`}>
                                                   {catLabel}
                                                 </span>
                                             </div>
-                                            <h3 className="font-sans text-base sm:text-lg font-black text-cocoa leading-snug break-words">
+                                            <h3 className="font-sans text-lg sm:text-xl font-black text-cocoa leading-snug break-words tracking-tight">
                                               {item.title}
                                             </h3>
                                          </div>
@@ -1251,18 +1232,18 @@ export default function App() {
                                 {!isUnassignedLocation && (
                                   <div className="pt-2.5 border-t border-[#F2ECE0] flex items-center justify-between gap-2 w-full">
                                     <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                                      <MapPin size={14} className="text-[#4A6F52] flex-shrink-0" />
-                                      <span className="font-sans text-xs sm:text-sm font-bold text-[#6E6053] break-words leading-snug">
+                                      <MapPin size={15} className="text-[#4A6F52] flex-shrink-0" />
+                                      <span className="font-sans text-[15px] font-black text-[#5A4D41] break-words leading-snug tracking-tight">
                                         {item.location}
                                       </span>
                                     </div>
                                     <button
                                       type="button"
                                       onClick={(e) => { e.stopPropagation(); openMap(item.location); }}
-                                      className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#EEF6F0] hover:bg-sage text-[#3F6347] hover:text-white rounded-full text-[11px] font-black border border-[#D3E5D8] transition-colors flex-shrink-0 shadow-2xs font-sans"
+                                      className="inline-flex items-center gap-1 px-3 py-1 bg-[#EEF6F0] hover:bg-sage text-[#3F6347] hover:text-white rounded-full text-xs sm:text-sm font-black border border-[#D3E5D8] transition-colors flex-shrink-0 shadow-2xs font-sans"
                                       title="開啟地圖導航"
                                     >
-                                      <Navigation size={11} strokeWidth={2.5} />
+                                      <Navigation size={12} strokeWidth={2.5} />
                                       <span>導航</span>
                                     </button>
                                   </div>

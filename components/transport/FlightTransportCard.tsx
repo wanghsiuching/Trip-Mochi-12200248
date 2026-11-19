@@ -1,21 +1,16 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Plane,
   Clock,
-  ChevronRight,
-  ChevronUp,
   Luggage,
   Briefcase,
   ArrowRightLeft,
   Edit3,
   Trash2,
-  MapPin,
-  Camera,
-  StickyNote
+  Camera
 } from 'lucide-react';
 import { TransportItemModel, TransportSegmentModel } from './types';
 import { resolveAirportDisplay, AIRLINE_INFO_MAP } from './airlineMap';
-import { defaultMapProvider } from './MapProvider';
 import { calculateDurationBetweenTimes } from './adapters';
 
 interface FlightTransportCardProps {
@@ -30,14 +25,11 @@ interface FlightTransportCardProps {
 
 export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
   item,
-  defaultExpanded = false,
   onEdit,
   onDelete,
-  onOpenMap,
   onOpenLightbox,
   className = '',
 }) => {
-  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   const segments = item.segments || [];
   const firstSeg: TransportSegmentModel | undefined = segments[0];
@@ -157,6 +149,48 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
           isInbound ? item.rawBookingFlight?.returnSecondLegDuration : item.rawBookingFlight?.secondLegDuration
         );
 
+  // 日期格式化（與行事曆綠框 10/15 一致的 M/D 格式）
+  const formatMonthDay = (dateStr?: string): string => {
+    if (!dateStr) return '';
+    const match = dateStr.match(/(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (!match) return '';
+    return `${Number(match[2])}/${Number(match[3])}`;
+  };
+
+  const addDaysToIsoDate = (dateStr: string, days: number): string => {
+    const match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (!match) return '';
+    const d = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + days);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  };
+
+  const rawDepDate = rawDep?.date || (isInbound ? item.rawBookingFlight?.returnDate?.slice(0, 10) : item.rawBookingFlight?.date?.slice(0, 10)) || '';
+  const rawArrDate = rawArr?.date || (isInbound ? item.rawBookingFlight?.returnArrivalDate?.slice(0, 10) : item.rawBookingFlight?.arrivalDate?.slice(0, 10)) || '';
+  const depDateLabel = formatMonthDay(rawDepDate);
+  const arrDateLabel = formatMonthDay(rawArrDate);
+
+  // 推算轉機抵達/起飛日期（僅在有出發日且時間有效時推算）
+  const isTimeValid = (t?: string) => Boolean(t && /^\d{1,2}:\d{2}$/.test(t.trim()) && t.trim() !== '--:--');
+  let transitArrDateRaw = '';
+  let transitDepDateRaw = '';
+  if (rawDepDate && isTimeValid(transitArrTime)) {
+    if (rawArrDate && rawArrDate === rawDepDate) {
+      transitArrDateRaw = rawDepDate;
+    } else if (isTimeValid(depTime)) {
+      transitArrDateRaw = transitArrTime < depTime ? addDaysToIsoDate(rawDepDate, 1) : rawDepDate;
+    } else {
+      transitArrDateRaw = rawDepDate;
+    }
+  }
+  if (transitArrDateRaw && isTimeValid(transitDepTime)) {
+    transitDepDateRaw = transitDepTime < transitArrTime ? addDaysToIsoDate(transitArrDateRaw, 1) : transitArrDateRaw;
+  } else if (rawArrDate && isTimeValid(transitDepTime)) {
+    transitDepDateRaw = isTimeValid(arrTime) && arrTime < transitDepTime ? addDaysToIsoDate(rawArrDate, -1) : rawArrDate;
+  }
+  const transitArrDateLabel = formatMonthDay(transitArrDateRaw);
+  const transitDepDateLabel = formatMonthDay(transitDepDateRaw);
+
   // 格式化行李重量
   const formatBagWeight = (val?: string | number, defaultStr: string = '未填寫'): string => {
     if (val === undefined || val === null || val === '') return defaultStr;
@@ -175,17 +209,6 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
     item.baggage?.carryOn || item.rawBookingFlight?.carryOnBag,
     '未填寫'
   );
-
-  // 外部地圖導航
-  const handleOpenMap = () => {
-    if (onOpenMap) {
-      onOpenMap();
-      return;
-    }
-    if (rawDep && rawArr) {
-      defaultMapProvider.openRoute(rawDep, rawArr);
-    }
-  };
 
   const images = item.images || [];
   const photoPlacement = item.photoPlacement || 'middle';
@@ -261,19 +284,12 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
 
           <div className="flex items-center gap-1.5 flex-shrink-0">
             {totalDuration && (
-              <button
-                type="button"
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="border border-[#E2D6BE] bg-[#FFFDF9] hover:bg-[#F8F6F0] active:scale-95 rounded-full px-3 py-1 sm:py-1.5 text-xs sm:text-sm font-black text-[#3A2E26] flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
-                title="查看航班詳情"
+              <div
+                className="border border-[#E2D6BE] bg-[#FFFDF9] rounded-full px-3 py-1 sm:py-1.5 text-sm sm:text-[15px] font-black text-[#3A2E26] flex items-center gap-1.5 shadow-2xs"
               >
-                <Clock size={13} className="text-[#6D6357]" />
+                <Clock size={14} className="text-[#6D6357]" />
                 <span className="font-sans tabular-nums tracking-tight">{totalDuration}</span>
-                <ChevronRight
-                  size={13}
-                  className={`text-[#8C827A] transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
-                />
-              </button>
+              </div>
             )}
 
             {(onEdit || onDelete) && (
@@ -332,14 +348,19 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
                         <span className="text-base sm:text-xl font-black text-[#2A1E17] tracking-tight break-words">
                           {depDisplay.city}
                         </span>
-                        <span className="text-xs sm:text-sm font-black font-sans tabular-nums text-[#3D322B]">
+                        <span className="text-sm sm:text-[15px] font-black font-sans tabular-nums text-[#3D322B]">
                           {depDisplay.code}
                         </span>
                       </div>
-                      <div className="text-[11px] sm:text-xs text-[#7D736A] font-medium mt-0.5 leading-snug break-words">
+                      <div className="text-xs sm:text-[13px] text-[#6E645B] font-bold mt-0.5 leading-snug break-words">
                         {depDisplay.subName}
                       </div>
-                      <div className="text-2xl sm:text-[28px] font-black text-[#2A1E17] font-sans tabular-nums tracking-tight mt-1 leading-none">
+                      {depDateLabel && (
+                        <div className="text-[15px] font-black text-[#4A6F52] font-sans tabular-nums tracking-tight leading-tight mt-1.5">
+                          {depDateLabel}
+                        </div>
+                      )}
+                      <div className={`text-2xl sm:text-[28px] font-black text-[#2A1E17] font-sans tabular-nums tracking-tight leading-none ${depDateLabel ? 'mt-0.5' : 'mt-1.5'}`}>
                         {depTime}
                       </div>
                     </div>
@@ -357,14 +378,19 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
                         <span className="text-base sm:text-xl font-black text-[#2A1E17] tracking-tight break-words">
                           {transitDisplay.city}
                         </span>
-                        <span className="text-xs sm:text-sm font-black font-sans tabular-nums text-[#3D322B]">
+                        <span className="text-sm sm:text-[15px] font-black font-sans tabular-nums text-[#3D322B]">
                           {transitDisplay.code}
                         </span>
                       </div>
-                      <div className="text-[11px] sm:text-xs text-[#7D736A] font-medium mt-0.5 leading-snug break-words">
+                      <div className="text-xs sm:text-[13px] text-[#6E645B] font-bold mt-0.5 leading-snug break-words">
                         {transitDisplay.subName}
                       </div>
-                      <div className="text-2xl sm:text-[28px] font-black text-[#2A1E17] font-sans tabular-nums tracking-tight mt-1 leading-none">
+                      {transitArrDateLabel && (
+                        <div className="text-[15px] font-black text-[#4A6F52] font-sans tabular-nums tracking-tight leading-tight mt-1.5">
+                          {transitArrDateLabel}
+                        </div>
+                      )}
+                      <div className={`text-2xl sm:text-[28px] font-black text-[#2A1E17] font-sans tabular-nums tracking-tight leading-none ${transitArrDateLabel ? 'mt-0.5' : 'mt-1.5'}`}>
                         {transitArrTime || '--:--'}
                       </div>
                     </div>
@@ -372,8 +398,8 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
 
                   {/* 第一段膠囊標籤 */}
                   <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center gap-1.5 bg-[#E5F0E8] text-[#2F5338] text-[11px] font-bold px-2.5 py-1 rounded-full">
-                      <Plane size={11} className="transform rotate-45" />
+                    <span className="inline-flex items-center gap-1.5 bg-[#E5F0E8] text-[#2F5338] text-xs sm:text-[13px] font-bold px-3 py-1 rounded-full">
+                      <Plane size={12} className="transform rotate-45" />
                       <span>
                         {leg1Duration
                           ? `飛行時間 ${leg1Duration}`
@@ -395,44 +421,44 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
 
                 {/* 轉機資訊卡片 */}
                 <div className="flex-1 min-w-0 pb-3.5">
-                  <div className="bg-[#FDF8EE] border border-[#EFE2C6] rounded-2xl p-3 sm:p-3.5 space-y-2">
+                  <div className="bg-[#FDF8EE] border border-[#EFE2C6] rounded-2xl p-3.5 sm:p-4 space-y-2.5">
                     <div className="flex items-center justify-between gap-2 flex-wrap">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="bg-[#F4E1B8] text-[#7D5720] text-[10px] font-black px-2 py-0.5 rounded-md inline-flex items-center gap-1">
-                          <ArrowRightLeft size={10} />
+                        <span className="bg-[#F4E1B8] text-[#7D5720] text-xs font-black px-2.5 py-0.5 rounded-md inline-flex items-center gap-1">
+                          <ArrowRightLeft size={11} />
                           <span>轉機資訊</span>
                         </span>
-                        <span className="text-xs sm:text-sm font-black text-[#3A2B18]">
+                        <span className="text-sm sm:text-[15px] font-black text-[#3A2B18]">
                           {transitDisplay.city} {transitDisplay.code}
                         </span>
                       </div>
 
                       {transitDuration && (
-                        <span className="bg-white border border-[#EAD9B5] text-[#8C6219] text-[11px] font-sans tabular-nums font-black px-2.5 py-0.5 rounded-full shadow-2xs">
+                        <span className="bg-white border-2 border-[#E2CFA3] text-[#7D5720] text-[15px] sm:text-base font-sans tabular-nums font-black px-3 py-1 rounded-full shadow-2xs leading-tight tracking-tight">
                           停留 {transitDuration}
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between gap-2 flex-wrap text-xs text-[#6B5433] pt-1 border-t border-dashed border-[#EAD9B5]">
+                    <div className="flex items-center justify-between gap-2 flex-wrap text-sm sm:text-[15px] text-[#6B5433] pt-1.5 border-t border-dashed border-[#EAD9B5]">
                       <div className="flex items-center gap-2 sm:gap-3 flex-wrap font-bold">
                         <span>
                           抵達{' '}
-                          <strong className="font-sans tabular-nums text-[#2A1E17]">
+                          <strong className="font-sans tabular-nums font-black text-[#2A1E17]">
                             {transitArrTime || '--:--'}
                           </strong>
                         </span>
                         <span className="text-[#C8B289]">➔</span>
                         <span>
                           起飛{' '}
-                          <strong className="font-sans tabular-nums text-[#2A1E17]">
+                          <strong className="font-sans tabular-nums font-black text-[#2A1E17]">
                             {transitDepTime || '--:--'}
                           </strong>
                         </span>
                       </div>
 
                       {nextFlightCode && (
-                        <span className="text-[11px] font-sans tabular-nums font-black text-[#4A6F52] bg-[#EAF2EC] px-2 py-0.5 rounded-md">
+                        <span className="text-xs sm:text-sm font-sans tabular-nums font-black text-[#4A6F52] bg-[#EAF2EC] px-2.5 py-0.5 rounded-md">
                           銜接 {nextFlightCode}
                         </span>
                       )}
@@ -458,18 +484,23 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
                         <span className="text-base sm:text-xl font-black text-[#2A1E17] tracking-tight break-words">
                           {transitDisplay.city}
                         </span>
-                        <span className="text-xs sm:text-sm font-black font-sans tabular-nums text-[#3D322B]">
+                        <span className="text-sm sm:text-[15px] font-black font-sans tabular-nums text-[#3D322B]">
                           {transitDisplay.code}
                         </span>
                       </div>
-                      <div className="text-[11px] sm:text-xs text-[#7D736A] font-medium mt-0.5 leading-snug break-words">
+                      <div className="text-xs sm:text-[13px] text-[#6E645B] font-bold mt-0.5 leading-snug break-words">
                         {transitDisplay.subName}
                       </div>
-                      <div className="flex items-baseline gap-1.5 flex-wrap mt-1">
+                      {transitDepDateLabel && (
+                        <div className="text-[15px] font-black text-[#4A6F52] font-sans tabular-nums tracking-tight leading-tight mt-1.5">
+                          {transitDepDateLabel}
+                        </div>
+                      )}
+                      <div className={`flex items-baseline gap-1.5 flex-wrap ${transitDepDateLabel ? 'mt-0.5' : 'mt-1.5'}`}>
                         <span className="text-2xl sm:text-[28px] font-black text-[#2A1E17] font-sans tabular-nums tracking-tight leading-none">
                           {transitDepTime || '--:--'}
                         </span>
-                        <span className="text-[10px] sm:text-[11px] text-[#8C827A] font-medium">
+                        <span className="text-[11px] sm:text-xs text-[#7D736A] font-bold">
                           (當地時間)
                         </span>
                       </div>
@@ -488,18 +519,23 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
                         <span className="text-base sm:text-xl font-black text-[#2A1E17] tracking-tight break-words">
                           {arrDisplay.city}
                         </span>
-                        <span className="text-xs sm:text-sm font-black font-sans tabular-nums text-[#3D322B]">
+                        <span className="text-sm sm:text-[15px] font-black font-sans tabular-nums text-[#3D322B]">
                           {arrDisplay.code}
                         </span>
                       </div>
-                      <div className="text-[11px] sm:text-xs text-[#7D736A] font-medium mt-0.5 leading-snug break-words">
+                      <div className="text-xs sm:text-[13px] text-[#6E645B] font-bold mt-0.5 leading-snug break-words">
                         {arrDisplay.subName}
                       </div>
-                      <div className="mt-1 flex flex-col items-end">
+                      {arrDateLabel && (
+                        <div className="text-[15px] font-black text-[#4A6F52] font-sans tabular-nums tracking-tight leading-tight mt-1.5">
+                          {arrDateLabel}
+                        </div>
+                      )}
+                      <div className={`flex flex-col items-end ${arrDateLabel ? 'mt-0.5' : 'mt-1.5'}`}>
                         <span className="text-2xl sm:text-[28px] font-black text-[#2A1E17] font-sans tabular-nums tracking-tight leading-none">
                           {arrTime}
                         </span>
-                        <span className="text-[10px] sm:text-[11px] text-[#8C827A] font-medium mt-0.5">
+                        <span className="text-[11px] sm:text-xs text-[#7D736A] font-bold mt-0.5">
                           (當地時間)
                         </span>
                       </div>
@@ -507,9 +543,9 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
                   </div>
 
                   {/* 第二段膠囊標籤 */}
-                  <div className="mt-2 flex items-center gap-2 flex-wrap">
-                    <span className="inline-flex items-center gap-1.5 bg-[#E5F0E8] text-[#2F5338] text-[11px] font-bold px-2.5 py-1 rounded-full">
-                      <Plane size={11} className="transform rotate-45" />
+                  <div className="mt-2.5 flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex items-center gap-1.5 bg-[#E5F0E8] text-[#2F5338] text-xs sm:text-[13px] font-bold px-3 py-1 rounded-full">
+                      <Plane size={12} className="transform rotate-45" />
                       <span>
                         {leg2Duration
                           ? `飛行時間 ${leg2Duration}`
@@ -538,14 +574,19 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
                       <span className="text-base sm:text-xl font-black text-[#2A1E17] tracking-tight break-words">
                         {depDisplay.city}
                       </span>
-                      <span className="text-xs sm:text-sm font-black font-sans tabular-nums text-[#3D322B]">
+                      <span className="text-sm sm:text-[15px] font-black font-sans tabular-nums text-[#3D322B]">
                         {depDisplay.code}
                       </span>
                     </div>
-                    <div className="text-[11px] sm:text-xs text-[#7D736A] font-medium mt-0.5 leading-snug break-words">
+                    <div className="text-xs sm:text-[13px] text-[#6E645B] font-bold mt-0.5 leading-snug break-words">
                       {depDisplay.subName}
                     </div>
-                    <div className="text-2xl sm:text-[28px] font-black text-[#2A1E17] font-sans tabular-nums tracking-tight mt-1.5 leading-none">
+                    {depDateLabel && (
+                      <div className="text-[15px] font-black text-[#4A6F52] font-sans tabular-nums tracking-tight leading-tight mt-1.5">
+                        {depDateLabel}
+                      </div>
+                    )}
+                    <div className={`text-2xl sm:text-[28px] font-black text-[#2A1E17] font-sans tabular-nums tracking-tight leading-none ${depDateLabel ? 'mt-0.5' : 'mt-1.5'}`}>
                       {depTime}
                     </div>
                   </div>
@@ -563,18 +604,23 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
                       <span className="text-base sm:text-xl font-black text-[#2A1E17] tracking-tight break-words">
                         {arrDisplay.city}
                       </span>
-                      <span className="text-xs sm:text-sm font-black font-sans tabular-nums text-[#3D322B]">
+                      <span className="text-sm sm:text-[15px] font-black font-sans tabular-nums text-[#3D322B]">
                         {arrDisplay.code}
                       </span>
                     </div>
-                    <div className="text-[11px] sm:text-xs text-[#7D736A] font-medium mt-0.5 leading-snug break-words">
+                    <div className="text-xs sm:text-[13px] text-[#6E645B] font-bold mt-0.5 leading-snug break-words">
                       {arrDisplay.subName}
                     </div>
-                    <div className="mt-1.5 flex flex-col items-end">
+                    {arrDateLabel && (
+                      <div className="text-[15px] font-black text-[#4A6F52] font-sans tabular-nums tracking-tight leading-tight mt-1.5">
+                        {arrDateLabel}
+                      </div>
+                    )}
+                    <div className={`flex flex-col items-end ${arrDateLabel ? 'mt-0.5' : 'mt-1.5'}`}>
                       <span className="text-2xl sm:text-[28px] font-black text-[#2A1E17] font-sans tabular-nums tracking-tight leading-none">
                         {arrTime}
                       </span>
-                      <span className="text-[10px] sm:text-[11px] text-[#8C827A] font-medium mt-0.5">
+                      <span className="text-[11px] sm:text-xs text-[#7D736A] font-bold mt-0.5">
                         (當地時間)
                       </span>
                     </div>
@@ -582,8 +628,8 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
                 </div>
 
                 <div className="mt-2.5 flex items-center gap-2 flex-wrap">
-                  <span className="inline-flex items-center gap-1.5 bg-[#E5F0E8] text-[#2F5338] text-[11px] font-bold px-2.5 py-1 rounded-full">
-                    <Plane size={11} className="transform rotate-45" />
+                  <span className="inline-flex items-center gap-1.5 bg-[#E5F0E8] text-[#2F5338] text-xs sm:text-[13px] font-bold px-3 py-1 rounded-full">
+                    <Plane size={12} className="transform rotate-45" />
                     <span>{totalDuration ? `直飛 · 飛行時間 ${totalDuration}` : '直飛無中停'}</span>
                   </span>
                 </div>
@@ -596,9 +642,9 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
         {photoPlacement === 'middle' && renderPhotoBanner(false)}
 
         {/* ===================================================================== */}
-        {/* 三、最底層獨立行李條 (託運行李 | 手提行李 | 查看詳情 >)                  */}
+        {/* 三、最底層獨立行李條 (託運行李 | 手提行李)                               */}
         {/* ===================================================================== */}
-        <div className="mt-3.5 bg-[#EEF4EE] rounded-2xl px-3.5 py-2.5 flex items-center justify-between text-xs text-[#2F4636] font-semibold gap-2 flex-wrap transition-colors">
+        <div className="mt-3.5 bg-[#EEF4EE] rounded-2xl px-3.5 py-2.5 flex items-center justify-between text-[13px] sm:text-sm text-[#2F4636] font-semibold gap-2 flex-wrap">
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <div className="flex items-center gap-1.5">
               <Luggage size={13} className="text-[#4A6F52]" />
@@ -616,86 +662,7 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
               </span>
             </div>
           </div>
-
-          <button
-            type="button"
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex items-center gap-0.5 text-xs font-black text-[#2E5438] hover:text-[#1D3724] cursor-pointer ml-auto"
-          >
-            <span>{isExpanded ? '收合詳情' : '查看詳情'}</span>
-            <ChevronRight
-              size={13}
-              className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
-            />
-          </button>
         </div>
-
-        {/* ===================================================================== */}
-        {/* 四、展開詳情區塊 (票價、訂位資訊、備註、地圖導航)                        */}
-        {/* ===================================================================== */}
-        {isExpanded && (
-          <div className="mt-3.5 pt-3.5 border-t border-[#F0EBE3] space-y-3 text-xs text-[#4A443B] animate-in fade-in duration-200">
-            <div className="flex items-center justify-between bg-[#FAF8F5] p-3 rounded-2xl border border-[#EDE7DC] flex-wrap gap-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                {flightNumber && flightNumber !== 'FLIGHT' && (
-                  <span className="font-mono font-black text-[#2E5438] bg-[#E5F0E8] px-2 py-0.5 rounded-md text-[11px]">
-                    {flightNumber}
-                  </span>
-                )}
-                {nextFlightCode && (
-                  <span className="font-mono font-bold text-[#8C6219] bg-[#FDF8EE] border border-[#EFE2C6] px-2 py-0.5 rounded-md text-[11px]">
-                    轉機 {nextFlightCode}
-                  </span>
-                )}
-                <span className="text-gray-400 font-bold">訂位資訊:</span>
-                <span className="font-mono font-bold text-cocoa">
-                  {item.bookingReference || '確認已開票'}
-                </span>
-                {item.classType && (
-                  <span className="bg-white px-2 py-0.5 rounded border border-[#E0D9CD] text-[10px] text-gray-600 font-bold">
-                    {item.classType}
-                  </span>
-                )}
-              </div>
-
-              {item.cost !== undefined && item.cost > 0 && (
-                <div className="text-right ml-auto">
-                  <span className="text-[11px] text-gray-400 font-bold mr-1">每人費用</span>
-                  <span className="font-mono font-black text-sm text-[#4A6F52]">
-                    {item.currency || 'TWD'} {Number(item.cost).toLocaleString()}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {item.note && (
-              <div className="flex items-start gap-2 bg-[#FFFDF7] p-3 rounded-2xl border border-[#EFE7D6] text-xs text-[#5A4F42]">
-                <StickyNote size={14} className="text-[#B5924C] mt-0.5 flex-shrink-0" />
-                <p className="whitespace-pre-wrap leading-relaxed font-medium">{item.note}</p>
-              </div>
-            )}
-
-            <div className="flex items-center justify-between pt-0.5">
-              <button
-                type="button"
-                onClick={handleOpenMap}
-                className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#F3F6F4] text-[#4A6F52] border border-[#D5E2D9] font-black text-xs flex items-center gap-1.5 transition-colors shadow-2xs"
-              >
-                <MapPin size={13} />
-                <span>在地圖查看航線</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsExpanded(false)}
-                className="text-xs font-black text-[#8C806F] hover:text-[#4A4235] flex items-center gap-1 px-3 py-1.5 rounded-full hover:bg-[#F7F4EE] transition-colors"
-              >
-                <span>收合詳情</span>
-                <ChevronUp size={13} />
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* 卡片最底相片橫幅 */}
         {photoPlacement === 'bottom' && renderPhotoBanner(false)}
