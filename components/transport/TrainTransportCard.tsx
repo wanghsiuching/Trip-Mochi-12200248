@@ -108,7 +108,7 @@ export const TrainTransportCard: React.FC<TrainTransportCardProps> = ({
                   <div className="flex items-center gap-1 flex-wrap">
                     {serviceNumber.split('→').map((seg, idx, arr) => (
                       <React.Fragment key={idx}>
-                        <span className="font-mono text-[10px] sm:text-[11px] font-bold bg-[#EFECE4] text-[#5A5043] px-1.5 py-0.5 rounded-md border border-[#E0D9CC] whitespace-nowrap">
+                        <span className="font-sans tabular-nums tracking-tight text-[10px] sm:text-[11px] font-bold bg-[#EFECE4] text-[#5A5043] px-1.5 py-0.5 rounded-md border border-[#E0D9CC] whitespace-nowrap">
                           {seg.trim()}
                         </span>
                         {idx < arr.length - 1 && (
@@ -118,7 +118,7 @@ export const TrainTransportCard: React.FC<TrainTransportCardProps> = ({
                     ))}
                   </div>
                 ) : (
-                  <span className="font-mono text-[10px] sm:text-[11px] font-black bg-[#EFECE4] text-[#5A5043] px-1.5 py-0.5 rounded-md border border-[#E0D9CC] max-w-full break-all">
+                  <span className="font-sans tabular-nums tracking-tight text-[10px] sm:text-[11px] font-black bg-[#EFECE4] text-[#5A5043] px-1.5 py-0.5 rounded-md border border-[#E0D9CC] max-w-full break-all">
                     {serviceNumber}
                   </span>
                 )
@@ -142,7 +142,7 @@ export const TrainTransportCard: React.FC<TrainTransportCardProps> = ({
               title={`查看${meta.label}詳情`}
             >
               <Clock size={12} className="text-[#6D6357]" />
-              <span className="font-mono tracking-tight">{duration}</span>
+              <span className="font-sans tabular-nums tracking-tight">{duration}</span>
               <ChevronRight 
                 size={12} 
                 className={`text-[#8C827A] transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`} 
@@ -189,7 +189,7 @@ export const TrainTransportCard: React.FC<TrainTransportCardProps> = ({
             <div className="inline-block bg-[#F2EDE2] text-[#7A6448] text-[10px] font-black px-2 py-0.5 rounded mb-1 shadow-2xs">
               {depTagText}
             </div>
-            <div className="font-mono text-2xl sm:text-3xl font-black text-[#2D2A26] tracking-tight leading-none mb-1">
+            <div className="font-sans tabular-nums text-2xl sm:text-3xl font-black text-[#2D2A26] tracking-tight leading-none mb-1">
               {depTime}
             </div>
             <div className="text-xs sm:text-sm font-black text-[#4A4235] break-words leading-snug">
@@ -198,14 +198,14 @@ export const TrainTransportCard: React.FC<TrainTransportCardProps> = ({
             {depPlatform && (
               <div className="inline-flex items-center gap-1 text-[10px] font-bold text-[#8C6219] bg-[#FFF8EB] border border-[#F3E3C6] px-1.5 py-0.5 rounded mt-1 max-w-full break-words">
                 <span>{platformLabel}</span>
-                <span className="font-mono font-black">{depPlatform.replace(/^(月台|Track|碼頭|纜車站|站牌)\s*/i, '')}</span>
+                <span className="font-sans tabular-nums font-black">{depPlatform.replace(/^(月台|Track|碼頭|纜車站|站牌)\s*/i, '')}</span>
               </div>
             )}
           </div>
 
           {/* 中間：路線軌跡與轉乘標記 */}
           <div className="flex flex-col items-center justify-center px-1 min-w-[70px] sm:min-w-[90px]">
-            <div className="text-[10px] font-mono text-[#8C806F] mb-1 font-bold whitespace-nowrap">
+            <div className="text-[10px] font-sans text-[#8C806F] mb-1 font-bold whitespace-nowrap">
               {hasTransfer ? '轉乘路線' : (item.type === 'flight' ? '直飛航班' : `直達${meta.categoryName}`)}
             </div>
 
@@ -233,7 +233,7 @@ export const TrainTransportCard: React.FC<TrainTransportCardProps> = ({
             <div className="inline-block bg-[#E8EFEA] text-[#33684F] text-[10px] font-black px-2 py-0.5 rounded mb-1 shadow-2xs">
               {arrTagText}
             </div>
-            <div className="font-mono text-2xl sm:text-3xl font-black text-[#2D2A26] tracking-tight leading-none mb-1">
+            <div className="font-sans tabular-nums text-2xl sm:text-3xl font-black text-[#2D2A26] tracking-tight leading-none mb-1">
               {arrTime}
             </div>
             <div className="text-xs sm:text-sm font-black text-[#4A4235] break-words leading-snug">
@@ -242,7 +242,7 @@ export const TrainTransportCard: React.FC<TrainTransportCardProps> = ({
             {arrPlatform && (
               <div className="inline-flex items-center gap-1 text-[10px] font-bold text-[#8C6219] bg-[#FFF8EB] border border-[#F3E3C6] px-1.5 py-0.5 rounded mt-1 max-w-full break-words">
                 <span>{platformLabel}</span>
-                <span className="font-mono font-black">{arrPlatform.replace(/^(月台|Track|碼頭|纜車站|站牌)\s*/i, '')}</span>
+                <span className="font-sans tabular-nums font-black">{arrPlatform.replace(/^(月台|Track|碼頭|纜車站|站牌)\s*/i, '')}</span>
               </div>
             )}
           </div>
@@ -280,7 +280,7 @@ export const TrainTransportCard: React.FC<TrainTransportCardProps> = ({
 
           {/* 訂位代碼 */}
           {item.bookingReference && (
-            <span className="flex items-center gap-1 text-[#5A5040] bg-white px-2 py-0.5 rounded-lg border border-[#E5DFD4] font-mono">
+            <span className="flex items-center gap-1 text-[#5A5040] bg-white px-2 py-0.5 rounded-lg border border-[#E5DFD4] font-sans tabular-nums tracking-tight">
               <Hash size={10} className="text-[#8C806F]" />
               <span>{item.bookingReference}</span>
             </span>
@@ -289,7 +289,7 @@ export const TrainTransportCard: React.FC<TrainTransportCardProps> = ({
 
         {/* 費用 */}
         {item.cost !== undefined && item.cost > 0 && (
-          <div className="flex items-center gap-0.5 font-mono text-xs font-black text-[#2E5A44] ml-auto">
+          <div className="flex items-center gap-0.5 font-sans tabular-nums tracking-tight text-xs sm:text-sm font-black text-[#2E5A44] ml-auto">
             <DollarSign size={12} className="-mr-0.5" />
             <span>{item.currency || 'TWD'} {Number(item.cost).toLocaleString()}</span>
           </div>

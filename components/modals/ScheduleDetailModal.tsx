@@ -53,7 +53,7 @@ export const ScheduleDetailModal = ({
                         </div>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                <span className="font-mono text-xs font-black text-white bg-sage px-2 py-0.5 rounded-lg shadow-sm">{item.time}</span>
+                                <span className="font-sans tabular-nums text-xs font-black text-white bg-sage px-2 py-0.5 rounded-lg shadow-sm">{item.time}</span>
                                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{item.type}</span>
                             </div>
                             <h3 className="text-lg sm:text-xl font-black text-cocoa leading-snug break-words">{item.title}</h3>
@@ -131,9 +131,9 @@ export const ScheduleDetailModal = ({
                     {/* Stay Details */}
                     {item.type === 'stay' && item.stayDetails && (
                         <div className="bg-purple-50/50 p-4 rounded-2xl border border-purple-100 space-y-3">
-                            <div className="flex gap-4 text-xs font-bold text-gray-500">
-                                <div className="flex items-center gap-1"><Clock size={12}/> In: {item.checkIn}</div>
-                                <div className="flex items-center gap-1"><Clock size={12}/> Out: {item.checkOut}</div>
+                            <div className="flex flex-wrap gap-4 text-xs sm:text-sm font-bold text-gray-500">
+                                <div className="flex items-center gap-1"><Clock size={13} className="text-purple-400"/> 入住時間: <span className="font-sans tabular-nums font-black text-cocoa">{item.checkIn}</span></div>
+                                <div className="flex items-center gap-1"><Clock size={13} className="text-purple-400"/> 退房時間: <span className="font-sans tabular-nums font-black text-cocoa">{item.checkOut}</span></div>
                             </div>
                             <div className="flex gap-2">
                                 {item.meals?.breakfast && <span className="text-[10px] bg-white px-2 py-1 rounded-lg border border-purple-200 text-purple-500 font-bold flex items-center gap-1"><Coffee size={10}/> 早餐</span>}
@@ -141,8 +141,8 @@ export const ScheduleDetailModal = ({
                             </div>
                             {Number(item.stayDetails.cost) > 0 && (
                                 <div className="pt-2 border-t border-purple-200 flex justify-between items-center">
-                                    <span className="text-[10px] font-bold text-gray-400">每人費用</span>
-                                    <span className="text-sm font-black text-sage font-mono">{item.stayDetails.currency} {Number(item.stayDetails.cost).toLocaleString()}</span>
+                                    <span className="text-xs font-bold text-gray-400">每人費用</span>
+                                    <span className="text-sm sm:text-base font-black text-sage font-sans tabular-nums tracking-tight">{item.stayDetails.currency} {Number(item.stayDetails.cost).toLocaleString()}</span>
                                 </div>
                             )}
                         </div>
@@ -167,16 +167,16 @@ export const ScheduleDetailModal = ({
                                 <div className="flex items-center gap-2"><Car size={14} className="text-blue-500"/><span className="text-sm font-black text-cocoa">{item.carRental.company}</span></div>
                                 <span className="text-xs font-bold text-gray-400">{item.carRental.carModel}</span>
                             </div>
-                            <div className="space-y-1 text-xs font-bold text-gray-500">
-                                <div>取車: {item.carRental.pickupDate} {item.carRental.pickupTime}</div>
-                                <div>還車: {item.carRental.returnDate} {item.carRental.returnTime}</div>
+                            <div className="space-y-1.5 text-sm font-bold text-gray-500">
+                                <div>取車時間: <span className="font-sans tabular-nums font-black text-cocoa">{item.carRental.pickupDate} {item.carRental.pickupTime}</span></div>
+                                <div>還車時間: <span className="font-sans tabular-nums font-black text-cocoa">{item.carRental.returnDate} {item.carRental.returnTime}</span></div>
                             </div>
                             {item.carRental.expenses && item.carRental.expenses.length > 0 && (
-                                <div className="bg-white p-2 rounded-xl border border-blue-100 text-[10px] space-y-1">
+                                <div className="bg-white p-2.5 rounded-xl border border-blue-100 text-xs space-y-1">
                                     {item.carRental.expenses.map((exp, idx) => (
-                                        <div key={idx} className="flex justify-between font-bold text-gray-400">
+                                        <div key={idx} className="flex justify-between font-bold text-gray-500">
                                             <span>{exp.name}</span>
-                                            <span>{exp.currency} {Number(exp.amount).toLocaleString()}</span>
+                                            <span className="font-sans tabular-nums font-black text-cocoa">{exp.currency} {Number(exp.amount).toLocaleString()}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -191,7 +191,7 @@ export const ScheduleDetailModal = ({
                                 <Ticket size={16} className="text-sage"/>
                                 <span className="text-xs font-bold text-cocoa">{item.type === 'food' ? '預計餐費' : '門票費用'}</span>
                             </div>
-                            <span className="text-sm font-black text-sage font-mono">{item.spotDetails.currency} {Number(item.spotDetails.ticketCost).toLocaleString()}</span>
+                            <span className="text-sm font-black text-sage font-sans tabular-nums tracking-tight">{item.spotDetails.currency} {Number(item.spotDetails.ticketCost).toLocaleString()}</span>
                         </div>
                     )}
 

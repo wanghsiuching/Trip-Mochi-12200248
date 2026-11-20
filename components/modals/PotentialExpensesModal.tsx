@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, Coins } from 'lucide-react';
 import { ScheduleItem, Currency, Member } from '../../types';
 import { getTransitEffectiveFare } from '../TransitComponents';
@@ -173,9 +174,9 @@ export const PotentialExpensesModal = ({
         }
     });
 
-    return (
+    return createPortal(
         <div 
-          className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[70] flex flex-col items-center justify-center p-3 sm:p-4 animate-fade-in" 
+          className="fixed inset-0 bg-cocoa/60 backdrop-blur-sm z-[350] flex flex-col items-center justify-center p-3 sm:p-4 animate-fade-in" 
           onClick={onClose}
           style={{
             paddingTop: 'max(0.75rem, env(safe-area-inset-top, 0px))',
@@ -211,7 +212,7 @@ export const PotentialExpensesModal = ({
                                             />
                                             <span className="text-xs font-bold text-cocoa">{m.name}</span>
                                         </div>
-                                        <span className="text-xs font-black text-sage font-mono">${Math.round(memberTotals[m.id]).toLocaleString()}</span>
+                                        <span className="text-xs font-black text-sage font-sans tabular-nums">${Math.round(memberTotals[m.id]).toLocaleString()}</span>
                                     </div>
                                 ))}
                             </div>
@@ -250,7 +251,7 @@ export const PotentialExpensesModal = ({
                                     <div className="flex justify-between items-center pt-1 border-t border-dashed border-gray-100">
                                         <div className="text-[10px] font-bold text-gray-400">
                                             {p.hasFee ? (
-                                                <span>原幣: {p.originalCurrency} {p.cost.toLocaleString()} + {p.feePct}%手續費 = <strong className="text-amber-800 font-mono">{p.originalCurrency} {Math.round(p.amount * 100) / 100}</strong></span>
+                                                <span>原幣: {p.originalCurrency} {p.cost.toLocaleString()} + {p.feePct}%手續費 = <strong className="text-amber-800 font-sans tabular-nums">{p.originalCurrency} {Math.round(p.amount * 100) / 100}</strong></span>
                                             ) : (
                                                 <span>原幣: {p.originalCurrency} {p.cost.toLocaleString()}</span>
                                             )}
@@ -284,6 +285,7 @@ export const PotentialExpensesModal = ({
                     <button onClick={onClose} className="w-full py-3.5 rounded-2xl font-bold text-cocoa bg-white border-2 border-beige-dark hover:bg-gray-50 transition-colors">關閉</button>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };

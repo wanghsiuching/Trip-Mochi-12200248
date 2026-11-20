@@ -16,7 +16,7 @@ export const TransferNode: React.FC<TransferNodeProps> = ({ transfer, primaryTyp
       {/* 轉乘節點核心膠囊 */}
       <div className="bg-[#FAF4E6] border border-[#ECDDBF] text-[#704F18] rounded-xl px-2 sm:px-2.5 py-1 sm:py-1.5 shadow-xs flex flex-col items-center text-center max-w-[120px] sm:max-w-[140px] transition-all">
         {/* 轉乘地點代碼與名稱 */}
-        <div className="flex items-center gap-1 font-mono font-black text-xs sm:text-[13px] text-[#5A3E0F]">
+        <div className="flex items-center gap-1 font-sans tabular-nums tracking-tight font-black text-xs sm:text-[13px] text-[#5A3E0F]">
           {isFlight && <Plane size={11} className="text-[#8F651C] transform rotate-45 flex-shrink-0" />}
           <span>{location.code || location.name}</span>
         </div>
@@ -39,7 +39,7 @@ export const TransferNode: React.FC<TransferNodeProps> = ({ transfer, primaryTyp
 
       {/* 銜接資訊提示 (如果有下一段號碼) */}
       {transfer.nextServiceNumber && (
-        <span className="text-[9px] font-mono font-black text-[#8B6E3C] mt-1 bg-white/80 px-1.5 py-0.2 rounded border border-[#ECDDBF]/60">
+        <span className="text-[9px] font-sans tabular-nums tracking-tight font-black text-[#8B6E3C] mt-1 bg-white/80 px-1.5 py-0.2 rounded border border-[#ECDDBF]/60">
           接 {transfer.nextServiceNumber}
         </span>
       )}

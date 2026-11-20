@@ -769,7 +769,7 @@ export default function App() {
             <div key={trip.id} onClick={() => openTrip(trip.id, trip.name)} className="group relative bg-white p-4 rounded-3xl shadow-hard-sm border-2 border-beige-dark active:scale-[0.98] transition-transform cursor-pointer flex justify-between items-center hover:border-sage">
                <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-sage-light rounded-2xl flex items-center justify-center text-sage border-2 border-white shadow-sm"><Plane size={20} className="rotate-[-45deg]" strokeWidth={2.5} /></div>
-                  <div className="text-left"><h3 className="font-bold text-cocoa text-lg">{trip.name}</h3><p className="text-xs text-gray-400 font-mono font-bold bg-gray-100 px-2 py-0.5 rounded-md inline-block">Code: {trip.id}</p></div>
+                  <div className="text-left"><h3 className="font-bold text-cocoa text-lg">{trip.name}</h3><p className="text-xs text-gray-400 font-sans tabular-nums font-bold bg-gray-100 px-2 py-0.5 rounded-md inline-block">Code: {trip.id}</p></div>
                </div>
                <button onClick={(e) => { e.stopPropagation(); setDeleteModalTarget(trip.id); }} className="p-3 text-gray-300 hover:text-red-400 hover:bg-red-50 rounded-xl"><Trash2 size={20} /></button>
             </div>
@@ -836,7 +836,7 @@ export default function App() {
               <Lightbulb size={13} strokeWidth={2.5} className="text-amber-500 fill-amber-400 group-hover:scale-110 transition-transform"/> 
               <span>旅程 TIP 中心</span>
               {tripTips.length > 0 && (
-                <span className="bg-amber-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-mono leading-none">
+                <span className="bg-amber-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-sans tabular-nums leading-none">
                   {tripTips.length}
                 </span>
               )}
@@ -956,7 +956,7 @@ export default function App() {
                         >
                             <Bookmark size={13} className="text-cocoa" /> 全部
                             {pocketItems.length > 0 && (
-                                <span className="bg-cocoa text-white text-[9px] px-1.5 py-0.5 rounded-full font-mono leading-none">
+                                <span className="bg-cocoa text-white text-[9px] px-1.5 py-0.5 rounded-full font-sans tabular-nums leading-none">
                                     {pocketItems.length}
                                 </span>
                             )}
@@ -968,7 +968,7 @@ export default function App() {
                         >
                             <Utensils size={13} className="text-orange-500" /> 美食
                             {pocketItems.filter(p => p.category === 'food').length > 0 && (
-                                <span className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-mono leading-none">
+                                <span className="bg-orange-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-sans tabular-nums leading-none">
                                     {pocketItems.filter(p => p.category === 'food').length}
                                 </span>
                             )}
@@ -980,7 +980,7 @@ export default function App() {
                         >
                             <Compass size={13} className="text-teal-600" /> 探索
                             {pocketItems.filter(p => p.category === 'spot').length > 0 && (
-                                <span className="bg-teal-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-mono leading-none">
+                                <span className="bg-teal-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-sans tabular-nums leading-none">
                                     {pocketItems.filter(p => p.category === 'spot').length}
                                 </span>
                             )}
@@ -992,7 +992,7 @@ export default function App() {
                         >
                             <ShoppingBag size={13} className="text-rose-600" /> 購物
                             {pocketItems.filter(p => p.category === 'shopping').length > 0 && (
-                                <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-mono leading-none">
+                                <span className="bg-rose-500 text-white text-[9px] px-1.5 py-0.5 rounded-full font-sans tabular-nums leading-none">
                                     {pocketItems.filter(p => p.category === 'shopping').length}
                                 </span>
                             )}
@@ -1299,15 +1299,23 @@ export default function App() {
                                             <div className="flex justify-between items-center border-b border-purple-100/50 pb-2">
                                                 <div className="flex items-center gap-2"><Bed size={14} className="text-purple-600"/><span className="text-sm font-black text-cocoa">住宿詳情</span></div>
                                             </div>
-                                            <div className="flex gap-4 text-[11px] font-bold text-gray-500">
-                                                <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>CI: {item.checkIn}</div>
-                                                <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>CO: {item.checkOut}</div>
+                                            <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs sm:text-[13px] font-bold text-gray-500">
+                                                <div className="flex items-center gap-1.5">
+                                                  <Clock size={13} className="text-purple-400 flex-shrink-0"/>
+                                                  <span>入住時間:</span>
+                                                  <span className="font-sans tabular-nums font-black text-cocoa tracking-tight">{item.checkIn}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1.5">
+                                                  <Clock size={13} className="text-purple-400 flex-shrink-0"/>
+                                                  <span>退房時間:</span>
+                                                  <span className="font-sans tabular-nums font-black text-cocoa tracking-tight">{item.checkOut}</span>
+                                                </div>
                                             </div>
                                             <div className="flex gap-3 mt-1">
                                                 {item.meals?.breakfast && <span className="text-[10px] bg-white px-2 py-0.5 rounded-full border border-purple-200 text-purple-400 flex items-center gap-1"><Coffee size={10}/> 早餐</span>}
                                                 {item.meals?.dinner && <span className="text-[10px] bg-white px-2 py-0.5 rounded-full border border-purple-200 text-purple-400 flex items-center gap-1"><Utensils size={10}/> 晚餐</span>}
                                             </div>
-                                            {Number(item.stayDetails.cost) > 0 && <div className="text-right text-[10px] font-black text-sage">費用: {item.stayDetails.currency} {Number(item.stayDetails.cost).toLocaleString()}</div>}
+                                            {Number(item.stayDetails.cost) > 0 && <div className="text-right text-xs sm:text-sm font-black text-sage font-sans tabular-nums tracking-tight">費用: {item.stayDetails.currency} {Number(item.stayDetails.cost).toLocaleString()}</div>}
                                         </div>
                                     )}
                                     {/* Transport Details - Transport Component System */}
@@ -1335,34 +1343,60 @@ export default function App() {
                                         });
                                         const grandTotal = baseWithFee + extrasTotal;
                                         return (
-                                            <div className="bg-blue-50/30 p-3 rounded-2xl border border-blue-100/50 space-y-2">
+                                            <div className="bg-blue-50/30 p-3.5 sm:p-4 rounded-2xl border border-blue-100/50 space-y-3">
                                                 <div className="flex justify-between items-center border-b border-blue-100/50 pb-2">
-                                                    <div className="flex items-center gap-2"><Car size={14} className="text-blue-600"/><span className="text-sm font-black text-cocoa">{item.carRental.company} - {item.carRental.carModel}</span></div>
+                                                    <div className="flex items-center gap-2"><Car size={16} className="text-blue-600"/><span className="text-base font-black text-cocoa">{item.carRental.company} - {item.carRental.carModel}</span></div>
                                                 </div>
-                                                <div className="grid grid-cols-2 gap-2 text-[11px] font-bold text-gray-500">
-                                                    <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>取車: {item.carRental.pickupDate} {item.carRental.pickupTime}</div>
-                                                    <div className="flex items-center gap-1"><Clock size={12} className="text-gray-300"/>還車: {item.carRental.returnDate} {item.carRental.returnTime}</div>
-                                                    {Number(item.carRental.estimatedFuelCost) > 0 && <div className="flex items-center gap-1 col-span-2"><Fuel size={12} className="text-orange-400"/>預估油資: {item.carRental.fuelCurrency} {Number(item.carRental.estimatedFuelCost).toLocaleString()}</div>}
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                                    <div className="bg-white/80 rounded-xl px-3 py-2 border border-blue-100/70">
+                                                        <div className="flex items-center gap-1 text-xs font-bold text-gray-500 mb-0.5">
+                                                            <Clock size={13} className="text-blue-400"/>
+                                                            <span>取車時間</span>
+                                                        </div>
+                                                        <div className="text-[15px] sm:text-base font-black text-cocoa font-sans tabular-nums tracking-tight">
+                                                            {item.carRental.pickupDate} {item.carRental.pickupTime}
+                                                        </div>
+                                                    </div>
+                                                    <div className="bg-white/80 rounded-xl px-3 py-2 border border-blue-100/70">
+                                                        <div className="flex items-center gap-1 text-xs font-bold text-gray-500 mb-0.5">
+                                                            <Clock size={13} className="text-blue-400"/>
+                                                            <span>還車時間</span>
+                                                        </div>
+                                                        <div className="text-[15px] sm:text-base font-black text-cocoa font-sans tabular-nums tracking-tight">
+                                                            {item.carRental.returnDate} {item.carRental.returnTime}
+                                                        </div>
+                                                    </div>
+                                                    {Number(item.carRental.estimatedFuelCost) > 0 && (
+                                                        <div className="sm:col-span-2 bg-orange-50/70 rounded-xl px-3 py-2 border border-orange-100 flex items-center justify-between gap-2">
+                                                            <div className="flex items-center gap-1.5 text-sm font-bold text-orange-700">
+                                                                <Fuel size={15} className="text-orange-500 flex-shrink-0"/>
+                                                                <span>預估油資</span>
+                                                            </div>
+                                                            <span className="text-[15px] sm:text-base font-black text-orange-700 font-sans tabular-nums tracking-tight">
+                                                                {item.carRental.fuelCurrency} {Number(item.carRental.estimatedFuelCost).toLocaleString()}
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <div className="pt-1 mt-1 border-t border-dashed border-blue-200/50 space-y-1">
-                                                    <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 italic">
+                                                <div className="pt-2 mt-1 border-t border-dashed border-blue-200/60 space-y-1.5">
+                                                    <div className="flex justify-between items-center text-xs sm:text-sm font-bold text-gray-500">
                                                         <span>基本租金</span>
-                                                        <span className="font-sans tabular-nums">{item.carRental.rentalCurrency} {Math.round(baseWithFee).toLocaleString()}</span>
+                                                        <span className="text-sm sm:text-[15px] font-black text-cocoa font-sans tabular-nums tracking-tight">{item.carRental.rentalCurrency} {Math.round(baseWithFee).toLocaleString()}</span>
                                                     </div>
                                                     {item.carRental.expenses?.map((exp, idx) => {
                                                         const expAmt = Number(exp.amount) || 0;
                                                         const expFeePct = Number(exp.serviceFeePercentage) || 0;
                                                         const expTotal = expAmt + (exp.hasServiceFee ? (expAmt * expFeePct / 100) : 0);
                                                         return (
-                                                            <div key={idx} className="flex justify-between items-center text-[10px] font-bold text-gray-400 italic">
+                                                            <div key={idx} className="flex justify-between items-center text-xs sm:text-sm font-bold text-gray-500">
                                                                 <span>• {exp.name}</span>
-                                                                <span className="font-sans tabular-nums">{exp.currency || item.carRental?.rentalCurrency} {Math.round(expTotal).toLocaleString()}</span>
+                                                                <span className="text-sm sm:text-[15px] font-black text-cocoa font-sans tabular-nums tracking-tight">{exp.currency || item.carRental?.rentalCurrency} {Math.round(expTotal).toLocaleString()}</span>
                                                             </div>
                                                         );
                                                     })}
-                                                    <div className="flex justify-between items-center text-[11px] font-black text-blue-600 pt-1 border-t border-blue-100 mt-1">
+                                                    <div className="flex justify-between items-center text-sm sm:text-base font-black text-blue-600 pt-2 border-t border-blue-100 mt-1.5">
                                                         <span>租車總計金額</span>
-                                                        <span className="font-sans tabular-nums">{item.carRental.rentalCurrency} {Math.round(grandTotal).toLocaleString()}</span>
+                                                        <span className="text-base sm:text-lg font-black font-sans tabular-nums tracking-tight">{item.carRental.rentalCurrency} {Math.round(grandTotal).toLocaleString()}</span>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1450,7 +1484,7 @@ export default function App() {
               onDeleteDocument={handleDeleteDocument}
             />
           )}
-          {activeTab === 'members' && (<MembersView members={members} scheduleItems={scheduleItems} expenses={expenses} currencies={currencies} onAdd={handleAddMember} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} onJumpToSchedule={handleJumpToSchedule} onJumpToExpense={handleJumpToExpense} />)}
+          {activeTab === 'members' && (<MembersView members={members} scheduleItems={scheduleItems} expenses={expenses} currencies={currencies} onAdd={handleAddMember} onUpdate={handleUpdateMember} onDelete={handleDeleteMember} onJumpToSchedule={handleJumpToSchedule} onJumpToExpense={handleJumpToExpense} onOpenPotentialModal={() => setIsPotentialModalOpen(true)} />)}
         </main>
         
         {/* Global Trip Modals (Available across all tabs) */}

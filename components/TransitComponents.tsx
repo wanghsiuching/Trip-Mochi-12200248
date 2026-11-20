@@ -354,7 +354,7 @@ export const TransitPassBadge: React.FC<{
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 shadow-sm flex-wrap">
           <Ticket size={10} className="text-amber-700" />
           <span>{currency} {hasServiceFee ? Math.round(totalDiscWithFee).toLocaleString() : numDisc.toLocaleString()}</span>
-          {currency !== 'TWD' && <span className="text-[9px] text-amber-900/80 font-mono font-bold">(約 NT${twdMain.toLocaleString()})</span>}
+          {currency !== 'TWD' && <span className="text-[9px] text-amber-900/80 font-sans tabular-nums font-bold">(約 NT${twdMain.toLocaleString()})</span>}
           {hasServiceFee && feePct > 0 && <span className="text-[9px] text-amber-700 font-bold">(含{feePct}%)</span>}
           {savings > 0 && !hasServiceFee && <span className="text-[9px] text-amber-700 font-bold">(省 {currency} {savings.toLocaleString()})</span>}
           {extraCalculated.map(item => (
@@ -410,35 +410,35 @@ export const TransitPassBadge: React.FC<{
           {hasSavings ? (
             <div className="flex flex-col items-end">
               <div className="flex items-baseline gap-2 justify-end">
-                <span className="text-[11px] text-gray-400 line-through font-mono">
+                <span className="text-[11px] text-gray-400 line-through font-sans tabular-nums">
                   {currency} {numOrig.toLocaleString()}
                 </span>
-                <span className="text-base font-black text-amber-800 font-mono">
+                <span className="text-base font-black text-amber-800 font-sans tabular-nums tracking-tight">
                   {currency} {hasServiceFee ? Math.round(totalDiscWithFee).toLocaleString() : numDisc.toLocaleString()}
                 </span>
               </div>
               {currency !== 'TWD' && totalDiscWithFee > 0 && (
-                <span className="text-[10px] font-black text-sage font-mono">
+                <span className="text-[10px] font-black text-sage font-sans tabular-nums">
                   約 NT$ {twdMain.toLocaleString()}
                 </span>
               )}
             </div>
           ) : numDisc === 0 && numOrig > 0 ? (
             <div className="text-right">
-              <span className="text-[10px] text-gray-400 line-through font-mono block">
+              <span className="text-[10px] text-gray-400 line-through font-sans tabular-nums block">
                 原價 {currency} {numOrig.toLocaleString()}
               </span>
-              <span className="text-sm font-black text-emerald-700 font-mono">
+              <span className="text-sm font-black text-emerald-700 font-sans tabular-nums tracking-tight">
                 實付 {currency} 0
               </span>
             </div>
           ) : (
             <div className="flex flex-col items-end">
-              <span className="text-base font-black text-cocoa font-mono">
+              <span className="text-base font-black text-cocoa font-sans tabular-nums tracking-tight">
                 {currency} {hasServiceFee ? Math.round(totalDiscWithFee).toLocaleString() : numDisc.toLocaleString()}
               </span>
               {currency !== 'TWD' && totalDiscWithFee > 0 && (
-                <span className="text-[10px] font-black text-sage font-mono">
+                <span className="text-[10px] font-black text-sage font-sans tabular-nums">
                   約 NT$ {twdMain.toLocaleString()}
                 </span>
               )}
@@ -468,7 +468,7 @@ export const TransitPassBadge: React.FC<{
                     <span className="text-[10px] text-blue-600 font-normal">(含{item.serviceFeePercentage}%手續費)</span>
                   )}
                 </span>
-                <span className="font-mono font-black">
+                <span className="font-sans tabular-nums font-black">
                   {item.currency} {Math.round(item.totalWithFee).toLocaleString()}
                   {item.currency !== 'TWD' && <span className="text-[10px] text-blue-600 font-normal ml-1">(約 NT${item.twd.toLocaleString()})</span>}
                 </span>
@@ -482,7 +482,7 @@ export const TransitPassBadge: React.FC<{
       {grandTotalTWD > 0 && (currency !== 'TWD' || extraCalculated.some(e => e.currency !== 'TWD')) && (
         <div className="pt-1.5 border-t border-dashed border-beige-dark flex items-center justify-between text-xs font-black">
           <span className="text-gray-400 text-[10px] font-bold">交通換算總計 (含各加價與手續費)</span>
-          <span className="text-sage font-mono">約 NT$ {grandTotalTWD.toLocaleString()}</span>
+          <span className="text-sage font-sans tabular-nums tracking-tight">約 NT$ {grandTotalTWD.toLocaleString()}</span>
         </div>
       )}
 
@@ -599,7 +599,7 @@ export const TransitLegChainView: React.FC<{
                 {firstLeg.fromStation || '起點'}
               </span>
               {firstLeg.departureTime && (
-                <span className="text-[10px] font-mono font-bold text-blue-600 bg-white/90 px-1.5 py-0.5 rounded-md border border-blue-100 inline-block mt-0.5">
+                <span className="text-[10px] font-sans tabular-nums font-bold text-blue-600 bg-white/90 px-1.5 py-0.5 rounded-md border border-blue-100 inline-block mt-0.5">
                   {firstLeg.departureTime} 發
                 </span>
               )}
@@ -622,7 +622,7 @@ export const TransitLegChainView: React.FC<{
                 {lastLeg.toStation || '終點'}
               </span>
               {lastLeg.arrivalTime && (
-                <span className="text-[10px] font-mono font-bold text-indigo-600 bg-white/90 px-1.5 py-0.5 rounded-md border border-indigo-100 inline-block mt-0.5">
+                <span className="text-[10px] font-sans tabular-nums font-bold text-indigo-600 bg-white/90 px-1.5 py-0.5 rounded-md border border-indigo-100 inline-block mt-0.5">
                   {lastLeg.arrivalTime} 到
                 </span>
               )}
@@ -712,7 +712,7 @@ export const TransitLegChainView: React.FC<{
                         </span>
                         <span className="whitespace-nowrap">{typeCfg.shortLabel}</span>
                         {leg.serviceNumber ? (
-                          <span className={`font-mono text-[10px] px-1 py-0.2 rounded ${isActive ? 'bg-white/90 font-black' : 'bg-gray-100 text-gray-600'}`}>
+                          <span className={`font-sans tabular-nums text-[10px] px-1 py-0.2 rounded ${isActive ? 'bg-white/90 font-black' : 'bg-gray-100 text-gray-600'}`}>
                             {leg.serviceNumber}
                           </span>
                         ) : (
@@ -810,7 +810,7 @@ export const TransitLegChainView: React.FC<{
                         </div>
 
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          <span className={`text-[10px] font-mono font-black px-2 py-0.5 rounded-lg border ${
+                          <span className={`text-[10px] font-sans tabular-nums font-black px-2 py-0.5 rounded-lg border ${
                             isSelected ? 'bg-blue-500 text-white border-blue-600' : 'bg-gray-100 text-gray-500 border-gray-200'
                           }`}>
                             區間 #{idx + 1}
@@ -824,7 +824,7 @@ export const TransitLegChainView: React.FC<{
                           <Clock size={13} className="text-blue-500 flex-shrink-0" />
                           <div className="min-w-0">
                             <span className="text-[9px] font-bold text-gray-400 block leading-none">發車 / 抵達</span>
-                            <span className="font-mono font-black text-cocoa text-xs">
+                            <span className="font-sans tabular-nums tracking-tight font-black text-cocoa text-xs">
                               {leg.departureTime || '--:--'} ~ {leg.arrivalTime || '--:--'}
                             </span>
                           </div>
@@ -835,7 +835,7 @@ export const TransitLegChainView: React.FC<{
                             <Tag size={13} className="text-indigo-500 flex-shrink-0" />
                             <div className="min-w-0">
                               <span className="text-[9px] font-bold text-indigo-400 block leading-none">車次 / 班號</span>
-                              <span className="font-mono font-black text-indigo-700 text-xs break-all block leading-tight">
+                              <span className="font-sans tabular-nums tracking-tight font-black text-indigo-700 text-xs break-all block leading-tight">
                                 {leg.serviceNumber}
                               </span>
                             </div>
@@ -1039,7 +1039,7 @@ export const TransitLegEditor: React.FC<{
                     value={leg.serviceNumber || ''}
                     onChange={e => updateLeg(leg.id, 'serviceNumber', e.target.value)}
                     placeholder="e.g., Nozomi 21"
-                    className="w-full bg-transparent font-bold text-cocoa text-xs outline-none font-mono"
+                    className="w-full bg-transparent font-bold text-cocoa text-xs outline-none font-sans tabular-nums"
                   />
                 </div>
                 <div className="bg-beige/40 p-2 rounded-xl border border-beige-dark">
@@ -1123,7 +1123,7 @@ export const TransitLegEditor: React.FC<{
                 value={fare.originalPrice !== undefined && fare.originalPrice !== null ? fare.originalPrice : ''}
                 onChange={e => setFare(prev => ({ ...prev, originalPrice: e.target.value }))}
                 placeholder="0"
-                className="flex-1 bg-transparent font-mono font-bold text-cocoa text-sm outline-none w-0 min-w-0"
+                className="flex-1 bg-transparent font-sans tabular-nums font-bold text-cocoa text-sm outline-none w-0 min-w-0"
               />
               <select
                 value={fare.currency || 'TWD'}
@@ -1145,7 +1145,7 @@ export const TransitLegEditor: React.FC<{
                 value={fare.discountedPrice !== undefined && fare.discountedPrice !== null ? fare.discountedPrice : ''}
                 onChange={e => setFare(prev => ({ ...prev, discountedPrice: e.target.value }))}
                 placeholder="0"
-                className="flex-1 bg-transparent font-mono font-black text-amber-800 text-sm outline-none w-0 min-w-0"
+                className="flex-1 bg-transparent font-sans tabular-nums font-black text-amber-800 text-sm outline-none w-0 min-w-0"
               />
               <span className="text-xs font-bold text-gray-500">{fare.currency || 'TWD'}</span>
             </div>
@@ -1172,7 +1172,7 @@ export const TransitLegEditor: React.FC<{
                   type="number"
                   value={fare.serviceFeePercentage !== undefined && fare.serviceFeePercentage !== null ? fare.serviceFeePercentage : ''}
                   onChange={e => setFare(prev => ({ ...prev, serviceFeePercentage: e.target.value }))}
-                  className="w-10 bg-transparent text-xs font-bold outline-none text-right text-cocoa font-mono"
+                  className="w-10 bg-transparent text-xs font-bold outline-none text-right text-cocoa font-sans tabular-nums"
                   placeholder="1.5"
                 />
                 <span className="text-[10px] font-bold text-gray-400 ml-1">%</span>
@@ -1182,7 +1182,7 @@ export const TransitLegEditor: React.FC<{
           {fare.hasServiceFee && Number(fare.discountedPrice) > 0 && (
             <div className="text-right">
               <span className="text-[9px] text-gray-400 font-bold block leading-none">手續費</span>
-              <span className="text-xs font-black text-amber-800 font-mono">
+              <span className="text-xs font-black text-amber-800 font-sans tabular-nums">
                 +{fare.currency || 'TWD'} {Math.round(((Number(fare.discountedPrice) || 0) * (Number(fare.serviceFeePercentage) || 0) / 100) * 100) / 100}
               </span>
             </div>
@@ -1372,7 +1372,7 @@ export const TransitLegEditor: React.FC<{
                             value={item.amount !== undefined && item.amount !== null ? item.amount : ''}
                             onChange={e => handleUpdateExtraFee(idx, { amount: e.target.value })}
                             placeholder="0"
-                            className="flex-1 bg-transparent font-mono font-black text-blue-900 text-sm outline-none w-0 min-w-0"
+                            className="flex-1 bg-transparent font-sans tabular-nums font-black text-blue-900 text-sm outline-none w-0 min-w-0"
                           />
                         </div>
                         <select
@@ -1406,7 +1406,7 @@ export const TransitLegEditor: React.FC<{
                                 type="number"
                                 value={item.serviceFeePercentage !== undefined && item.serviceFeePercentage !== null ? item.serviceFeePercentage : ''}
                                 onChange={e => handleUpdateExtraFee(idx, { serviceFeePercentage: e.target.value })}
-                                className="w-10 bg-transparent text-xs font-bold outline-none text-right text-blue-900 font-mono"
+                                className="w-10 bg-transparent text-xs font-bold outline-none text-right text-blue-900 font-sans tabular-nums"
                                 placeholder="1.5"
                               />
                               <span className="text-[10px] font-bold text-gray-400 ml-1">%</span>
@@ -1416,7 +1416,7 @@ export const TransitLegEditor: React.FC<{
                         {item.hasServiceFee && itemAmt > 0 && (
                           <div className="text-right">
                             <span className="text-[9px] text-gray-400 font-bold block leading-none">加價手續費</span>
-                            <span className="text-xs font-black text-blue-800 font-mono">
+                            <span className="text-xs font-black text-blue-800 font-sans tabular-nums">
                               +{itemCurr} {Math.round(itemFeeVal * 100) / 100}
                             </span>
                           </div>
@@ -1472,12 +1472,12 @@ export const TransitLegEditor: React.FC<{
             <div className="bg-amber-50/70 p-3 rounded-2xl border-2 border-amber-200/80 space-y-1.5">
               <div className="flex justify-between items-center text-xs font-bold text-amber-900">
                 <span>車票實付總計 {fare.hasServiceFee && mainFeePct > 0 ? `(含 ${mainFeePct}% 手續費)` : ''}:</span>
-                <span className="font-mono font-black">{mainCurrency} {Math.round(mainTotalWithFee * 100) / 100}</span>
+                <span className="font-sans tabular-nums font-black">{mainCurrency} {Math.round(mainTotalWithFee * 100) / 100}</span>
               </div>
               {mainCurrency !== 'TWD' && mainDiscounted > 0 && (
                 <div className="flex justify-between items-center text-[11px] text-amber-800/80">
                   <span>車票折合台幣 (匯率 {mainRate}):</span>
-                  <span className="font-mono font-bold">約 NT$ {mainTWD.toLocaleString()}</span>
+                  <span className="font-sans tabular-nums font-bold">約 NT$ {mainTWD.toLocaleString()}</span>
                 </div>
               )}
               {extraCalculated.map(item => (
@@ -1486,7 +1486,7 @@ export const TransitLegEditor: React.FC<{
                     {item.name}
                     {item.hasServiceFee && item.serviceFeePercentage > 0 ? ` (含 ${item.serviceFeePercentage}% 手續費)` : ''}:
                   </span>
-                  <span className="font-mono font-black">
+                  <span className="font-sans tabular-nums font-black">
                     {item.currency} {Math.round(item.totalWithFee * 100) / 100}
                     {item.currency !== 'TWD' ? ` (約 NT$ ${item.twd.toLocaleString()})` : ''}
                   </span>
@@ -1494,7 +1494,7 @@ export const TransitLegEditor: React.FC<{
               ))}
               <div className="flex justify-between items-center text-xs font-black text-cocoa pt-1.5 border-t border-amber-300">
                 <span>交通折合總額 (約略 TWD):</span>
-                <span className="font-mono text-sm text-sage">≈ NT$ {totalTransitTWD.toLocaleString()}</span>
+                <span className="font-sans tabular-nums tracking-tight text-sm text-sage">≈ NT$ {totalTransitTWD.toLocaleString()}</span>
               </div>
             </div>
           );

@@ -98,7 +98,7 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
           <div className="space-y-2 bg-[#FAF7F2] p-3 rounded-2xl border border-[#EBE4D8]">
             <div className="text-[11px] font-black text-[#7A6F5C] uppercase tracking-wider mb-1 flex items-center justify-between">
               <span>{meta.label}分段與轉乘明細</span>
-              <span className="text-[10px] text-[#A69B89] font-mono">共 {segments.length} 段</span>
+              <span className="text-[10px] text-[#A69B89] font-sans tabular-nums">共 {segments.length} 段</span>
             </div>
 
             {segments.map((seg: TransportSegmentModel, index: number) => {
@@ -112,19 +112,19 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
                     </span>
                     <span className="text-xs flex-shrink-0">{segMeta.emoji}</span>
                     <span className="break-words">{seg.operator || item.operator}</span>
-                    <span className="font-mono text-[#7A6540] bg-[#EFE9DD] px-1.5 py-0.5 rounded text-[10px] font-bold">
+                    <span className="font-sans tabular-nums tracking-tight text-[#7A6540] bg-[#EFE9DD] px-1.5 py-0.5 rounded text-[10px] font-bold">
                       {seg.serviceNumber}
                     </span>
                   </div>
                   {seg.duration && (
-                    <span className="font-mono text-[10px] text-[#8C806F] flex-shrink-0">
+                    <span className="font-sans tabular-nums tracking-tight text-[10px] text-[#8C806F] flex-shrink-0">
                       {seg.type === 'flight' ? `飛行 ${seg.duration}` : `時長 ${seg.duration}`}
                     </span>
                   )}
                 </div>
 
                 {/* 出發與抵達時間點 (適應 375px-412px 手機螢幕) */}
-                <div className="flex items-center justify-between text-[11px] text-[#6E6454] pl-2 sm:pl-5 font-mono gap-1">
+                <div className="flex items-center justify-between text-[11px] text-[#6E6454] pl-2 sm:pl-5 font-sans tabular-nums gap-1">
                   <div className="min-w-0 flex-1">
                     <div className="font-bold text-[#2D2A26] break-words leading-tight">{seg.departure.city || seg.departure.name}</div>
                     <div className="flex items-center gap-1 text-[10px] text-[#8C8272]">
@@ -151,7 +151,7 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
                       轉乘站：<strong>{seg.transferAfter.location.name || seg.transferAfter.location.city}</strong>
                       {seg.transferAfter.location.platform ? ` (${seg.transferAfter.location.platform})` : ''}
                     </span>
-                    <span className="font-bold font-mono flex-shrink-0">停留 {seg.transferAfter.duration}</span>
+                    <span className="font-bold font-sans tabular-nums flex-shrink-0">停留 {seg.transferAfter.duration}</span>
                   </div>
                 )}
               </div>
@@ -210,7 +210,7 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
               <Hash size={13} className="text-[#7A6F5C] flex-shrink-0" />
               <div className="flex flex-col min-w-0">
                 <span className="text-[10px] text-[#8C8272] font-bold">訂位代號 (PNR)</span>
-                <span className="text-[11px] font-black font-mono text-[#2D2A26] break-all">
+                <span className="text-[11px] font-black font-sans tabular-nums tracking-tight text-[#2D2A26] break-all">
                   {item.bookingReference}
                 </span>
               </div>
@@ -248,7 +248,7 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
               <span>{isTrain ? '車票費用' : (item.type === 'flight' ? '機票費用' : `${meta.label}費用`)}</span>
             </div>
             <div className="text-right">
-              <span className="font-mono text-sm font-black text-[#2E5A44]">
+              <span className="font-sans tabular-nums tracking-tight text-sm font-black text-[#2E5A44]">
                 {currency} {cost.toLocaleString()}
               </span>
               {item.hasServiceFee && item.serviceFeePercentage ? (

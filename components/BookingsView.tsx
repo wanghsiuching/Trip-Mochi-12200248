@@ -133,12 +133,12 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
           <div className="mt-2 bg-gray-50 p-3 rounded-xl border border-dashed border-gray-200 space-y-1">
               <div className="flex justify-between items-center">
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">總計 (含稅)</span>
-                  <span className="text-sm font-black text-cocoa font-mono">{currency} {Math.round(total).toLocaleString()}</span>
+                  <span className="text-sm font-black text-cocoa font-sans tabular-nums tracking-tight">{currency} {Math.round(total).toLocaleString()}</span>
               </div>
               {currency !== 'TWD' && (
                   <div className="flex justify-between items-center border-t border-gray-100 pt-1">
                       <span className="text-[10px] font-black text-sage uppercase tracking-widest">約台幣 (TWD)</span>
-                      <span className="text-sm font-black text-sage font-mono">${twd.toLocaleString()}</span>
+                      <span className="text-sm font-black text-sage font-sans tabular-nums tracking-tight">${twd.toLocaleString()}</span>
                   </div>
               )}
           </div>
@@ -653,9 +653,9 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         )}
                                     </div>
                                     <div className="sm:text-right">
-                                        <div className="text-2xl font-black text-cocoa font-mono">{acc.currency} {totalCost.toLocaleString()}</div>
+                                        <div className="text-2xl font-black text-cocoa font-sans tabular-nums tracking-tight">{acc.currency} {totalCost.toLocaleString()}</div>
                                         {acc.currency !== 'TWD' && (
-                                            <div className="text-xs font-bold text-sage font-mono">≈ NT$ {Math.round(totalCost * getExchangeRate(acc.currency)).toLocaleString()}</div>
+                                            <div className="text-xs font-bold text-sage font-sans tabular-nums tracking-tight">≈ NT$ {Math.round(totalCost * getExchangeRate(acc.currency)).toLocaleString()}</div>
                                         )}
                                         <div className="text-[10px] font-bold text-gray-400">總金額 {acc.hasServiceFee ? `(含稅 ${acc.serviceFeePercentage}%)` : '(含稅)'}</div>
                                     </div>
@@ -737,7 +737,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                     </div>
                                     <div className="text-right">
                                         <div className="text-[10px] font-bold text-gray-400 uppercase">每人分攤金額</div>
-                                        <div className="text-base font-black text-sage font-mono">{acc.currency} {perPerson.toLocaleString()}</div>
+                                        <div className="text-base sm:text-lg font-black text-sage font-sans tabular-nums tracking-tight">{acc.currency} {perPerson.toLocaleString()}</div>
                                     </div>
                                 </div>
 
@@ -875,7 +875,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                     </div>
                                     <div className="text-right">
                                         <div className="text-[10px] font-bold text-gray-400 uppercase">每人分攤 (含稅)</div>
-                                        <div className="text-base font-black text-cocoa font-mono">
+                                        <div className="text-base sm:text-lg font-black text-cocoa font-sans tabular-nums tracking-tight">
                                             {car.currency} {Math.round(calculateTotal(car.price, car.hasServiceFee, car.serviceFeePercentage) / (car.participants?.length || 1)).toLocaleString()}
                                         </div>
                                     </div>

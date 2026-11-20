@@ -444,14 +444,14 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
                       <div className="flex items-center gap-2 sm:gap-3 flex-wrap font-bold">
                         <span>
                           抵達{' '}
-                          <strong className="font-sans tabular-nums font-black text-[#2A1E17]">
+                          <strong className="text-[15px] sm:text-base font-sans tabular-nums font-black tracking-tight text-[#2A1E17]">
                             {transitArrTime || '--:--'}
                           </strong>
                         </span>
                         <span className="text-[#C8B289]">➔</span>
                         <span>
                           起飛{' '}
-                          <strong className="font-sans tabular-nums font-black text-[#2A1E17]">
+                          <strong className="text-[15px] sm:text-base font-sans tabular-nums font-black tracking-tight text-[#2A1E17]">
                             {transitDepTime || '--:--'}
                           </strong>
                         </span>
@@ -649,7 +649,7 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
             <div className="flex items-center gap-1.5">
               <Luggage size={13} className="text-[#4A6F52]" />
               <span>
-                託運行李 <strong className="font-bold text-[#1F3124]">{baggageChecked}</strong>
+                託運行李 <strong className="font-sans tabular-nums font-black text-[#1F3124]">{baggageChecked}</strong>
               </span>
             </div>
 
@@ -658,7 +658,7 @@ export const FlightTransportCard: React.FC<FlightTransportCardProps> = ({
             <div className="flex items-center gap-1.5">
               <Briefcase size={13} className="text-[#4A6F52]" />
               <span>
-                手提行李 <strong className="font-bold text-[#1F3124]">{baggageCarryOn}</strong>
+                手提行李 <strong className="font-sans tabular-nums font-black text-[#1F3124]">{baggageCarryOn}</strong>
               </span>
             </div>
           </div>

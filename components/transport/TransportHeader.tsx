@@ -47,7 +47,7 @@ export const TransportHeader: React.FC<TransportHeaderProps> = ({
           <div className="flex items-center gap-1.5 flex-wrap">
             {/* 班次代碼 (Level 1 核心視覺) */}
             {serviceNumber && (
-              <span className="font-mono text-base sm:text-lg font-black text-[#1F1C18] tracking-tight">
+              <span className="font-sans tabular-nums text-base sm:text-lg font-black text-[#1F1C18] tracking-tight">
                 {serviceNumber}
               </span>
             )}
@@ -76,7 +76,7 @@ export const TransportHeader: React.FC<TransportHeaderProps> = ({
 
       {/* 右側：總時長標籤 */}
       {totalDuration && (
-        <div className="flex items-center gap-1 text-xs font-black font-mono text-[#6E6454] bg-[#F5F2EA] px-2.5 py-1 rounded-full border border-[#E8E2D5] flex-shrink-0">
+        <div className="flex items-center gap-1 text-xs font-black font-sans tabular-nums tracking-tight text-[#6E6454] bg-[#F5F2EA] px-2.5 py-1 rounded-full border border-[#E8E2D5] flex-shrink-0">
           <Clock size={12} className="text-[#8C806F]" />
           <span>{totalDuration}</span>
         </div>

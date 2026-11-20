@@ -161,7 +161,7 @@ export const TransportCard: React.FC<TransportCardProps> = ({
         </div>
 
         {cost !== undefined && cost > 0 && (
-          <div className="flex items-center gap-0.5 font-mono text-xs font-black text-[#2E5A44] ml-auto">
+          <div className="flex items-center gap-0.5 font-sans tabular-nums tracking-tight text-xs font-black text-[#2E5A44] ml-auto">
             <DollarSign size={12} className="-mr-0.5" />
             <span>{currency} {cost.toLocaleString()}</span>
           </div>

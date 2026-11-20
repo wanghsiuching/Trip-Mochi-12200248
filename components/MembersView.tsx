@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Member, ScheduleItem, Currency, Expense } from '../types';
-import { User, PenTool, X, Lock, Plus, Info, DollarSign, Navigation, Calendar, ArrowRight, CheckCircle2, Clock, Edit2, Trash2, Sparkles, Smile } from 'lucide-react';
+import { User, PenTool, X, Lock, Plus, Info, DollarSign, Navigation, Calendar, ArrowRight, CheckCircle2, Coins, Edit2, Trash2, Sparkles, Smile } from 'lucide-react';
 import { AvatarPickerModal } from './AvatarPickerModal';
 import { MemberAvatar } from './MemberAvatar';
 import { getMemberAvatarSrc, getDefaultMemberAvatar } from '../constants/avatars';
@@ -17,10 +17,11 @@ interface MembersViewProps {
   onDelete: (id: string) => void;
   onJumpToSchedule: (date: string, itemId: string) => void;
   onJumpToExpense: (expenseId: string) => void;
+  onOpenPotentialModal?: () => void;
 }
 
 export const MembersView: React.FC<MembersViewProps> = ({ 
-  members, scheduleItems, expenses, currencies, onAdd, onUpdate, onDelete, onJumpToSchedule, onJumpToExpense 
+  members, scheduleItems, expenses, currencies, onAdd, onUpdate, onDelete, onJumpToSchedule, onJumpToExpense, onOpenPotentialModal 
 }) => {
   const [showMemberModal, setShowMemberModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -30,7 +31,33 @@ export const MembersView: React.FC<MembersViewProps> = ({
   const [passwordShake, setPasswordShake] = useState(false);
   const [pendingAction, setPendingAction] = useState<{ type: 'add' | 'edit' | 'delete', payload?: any } | null>(null);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [includePotential, setIncludePotential] = useState(false);
+  const potentialClickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [form, setForm] = useState<{ id: string; name: string; avatar: string | null }>({ id: '', name: '', avatar: null });
+
+  useEffect(() => {
+    return () => {
+      if (potentialClickTimerRef.current) {
+        clearTimeout(potentialClickTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handlePotentialButtonClick = () => {
+    if (potentialClickTimerRef.current) {
+      clearTimeout(potentialClickTimerRef.current);
+      potentialClickTimerRef.current = null;
+      if (onOpenPotentialModal) {
+        onOpenPotentialModal();
+      }
+      return;
+    }
+
+    potentialClickTimerRef.current = setTimeout(() => {
+      potentialClickTimerRef.current = null;
+      setIncludePotential(prev => !prev);
+    }, 240);
+  };
 
   const toTWD = (amount: number, currency: string) => {
     if (currency === 'TWD') return amount;
@@ -40,10 +67,11 @@ export const MembersView: React.FC<MembersViewProps> = ({
 
   const calculateMemberCosts = (memberId: string) => {
       const member = members.find(m => m.id === memberId);
-      if (!member) return { totalPotential: 0, breakdown: [] };
+      if (!member) return { totalConfirmed: 0, totalPotentialOnly: 0, totalAll: 0, confirmedBreakdown: [], potentialBreakdown: [], allBreakdown: [] };
       
-      let totalPotential = 0; 
-      const breakdown: { id: string, date: string, title: string, amount: number, type: string, isPotential: boolean, category: 'schedule' | 'expense' }[] = [];
+      let totalConfirmed = 0;
+      let totalPotentialOnly = 0;
+      const allBreakdown: { id: string, date: string, title: string, amount: number, type: string, isPotential: boolean, category: 'schedule' | 'expense' }[] = [];
 
       const processItemCost = (id: string, date: string, title: string, type: string, cost: number, currency: string, hasFee: boolean, feePct: number, participants: string[], isPotential: boolean) => {
           const base = Number(cost) || 0;
@@ -57,9 +85,13 @@ export const MembersView: React.FC<MembersViewProps> = ({
               const perPerson = total;
               const twdAmount = toTWD(perPerson, currency);
 
-              totalPotential += twdAmount;
+              if (isPotential) {
+                  totalPotentialOnly += twdAmount;
+              } else {
+                  totalConfirmed += twdAmount;
+              }
               if (twdAmount > 0 && Math.round(twdAmount) > 0) {
-                  breakdown.push({ id, date, title, amount: Math.round(twdAmount), type, isPotential: true, category: 'schedule' });
+                  allBreakdown.push({ id, date, title, amount: Math.round(twdAmount), type, isPotential, category: 'schedule' });
               }
           }
       };
@@ -112,6 +144,12 @@ export const MembersView: React.FC<MembersViewProps> = ({
                   }
               } else if (item.carRental && item.carRental.hasRental) {
                   processItemCost(item.id, item.date, `${item.title} (租車)`, '交通', Number(item.carRental.rentalCost) || 0, item.carRental.rentalCurrency || 'TWD', item.carRental.hasServiceFee || false, Number(item.carRental.serviceFeePercentage) || 0, item.carRental.participants || [], item.carRental.isPotential || false);
+                  item.carRental.expenses?.forEach(exp => {
+                      processItemCost(item.id, item.date, `${item.title} (${exp.name})`, '交通', Number(exp.amount) || 0, exp.currency || 'TWD', exp.hasServiceFee || false, Number(exp.serviceFeePercentage) || 0, item.carRental?.participants || [], item.carRental?.isPotential || false);
+                  });
+                  if (!item.carRental.isPotential && item.carRental.estimatedFuelCost) {
+                      processItemCost(item.id, item.date, `${item.title} (油資)`, '油資', Number(item.carRental.estimatedFuelCost) || 0, item.carRental.fuelCurrency || 'TWD', false, 0, item.carRental.participants || [], true);
+                  }
               }
           }
           if ((item.type === 'spot' || item.type === 'food') && item.spotDetails?.hasTicket) {
@@ -119,7 +157,17 @@ export const MembersView: React.FC<MembersViewProps> = ({
           }
       });
 
-      return { totalPotential: Math.round(totalPotential), breakdown };
+      const confirmedBreakdown = allBreakdown.filter(b => !b.isPotential);
+      const potentialBreakdown = allBreakdown.filter(b => b.isPotential);
+
+      return {
+          totalConfirmed: Math.round(totalConfirmed),
+          totalPotentialOnly: Math.round(totalPotentialOnly),
+          totalAll: Math.round(totalConfirmed + totalPotentialOnly),
+          confirmedBreakdown,
+          potentialBreakdown,
+          allBreakdown
+      };
   };
 
   const handleEditInit = (member: Member) => {
@@ -180,7 +228,11 @@ export const MembersView: React.FC<MembersViewProps> = ({
   };
 
   const selectedMemberData = selectedMemberId ? members.find(m => m.id === selectedMemberId) : null;
-  const financial = selectedMemberId ? calculateMemberCosts(selectedMemberId) : { totalPotential: 0, breakdown: [] };
+  const financial = selectedMemberId
+    ? calculateMemberCosts(selectedMemberId)
+    : { totalConfirmed: 0, totalPotentialOnly: 0, totalAll: 0, confirmedBreakdown: [], potentialBreakdown: [], allBreakdown: [] };
+  const displayedTotal = includePotential ? financial.totalAll : financial.totalConfirmed;
+  const displayedBreakdown = includePotential ? financial.allBreakdown : financial.confirmedBreakdown;
 
   return (
     <div className="space-y-6 p-4 lg:p-0 pb-24 lg:pb-0 h-full overflow-y-auto custom-scroll animate-fade-in">
@@ -212,7 +264,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                     return (
                         <div 
                           key={member.id} 
-                          onClick={() => setSelectedMemberId(member.id)} 
+                          onClick={() => { setSelectedMemberId(member.id); setIncludePotential(false); }} 
                           className="bg-gray-50/70 p-4 rounded-[1.8rem] flex flex-col items-center justify-center relative group hover:bg-beige transition-all border-2 border-beige-dark cursor-pointer hover:-translate-y-1 hover:border-sage shadow-sm"
                         >
                             {/* Cute Face Avatar Display */}
@@ -236,7 +288,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
 
                             <div className="w-full bg-white rounded-xl p-2 border border-beige-dark text-center shadow-xs">
                                 <p className="text-[9px] font-black text-gray-400 uppercase mb-0.5 tracking-wider">預計分攤總額</p>
-                                <p className="text-sm font-black font-mono text-sage">NT$ {costs.totalPotential.toLocaleString()}</p>
+                                <p className="text-sm font-black font-sans tabular-nums text-sage">NT$ {costs.totalConfirmed.toLocaleString()}</p>
                             </div>
                         </div>
                     );
@@ -296,27 +348,81 @@ export const MembersView: React.FC<MembersViewProps> = ({
                         </div>
 
                         <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark text-center shadow-xs">
-                            <span className="text-[11px] font-black text-gray-400 block mb-1 uppercase tracking-wider">預計支出總計 (TWD)</span>
-                            <span className="text-3xl font-black text-sage font-mono">NT$ {financial.totalPotential.toLocaleString()}</span>
+                            <span className="text-[11px] font-black text-gray-400 block mb-1 uppercase tracking-wider">
+                              {includePotential ? '預計支出總計 (TWD · 含潛在花費)' : '預計支出總計 (TWD)'}
+                            </span>
+                            <span className="text-3xl font-black text-sage font-sans tabular-nums tracking-tight">NT$ {displayedTotal.toLocaleString()}</span>
+                            {includePotential && financial.totalPotentialOnly > 0 && (
+                              <div className="mt-1.5 flex items-center justify-center gap-2 text-[11px] font-bold text-gray-500 font-sans tabular-nums flex-wrap">
+                                <span>已確認 NT$ {financial.totalConfirmed.toLocaleString()}</span>
+                                <span className="text-amber-500">＋</span>
+                                <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                                  潛在花費 NT$ {financial.totalPotentialOnly.toLocaleString()}
+                                </span>
+                              </div>
+                            )}
                         </div>
 
                         <div className="space-y-3">
-                            <h4 className="text-sm font-black text-cocoa flex items-center gap-2 mb-2"><DollarSign size={16} className="text-sage"/> 行程分攤明細</h4>
-                            {financial.breakdown.length === 0 ? (
+                            <div className="flex items-center justify-between gap-2 mb-2">
+                              <h4 className="text-sm font-black text-cocoa flex items-center gap-2">
+                                <DollarSign size={16} className="text-sage"/> 行程分攤明細
+                              </h4>
+                              <button
+                                type="button"
+                                onClick={handlePotentialButtonClick}
+                                title="單擊加入或移除潛在花費明細；雙擊開啟潛在花費清單"
+                                className={`px-3 py-1.5 rounded-xl border-2 text-xs font-black inline-flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer select-none shadow-xs ${
+                                  includePotential
+                                    ? 'bg-amber-400 border-amber-500 text-amber-950 shadow-sm'
+                                    : 'bg-yellow-50 hover:bg-yellow-100 border-yellow-200 text-yellow-800'
+                                }`}
+                              >
+                                <Coins size={13} className={includePotential ? 'text-amber-950' : 'text-amber-600'} />
+                                <span>潛在花費</span>
+                                {financial.potentialBreakdown.length > 0 && (
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-sans tabular-nums leading-none ${
+                                    includePotential
+                                      ? 'bg-amber-950/15 text-amber-950'
+                                      : 'bg-amber-200/80 text-amber-900'
+                                  }`}>
+                                    {financial.potentialBreakdown.length}
+                                  </span>
+                                )}
+                              </button>
+                            </div>
+                            {displayedBreakdown.length === 0 ? (
                                 <div className="text-center py-10 text-gray-400 text-xs font-bold bg-white rounded-2xl border border-dashed border-beige-dark">尚未加入任何分攤行程</div>
                             ) : (
-                                financial.breakdown.map((item, idx) => (
-                                    <div key={idx} onClick={() => { setSelectedMemberId(null); onJumpToSchedule(item.date, item.id); }} className="p-3.5 rounded-2xl border border-beige-dark bg-white flex justify-between items-center gap-3 cursor-pointer transition-all active:scale-[0.98] hover:border-sage/40 shadow-xs">
-                                        <div className="flex gap-3 items-center flex-1 min-w-0">
-                                            <div className="p-2.5 rounded-xl bg-gray-50 text-gray-400 border border-beige-dark flex-shrink-0"><Clock size={16}/></div>
-                                            <div className="flex flex-col min-w-0 flex-1">
-                                                <span className="text-sm font-black text-cocoa break-words leading-tight">{item.title}</span>
-                                                <span className="text-[10px] font-bold text-gray-400">{item.type} • {item.date}</span>
+                                displayedBreakdown.map((item, idx) => (
+                                    <div 
+                                      key={idx} 
+                                      onClick={() => { setSelectedMemberId(null); onJumpToSchedule(item.date, item.id); }} 
+                                      className={`p-3.5 rounded-2xl flex justify-between items-center gap-3 cursor-pointer transition-all active:scale-[0.98] shadow-xs ${
+                                        item.isPotential
+                                          ? 'bg-amber-50/75 border-2 border-dashed border-amber-300 hover:border-amber-400'
+                                          : 'bg-white border border-beige-dark hover:border-sage/40'
+                                      }`}
+                                    >
+                                        <div className="flex flex-col min-w-0 flex-1 gap-1">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                              <span className="text-sm font-black text-cocoa break-words leading-tight">{item.title}</span>
+                                              {item.isPotential && (
+                                                <span className="inline-flex items-center gap-0.5 text-[10px] font-black text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-md flex-shrink-0">
+                                                  <Coins size={10} className="text-amber-600" />
+                                                  潛在花費
+                                                </span>
+                                              )}
                                             </div>
+                                            <span className={`text-[10px] font-bold font-sans tabular-nums ${item.isPotential ? 'text-amber-700/80' : 'text-gray-400'}`}>
+                                              {item.type} • {item.date}
+                                            </span>
                                         </div>
                                         <div className="text-right flex items-center gap-2 flex-shrink-0">
-                                            <span className="text-sm font-black text-cocoa font-mono">NT$ {Math.round(item.amount).toLocaleString()}</span>
-                                            <ArrowRight size={14} className="text-gray-300"/>
+                                            <span className={`text-sm font-black font-sans tabular-nums tracking-tight ${item.isPotential ? 'text-amber-800' : 'text-cocoa'}`}>
+                                              NT$ {Math.round(item.amount).toLocaleString()}
+                                            </span>
+                                            <ArrowRight size={14} className={item.isPotential ? 'text-amber-400' : 'text-gray-300'}/>
                                         </div>
                                     </div>
                                 ))

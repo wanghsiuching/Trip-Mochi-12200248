@@ -29,7 +29,7 @@ export const TransportTimeline: React.FC<TransportTimelineProps> = ({
       {currentDate && (
         <div className="flex items-center gap-2 px-1">
           <span className="w-2.5 h-2.5 rounded-full bg-[#2E5A44]"></span>
-          <span className="text-sm font-black text-[#2D2A26] font-mono">{currentDate} 移動時間軸</span>
+          <span className="text-sm font-black text-[#2D2A26] font-sans tabular-nums tracking-tight">{currentDate} 移動時間軸</span>
         </div>
       )}
 
@@ -76,7 +76,7 @@ export const TransportTimeline: React.FC<TransportTimelineProps> = ({
                 {/* 頂部狀態標籤列 */}
                 <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs sm:text-sm font-black text-[#1F1C18]">
+                    <span className="font-sans tabular-nums tracking-tight text-xs sm:text-sm font-black text-[#1F1C18]">
                       {item.time} {item.endTime ? `— ${item.endTime}` : ''}
                     </span>
 
