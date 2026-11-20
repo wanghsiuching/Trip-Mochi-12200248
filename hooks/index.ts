@@ -6,3 +6,5 @@ export { usePlanningData } from './usePlanningData';
 export { usePocketItemsData } from './usePocketItemsData';
 export { useMembersData } from './useMembersData';
 export { useModalState } from './useModalState';
+export { usePWAUpdate } from './usePWAUpdate';
+export { usePWAInstall } from './usePWAInstall';

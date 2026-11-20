@@ -37,10 +37,14 @@ import {
   usePlanningData, 
   usePocketItemsData, 
   useMembersData, 
-  useModalState 
+  useModalState,
+  usePWAUpdate
 } from './hooks';
+import { PWAUpdateBanner } from './components/PWAUpdateBanner';
+import { PWAInstallButton } from './components/PWAInstallButton';
 
 export default function App() {
+  const pwaUpdate = usePWAUpdate();
   const [view, setView] = useState<ViewState>('landing');
   const [activeTab, setActiveTab] = useState<Tab>('schedule');
   const [selectedDate, setSelectedDate] = useState('');
@@ -751,8 +755,9 @@ export default function App() {
       className="flex flex-col min-h-screen px-6 bg-beige relative overflow-hidden items-center text-center pb-12"
       style={{ paddingTop: 'max(3rem, calc(env(safe-area-inset-top) + 1.5rem))' }}
     >
-      <div className="mb-8 w-full flex justify-between items-end border-b-2 border-beige-dark pb-4">
+      <div className="mb-8 w-full flex justify-between items-end border-b-2 border-beige-dark pb-4 gap-3">
          <div className="text-left"><h1 className="text-2xl font-black text-cocoa tracking-tight">我的旅遊手帳</h1><p className="text-gray-400 font-bold text-xs mt-1">準備好出發了嗎？</p></div>
+         <PWAInstallButton />
       </div>
       <div className="w-full space-y-4 relative z-20 mb-8">
         <button onClick={() => setIsCreateModalOpen(true)} className="w-full bg-sage hover:bg-sage-dark text-white p-4 rounded-[2rem] shadow-hard-sage transition-all flex items-center justify-center gap-3 border-2 border-sage-dark group"><Plus size={24} strokeWidth={3} /><span className="font-bold text-lg tracking-widest">建立新行程</span></button>
@@ -780,6 +785,12 @@ export default function App() {
       <DeleteConfirmModal isOpen={!!deleteModalTarget} onClose={() => setDeleteModalTarget(null)} onConfirm={handleDeleteTrip} tripName={savedTrips.find(t => t.id === deleteModalTarget)?.name || 'Trip'} />
       <SearchErrorModal isOpen={!!searchError} onClose={() => setSearchError(null)} message={searchError || ''} />
       <CreateTripModal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} onConfirm={handleCreateTrip} />
+      <PWAUpdateBanner
+        visible={pwaUpdate.showBanner}
+        isUpdating={pwaUpdate.isUpdating}
+        onUpdate={pwaUpdate.applyUpdate}
+        onDismiss={pwaUpdate.dismissUpdate}
+      />
     </div>
   );
 
@@ -1542,6 +1553,9 @@ export default function App() {
           members={members}
           pocketItems={pocketItems}
           planningLists={planningLists}
+          onCheckAppUpdate={() => pwaUpdate.checkForUpdates(true)}
+          hasAppUpdate={pwaUpdate.hasUpdate}
+          onApplyAppUpdate={pwaUpdate.applyUpdate}
         />
         <ShareTripModal
           isOpen={isShareTripModalOpen}
@@ -1619,6 +1633,12 @@ export default function App() {
           zIndex="z-[80]"
         />
         <BottomNav activeTab={activeTab} setTab={setActiveTab} />
+        <PWAUpdateBanner
+          visible={pwaUpdate.showBanner}
+          isUpdating={pwaUpdate.isUpdating}
+          onUpdate={pwaUpdate.applyUpdate}
+          onDismiss={pwaUpdate.dismissUpdate}
+        />
         {lightboxState && (
           <Lightbox
             images={lightboxState.images}

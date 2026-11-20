@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, X, Coins, Plus, Save, Copy, Check, Hash, FileText, Eye, Download, Loader2 } from 'lucide-react';
+import { Settings, X, Coins, Plus, Save, Copy, Check, Hash, FileText, Eye, Download, Loader2, RefreshCw } from 'lucide-react';
 import { 
   Currency, 
   TripDay, 
@@ -29,7 +29,10 @@ export const TripSettingsModal = ({
     expenses = [],
     members = [],
     pocketItems = [],
-    planningLists
+    planningLists,
+    onCheckAppUpdate,
+    hasAppUpdate = false,
+    onApplyAppUpdate
 }: { 
     isOpen: boolean;
     onClose: () => void;
@@ -55,6 +58,9 @@ export const TripSettingsModal = ({
       shopping?: TodoItem[];
       documents?: TravelDocument[];
     };
+    onCheckAppUpdate?: () => Promise<'update-available' | 'up-to-date' | 'error'>;
+    hasAppUpdate?: boolean;
+    onApplyAppUpdate?: () => void;
 }) => {
     const [newCurrencyCode, setNewCurrencyCode] = useState('');
     const [newCurrencyRate, setNewCurrencyRate] = useState('');
@@ -62,6 +68,7 @@ export const TripSettingsModal = ({
     const [isExportPdfOpen, setIsExportPdfOpen] = useState(false);
     const [isConvertingPdf, setIsConvertingPdf] = useState(false);
     const [pdfSuccess, setPdfSuccess] = useState(false);
+    const [updateCheckStatus, setUpdateCheckStatus] = useState<'idle' | 'checking' | 'latest' | 'found' | 'error'>('idle');
 
     if (!isOpen) return null;
 
@@ -227,6 +234,49 @@ export const TripSettingsModal = ({
                             </>
                         )}
                     </div>
+
+                    {/* App Version & Update Check Section */}
+                    {onCheckAppUpdate && (
+                      <div className="border-t border-dashed border-gray-200 pt-6">
+                        <h4 className="text-sm font-bold text-gray-400 mb-3 flex items-center gap-2">
+                          <RefreshCw size={16}/> 版本同步
+                        </h4>
+                        {hasAppUpdate && onApplyAppUpdate ? (
+                          <button
+                            type="button"
+                            onClick={onApplyAppUpdate}
+                            className="w-full py-3.5 bg-sage text-white font-black rounded-2xl border-2 border-sage-dark hover:bg-sage-dark transition-colors flex items-center justify-center gap-2 shadow-hard-sm-sage cursor-pointer"
+                          >
+                            <RefreshCw size={16} />
+                            <span>發現新版本！點擊立即更新</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setUpdateCheckStatus('checking');
+                              const result = await onCheckAppUpdate();
+                              if (result === 'update-available') setUpdateCheckStatus('found');
+                              else if (result === 'up-to-date') setUpdateCheckStatus('latest');
+                              else setUpdateCheckStatus('error');
+                            }}
+                            disabled={updateCheckStatus === 'checking'}
+                            className="w-full py-3 bg-white text-cocoa font-black rounded-2xl border-2 border-beige-dark hover:border-sage transition-colors flex items-center justify-center gap-2 shadow-xs cursor-pointer disabled:opacity-60"
+                          >
+                            <RefreshCw size={15} className={updateCheckStatus === 'checking' ? 'animate-spin text-sage' : 'text-sage'} />
+                            <span>
+                              {updateCheckStatus === 'checking'
+                                ? '檢查最新版本中...'
+                                : updateCheckStatus === 'latest'
+                                ? '目前已是最新版本'
+                                : updateCheckStatus === 'error'
+                                ? '檢查失敗，請確認網路連線'
+                                : '檢查 App 版本更新'}
+                            </span>
+                          </button>
+                        )}
+                      </div>
+                    )}
                 </div>
 
                 <div className="pt-3 border-t-2 border-beige-dark mt-auto flex-shrink-0">
