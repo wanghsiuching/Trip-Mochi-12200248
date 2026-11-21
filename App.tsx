@@ -882,7 +882,7 @@ export default function App() {
                 style={{ top: 'env(safe-area-inset-top, 0px)' }}
               >
                  <div className="flex items-center justify-between gap-1.5 mb-2 px-1 flex-nowrap overflow-x-auto no-scrollbar">
-                    {/* Left: 行程日期標題 */}
+                    {/* Left: 行程日期標題與今日 TIP 按鈕 */}
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                       <button 
                         type="button"
@@ -893,6 +893,23 @@ export default function App() {
                         <CalendarCheck size={14} className="text-sage flex-shrink-0" />
                         <span className="whitespace-nowrap">行程日期</span>
                         <Edit3 size={10} className="text-gray-300 flex-shrink-0" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsDayTipModalOpen(true)}
+                        className={`text-[10px] sm:text-[11px] font-black px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full border flex items-center gap-1 shadow-2xs transition-all active:scale-95 whitespace-nowrap cursor-pointer flex-shrink-0 ${
+                          hasCurrentDayTip
+                            ? 'bg-amber-100 border-amber-300 text-amber-900 hover:bg-amber-200/80'
+                            : 'bg-amber-50 border-amber-200/90 text-amber-800 hover:bg-amber-100 hover:border-amber-300'
+                        }`}
+                        title={hasCurrentDayTip ? `編輯 Day ${currentDayNumber} TIP` : `新增 Day ${currentDayNumber} TIP`}
+                      >
+                        <Lightbulb
+                          size={11}
+                          strokeWidth={2.5}
+                          className={hasCurrentDayTip ? 'text-amber-500 fill-amber-400 flex-shrink-0' : 'text-amber-500 flex-shrink-0'}
+                        />
+                        <span>今日 TIP</span>
                       </button>
                     </div>
 
