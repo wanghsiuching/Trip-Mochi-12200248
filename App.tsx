@@ -1328,16 +1328,16 @@ export default function App() {
                                                   <span className="text-xs font-black text-purple-600 bg-white px-2.5 py-0.5 rounded-full border border-purple-200 font-sans tabular-nums">共 {stayResolved.nights} 晚</span>
                                                 )}
                                             </div>
-                                            <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs sm:text-[13px] font-bold text-gray-500">
+                                            <div className="flex flex-wrap gap-x-4 gap-y-1.5 font-bold text-gray-500">
                                                 <div className="flex items-center gap-1.5">
-                                                  <Clock size={13} className="text-purple-400 flex-shrink-0"/>
-                                                  <span>入住時間:</span>
-                                                  <span className="font-sans tabular-nums font-black text-cocoa tracking-tight">{item.checkIn}</span>
+                                                  <Clock size={15} className="text-purple-400 flex-shrink-0"/>
+                                                  <span className="text-sm sm:text-[15px]">入住時間:</span>
+                                                  <span className="font-sans tabular-nums text-[15px] sm:text-base font-black text-cocoa tracking-tight">{item.checkIn}</span>
                                                 </div>
                                                 <div className="flex items-center gap-1.5">
-                                                  <Clock size={13} className="text-purple-400 flex-shrink-0"/>
-                                                  <span>退房時間:</span>
-                                                  <span className="font-sans tabular-nums font-black text-cocoa tracking-tight">{item.checkOut}</span>
+                                                  <Clock size={15} className="text-purple-400 flex-shrink-0"/>
+                                                  <span className="text-sm sm:text-[15px]">退房時間:</span>
+                                                  <span className="font-sans tabular-nums text-[15px] sm:text-base font-black text-cocoa tracking-tight">{item.checkOut}</span>
                                                 </div>
                                             </div>
                                             <div className="flex gap-3 mt-1">
@@ -1345,11 +1345,11 @@ export default function App() {
                                                 {item.meals?.dinner && <span className="text-[10px] bg-white px-2 py-0.5 rounded-full border border-purple-200 text-purple-400 flex items-center gap-1"><Utensils size={10}/> 晚餐</span>}
                                             </div>
                                             {!stayResolved.isLegacy && stayResolved.totalAmount !== undefined ? (
-                                              <div className="pt-1 flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm">
-                                                <span className="text-[11px] font-bold text-gray-500 font-sans tabular-nums">
+                                              <div className="pt-1 flex flex-wrap items-center justify-between gap-2">
+                                                <span className="text-sm sm:text-[15px] font-bold text-gray-500 font-sans tabular-nums">
                                                   住宿總價 {stayResolved.currency} {stayResolved.totalAmount.toLocaleString()}
                                                 </span>
-                                                <span className="font-black text-sage font-sans tabular-nums tracking-tight">
+                                                <span className="text-base sm:text-lg font-black text-sage font-sans tabular-nums tracking-tight">
                                                   每人應付: {stayResolved.perPerson !== null ? `${stayResolved.currency} ${stayResolved.perPerson.toLocaleString()}` : '—'}
                                                 </span>
                                               </div>
