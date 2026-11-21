@@ -752,11 +752,17 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                                             </div>
 
                                             <div className="pt-4 border-t-2 border-dashed border-gray-100">
-                                                <div className="flex justify-between items-center mb-3">
-                                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">分攤成員及繳費狀態</span>
+                                                <div className="flex justify-between items-center mb-3 gap-2 flex-wrap">
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">分攤成員及繳費狀態</span>
+                                                        <span className="inline-flex items-center gap-1 text-[11px] font-black text-cocoa bg-beige/70 px-2 py-0.5 rounded-lg border border-beige-dark">
+                                                            <User size={11} className="text-sage" />
+                                                            付款人：{exp.payer}
+                                                        </span>
+                                                    </div>
                                                     <span className="text-sm sm:text-base font-black text-sage-dark bg-sage-light px-3 py-1 rounded-xl border border-sage/20 font-sans tabular-nums tracking-tight">每人 NT$ {Math.round(splitAmountTWD).toLocaleString()}</span>
                                                 </div>
-                                                <div className="flex flex-wrap gap-2">
+                                                <div className="flex flex-wrap gap-2 items-center">
                                                     {exp.involvedMembers?.map(mName => {
                                                         const isSettled = exp.payer === mName || (exp.settledMembers || []).includes(mName);
                                                         return (
@@ -765,7 +771,10 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                                                                 onClick={(e) => { e.stopPropagation(); performToggle(exp, mName); }} 
                                                                 className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border-2 transition-all active:scale-95 ${isSettled ? 'bg-sage-light/50 border-sage/30 text-sage' : 'bg-orange-50 border-orange-100 text-orange-400 shadow-sm'}`}
                                                             >
-                                                                <span className="text-xs font-black">{mName}</span>
+                                                                <div className="flex flex-col items-start leading-tight">
+                                                                    <span className="text-xs font-black">{mName}</span>
+                                                                    {!isSettled && <span className="text-[10px] font-black text-orange-500">未繳款</span>}
+                                                                </div>
                                                                 {isSettled ? <CheckCircle2 size={14} strokeWidth={3}/> : <Circle size={14} strokeWidth={2} className="opacity-30"/>}
                                                             </button>
                                                         );
