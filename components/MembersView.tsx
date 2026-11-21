@@ -6,6 +6,7 @@ import { AvatarPickerModal } from './AvatarPickerModal';
 import { MemberAvatar } from './MemberAvatar';
 import { getMemberAvatarSrc, getDefaultMemberAvatar } from '../constants/avatars';
 import { getTransitEffectiveFare } from './TransitComponents';
+import { resolveStayDetails } from '../src/utils/splitCost';
 
 interface MembersViewProps {
   members: Member[];
@@ -101,7 +102,34 @@ export const MembersView: React.FC<MembersViewProps> = ({
               processItemCost(item.id, item.date, item.title, '機票', Number(item.flightDetails.cost) || 0, item.flightDetails.currency || 'TWD', item.flightDetails.hasServiceFee || false, Number(item.flightDetails.serviceFeePercentage) || 0, item.flightDetails.participants || [], item.flightDetails.isPotential || false);
           }
           if (item.type === 'stay' && item.stayDetails) {
-              processItemCost(item.id, item.date, item.title, '住宿', Number(item.stayDetails.cost) || 0, item.stayDetails.currency || 'TWD', item.stayDetails.hasServiceFee || false, Number(item.stayDetails.serviceFeePercentage) || 0, item.stayDetails.participants || [], item.stayDetails.isPotential || false);
+              const resolvedStay = resolveStayDetails(item.stayDetails, members);
+              if (!resolvedStay.isLegacy) {
+                  processItemCost(
+                      item.id,
+                      item.date,
+                      item.title,
+                      '住宿',
+                      resolvedStay.perPerson || 0,
+                      resolvedStay.currency,
+                      false,
+                      0,
+                      resolvedStay.participantIds,
+                      resolvedStay.isPotential
+                  );
+              } else {
+                  processItemCost(
+                      item.id,
+                      item.date,
+                      item.title,
+                      '住宿',
+                      Number(item.stayDetails.cost) || 0,
+                      item.stayDetails.currency || 'TWD',
+                      item.stayDetails.hasServiceFee || false,
+                      Number(item.stayDetails.serviceFeePercentage) || 0,
+                      item.stayDetails.participants || [],
+                      item.stayDetails.isPotential || false
+                  );
+              }
           }
           if (item.type === 'transport') {
               if (item.transitDetails) {

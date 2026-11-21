@@ -30,6 +30,7 @@ import { MembersView } from './components/MembersView';
 import { createTrip, joinTripByCode, subscribeToTrip, addTripItem, updateTripField, duplicateTrip, sortScheduleItems } from './services/tripService';
 import { getCachedTrip, getCachedTripAsync, setCachedTrip, clearCachedTrip } from './utils/tripCache';
 import { getExchangeRate } from './utils/currency';
+import { resolveStayDetails } from './src/utils/splitCost';
 import { 
   useTripData, 
   useBookingsData, 
@@ -1137,7 +1138,8 @@ export default function App() {
                         pillColorClass = 'bg-[#EEF6F0] text-[#3F6347] border-[#D3E5D8]';
                       }
                       const IconComp = icon;
-                      const partIds = item.type === 'flight' ? item.flightDetails?.participants : item.type === 'stay' ? item.stayDetails?.participants : item.type === 'transport' ? (item.transitDetails?.participants || item.carRental?.participants) : (item.type === 'spot' || item.type === 'food') ? item.spotDetails?.participants : [];
+                      const stayResolved = item.type === 'stay' ? resolveStayDetails(item.stayDetails, members) : null;
+                      const partIds = item.type === 'flight' ? item.flightDetails?.participants : item.type === 'stay' ? stayResolved?.participantIds : item.type === 'transport' ? (item.transitDetails?.participants || item.carRental?.participants) : (item.type === 'spot' || item.type === 'food') ? item.spotDetails?.participants : [];
                       const participantNames = getMemberNames(partIds);
                       const isHighlighted = highlightScheduleItemId === item.id;
                       const hasMiddlePhoto = Boolean(item.images && item.images.length > 0 && (!item.photoPlacement || item.photoPlacement === 'middle'));
@@ -1318,10 +1320,13 @@ export default function App() {
                                             </div>
                                         ) : null;
                                     })()}
-                                    {item.type === 'stay' && item.stayDetails && (
+                                    {item.type === 'stay' && item.stayDetails && stayResolved && (
                                         <div className="bg-purple-50/30 p-3 rounded-2xl border border-purple-100/50 space-y-2">
                                             <div className="flex justify-between items-center border-b border-purple-100/50 pb-2">
                                                 <div className="flex items-center gap-2"><Bed size={14} className="text-purple-600"/><span className="text-sm font-black text-cocoa">住宿詳情</span></div>
+                                                {stayResolved.nights > 0 && (
+                                                  <span className="text-xs font-black text-purple-600 bg-white px-2.5 py-0.5 rounded-full border border-purple-200 font-sans tabular-nums">共 {stayResolved.nights} 晚</span>
+                                                )}
                                             </div>
                                             <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs sm:text-[13px] font-bold text-gray-500">
                                                 <div className="flex items-center gap-1.5">
@@ -1339,7 +1344,20 @@ export default function App() {
                                                 {item.meals?.breakfast && <span className="text-[10px] bg-white px-2 py-0.5 rounded-full border border-purple-200 text-purple-400 flex items-center gap-1"><Coffee size={10}/> 早餐</span>}
                                                 {item.meals?.dinner && <span className="text-[10px] bg-white px-2 py-0.5 rounded-full border border-purple-200 text-purple-400 flex items-center gap-1"><Utensils size={10}/> 晚餐</span>}
                                             </div>
-                                            {Number(item.stayDetails.cost) > 0 && <div className="text-right text-xs sm:text-sm font-black text-sage font-sans tabular-nums tracking-tight">費用: {item.stayDetails.currency} {Number(item.stayDetails.cost).toLocaleString()}</div>}
+                                            {!stayResolved.isLegacy && stayResolved.totalAmount !== undefined ? (
+                                              <div className="pt-1 flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm">
+                                                <span className="text-[11px] font-bold text-gray-500 font-sans tabular-nums">
+                                                  住宿總價 {stayResolved.currency} {stayResolved.totalAmount.toLocaleString()}
+                                                </span>
+                                                <span className="font-black text-sage font-sans tabular-nums tracking-tight">
+                                                  每人應付: {stayResolved.perPerson !== null ? `${stayResolved.currency} ${stayResolved.perPerson.toLocaleString()}` : '—'}
+                                                </span>
+                                              </div>
+                                            ) : Number(item.stayDetails.cost) > 0 ? (
+                                              <div className="text-right text-xs sm:text-sm font-black text-sage font-sans tabular-nums tracking-tight">
+                                                費用: {item.stayDetails.currency} {Number(item.stayDetails.cost).toLocaleString()}
+                                              </div>
+                                            ) : null}
                                         </div>
                                     )}
                                     {/* Transport Details - Transport Component System */}

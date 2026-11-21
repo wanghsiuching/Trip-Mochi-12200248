@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useId, useRef } from 'react';
 import { Clock, Calendar as CalendarIcon, LucideIcon } from 'lucide-react';
 
 export interface DateTimePickerFieldProps {
@@ -22,6 +22,7 @@ export const DateTimePickerField: React.FC<DateTimePickerFieldProps> = ({
   required = false
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const inputId = useId();
 
   const handleClick = () => {
     if (inputRef.current) {
@@ -40,10 +41,10 @@ export const DateTimePickerField: React.FC<DateTimePickerFieldProps> = ({
   return (
     <div
       onClick={handleClick}
-      className={`bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm hover:border-[#D0D6C0] transition-colors cursor-pointer ${className}`}
+      className={`bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm hover:border-[#D0D6C0] transition-colors cursor-pointer min-h-[44px] ${className}`}
     >
       <div className="flex items-center justify-between mb-1">
-        <label className="text-[10px] font-bold text-gray-400 flex items-center gap-1 leading-none">
+        <label htmlFor={inputId} className="text-[10px] font-bold text-gray-400 flex items-center gap-1 leading-none cursor-pointer">
           {Icon && <Icon size={12} className="text-gray-400" />}
           <span>{label}</span>
           {required && <span className="text-red-400 ml-0.5">*</span>}
@@ -51,11 +52,12 @@ export const DateTimePickerField: React.FC<DateTimePickerFieldProps> = ({
         {subLabel && <span className="text-[9px] text-gray-300 font-bold">{subLabel}</span>}
       </div>
       <input
+        id={inputId}
         ref={inputRef}
         type="datetime-local"
         value={value || ''}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full bg-transparent font-bold text-cocoa outline-none text-sm cursor-pointer"
+        className="w-full min-h-[28px] bg-transparent font-bold text-cocoa outline-none text-sm cursor-pointer"
         style={{ colorScheme: 'light' }}
       />
     </div>

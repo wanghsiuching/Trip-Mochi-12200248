@@ -10,6 +10,7 @@ import { Lightbox } from '../Lightbox';
 import { TransportCard } from '../transport/TransportCard';
 import { scheduleItemToTransport } from '../transport/adapters';
 import { getExchangeRate } from '../../utils/currency';
+import { resolveStayDetails } from '../../src/utils/splitCost';
 
 export const ScheduleDetailModal = ({
     isOpen, onClose, item, onEdit, onDelete, currencies, members
@@ -130,24 +131,54 @@ export const ScheduleDetailModal = ({
                     })()}
 
                     {/* Stay Details */}
-                    {item.type === 'stay' && item.stayDetails && (
-                        <div className="bg-purple-50/50 p-4 rounded-2xl border border-purple-100 space-y-3">
-                            <div className="flex flex-wrap gap-4 text-xs sm:text-sm font-bold text-gray-500">
-                                <div className="flex items-center gap-1"><Clock size={13} className="text-purple-400"/> 入住時間: <span className="font-sans tabular-nums font-black text-cocoa">{item.checkIn}</span></div>
-                                <div className="flex items-center gap-1"><Clock size={13} className="text-purple-400"/> 退房時間: <span className="font-sans tabular-nums font-black text-cocoa">{item.checkOut}</span></div>
-                            </div>
-                            <div className="flex gap-2">
-                                {item.meals?.breakfast && <span className="text-[10px] bg-white px-2 py-1 rounded-lg border border-purple-200 text-purple-500 font-bold flex items-center gap-1"><Coffee size={10}/> 早餐</span>}
-                                {item.meals?.dinner && <span className="text-[10px] bg-white px-2 py-1 rounded-lg border border-purple-200 text-purple-500 font-bold flex items-center gap-1"><Utensils size={10}/> 晚餐</span>}
-                            </div>
-                            {Number(item.stayDetails.cost) > 0 && (
-                                <div className="pt-2 border-t border-purple-200 flex justify-between items-center">
-                                    <span className="text-xs font-bold text-gray-400">每人費用</span>
-                                    <span className="text-sm sm:text-base font-black text-sage font-sans tabular-nums tracking-tight">{item.stayDetails.currency} {Number(item.stayDetails.cost).toLocaleString()}</span>
+                    {item.type === 'stay' && item.stayDetails && (() => {
+                        const stayResolved = resolveStayDetails(item.stayDetails, members);
+                        return (
+                            <div className="bg-purple-50/50 p-4 rounded-2xl border border-purple-100 space-y-3">
+                                <div className="flex flex-wrap items-center justify-between gap-2 text-xs sm:text-sm font-bold text-gray-500">
+                                    <div className="flex flex-wrap gap-4">
+                                        <div className="flex items-center gap-1"><Clock size={13} className="text-purple-400"/> 入住時間: <span className="font-sans tabular-nums font-black text-cocoa">{item.checkIn}</span></div>
+                                        <div className="flex items-center gap-1"><Clock size={13} className="text-purple-400"/> 退房時間: <span className="font-sans tabular-nums font-black text-cocoa">{item.checkOut}</span></div>
+                                    </div>
+                                    {stayResolved.nights > 0 && (
+                                        <span className="text-xs font-black text-purple-600 bg-white px-2.5 py-0.5 rounded-full border border-purple-200 font-sans tabular-nums">共 {stayResolved.nights} 晚</span>
+                                    )}
                                 </div>
-                            )}
-                        </div>
-                    )}
+                                <div className="flex gap-2">
+                                    {item.meals?.breakfast && <span className="text-[10px] bg-white px-2 py-1 rounded-lg border border-purple-200 text-purple-500 font-bold flex items-center gap-1"><Coffee size={10}/> 早餐</span>}
+                                    {item.meals?.dinner && <span className="text-[10px] bg-white px-2 py-1 rounded-lg border border-purple-200 text-purple-500 font-bold flex items-center gap-1"><Utensils size={10}/> 晚餐</span>}
+                                </div>
+                                {!stayResolved.isLegacy && stayResolved.totalAmount !== undefined ? (
+                                    <div className="pt-2 border-t border-purple-200 space-y-1.5">
+                                        <div className="flex justify-between items-center text-xs font-bold text-gray-500">
+                                            <span>住宿總價（整筆訂單）</span>
+                                            <span className="font-sans tabular-nums font-black text-cocoa">{stayResolved.currency} {stayResolved.totalAmount.toLocaleString()}</span>
+                                        </div>
+                                        {stayResolved.feeEnabled && stayResolved.split && (
+                                            <div className="flex justify-between items-center text-xs font-bold text-gray-500">
+                                                <span>＋ 手續費 1.5%</span>
+                                                <span className="font-sans tabular-nums font-black text-cocoa">{stayResolved.currency} {stayResolved.split.fee.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                            </div>
+                                        )}
+                                        <div className="flex justify-between items-center pt-1 border-t border-purple-100">
+                                            <span className="text-xs font-bold text-gray-500">每人應付</span>
+                                            <span className="text-sm sm:text-base font-black text-sage font-sans tabular-nums tracking-tight">
+                                                {stayResolved.perPerson !== null ? `${stayResolved.currency} ${stayResolved.perPerson.toLocaleString()}` : '—'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ) : Number(item.stayDetails.cost) > 0 ? (
+                                    <div className="pt-2 border-t border-purple-200 space-y-1">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-xs font-bold text-gray-400">每人費用</span>
+                                            <span className="text-sm sm:text-base font-black text-sage font-sans tabular-nums tracking-tight">{item.stayDetails.currency} {Number(item.stayDetails.cost).toLocaleString()}</span>
+                                        </div>
+                                        <p className="text-[11px] font-bold text-amber-700">這筆是舊格式，重新填寫總價可啟用自動計算</p>
+                                    </div>
+                                ) : null}
+                            </div>
+                        );
+                    })()}
 
                     {/* Transport Details - Unified Transport System */}
                     {item.type === 'transport' && item.transitDetails && (() => {
@@ -264,9 +295,10 @@ export const ScheduleDetailModal = ({
                         <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2 flex items-center gap-1"><Users size={10}/> 參與成員</h4>
                         <div className="flex flex-wrap gap-2">
                             {members.map(m => {
+                                const stayPartIds = item.type === 'stay' ? resolveStayDetails(item.stayDetails, members).participantIds : [];
                                 const isParticipant = 
                                     item.type === 'flight' ? (item.flightDetails?.participants ? item.flightDetails.participants.includes(m.id) : true) :
-                                    item.type === 'stay' ? (item.stayDetails?.participants ? item.stayDetails.participants.includes(m.id) : true) :
+                                    item.type === 'stay' ? (item.stayDetails?.payers || item.stayDetails?.participants ? stayPartIds.includes(m.id) : true) :
                                     item.type === 'transport' ? (
                                         (item.transitDetails?.participants ? item.transitDetails.participants.includes(m.id) : (item.transitDetails ? true : false)) ||
                                         (item.carRental?.participants ? item.carRental.participants.includes(m.id) : (item.carRental?.hasRental ? true : false))

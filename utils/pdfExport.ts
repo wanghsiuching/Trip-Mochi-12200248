@@ -15,6 +15,7 @@ import {
 import { getExchangeRate } from './currency';
 import { getMemberAvatarSrc } from '../constants/avatars';
 import { getTransitEffectiveFare } from '../components/TransitComponents';
+import { resolveStayDetails } from '../src/utils/splitCost';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -520,17 +521,32 @@ export const generateTripPdfHtml = (data: TripExportData): string => {
         );
       }
       if (item.type === 'stay' && item.stayDetails) {
-        processItemCost(
-          item.id,
-          item.date,
-          item.title || '住宿',
-          '住宿',
-          Number(item.stayDetails.cost) || 0,
-          item.stayDetails.currency || 'TWD',
-          item.stayDetails.hasServiceFee || false,
-          Number(item.stayDetails.serviceFeePercentage) || 0,
-          item.stayDetails.participants || []
-        );
+        const resolvedStay = resolveStayDetails(item.stayDetails, effectiveMembers);
+        if (!resolvedStay.isLegacy) {
+          processItemCost(
+            item.id,
+            item.date,
+            item.title || '住宿',
+            '住宿',
+            resolvedStay.perPerson || 0,
+            resolvedStay.currency,
+            false,
+            0,
+            resolvedStay.participantIds
+          );
+        } else {
+          processItemCost(
+            item.id,
+            item.date,
+            item.title || '住宿',
+            '住宿',
+            Number(item.stayDetails.cost) || 0,
+            item.stayDetails.currency || 'TWD',
+            item.stayDetails.hasServiceFee || false,
+            Number(item.stayDetails.serviceFeePercentage) || 0,
+            item.stayDetails.participants || []
+          );
+        }
       }
       if (item.type === 'transport') {
         if (item.transitDetails) {

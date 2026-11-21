@@ -4,6 +4,7 @@ import { X, Coins } from 'lucide-react';
 import { ScheduleItem, Currency, Member } from '../../types';
 import { getTransitEffectiveFare } from '../TransitComponents';
 import { MemberAvatar } from '../MemberAvatar';
+import { resolveStayDetails } from '../../src/utils/splitCost';
 
 export const PotentialExpensesModal = ({ 
     isOpen, onClose, items, currencies, members, onJumpToSchedule 
@@ -82,16 +83,31 @@ export const PotentialExpensesModal = ({
                  item.flightDetails.participants || []
              );
         }
-        if (item.type === 'stay' && item.stayDetails?.isPotential) {
-             processCost(
-                 item.id, item.date,
-                 item.title, '住宿', 
-                 Number(item.stayDetails.cost) || 0, 
-                 item.stayDetails.currency || 'TWD', 
-                 item.stayDetails.hasServiceFee || false, 
-                 Number(item.stayDetails.serviceFeePercentage) || 0,
-                 item.stayDetails.participants || []
-             );
+        if (item.type === 'stay' && item.stayDetails) {
+             const resolvedStay = resolveStayDetails(item.stayDetails, members);
+             if (resolvedStay.isPotential) {
+                 if (!resolvedStay.isLegacy) {
+                     processCost(
+                         item.id, item.date,
+                         item.title, '住宿',
+                         resolvedStay.perPerson || 0,
+                         resolvedStay.currency,
+                         false,
+                         0,
+                         resolvedStay.participantIds
+                     );
+                 } else {
+                     processCost(
+                         item.id, item.date,
+                         item.title, '住宿',
+                         Number(item.stayDetails.cost) || 0,
+                         item.stayDetails.currency || 'TWD',
+                         item.stayDetails.hasServiceFee || false,
+                         Number(item.stayDetails.serviceFeePercentage) || 0,
+                         item.stayDetails.participants || []
+                     );
+                 }
+             }
         }
         if ((item.type === 'spot' || item.type === 'food') && item.spotDetails?.isPotential) {
              processCost(

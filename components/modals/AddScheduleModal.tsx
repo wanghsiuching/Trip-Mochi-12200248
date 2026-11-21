@@ -11,17 +11,20 @@ import { ToggleSwitch } from './ToggleSwitch';
 import { DeleteItemConfirmModal } from './DeleteItemConfirmModal';
 import { getExchangeRate, POPULAR_CURRENCIES } from '../../utils/currency';
 import { compressImageToBase64, uploadOrCompressImage } from '../../utils/imageService';
+import { splitCost, calculateNights, DEFAULT_STAY_FEE_RATE } from '../../src/utils/splitCost';
 
 const CuteButton = ({ checked, onChange, icon: Icon, label, activeColor = 'bg-orange-100 text-orange-500 border-orange-200' }: any) => (
     <button
+        type="button"
+        aria-pressed={checked}
         onClick={() => onChange(!checked)}
-        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black transition-all shadow-sm border-2 ${
+        className={`min-h-[44px] flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-black transition-all shadow-sm border-2 ${
             checked 
             ? activeColor
             : 'bg-white text-gray-400 border-beige-dark hover:bg-gray-50'
         }`}
     >
-        {Icon && <Icon size={12} />}
+        {Icon && <Icon size={13} />}
         {label}
     </button>
 );
@@ -126,12 +129,12 @@ export const AddScheduleModal = ({
   const [checkOut, setCheckOut] = useState('');
   const [hasBreakfast, setHasBreakfast] = useState(false);
   const [hasDinner, setHasDinner] = useState(false);
-  const [stayCost, setStayCost] = useState('');
+  const [stayTotalAmount, setStayTotalAmount] = useState('');
   const [stayCurrency, setStayCurrency] = useState('TWD');
   const [stayHasServiceFee, setStayHasServiceFee] = useState(false);
-  const [stayServiceFeePercentage, setStayServiceFeePercentage] = useState('');
   const [stayParticipants, setStayParticipants] = useState<string[]>([]);
-  const [isStayPotential, setIsStayPotential] = useState(false);
+  const [stayIncludeInBudget, setStayIncludeInBudget] = useState(true);
+  const [legacyStayDetails, setLegacyStayDetails] = useState<ScheduleItem['stayDetails'] | null>(null);
 
   // Car Rental Fields
   const [transportMode, setTransportMode] = useState<'transit' | 'rental'>('transit');
@@ -241,25 +244,46 @@ export const AddScheduleModal = ({
         }
 
         // Stay
-        const initCheckInTime = initialData.checkIn || '15:00';
-        const initCheckOutTime = initialData.checkOut || '11:00';
+        const initCheckInDate = initialData.stayDetails?.checkIn || initialData.stayDetails?.checkInDate || initialData.date || currentDate || '';
+        const initCheckOutDate = initialData.stayDetails?.checkOut || initialData.stayDetails?.checkOutDate || initialData.date || currentDate || '';
+        const initCheckInTime = initialData.stayDetails?.checkInTime || initialData.checkIn || '15:00';
+        const initCheckOutTime = initialData.stayDetails?.checkOutTime || initialData.checkOut || '11:00';
         setCheckIn(initCheckInTime);
         setCheckOut(initCheckOutTime);
-        setCheckInDate(initialData.stayDetails?.checkInDate || initialData.date || currentDate || '');
+        setCheckInDate(initCheckInDate);
         setCheckInTime(initCheckInTime);
-        setCheckOutDate(initialData.stayDetails?.checkOutDate || initialData.date || currentDate || '');
+        setCheckOutDate(initCheckOutDate);
         setCheckOutTime(initCheckOutTime);
         setHasBreakfast(initialData.meals?.breakfast || false);
         setHasDinner(initialData.meals?.dinner || false);
         if (initialData.stayDetails) {
-            setStayCost(initialData.stayDetails.cost?.toString() || '');
-            setStayCurrency(initialData.stayDetails.currency || 'TWD');
-            setStayHasServiceFee(initialData.stayDetails.hasServiceFee || false);
-            setStayServiceFeePercentage(initialData.stayDetails.serviceFeePercentage?.toString() || '');
-            setStayParticipants(initialData.stayDetails.participants && initialData.stayDetails.participants.length > 0 ? initialData.stayDetails.participants : members.map(m => m.id));
-            setIsStayPotential(initialData.stayDetails.isPotential || false);
+            const sd = initialData.stayDetails;
+            const hasNewTotal = typeof sd.totalAmount === 'number' && !Number.isNaN(sd.totalAmount);
+            if (hasNewTotal) {
+                setStayTotalAmount(sd.totalAmount!.toString());
+                setLegacyStayDetails(null);
+            } else if (typeof sd.cost === 'number' && sd.cost > 0) {
+                setStayTotalAmount('');
+                setLegacyStayDetails(sd);
+            } else {
+                setStayTotalAmount('');
+                setLegacyStayDetails(null);
+            }
+            setStayCurrency(sd.currency || 'TWD');
+            setStayHasServiceFee(typeof sd.feeEnabled === 'boolean' ? sd.feeEnabled : Boolean(sd.hasServiceFee));
+            const rawPayers = Array.isArray(sd.payers) ? sd.payers : Array.isArray(sd.participants) ? sd.participants : [];
+            const resolvedIds = rawPayers.length > 0
+                ? members.filter(m => rawPayers.includes(m.name) || rawPayers.includes(m.id)).map(m => m.id)
+                : [];
+            setStayParticipants(resolvedIds.length > 0 ? resolvedIds : (rawPayers.length > 0 ? rawPayers : members.map(m => m.id)));
+            setStayIncludeInBudget(typeof sd.includeInBudget === 'boolean' ? sd.includeInBudget : !(sd.isPotential ?? false));
         } else {
+            setStayTotalAmount('');
+            setStayCurrency('TWD');
+            setStayHasServiceFee(false);
             setStayParticipants(members.map(m => m.id));
+            setStayIncludeInBudget(true);
+            setLegacyStayDetails(null);
         }
 
         // Transport: Universal Transit or Car Rental
@@ -356,7 +380,7 @@ export const AddScheduleModal = ({
         setStep('category'); setTitle(''); setItemDate(currentDate || ''); setTime('09:00'); setLocation(''); setNotes(''); setGpsInput('');
         // Reset Category Specifics
         setFlightAirline(''); setFlightCode(''); setFlightDepDate(currentDate || ''); setFlightDepTime('09:00'); setFlightArrDate(currentDate || ''); setFlightArrTime('12:00'); setFlightDepAirport(''); setFlightArrAirport(''); setFlightHasTransit(false); setFlightTransitAirport(''); setFlightTransitCity(''); setFlightTransitArrivalTime(''); setFlightTransitDepartureTime(''); setFlightTransitDuration(''); setFlightTransitFlightCode(''); setFlightFirstLegDuration(''); setFlightSecondLegDuration(''); setFlightDuration(''); setFlightCheckedBag(''); setFlightCarryOnBag(''); setFlightCost(''); setFlightCurrency('TWD'); setFlightHasServiceFee(false); setFlightServiceFeePercentage(''); setFlightParticipants(members.map(m => m.id)); setIsFlightPotential(false);
-        setCheckIn('15:00'); setCheckOut('11:00'); setCheckInDate(currentDate || ''); setCheckInTime('15:00'); setCheckOutDate(currentDate || ''); setCheckOutTime('11:00'); setHasBreakfast(false); setHasDinner(false); setStayCost(''); setStayCurrency('TWD'); setStayHasServiceFee(false); setStayServiceFeePercentage(''); setStayParticipants(members.map(m => m.id)); setIsStayPotential(false);
+        setCheckIn('15:00'); setCheckOut('11:00'); setCheckInDate(currentDate || ''); setCheckInTime('15:00'); setCheckOutDate(currentDate || ''); setCheckOutTime('11:00'); setHasBreakfast(false); setHasDinner(false); setStayTotalAmount(''); setStayCurrency('TWD'); setStayHasServiceFee(false); setStayParticipants(members.map(m => m.id)); setStayIncludeInBudget(true); setLegacyStayDetails(null);
         setTransportMode('transit');
         setTransitLegs([
           { id: '1', fromStation: '', toStation: '', departureTime: '09:00', arrivalTime: '', transportType: 'train', serviceNumber: '', platform: '' }
@@ -504,21 +528,47 @@ export const AddScheduleModal = ({
         if (flightDepTime) itemData.time = flightDepTime;
     }
     if (selectedType === 'stay') {
+      const trimmedTotal = stayTotalAmount.trim();
+      const hasEnteredTotal = trimmedTotal !== '' && !Number.isNaN(Number(trimmedTotal));
+      if (hasEnteredTotal && stayParticipants.length === 0) {
+        setSaveError('請至少選 1 位分攤人員');
+        return;
+      }
       itemData.checkIn = checkInTime || checkIn;
       itemData.checkOut = checkOutTime || checkOut;
       itemData.meals = { breakfast: hasBreakfast, dinner: hasDinner };
-      itemData.stayDetails = {
-        checkInDate,
-        checkInTime: checkInTime || checkIn,
-        checkOutDate,
-        checkOutTime: checkOutTime || checkOut,
-        cost: Number(stayCost) || 0,
-        currency: stayCurrency,
-        hasServiceFee: stayHasServiceFee,
-        serviceFeePercentage: stayHasServiceFee ? (Number(stayServiceFeePercentage) || 0) : undefined,
-        participants: stayParticipants,
-        isPotential: isStayPotential
-      };
+
+      const payerNames = stayParticipants.map(id => members.find(m => m.id === id)?.name || id);
+
+      if (!hasEnteredTotal && legacyStayDetails) {
+        // 舊格式資料若未重填總價，保留原始舊欄位不覆蓋
+        itemData.stayDetails = {
+          ...legacyStayDetails,
+          checkInDate,
+          checkInTime: checkInTime || checkIn,
+          checkOutDate,
+          checkOutTime: checkOutTime || checkOut,
+          participants: stayParticipants,
+          isPotential: !stayIncludeInBudget,
+        };
+      } else {
+        // 僅儲存原始輸入，不儲存計算結果 (perPerson / sum 等由 splitCost 即時計算)
+        itemData.stayDetails = {
+          ...(hasEnteredTotal ? { totalAmount: Number(trimmedTotal) } : {}),
+          currency: stayCurrency,
+          payers: payerNames,
+          feeEnabled: stayHasServiceFee,
+          feeRate: DEFAULT_STAY_FEE_RATE,
+          rounding: 'ceil',
+          includeInBudget: stayIncludeInBudget,
+          checkIn: checkInDate,
+          checkOut: checkOutDate,
+          checkInDate,
+          checkInTime: checkInTime || checkIn,
+          checkOutDate,
+          checkOutTime: checkOutTime || checkOut,
+        };
+      }
       if (checkInDate) itemData.date = checkInDate;
       if (checkInTime) itemData.time = checkInTime;
     }
@@ -575,8 +625,8 @@ export const AddScheduleModal = ({
   // Reusable Components
   const availableCurrencyCodes = Array.from(new Set(['TWD', ...currencies.map(c => c.code), ...POPULAR_CURRENCIES.map(c => c.code)]));
 
-  const CurrencySelect = ({ value, onChange }: { value: string, onChange: (v: string) => void }) => (
-      <select value={value} onChange={e => onChange(e.target.value)} className="bg-white p-2 rounded-lg border border-beige-dark outline-none text-xs font-bold text-cocoa max-w-full">
+  const CurrencySelect = ({ value, onChange, id, className = '' }: { value: string, onChange: (v: string) => void, id?: string, className?: string }) => (
+      <select id={id} value={value} onChange={e => onChange(e.target.value)} className={`bg-white p-2 rounded-lg border border-beige-dark outline-none text-xs font-bold text-cocoa max-w-full min-h-[44px] ${className}`}>
           {availableCurrencyCodes.map(code => (
               <option key={code} value={code}>{code}</option>
           ))}
@@ -585,9 +635,20 @@ export const AddScheduleModal = ({
 
   const ParticipantsSelector = ({ selected, toggle }: { selected: string[], toggle: (id: string) => void }) => (
       <div className="flex flex-wrap gap-2 mt-2">
-          {members.map(m => (
-              <button key={m.id} onClick={() => toggle(m.id)} className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all ${selected.includes(m.id) ? 'bg-sage text-white border-sage shadow-sm' : 'bg-white text-gray-400 border-beige-dark'}`}>{m.name}</button>
-          ))}
+          {members.map(m => {
+              const isSelected = selected.includes(m.id);
+              return (
+                  <button
+                      key={m.id}
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => toggle(m.id)}
+                      className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold border-2 transition-all ${isSelected ? 'bg-sage text-white border-sage shadow-sm' : 'bg-white text-gray-500 border-beige-dark hover:border-sage/50'}`}
+                  >
+                      {m.name}
+                  </button>
+              );
+          })}
       </div>
   );
 
@@ -670,8 +731,8 @@ export const AddScheduleModal = ({
                <div className="space-y-4 overflow-y-auto custom-scroll flex-1 min-h-0 pr-1 pb-4">
                {/* Basic Info */}
              <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm">
-                <label className="text-xs font-bold text-gray-400 block mb-1">標題</label>
-                <input autoFocus value={title} onChange={(e) => setTitle(e.target.value)} className="w-full text-lg font-bold text-cocoa outline-none placeholder:text-gray-300 bg-transparent" placeholder={selectedType === 'flight' ? "例如: 台北 -> 東京" : selectedType === 'food' ? "例如：一蘭拉麵..." : selectedType === 'stay' ? "例如：希爾頓酒店..." : selectedType === 'transport' ? "例如：自駕或搭車..." : "例如：清水寺..."} />
+                <label htmlFor="schedule-title-input" className="text-xs font-bold text-gray-400 block mb-1">標題</label>
+                <input id="schedule-title-input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} className="w-full min-h-[44px] text-lg font-bold text-cocoa outline-none placeholder:text-gray-300 bg-transparent" placeholder={selectedType === 'flight' ? "例如: 台北 -> 東京" : selectedType === 'food' ? "例如：一蘭拉麵..." : selectedType === 'stay' ? "例如：希爾頓酒店..." : selectedType === 'transport' ? "例如：自駕或搭車..." : "例如：清水寺..."} />
              </div>
              {/* Date & Time Picker */}
              {selectedType !== 'flight' && selectedType !== 'stay' && (selectedType !== 'transport' || transportMode === 'transit') && (
@@ -693,13 +754,13 @@ export const AddScheduleModal = ({
                 />
              )}
              <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm">
-                <label className="text-xs font-bold text-gray-400 block mb-1">地點 / 地址</label>
-                <div className="flex gap-2"><input value={location} onChange={(e) => setLocation(e.target.value)} className="flex-1 text-lg font-bold text-cocoa outline-none placeholder:text-gray-300 bg-transparent" placeholder="輸入地址..." />{location && <button onClick={() => openExternalMap(location)} className="text-gray-400 hover:text-blue-500"><Navigation size={20} /></button>}</div>
+                <label htmlFor="schedule-location-input" className="text-xs font-bold text-gray-400 block mb-1">地點 / 地址</label>
+                <div className="flex gap-2 items-center"><input id="schedule-location-input" value={location} onChange={(e) => setLocation(e.target.value)} className="flex-1 min-h-[44px] text-lg font-bold text-cocoa outline-none placeholder:text-gray-300 bg-transparent" placeholder="輸入地址..." />{location && <button type="button" onClick={() => openExternalMap(location)} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-blue-500"><Navigation size={20} /></button>}</div>
              </div>
              {(selectedType === 'stay' || selectedType === 'spot' || selectedType === 'food' || selectedType === 'transport' || selectedType === 'flight') && (
                  <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark shadow-sm">
-                    <label className="text-[10px] font-bold text-gray-400 block mb-1">GPS (Lat, Lng)</label>
-                    <div className="flex gap-2"><input value={gpsInput} onChange={(e) => setGpsInput(e.target.value)} className="flex-1 text-sm font-bold text-cocoa outline-none placeholder:text-gray-300 bg-transparent" placeholder="例如: 35.689, 139.691" />{gpsInput && <button onClick={() => openExternalMap(gpsInput)} className="text-gray-400 hover:text-blue-500"><ExternalLink size={20} /></button>}</div>
+                    <label htmlFor="schedule-gps-input" className="text-[10px] font-bold text-gray-400 block mb-1">GPS (Lat, Lng)</label>
+                    <div className="flex gap-2 items-center"><input id="schedule-gps-input" value={gpsInput} onChange={(e) => setGpsInput(e.target.value)} className="flex-1 min-h-[44px] text-sm font-bold text-cocoa outline-none placeholder:text-gray-300 bg-transparent" placeholder="例如: 35.689, 139.691" />{gpsInput && <button type="button" onClick={() => openExternalMap(gpsInput)} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-blue-500"><ExternalLink size={20} /></button>}</div>
                  </div>
              )}
 
@@ -899,29 +960,178 @@ export const AddScheduleModal = ({
                               themeColor="purple"
                               icon={Clock}
                           />
+                          {/* 自動計算晚數（日期相減） */}
+                          {(() => {
+                              const stayNights = calculateNights(checkInDate, checkOutDate);
+                              const isInvalidOrder = Boolean(checkInDate && checkOutDate && checkOutDate < checkInDate);
+                              return (
+                                  <div className={`px-3.5 py-2.5 rounded-xl border flex items-center justify-between text-xs font-black ${isInvalidOrder ? 'bg-red-50 border-red-200 text-red-600' : 'bg-white/90 border-purple-200 text-purple-700'}`}>
+                                      <span>住宿晚數</span>
+                                      <span className="font-sans tabular-nums tracking-tight">
+                                          {isInvalidOrder ? '退房日期早於入住日期（共 0 晚）' : `共 ${stayNights} 晚`}
+                                      </span>
+                                  </div>
+                              );
+                          })()}
                       </div>
                       <div className="flex gap-2 px-1">
                           <CuteButton checked={hasBreakfast} onChange={setHasBreakfast} icon={Coffee} label="供應早餐" activeColor="bg-purple-100 text-purple-600 border-purple-200" />
                           <CuteButton checked={hasDinner} onChange={setHasDinner} icon={Utensils} label="供應晚餐" activeColor="bg-purple-100 text-purple-600 border-purple-200" />
                       </div>
-                      <div className="pt-2 border-t border-dashed border-purple-200 mt-2">
-                          <div className="text-xs font-bold text-purple-600 mb-2 flex items-center gap-1"><DollarSign size={12}/> 每人住宿金額 (單人費用)</div>
-                          <div className="flex gap-2 mb-2">
-                             <div className="bg-white p-2 rounded-xl border border-beige-dark shadow-sm flex-[2]"><input type="number" value={stayCost} onChange={(e) => setStayCost(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="每人金額"/></div>
-                             <div className="w-24"><CurrencySelect value={stayCurrency} onChange={setStayCurrency}/></div>
-                          </div>
-                          <div className="flex items-center gap-4 mb-2">
-                                <ToggleSwitch checked={stayHasServiceFee} onChange={setStayHasServiceFee} label="含稅/手續費" colorClass="bg-purple-400" />
-                                {stayHasServiceFee && <div className="flex items-center bg-white px-2 py-1 rounded border border-beige-dark"><input type="number" value={stayServiceFeePercentage} onChange={e => setStayServiceFeePercentage(e.target.value)} className="w-8 bg-transparent text-xs font-bold outline-none text-right text-cocoa" placeholder="0"/><span className="text-xs font-bold text-gray-400 ml-1">%</span></div>}
-                          </div>
-                          <CostDisplay amount={Number(stayCost)} currency={stayCurrency} hasFee={stayHasServiceFee} feePct={Number(stayServiceFeePercentage)} currencies={currencies} />
+                      {(() => {
+                          const stayNights = calculateNights(checkInDate, checkOutDate);
+                          const trimmedTotal = stayTotalAmount.trim();
+                          const hasTotalInput = trimmedTotal !== '' && !Number.isNaN(Number(trimmedTotal));
+                          const totalNumber = hasTotalInput ? Number(trimmedTotal) : 0;
+                          const split = splitCost({
+                              total: totalNumber,
+                              feeEnabled: stayHasServiceFee,
+                              feeRate: DEFAULT_STAY_FEE_RATE,
+                              people: stayParticipants.length,
+                              nights: stayNights,
+                          });
+                          const isLegacyActive = Boolean(legacyStayDetails && !hasTotalInput);
 
-                          <label className="text-[10px] font-bold text-gray-400 block mb-1 mt-2">參與分攤人員</label>
-                          <ParticipantsSelector selected={stayParticipants} toggle={(id) => toggleParticipant(id, setStayParticipants)}/>
-                          <div className="mt-2">
-                                <ToggleSwitch checked={isStayPotential} onChange={setIsStayPotential} label="列入潛在花費 (預算參考)" colorClass="bg-yellow-400" />
-                          </div>
-                      </div>
+                          return (
+                              <div className="pt-3 border-t border-dashed border-purple-200 mt-2 space-y-3">
+                                  {isLegacyActive && legacyStayDetails && (
+                                      <div className="bg-amber-50 border-2 border-amber-200 rounded-2xl p-3 text-xs text-amber-800 space-y-1">
+                                          <div className="font-black flex items-center gap-1.5">
+                                              <AlertCircle size={14} className="text-amber-600 flex-shrink-0" />
+                                              <span>這筆是舊格式，重新填寫總價可啟用自動計算</span>
+                                          </div>
+                                          <div className="text-[11px] font-bold text-amber-700 font-sans tabular-nums">
+                                              目前沿用舊紀錄每人金額：{legacyStayDetails.currency || stayCurrency} {Number(legacyStayDetails.cost || 0).toLocaleString()}
+                                          </div>
+                                      </div>
+                                  )}
+
+                                  {/* 住宿總價（整筆訂單） */}
+                                  <div>
+                                      <label htmlFor="stay-total-amount" className="text-xs font-black text-purple-700 mb-2 flex items-center gap-1">
+                                          <DollarSign size={13}/> 住宿總價（整筆訂單）
+                                      </label>
+                                      <div className="flex gap-2 items-stretch">
+                                          <div className="bg-white px-3 py-1 rounded-xl border-2 border-beige-dark shadow-sm flex-[2] flex items-center min-h-[44px] focus-within:border-purple-400">
+                                              <input
+                                                  id="stay-total-amount"
+                                                  type="text"
+                                                  inputMode="decimal"
+                                                  value={stayTotalAmount}
+                                                  onChange={(e) => {
+                                                      const raw = e.target.value;
+                                                      if (raw === '' || /^\d*\.?\d*$/.test(raw)) {
+                                                          setStayTotalAmount(raw);
+                                                          if (saveError) setSaveError(null);
+                                                      }
+                                                  }}
+                                                  className="w-full min-h-[36px] text-sm font-black text-cocoa outline-none bg-transparent font-sans tabular-nums"
+                                                  placeholder="請輸入整筆訂單總價"
+                                              />
+                                          </div>
+                                          <div className="w-24 flex-shrink-0">
+                                              <label htmlFor="stay-currency" className="sr-only">幣別</label>
+                                              <CurrencySelect id="stay-currency" value={stayCurrency} onChange={setStayCurrency} className="w-full h-full rounded-xl border-2" />
+                                          </div>
+                                      </div>
+                                      <p className="text-[11px] font-bold text-gray-500 mt-1.5">直接填訂房單上的總金額，不用先除以人數</p>
+                                  </div>
+
+                                  {/* 誰要分攤 */}
+                                  <div className="pt-1">
+                                      <div className="flex items-center justify-between gap-2">
+                                          <span className="text-xs font-black text-gray-600">誰要分攤</span>
+                                          <span className={`text-xs font-black font-sans tabular-nums ${stayParticipants.length > 0 ? 'text-sage-dark' : 'text-red-500'}`}>
+                                              {stayParticipants.length > 0 ? `已選 ${stayParticipants.length} 人` : '請至少選 1 人'}
+                                          </span>
+                                      </div>
+                                      <ParticipantsSelector selected={stayParticipants} toggle={(id) => toggleParticipant(id, setStayParticipants)}/>
+                                  </div>
+
+                                  {/* 加計刷卡手續費 */}
+                                  <div className="pt-1">
+                                      <ToggleSwitch
+                                          checked={stayHasServiceFee}
+                                          onChange={setStayHasServiceFee}
+                                          label="加計刷卡手續費"
+                                          colorClass="bg-purple-500"
+                                      />
+                                      <p className="text-[11px] font-bold text-gray-500 -mt-1 ml-1">費率 1.5%，算在總價上</p>
+                                  </div>
+
+                                  {/* 自動計算區塊（唯讀，深綠底卡片） */}
+                                  <div
+                                      aria-live="polite"
+                                      className="bg-[#2D5037] text-white p-4 rounded-2xl shadow-sm space-y-2 border border-[#23402B]"
+                                  >
+                                      <div className="flex justify-between items-center text-xs font-bold text-white/85">
+                                          <span>住宿總價</span>
+                                          <span className="font-sans tabular-nums font-black text-white">
+                                              {hasTotalInput ? `${stayCurrency} ${totalNumber.toLocaleString('en-US', { maximumFractionDigits: 6 })}` : '—'}
+                                          </span>
+                                      </div>
+
+                                      {stayHasServiceFee && (
+                                          <div className="flex justify-between items-center text-xs font-bold text-white/85">
+                                              <span>＋ 手續費 1.5%</span>
+                                              <span className="font-sans tabular-nums font-black text-white">
+                                                  {hasTotalInput
+                                                      ? `${stayCurrency} ${split.fee.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                                      : '—'}
+                                              </span>
+                                          </div>
+                                      )}
+
+                                      <div className="flex justify-between items-center text-xs font-bold text-white/85">
+                                          <span>合計</span>
+                                          <span className="font-sans tabular-nums font-black text-white">
+                                              {hasTotalInput
+                                                  ? `${stayCurrency} ${split.sum.toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+                                                  : '—'}
+                                          </span>
+                                      </div>
+
+                                      <div className="flex justify-between items-center text-xs font-bold text-white/85">
+                                          <span>÷ 人數</span>
+                                          <span className="font-sans tabular-nums font-black text-white">
+                                              {stayParticipants.length} 人
+                                          </span>
+                                      </div>
+
+                                      <div className="pt-2.5 mt-1 border-t border-white/20">
+                                          <div className="flex justify-between items-baseline gap-2">
+                                              <span className="text-sm font-black text-white">每人應付</span>
+                                              <span className="text-2xl font-black text-white font-sans tabular-nums tracking-tight">
+                                                  {hasTotalInput && split.perPerson !== null
+                                                      ? `${stayCurrency} ${split.perPerson.toLocaleString('en-US')}`
+                                                      : '—'}
+                                              </span>
+                                          </div>
+                                          <p className="text-[11px] font-bold text-emerald-100/90 mt-1 text-right font-sans tabular-nums">
+                                              {hasTotalInput && split.perPerson !== null
+                                                  ? split.perPersonPerNight !== null
+                                                      ? `已無條件進位 · 每人每晚約 ${stayCurrency} ${split.perPersonPerNight.toLocaleString('en-US')}`
+                                                      : '已無條件進位 · 每人每晚約 —'
+                                                  : stayParticipants.length === 0 && hasTotalInput
+                                                  ? '請至少選 1 人'
+                                                  : '已無條件進位 · 每人每晚約 —'}
+                                          </p>
+                                      </div>
+                                  </div>
+
+                                  {/* 列入預算 */}
+                                  <div className="pt-1">
+                                      <ToggleSwitch
+                                          checked={stayIncludeInBudget}
+                                          onChange={setStayIncludeInBudget}
+                                          label="列入預算"
+                                          colorClass="bg-sage"
+                                      />
+                                      <p className="text-[11px] font-bold text-gray-500 -mt-1 ml-1">打開後，這筆會計入旅程總預算；關閉則只當參考</p>
+                                  </div>
+                              </div>
+                          );
+                      })()}
                  </div>
                </div>
              )}
@@ -1372,8 +1582,8 @@ export const AddScheduleModal = ({
              </div>
 
              <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm">
-                <label className="text-xs font-bold text-gray-400 flex items-center gap-1 mb-1"><AlignLeft size={12}/> 備註</label>
-                <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full text-sm font-medium text-cocoa outline-none min-h-[80px] resize-none bg-transparent" placeholder="詳細資訊..." style={{ colorScheme: 'light' }}/>
+                <label htmlFor="schedule-notes-input" className="text-xs font-bold text-gray-400 flex items-center gap-1 mb-1"><AlignLeft size={12}/> 備註</label>
+                <textarea id="schedule-notes-input" value={notes} onChange={(e) => setNotes(e.target.value)} className="w-full text-sm font-medium text-cocoa outline-none min-h-[80px] resize-none bg-transparent" placeholder="詳細資訊..." style={{ colorScheme: 'light' }}/>
              </div>
            </div>
 

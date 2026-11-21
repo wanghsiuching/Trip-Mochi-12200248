@@ -1,4 +1,5 @@
 import { ScheduleItem, TripDate, TransitLeg } from '../types';
+import { resolveStayDetails } from '../src/utils/splitCost';
 
 const DIVIDER = '━━━━━━━━━━━━━━';
 
@@ -342,9 +343,14 @@ export const formatTripAsText = ({
             itemBlock.push(`\n${(item.note || item.notes || '').trim()}`);
           }
 
-          if (item.stayDetails?.cost && Number(item.stayDetails.cost) > 0) {
-            const curr = item.stayDetails.currency || 'TWD';
-            itemBlock.push(`\n💰 住宿：${curr} ${formatMoney(item.stayDetails.cost)}／人`);
+          if (item.stayDetails) {
+            const resolvedStay = resolveStayDetails(item.stayDetails, []);
+            if (!resolvedStay.isLegacy && resolvedStay.perPerson !== null && resolvedStay.perPerson > 0) {
+              itemBlock.push(`\n💰 住宿：${resolvedStay.currency} ${formatMoney(resolvedStay.perPerson)}／人`);
+            } else if (item.stayDetails.cost && Number(item.stayDetails.cost) > 0) {
+              const curr = item.stayDetails.currency || 'TWD';
+              itemBlock.push(`\n💰 住宿：${curr} ${formatMoney(item.stayDetails.cost)}／人`);
+            }
           }
         } else if (item.type === 'food') {
           // 美食

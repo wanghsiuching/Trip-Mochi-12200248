@@ -194,6 +194,7 @@ export interface StayDetails {
   checkInTime?: string;
   checkOutDate?: string;
   checkOutTime?: string;
+  // 舊格式欄位（向下相容）
   cost?: number;
   currency?: string;
   hasServiceFee?: boolean;
@@ -201,6 +202,15 @@ export interface StayDetails {
   serviceFeePercentage?: number;
   participants?: string[];
   isPotential?: boolean;
+  // 新格式欄位（僅儲存原始輸入）
+  totalAmount?: number;
+  payers?: string[];
+  feeEnabled?: boolean;
+  feeRate?: number;
+  rounding?: 'ceil';
+  includeInBudget?: boolean;
+  checkIn?: string;
+  checkOut?: string;
 }
 
 export interface SpotDetails {
