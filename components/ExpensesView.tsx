@@ -7,13 +7,15 @@ import {
   ArrowUpRight, ArrowDownLeft, Scale, CheckCircle2, Circle, AlertCircle, HelpCircle,
   Percent, Landmark, PiggyBank, Edit3, Calendar as CalendarIcon, Tag, Users,
   PlusCircle, MinusCircle, ReceiptText, Heart, ShoppingBag, Sparkles, HandCoins,
-  Car, Bed, Utensils, Ticket, PieChart as PieChartIcon
+  Car, Bed, Utensils, Ticket, PieChart as PieChartIcon, Camera, Loader2, Image as ImageIcon
 } from 'lucide-react';
 import { Expense, Member, Currency, Comment } from '../types';
 import { ToggleSwitch, DeleteItemConfirmModal } from './modals';
 import { DatePickerField, TimePickerField, DateTimePickerField } from './TimePickerComponents';
 import { MemberAvatar } from './MemberAvatar';
 import { ExpenseDistributionChart, detectExpenseCategory, ExpenseCategoryKey } from './ExpenseDistributionChart';
+import { uploadOrCompressImage, calculateImageBudget, balanceImagesForDocument } from '../utils/imageService';
+import { Lightbox } from './Lightbox';
 
 interface ExpensesViewProps {
   expenses: Expense[];
@@ -24,6 +26,8 @@ interface ExpensesViewProps {
   onDelete: (id: number) => void;
   onShowToast: (message: string, type: 'success' | 'error') => void;
   highlightId?: string | null;
+  tripId?: string;
+  onOpenLightbox?: (images: string[], index: number) => void;
 }
 
 const CATEGORY_OPTIONS: { key: ExpenseCategoryKey; label: string; icon: React.ComponentType<{ size?: number; className?: string }>; color: string }[] = [
@@ -35,7 +39,7 @@ const CATEGORY_OPTIONS: { key: ExpenseCategoryKey; label: string; icon: React.Co
 ];
 
 export const ExpensesView: React.FC<ExpensesViewProps> = ({ 
-  expenses, members, currencies, onAdd, onUpdate, onDelete, onShowToast, highlightId 
+  expenses, members, currencies, onAdd, onUpdate, onDelete, onShowToast, highlightId, tripId, onOpenLightbox 
 }) => {
   // Helper: Defined getExchangeRate helper inside the component
   const getExchangeRate = (code: string): number => currencies.find(c => c.code === code)?.rate || 1;
@@ -76,7 +80,25 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   const [showFundInputModal, setShowFundInputModal] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<number | null>(null);
 
+  // Split Expense Image Upload State
+  const [formImages, setFormImages] = useState<string[]>([]);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadProgressText, setUploadProgressText] = useState('');
+  const [isUploadingEditImage, setIsUploadingEditImage] = useState(false);
+  const [editUploadProgressText, setEditUploadProgressText] = useState('');
+  const [localLightbox, setLocalLightbox] = useState<{ images: string[]; index: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
+
   const listContainerRef = useRef<HTMLDivElement>(null);
+
+  const openPhotoLightbox = (images: string[], index: number) => {
+    if (onOpenLightbox) {
+      onOpenLightbox(images, index);
+    } else {
+      setLocalLightbox({ images, index });
+    }
+  };
 
   const FUND_SHORTCUTS = ['早餐', '中餐', '晚餐', '加油', '門票', '交通'];
 
@@ -149,12 +171,69 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
       return acc;
   }, {} as Record<string, number>);
 
+  // Split Expense Image Handlers
+  const handleFormImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    setIsUploadingImage(true);
+    setUploadProgressText(`1/${files.length}`);
+    try {
+      const budget = calculateImageBudget(formImages.length + files.length);
+      const uploaded: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        setUploadProgressText(`${i + 1}/${files.length}`);
+        const urlOrBase64 = await uploadOrCompressImage(files[i], tripId, budget);
+        if (urlOrBase64) uploaded.push(urlOrBase64);
+      }
+      if (uploaded.length > 0) {
+        const balanced = await balanceImagesForDocument([...formImages, ...uploaded]);
+        setFormImages(balanced);
+      }
+    } catch (err) {
+      console.error('圖片上傳失敗', err);
+      onShowToast('圖片處理失敗，請重試', 'error');
+    } finally {
+      setIsUploadingImage(false);
+      setUploadProgressText('');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleEditImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !editForm) return;
+    const currentImgs: string[] = editForm.images || [];
+    setIsUploadingEditImage(true);
+    setEditUploadProgressText(`1/${files.length}`);
+    try {
+      const budget = calculateImageBudget(currentImgs.length + files.length);
+      const uploaded: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        setEditUploadProgressText(`${i + 1}/${files.length}`);
+        const urlOrBase64 = await uploadOrCompressImage(files[i], tripId, budget);
+        if (urlOrBase64) uploaded.push(urlOrBase64);
+      }
+      if (uploaded.length > 0) {
+        const balanced = await balanceImagesForDocument([...currentImgs, ...uploaded]);
+        setEditForm((prev: any) => prev ? { ...prev, images: balanced } : prev);
+      }
+    } catch (err) {
+      console.error('圖片上傳失敗', err);
+      onShowToast('圖片處理失敗，請重試', 'error');
+    } finally {
+      setIsUploadingEditImage(false);
+      setEditUploadProgressText('');
+      if (editFileInputRef.current) editFileInputRef.current.value = '';
+    }
+  };
+
   // Handlers
-  const handleAddGeneral = () => {
+  const handleAddGeneral = async () => {
     if (!form.amount || !form.title) {
         onShowToast("請填寫金額與項目", "error");
         return;
     }
+    const finalImages = formImages.length > 0 ? await balanceImagesForDocument(formImages) : [];
     onAdd({
         category: 'general',
         expenseType: form.expenseType,
@@ -166,9 +245,10 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
         hasServiceFee: form.hasServiceFee,
         serviceFeePercentage: form.hasServiceFee ? Number(form.serviceFeePercentage) : 0,
         location: form.location,
-        image: null, images: [], date: form.date, time: form.time, comments: []
+        image: finalImages[0] || null, images: finalImages, date: form.date, time: form.time, comments: []
     });
     setForm({ ...form, amount: '', title: '' });
+    setFormImages([]);
     onShowToast("已新增", "success");
     setMobileTab('list');
   };
@@ -218,6 +298,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
   };
 
   const handleEditClick = (exp: Expense) => {
+      const existingImages = exp.images && exp.images.length > 0 ? exp.images : (exp.image ? [exp.image] : []);
       setEditingExpense(exp);
       setEditForm({
           amount: exp.amount, title: exp.title, currency: exp.currency, payer: exp.payer,
@@ -229,13 +310,17 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           expenseType: exp.expenseType || detectExpenseCategory(exp),
           date: exp.date, time: exp.time,
           fundType: exp.fundType,
-          category: exp.category
+          category: exp.category,
+          images: existingImages
       });
       setShowEditModal(true);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
       if (!editingExpense || !editForm) return;
+      const finalImages = !editForm.fundType
+          ? (editForm.images && editForm.images.length > 0 ? await balanceImagesForDocument(editForm.images) : [])
+          : (editingExpense.images || []);
       onUpdate({
           ...editingExpense,
           amount: Number(editForm.amount),
@@ -249,7 +334,8 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
           serviceFeePercentage: editForm.hasServiceFee ? Number(editForm.serviceFeePercentage) : 0,
           expenseType: editForm.expenseType,
           date: editForm.date,
-          time: editForm.time
+          time: editForm.time,
+          ...(!editForm.fundType ? { images: finalImages, image: finalImages[0] || null } : {})
       });
       setShowEditModal(false);
       setEditingExpense(null);
@@ -515,8 +601,61 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                                 ))}
                             </div>
                         </div>
+                        <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
+                            <div className="flex justify-between items-center mb-2">
+                                <label className="text-[10px] text-gray-400 font-bold block flex items-center gap-1"><Camera size={12}/> 收據 / 支出照片</label>
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isUploadingImage}
+                                    className="text-[10px] bg-sage-light text-sage-dark border border-sage/30 font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-sage hover:text-white active:scale-95 transition-all flex items-center gap-1 disabled:opacity-50"
+                                >
+                                    {isUploadingImage ? <Loader2 size={12} className="animate-spin"/> : <ImageIcon size={12}/>}
+                                    <span>{isUploadingImage ? `處理中 ${uploadProgressText}` : '上傳照片'}</span>
+                                </button>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    className="hidden"
+                                    onChange={handleFormImageUpload}
+                                />
+                            </div>
+                            {formImages.length > 0 ? (
+                                <div className="grid grid-cols-4 gap-2 pt-1">
+                                    {formImages.map((imgUrl, idx) => (
+                                        <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-beige-dark bg-gray-100 group/thumb">
+                                            <img
+                                                src={imgUrl}
+                                                alt={`支出照片 ${idx + 1}`}
+                                                onClick={() => openPhotoLightbox(formImages, idx)}
+                                                className="w-full h-full object-cover cursor-pointer"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormImages(prev => prev.filter((_, i) => i !== idx))}
+                                                className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-red-500 transition-colors"
+                                                title="移除照片"
+                                            >
+                                                <X size={11} />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isUploadingImage}
+                                    className="w-full py-3 rounded-xl border-2 border-dashed border-beige-dark text-xs font-bold text-gray-400 hover:border-sage hover:text-sage transition-colors flex items-center justify-center gap-1.5"
+                                >
+                                    <Camera size={14} /> 點擊選擇收據或照片 (支援多張)
+                                </button>
+                            )}
+                        </div>
                     </div>
-                    <button onClick={handleAddGeneral} className="w-full mt-6 bg-sage text-white py-4 rounded-2xl font-black shadow-hard-sage border-2 border-sage-dark flex items-center justify-center gap-2 text-lg active:translate-y-1 active:shadow-none transition-all"><Check size={24}/> 確認記帳</button>
+                    <button onClick={handleAddGeneral} disabled={isUploadingImage} className="w-full mt-6 bg-sage text-white py-4 rounded-2xl font-black shadow-hard-sage border-2 border-sage-dark flex items-center justify-center gap-2 text-lg active:translate-y-1 active:shadow-none transition-all disabled:opacity-60"><Check size={24}/> 確認記帳</button>
                 </div>
               </div>
             )}
@@ -615,7 +754,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                                             <div className="pt-4 border-t-2 border-dashed border-gray-100">
                                                 <div className="flex justify-between items-center mb-3">
                                                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">分攤成員及繳費狀態</span>
-                                                    <span className="text-[10px] font-bold text-sage bg-sage-light px-2 py-0.5 rounded">每人 NT$ {Math.round(splitAmountTWD).toLocaleString()}</span>
+                                                    <span className="text-sm sm:text-base font-black text-sage-dark bg-sage-light px-3 py-1 rounded-xl border border-sage/20 font-sans tabular-nums tracking-tight">每人 NT$ {Math.round(splitAmountTWD).toLocaleString()}</span>
                                                 </div>
                                                 <div className="flex flex-wrap gap-2">
                                                     {exp.involvedMembers?.map(mName => {
@@ -633,6 +772,33 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                                                     })}
                                                 </div>
                                             </div>
+                                            {(() => {
+                                                const expImages = exp.images && exp.images.length > 0 ? exp.images : (exp.image ? [exp.image] : []);
+                                                if (expImages.length === 0) return null;
+                                                return (
+                                                    <div className="mt-3 pt-3 border-t border-dashed border-gray-100" onClick={e => e.stopPropagation()}>
+                                                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 mb-2">
+                                                            <ImageIcon size={12} className="text-sage" />
+                                                            <span>支出照片 ({expImages.length})</span>
+                                                        </div>
+                                                        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+                                                            {expImages.map((imgUrl, idx) => (
+                                                                <button
+                                                                    key={idx}
+                                                                    type="button"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        openPhotoLightbox(expImages, idx);
+                                                                    }}
+                                                                    className="relative w-16 h-16 rounded-xl overflow-hidden border-2 border-beige-dark flex-shrink-0 hover:border-sage transition-colors bg-gray-100"
+                                                                >
+                                                                    <img src={imgUrl} alt={`${exp.title} 照片 ${idx + 1}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                                                                </button>
+                                                            ))}
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })()}
                                         </div>
                                     );
                                 })}
@@ -943,6 +1109,60 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                                        ))}
                                    </div>
                                </div>
+
+                               <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
+                                   <div className="flex justify-between items-center mb-2">
+                                       <label className="text-[10px] text-gray-400 font-bold block flex items-center gap-1"><Camera size={12}/> 收據 / 支出照片</label>
+                                       <button
+                                           type="button"
+                                           onClick={() => editFileInputRef.current?.click()}
+                                           disabled={isUploadingEditImage}
+                                           className="text-[10px] bg-sage-light text-sage-dark border border-sage/30 font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-sage hover:text-white active:scale-95 transition-all flex items-center gap-1 disabled:opacity-50"
+                                       >
+                                           {isUploadingEditImage ? <Loader2 size={12} className="animate-spin"/> : <ImageIcon size={12}/>}
+                                           <span>{isUploadingEditImage ? `處理中 ${editUploadProgressText}` : '上傳照片'}</span>
+                                       </button>
+                                       <input
+                                           ref={editFileInputRef}
+                                           type="file"
+                                           accept="image/*"
+                                           multiple
+                                           className="hidden"
+                                           onChange={handleEditImageUpload}
+                                       />
+                                   </div>
+                                   {editForm.images && editForm.images.length > 0 ? (
+                                       <div className="grid grid-cols-4 gap-2 pt-1">
+                                           {editForm.images.map((imgUrl: string, idx: number) => (
+                                               <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-beige-dark bg-gray-100">
+                                                   <img
+                                                       src={imgUrl}
+                                                       alt={`支出照片 ${idx + 1}`}
+                                                       onClick={() => openPhotoLightbox(editForm.images, idx)}
+                                                       className="w-full h-full object-cover cursor-pointer"
+                                                   />
+                                                   <button
+                                                       type="button"
+                                                       onClick={() => setEditForm((prev: any) => prev ? { ...prev, images: prev.images.filter((_: string, i: number) => i !== idx) } : prev)}
+                                                       className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-red-500 transition-colors"
+                                                       title="移除照片"
+                                                   >
+                                                       <X size={11} />
+                                                   </button>
+                                               </div>
+                                           ))}
+                                       </div>
+                                   ) : (
+                                       <button
+                                           type="button"
+                                           onClick={() => editFileInputRef.current?.click()}
+                                           disabled={isUploadingEditImage}
+                                           className="w-full py-3 rounded-xl border-2 border-dashed border-beige-dark text-xs font-bold text-gray-400 hover:border-sage hover:text-sage transition-colors flex items-center justify-center gap-1.5"
+                                       >
+                                           <Camera size={14} /> 點擊新增收據或照片 (支援多張)
+                                       </button>
+                                   )}
+                               </div>
                            </>
                        )}
 
@@ -1195,6 +1415,14 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                </div>
            </div>,
            document.body
+       )}
+
+       {localLightbox && (
+           <Lightbox
+               images={localLightbox.images}
+               initialIndex={localLightbox.index}
+               onClose={() => setLocalLightbox(null)}
+           />
        )}
     </div>
   );

@@ -248,29 +248,29 @@ export const ExpenseDistributionChart: React.FC<ExpenseDistributionChartProps> =
         className="flex items-center justify-between cursor-pointer select-none"
       >
         <div className="flex items-center gap-2.5">
-          <div className="w-10 h-10 rounded-2xl bg-sage/15 text-sage flex items-center justify-center border border-sage/30">
+          <div className="w-10 h-10 rounded-2xl bg-sage/15 text-sage flex items-center justify-center border border-sage/30 flex-shrink-0">
             <PieIcon size={20} strokeWidth={2.5} />
           </div>
           <div>
-            <h3 className="font-black text-cocoa text-base sm:text-lg flex items-center gap-1.5">
+            <h3 className="font-black text-cocoa text-lg sm:text-xl flex items-center gap-2">
               {title}
               {filterMember !== 'all' && (
-                <span className="text-xs bg-beige text-cocoa px-2 py-0.5 rounded-full font-bold">
+                <span className="text-sm bg-beige text-cocoa px-2.5 py-0.5 rounded-full font-bold">
                   {filterMember}
                 </span>
               )}
             </h3>
-            <p className="text-xs font-bold text-gray-400">
+            <p className="text-sm font-bold text-gray-500 font-sans tabular-nums tracking-tight">
               總支出 NT$ {totalSpentTWD.toLocaleString()} · 共 {relevantExpenses.length} 筆
             </p>
           </div>
         </div>
 
         <button 
-          className="text-gray-400 hover:text-cocoa p-1.5 rounded-full hover:bg-beige transition-colors"
+          className="text-gray-500 hover:text-cocoa p-1.5 rounded-full hover:bg-beige transition-colors flex-shrink-0"
           title={isExpanded ? "收合" : "展開"}
         >
-          {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          {isExpanded ? <ChevronUp size={22} /> : <ChevronDown size={22} />}
         </button>
       </div>
 
@@ -312,25 +312,25 @@ export const ExpenseDistributionChart: React.FC<ExpenseDistributionChartProps> =
               >
                 {activeCategory ? (
                   <div className="animate-scale-in">
-                    <span className="text-[10px] font-black text-gray-400 block tracking-wider uppercase">
+                    <span className="text-xs font-black text-gray-400 block tracking-wider uppercase">
                       {activeCategory.label}
                     </span>
-                    <span className="text-sm sm:text-base font-black text-cocoa font-mono block leading-tight">
+                    <span className="text-base sm:text-lg font-black text-cocoa font-sans tabular-nums tracking-tight block leading-tight">
                       {activeCategory.percentage.toFixed(1)}%
                     </span>
-                    <span className="text-[10px] font-bold text-gray-400 block truncate max-w-[80px]">
+                    <span className="text-xs font-bold text-gray-500 font-sans tabular-nums tracking-tight block truncate max-w-[96px]">
                       NT${activeCategory.amountTWD.toLocaleString()}
                     </span>
                   </div>
                 ) : (
                   <div>
-                    <span className="text-[10px] font-black text-gray-400 block tracking-wider uppercase">
+                    <span className="text-xs font-black text-gray-400 block tracking-wider uppercase">
                       總計
                     </span>
-                    <span className="text-xs sm:text-sm font-black text-cocoa font-mono block leading-tight truncate max-w-[90px]">
+                    <span className="text-sm sm:text-base font-black text-cocoa font-sans tabular-nums tracking-tight block leading-tight truncate max-w-[100px]">
                       NT$ {totalSpentTWD >= 1000000 ? `${(totalSpentTWD / 10000).toFixed(1)}萬` : totalSpentTWD.toLocaleString()}
                     </span>
-                    <span className="text-[9px] font-bold text-sage block mt-0.5">
+                    <span className="text-xs font-bold text-sage block mt-0.5 font-sans tabular-nums">
                       {categoryData.filter(c => c.amountTWD > 0).length} 個類別
                     </span>
                   </div>
@@ -368,11 +368,11 @@ export const ExpenseDistributionChart: React.FC<ExpenseDistributionChartProps> =
                       </div>
                       <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-xs font-black text-cocoa truncate">
+                          <span className="text-sm font-black text-cocoa truncate">
                             {cat.label}
                           </span>
                           {hasAmount && (
-                            <span className="text-[10px] font-bold text-gray-400">
+                            <span className="text-xs font-bold text-gray-400 font-sans tabular-nums">
                               ({cat.count}筆)
                             </span>
                           )}
@@ -384,7 +384,7 @@ export const ExpenseDistributionChart: React.FC<ExpenseDistributionChartProps> =
                               style={{ width: `${cat.percentage}%`, backgroundColor: cat.color }}
                             />
                           </div>
-                          <span className="text-[10px] font-black font-mono text-gray-500">
+                          <span className="text-xs font-black font-sans tabular-nums text-gray-500">
                             {cat.percentage.toFixed(0)}%
                           </span>
                         </div>
@@ -392,7 +392,7 @@ export const ExpenseDistributionChart: React.FC<ExpenseDistributionChartProps> =
                     </div>
 
                     <div className="text-right flex-shrink-0">
-                      <span className="text-xs font-black text-cocoa font-mono block">
+                      <span className="text-sm font-black text-cocoa font-sans tabular-nums tracking-tight block">
                         NT$ {cat.amountTWD.toLocaleString()}
                       </span>
                     </div>
