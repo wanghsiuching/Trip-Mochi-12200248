@@ -448,6 +448,18 @@ export default function App() {
       if (savedTrips.length > 0) localStorage.setItem('trip_mochi_index', JSON.stringify(savedTrips));
   }, [savedTrips]);
 
+  const handleRenameTrip = useCallback(async (newName: string) => {
+      const trimmed = newName.trim();
+      if (!trimmed || !currentTripId) return;
+      setCurrentTripName(trimmed);
+      setSavedTrips(prev => prev.map(t => t.id === currentTripId ? { ...t, name: trimmed } : t));
+      const cached = getCachedTrip(currentTripId);
+      if (cached) {
+          setCachedTrip(currentTripId, { ...cached, name: trimmed });
+      }
+      await updateTripField(currentTripId, 'name', trimmed);
+  }, [currentTripId, setCurrentTripName]);
+
   const handleCreateTrip = async (customName: string) => {
     setIsCreateModalOpen(false); setLoading(true);
     try {
@@ -1568,6 +1580,7 @@ export default function App() {
           onDuplicate={handleOpenBackupModal}
           tripId={currentTripId}
           tripName={currentTripName}
+          onRenameTrip={handleRenameTrip}
           tripDays={tripDays}
           scheduleItems={scheduleItems}
           bookingFlights={bookingFlights}

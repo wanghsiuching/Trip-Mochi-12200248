@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Settings, X, Coins, Plus, Save, Copy, Check, Hash, FileText, Eye, Download, Loader2, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Settings, X, Coins, Plus, Save, Copy, Check, Hash, FileText, Eye, Download, Loader2, RefreshCw, Edit3 } from 'lucide-react';
 import { 
   Currency, 
   TripDay, 
@@ -19,7 +19,7 @@ import { exportTripToPdfFile, TripExportData } from '../../utils/pdfExport';
 
 export const TripSettingsModal = ({ 
     isOpen, onClose, currencies, onAddCurrency, onRemoveCurrency, onDuplicate,
-    tripId, tripName,
+    tripId, tripName, onRenameTrip,
     tripDays = [],
     scheduleItems = [],
     bookingFlights = [],
@@ -42,6 +42,7 @@ export const TripSettingsModal = ({
     onDuplicate?: () => void;
     tripId?: string;
     tripName?: string;
+    onRenameTrip?: (newName: string) => Promise<void> | void;
     tripDays?: TripDay[];
     scheduleItems?: ScheduleItem[];
     bookingFlights?: BookingFlight[];
@@ -69,6 +70,16 @@ export const TripSettingsModal = ({
     const [isConvertingPdf, setIsConvertingPdf] = useState(false);
     const [pdfSuccess, setPdfSuccess] = useState(false);
     const [updateCheckStatus, setUpdateCheckStatus] = useState<'idle' | 'checking' | 'latest' | 'found' | 'error'>('idle');
+    const [editedTripName, setEditedTripName] = useState(tripName || '');
+    const [isSavingName, setIsSavingName] = useState(false);
+    const [savedNameSuccess, setSavedNameSuccess] = useState(false);
+
+    useEffect(() => {
+        if (isOpen) {
+            setEditedTripName(tripName || '');
+            setSavedNameSuccess(false);
+        }
+    }, [isOpen, tripName]);
 
     if (!isOpen) return null;
 
@@ -104,6 +115,19 @@ export const TripSettingsModal = ({
         }
     };
 
+    const handleSaveTripName = async () => {
+        const trimmed = editedTripName.trim();
+        if (!trimmed || !onRenameTrip || isSavingName || trimmed === (tripName || '').trim()) return;
+        setIsSavingName(true);
+        try {
+            await onRenameTrip(trimmed);
+            setSavedNameSuccess(true);
+            setTimeout(() => setSavedNameSuccess(false), 2500);
+        } finally {
+            setIsSavingName(false);
+        }
+    };
+
     const handleDirectExportPdf = async () => {
         if (isConvertingPdf) return;
         setIsConvertingPdf(true);
@@ -132,6 +156,56 @@ export const TripSettingsModal = ({
                 </div>
 
                 <div className="overflow-y-auto custom-scroll flex-1 min-h-0 py-4 pr-1 space-y-6">
+                    {/* Trip Title Rename Section */}
+                    {onRenameTrip && (
+                        <div className="bg-white border-2 border-beige-dark p-4 rounded-2xl shadow-sm">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1 mb-2">
+                                <Edit3 size={12} className="text-sage"/> 更改行程標題名稱
+                            </label>
+                            <div className="flex gap-2 items-center">
+                                <input
+                                    type="text"
+                                    value={editedTripName}
+                                    onChange={(e) => {
+                                        setEditedTripName(e.target.value);
+                                        if (savedNameSuccess) setSavedNameSuccess(false);
+                                    }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault();
+                                            handleSaveTripName();
+                                        }
+                                    }}
+                                    placeholder="輸入行程標題名稱..."
+                                    className="flex-1 min-w-0 h-11 bg-[#FAF8F2] px-3.5 rounded-xl text-sm font-black text-cocoa outline-none border-2 border-beige-dark focus:border-sage transition-colors"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={handleSaveTripName}
+                                    disabled={isSavingName || !editedTripName.trim() || editedTripName.trim() === (tripName || '').trim()}
+                                    className="h-11 px-4 flex-shrink-0 bg-sage hover:bg-sage-dark text-white font-black text-xs rounded-xl shadow-hard-sm-sage disabled:opacity-50 disabled:shadow-none flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                                >
+                                    {isSavingName ? (
+                                        <>
+                                            <Loader2 size={14} className="animate-spin" />
+                                            <span>儲存中</span>
+                                        </>
+                                    ) : savedNameSuccess ? (
+                                        <>
+                                            <Check size={14} />
+                                            <span>已儲存</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Check size={14} />
+                                            <span>儲存</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Trip Code Section */}
                     {tripId && (
                         <div className="bg-white border-2 border-beige-dark p-4 rounded-2xl shadow-sm">
