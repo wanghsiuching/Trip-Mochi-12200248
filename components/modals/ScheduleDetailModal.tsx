@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
     MapPin, Utensils, Train, Bed, Camera, Plane, X, Navigation, 
-    Clock, Luggage, Briefcase, Coffee, Ticket, AlignLeft, Users, Edit3, Car, Trash2
+    Clock, Luggage, Briefcase, Coffee, Ticket, AlignLeft, Users, Edit3, Car, Trash2, Fuel
 } from 'lucide-react';
 import { ScheduleItem, Currency, Member } from '../../types';
 import { TransitLegChainView } from '../TransitComponents';
@@ -9,6 +9,7 @@ import { MemberAvatar } from '../MemberAvatar';
 import { Lightbox } from '../Lightbox';
 import { TransportCard } from '../transport/TransportCard';
 import { scheduleItemToTransport } from '../transport/adapters';
+import { getExchangeRate } from '../../utils/currency';
 
 export const ScheduleDetailModal = ({
     isOpen, onClose, item, onEdit, onDelete, currencies, members
@@ -161,28 +162,83 @@ export const ScheduleDetailModal = ({
                             </div>
                         );
                     })()}
-                    {item.type === 'transport' && !item.transitDetails && item.carRental?.hasRental && (
-                        <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 space-y-3">
-                            <div className="flex justify-between items-center border-b border-blue-200 pb-2">
-                                <div className="flex items-center gap-2"><Car size={14} className="text-blue-500"/><span className="text-sm font-black text-cocoa">{item.carRental.company}</span></div>
-                                <span className="text-xs font-bold text-gray-400">{item.carRental.carModel}</span>
-                            </div>
-                            <div className="space-y-1.5 text-sm font-bold text-gray-500">
-                                <div>取車時間: <span className="font-sans tabular-nums font-black text-cocoa">{item.carRental.pickupDate} {item.carRental.pickupTime}</span></div>
-                                <div>還車時間: <span className="font-sans tabular-nums font-black text-cocoa">{item.carRental.returnDate} {item.carRental.returnTime}</span></div>
-                            </div>
-                            {item.carRental.expenses && item.carRental.expenses.length > 0 && (
-                                <div className="bg-white p-2.5 rounded-xl border border-blue-100 text-xs space-y-1">
-                                    {item.carRental.expenses.map((exp, idx) => (
-                                        <div key={idx} className="flex justify-between font-bold text-gray-500">
-                                            <span>{exp.name}</span>
-                                            <span className="font-sans tabular-nums font-black text-cocoa">{exp.currency} {Number(exp.amount).toLocaleString()}</span>
-                                        </div>
-                                    ))}
+                    {item.type === 'transport' && !item.transitDetails && item.carRental?.hasRental && (() => {
+                        const rentalCurrency = item.carRental.rentalCurrency || 'TWD';
+                        const rentalRate = getExchangeRate(rentalCurrency, currencies);
+                        const baseRental = Number(item.carRental.rentalCost) || 0;
+                        const baseFeePct = Number(item.carRental.serviceFeePercentage) || 0;
+                        const baseWithFee = baseRental + (item.carRental.hasServiceFee ? (baseRental * baseFeePct / 100) : 0);
+                        let extrasTotal = 0;
+                        item.carRental.expenses?.forEach(exp => {
+                            const amt = Number(exp.amount) || 0;
+                            const feePct = Number(exp.serviceFeePercentage) || 0;
+                            const expWithFee = amt + (exp.hasServiceFee ? (amt * feePct / 100) : 0);
+                            const expCurrency = exp.currency || rentalCurrency;
+                            if (expCurrency === rentalCurrency) {
+                                extrasTotal += expWithFee;
+                            } else {
+                                const expRate = getExchangeRate(expCurrency, currencies);
+                                extrasTotal += (expWithFee * expRate) / (rentalRate || 1);
+                            }
+                        });
+                        const perPersonTotal = baseWithFee + extrasTotal;
+                        const participantCount = (item.carRental.participants && item.carRental.participants.length > 0)
+                            ? item.carRental.participants.length
+                            : (members.length > 0 ? members.length : 1);
+                        const grandTotal = perPersonTotal * participantCount;
+                        const hasAnyFee = Boolean(item.carRental.hasServiceFee && baseFeePct > 0) || Boolean(item.carRental.expenses?.some(e => e.hasServiceFee && Number(e.serviceFeePercentage) > 0));
+                        return (
+                            <div className="bg-blue-50/50 p-4 rounded-2xl border border-blue-100 space-y-3">
+                                <div className="flex justify-between items-center border-b border-blue-200 pb-2">
+                                    <div className="flex items-center gap-2"><Car size={14} className="text-blue-500"/><span className="text-sm font-black text-cocoa">{item.carRental.company}</span></div>
+                                    <span className="text-xs font-bold text-gray-400">{item.carRental.carModel}</span>
                                 </div>
-                            )}
-                        </div>
-                    )}
+                                <div className="space-y-1.5 text-sm font-bold text-gray-500">
+                                    <div>取車時間: <span className="font-sans tabular-nums font-black text-cocoa">{item.carRental.pickupDate} {item.carRental.pickupTime}</span></div>
+                                    <div>還車時間: <span className="font-sans tabular-nums font-black text-cocoa">{item.carRental.returnDate} {item.carRental.returnTime}</span></div>
+                                </div>
+                                {Number(item.carRental.estimatedFuelCost) > 0 && (
+                                    <div className="bg-orange-50/80 px-3 py-2 rounded-xl border border-orange-100 flex items-center justify-between text-xs sm:text-sm">
+                                        <span className="flex items-center gap-1.5 font-bold text-orange-700"><Fuel size={14} className="text-orange-500"/> 每人預估油資</span>
+                                        <span className="font-sans tabular-nums font-black text-orange-700 tracking-tight">{item.carRental.fuelCurrency} {Number(item.carRental.estimatedFuelCost).toLocaleString()}</span>
+                                    </div>
+                                )}
+                                <div className="bg-white p-3 rounded-xl border border-blue-100 text-xs space-y-1.5">
+                                    <div className="flex justify-between font-bold text-gray-500">
+                                        <span>基本租金 (每人)</span>
+                                        <span className="font-sans tabular-nums font-black text-cocoa tracking-tight">{rentalCurrency} {Math.round(baseWithFee).toLocaleString()}</span>
+                                    </div>
+                                    {item.carRental.expenses?.map((exp, idx) => {
+                                        const expAmt = Number(exp.amount) || 0;
+                                        const expFeePct = Number(exp.serviceFeePercentage) || 0;
+                                        const expTotal = expAmt + (exp.hasServiceFee ? (expAmt * expFeePct / 100) : 0);
+                                        return (
+                                            <div key={idx} className="flex justify-between font-bold text-gray-500">
+                                                <span>• {exp.name} (每人)</span>
+                                                <span className="font-sans tabular-nums font-black text-cocoa tracking-tight">{exp.currency || rentalCurrency} {Math.round(expTotal).toLocaleString()}</span>
+                                            </div>
+                                        );
+                                    })}
+                                    {grandTotal > 0 && (
+                                        <div className="flex justify-between items-center pt-1.5 border-t border-blue-100 text-sm font-black text-blue-600 gap-2">
+                                            <div className="flex flex-col">
+                                                <span className="flex items-center gap-1 flex-wrap">
+                                                    <span>租車總計金額</span>
+                                                    {hasAnyFee && <span className="text-[10px] font-bold text-blue-500/80">(含手續費)</span>}
+                                                </span>
+                                                {participantCount > 1 && (
+                                                    <span className="text-[11px] font-bold text-blue-500/85 font-sans tabular-nums tracking-tight">
+                                                        每人 {rentalCurrency} {Math.round(perPersonTotal).toLocaleString()} × {participantCount} 人
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className="font-sans tabular-nums font-black tracking-tight whitespace-nowrap">{rentalCurrency} {Math.round(grandTotal).toLocaleString()}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })()}
 
                     {/* Ticket/Cost Info for Spot/Food */}
                     {(item.type === 'spot' || item.type === 'food') && item.spotDetails?.hasTicket && (
