@@ -5,6 +5,7 @@ import { ScheduleItem, TripDate } from '../types';
 import { TimePickerField, DateTimePickerField } from './TimePickerComponents';
 import { formatTripAsText, executeShareOrCopy } from '../utils/shareTrip';
 import { ShareTripModal } from './modals/ShareTripModal';
+import { AutoWrapInput } from './AutoWrapInput';
 
 export { formatTripAsText, executeShareOrCopy };
 
@@ -280,7 +281,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
                     {/* Title */}
                     <div>
                         <label className="text-xs text-gray-400 block mb-1 font-bold ml-1"><span className="text-red-400 font-black mr-0.5">*</span>活動名稱</label>
-                        <input value={modalEvent.title} onChange={e => setModalEvent({...modalEvent, title: e.target.value})} type="text" placeholder="地點 / 活動名稱" className="w-full bg-white text-cocoa p-3.5 rounded-2xl outline-none focus:ring-2 focus:ring-sage border-2 border-[#E0E5D5] font-bold placeholder-[#D6CDB6]" />
+                        <AutoWrapInput value={modalEvent.title} onChange={e => setModalEvent({...modalEvent, title: e.target.value})} type="text" placeholder="地點 / 活動名稱" className="w-full bg-white text-cocoa p-3.5 rounded-2xl outline-none focus:ring-2 focus:ring-sage border-2 border-[#E0E5D5] font-bold placeholder-[#D6CDB6]" />
                     </div>
                     
                     {/* Time & Type */}
@@ -311,14 +312,14 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
                             <label className="text-xs text-gray-400 block mb-1 font-bold ml-1">地點名稱 (GPS/導航用)</label>
                             <div className="relative">
                                 <i className="fa-solid fa-location-dot absolute left-3.5 top-3.5 text-orange-400"></i>
-                                <input value={modalEvent.location} onChange={e => setModalEvent({...modalEvent, location: e.target.value})} type="text" placeholder="例如：樂天百貨" className="w-full bg-[#F9FAFB] text-cocoa p-3 rounded-xl pl-9 outline-none text-sm font-bold placeholder-[#D6CDB6]" />
+                                <AutoWrapInput value={modalEvent.location} onChange={e => setModalEvent({...modalEvent, location: e.target.value})} type="text" placeholder="例如：樂天百貨" className="w-full bg-[#F9FAFB] text-cocoa p-3 rounded-xl pl-9 outline-none text-sm font-bold placeholder-[#D6CDB6]" />
                             </div>
                         </div>
                         <div>
                             <label className="text-xs text-gray-400 block mb-1 font-bold ml-1">詳細地址</label>
                             <div className="relative">
                                 <i className="fa-solid fa-map-pin absolute left-3.5 top-3.5 text-[#B0A590]"></i>
-                                <input value={modalEvent.address} onChange={e => setModalEvent({...modalEvent, address: e.target.value})} type="text" placeholder="地址 / 交通方式" className="w-full bg-[#F9FAFB] text-cocoa p-3 rounded-xl pl-9 outline-none text-sm font-bold placeholder-[#D6CDB6]" />
+                                <AutoWrapInput value={modalEvent.address} onChange={e => setModalEvent({...modalEvent, address: e.target.value})} type="text" placeholder="地址 / 交通方式" className="w-full bg-[#F9FAFB] text-cocoa p-3 rounded-xl pl-9 outline-none text-sm font-bold placeholder-[#D6CDB6]" />
                             </div>
                         </div>
                     </div>

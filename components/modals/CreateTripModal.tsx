@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
+import { AutoWrapInput } from '../AutoWrapInput';
 
 export const CreateTripModal = ({ isOpen, onClose, onConfirm }: { isOpen: boolean, onClose: () => void, onConfirm: (name: string) => void }) => {
     const [name, setName] = useState('');
@@ -23,13 +24,17 @@ export const CreateTripModal = ({ isOpen, onClose, onConfirm }: { isOpen: boolea
                 <div className="my-auto py-6 space-y-4">
                     <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm">
                         <label className="text-xs font-bold text-gray-400 block mb-2">行程名稱</label>
-                        <input 
+                        <AutoWrapInput 
                             autoFocus
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             className="w-full text-lg font-bold text-cocoa outline-none bg-transparent placeholder:text-gray-300"
                             placeholder="例如: 東京五日遊"
-                            onKeyDown={(e) => e.key === 'Enter' && name && onConfirm(name)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && !e.nativeEvent.isComposing && name) {
+                                    onConfirm(name);
+                                }
+                            }}
                         />
                     </div>
                 </div>

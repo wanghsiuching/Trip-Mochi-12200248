@@ -12,6 +12,7 @@ import {
 import { Expense, Member, Currency, Comment } from '../types';
 import { ToggleSwitch, DeleteItemConfirmModal } from './modals';
 import { DatePickerField, TimePickerField, DateTimePickerField } from './TimePickerComponents';
+import { AutoWrapInput } from './AutoWrapInput';
 import { MemberAvatar } from './MemberAvatar';
 import { ExpenseDistributionChart, detectExpenseCategory, ExpenseCategoryKey } from './ExpenseDistributionChart';
 import { uploadOrCompressImage, calculateImageBudget, balanceImagesForDocument } from '../utils/imageService';
@@ -572,7 +573,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
                         <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
                             <label className="text-[10px] text-gray-400 block mb-1 font-bold">項目名稱</label>
-                            <input type="text" value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full bg-transparent text-cocoa outline-none font-bold" placeholder="例如：藥妝店購物"/>
+                            <AutoWrapInput value={form.title} onChange={e => setForm({...form, title: e.target.value})} className="w-full bg-transparent text-cocoa outline-none font-bold" placeholder="例如：藥妝店購物"/>
                         </div>
 
                         <div className="bg-gray-50 p-3 rounded-xl border border-dashed border-beige-dark flex justify-between items-center">
@@ -1049,8 +1050,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
 
                                <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
                                    <label className="text-[10px] text-gray-400 block mb-1 font-bold">項目名稱</label>
-                                   <input 
-                                       type="text" 
+                                   <AutoWrapInput 
                                        value={editForm.title} 
                                        onChange={e => setEditForm({...editForm, title: e.target.value})} 
                                        className="w-full bg-transparent text-cocoa outline-none font-bold" 
@@ -1246,7 +1246,7 @@ export const ExpensesView: React.FC<ExpensesViewProps> = ({
                                </div>
                                <div className="bg-white p-3 rounded-xl border-2 border-beige-dark shadow-sm">
                                    <label className="text-[10px] text-gray-400 block mb-1 font-bold">項目名稱</label>
-                                   <input type="text" value={editForm.title} onChange={e => setEditForm({...editForm, title: e.target.value})} className="w-full bg-transparent text-cocoa outline-none font-bold" placeholder="項目名稱" />
+                                   <AutoWrapInput value={editForm.title} onChange={e => setEditForm({...editForm, title: e.target.value})} className="w-full bg-transparent text-cocoa outline-none font-bold" placeholder="項目名稱" />
                                </div>
                                <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm">
                                    <label className="text-[10px] text-gray-400 block mb-2 font-bold">參與分攤成員</label>

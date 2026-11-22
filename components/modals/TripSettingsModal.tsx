@@ -16,6 +16,7 @@ import {
 } from '../../types';
 import { ExportPdfModal } from './ExportPdfModal';
 import { exportTripToPdfFile, TripExportData } from '../../utils/pdfExport';
+import { AutoWrapInput } from '../AutoWrapInput';
 
 export const TripSettingsModal = ({ 
     isOpen, onClose, currencies, onAddCurrency, onRemoveCurrency, onDuplicate,
@@ -163,8 +164,7 @@ export const TripSettingsModal = ({
                                 <Edit3 size={12} className="text-sage"/> 更改行程標題名稱
                             </label>
                             <div className="flex gap-2 items-center">
-                                <input
-                                    type="text"
+                                <AutoWrapInput
                                     value={editedTripName}
                                     onChange={(e) => {
                                         setEditedTripName(e.target.value);
@@ -177,7 +177,7 @@ export const TripSettingsModal = ({
                                         }
                                     }}
                                     placeholder="輸入行程標題名稱..."
-                                    className="flex-1 min-w-0 h-11 bg-[#FAF8F2] px-3.5 rounded-xl text-sm font-black text-cocoa outline-none border-2 border-beige-dark focus:border-sage transition-colors"
+                                    className="flex-1 min-w-0 min-h-[44px] py-2.5 bg-[#FAF8F2] px-3.5 rounded-xl text-sm font-black text-cocoa outline-none border-2 border-beige-dark focus:border-sage transition-colors"
                                 />
                                 <button
                                     type="button"

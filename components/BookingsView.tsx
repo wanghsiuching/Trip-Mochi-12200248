@@ -12,6 +12,7 @@ import { DateTimePickerField, TimePickerField, DatePickerField } from './TimePic
 import { TransportCard } from './transport/TransportCard';
 import { bookingFlightToTransport } from './transport/adapters';
 import { Lightbox } from './Lightbox';
+import { AutoWrapInput } from './AutoWrapInput';
 
 interface BookingsViewProps {
   tripId?: string;
@@ -918,8 +919,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                         </div>
 
                         <div className="grid grid-cols-2 gap-2">
-                            <input autoComplete="off" value={editingFlight.airline} onChange={e => setEditingFlight({...editingFlight, airline: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="航空公司 (如 阿聯酋航空)"/>
-                            <input autoComplete="off" value={editingFlight.code} onChange={e => setEditingFlight({...editingFlight, code: e.target.value.toUpperCase()})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-black text-cocoa uppercase text-sm" placeholder="航班號 (如 EK367)"/>
+                            <AutoWrapInput autoComplete="off" value={editingFlight.airline} onChange={e => setEditingFlight({...editingFlight, airline: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="航空公司 (如 阿聯酋航空)"/>
+                            <AutoWrapInput autoComplete="off" value={editingFlight.code} onChange={e => setEditingFlight({...editingFlight, code: e.target.value.toUpperCase()})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-black text-cocoa uppercase text-sm" placeholder="航班號 (如 EK367)"/>
                         </div>
 
                         <div className="space-y-3">
@@ -974,22 +975,22 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                             <div className="flex gap-2">
                                 <div className="flex-[1]">
                                     <label className="text-[9px] font-bold text-gray-400 ml-1">代碼 (如 TPE)</label>
-                                    <input autoComplete="off" value={editingFlight.origin} onChange={e => setEditingFlight({...editingFlight, origin: e.target.value.toUpperCase()})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-black text-cocoa uppercase mb-1 text-center" placeholder="TPE"/>
+                                    <AutoWrapInput autoComplete="off" value={editingFlight.origin} onChange={e => setEditingFlight({...editingFlight, origin: e.target.value.toUpperCase()})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-black text-cocoa uppercase mb-1 text-center" placeholder="TPE"/>
                                 </div>
                                 <div className="flex-[2]">
                                     <label className="text-[9px] font-bold text-gray-400 ml-1">出發城市</label>
-                                    <input autoComplete="off" value={editingFlight.originCity} onChange={e => setEditingFlight({...editingFlight, originCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-beige-dark font-bold text-cocoa outline-none text-sm" placeholder="例如：台北"/>
+                                    <AutoWrapInput autoComplete="off" value={editingFlight.originCity} onChange={e => setEditingFlight({...editingFlight, originCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-beige-dark font-bold text-cocoa outline-none text-sm" placeholder="例如：台北"/>
                                 </div>
                             </div>
                             <div className="text-center text-gray-300 font-bold text-xs">⬇</div>
                             <div className="flex gap-2">
                                 <div className="flex-[1]">
                                     <label className="text-[9px] font-bold text-gray-400 ml-1">代碼 (如 ZRH)</label>
-                                    <input autoComplete="off" value={editingFlight.dest} onChange={e => setEditingFlight({...editingFlight, dest: e.target.value.toUpperCase()})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-black text-cocoa uppercase mb-1 text-center" placeholder="ZRH"/>
+                                    <AutoWrapInput autoComplete="off" value={editingFlight.dest} onChange={e => setEditingFlight({...editingFlight, dest: e.target.value.toUpperCase()})} className="w-full bg-beige/50 p-2 rounded-lg border border-beige-dark font-black text-cocoa uppercase mb-1 text-center" placeholder="ZRH"/>
                                 </div>
                                 <div className="flex-[2]">
                                     <label className="text-[9px] font-bold text-gray-400 ml-1">抵達城市</label>
-                                    <input autoComplete="off" value={editingFlight.destCity} onChange={e => setEditingFlight({...editingFlight, destCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-beige-dark font-bold text-cocoa outline-none text-sm" placeholder="例如：蘇黎世"/>
+                                    <AutoWrapInput autoComplete="off" value={editingFlight.destCity} onChange={e => setEditingFlight({...editingFlight, destCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-beige-dark font-bold text-cocoa outline-none text-sm" placeholder="例如：蘇黎世"/>
                                 </div>
                             </div>
                         </div>
@@ -1018,11 +1019,11 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
                                             <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">轉機機場代碼 (如 DXB)</label>
-                                            <input autoComplete="off" value={editingFlight.transitAirport || ''} onChange={e => setEditingFlight({...editingFlight, transitAirport: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="DXB"/>
+                                            <AutoWrapInput autoComplete="off" value={editingFlight.transitAirport || ''} onChange={e => setEditingFlight({...editingFlight, transitAirport: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="DXB"/>
                                         </div>
                                         <div>
                                             <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">轉機城市 (如 杜拜)</label>
-                                            <input autoComplete="off" value={editingFlight.transitCity || ''} onChange={e => setEditingFlight({...editingFlight, transitCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="杜拜"/>
+                                            <AutoWrapInput autoComplete="off" value={editingFlight.transitCity || ''} onChange={e => setEditingFlight({...editingFlight, transitCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="杜拜"/>
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
@@ -1042,21 +1043,21 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
                                             <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">轉機停留時間</label>
-                                            <input autoComplete="off" value={editingFlight.transitDuration || ''} onChange={e => setEditingFlight({...editingFlight, transitDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：3h 25m"/>
+                                            <AutoWrapInput autoComplete="off" value={editingFlight.transitDuration || ''} onChange={e => setEditingFlight({...editingFlight, transitDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：3h 25m"/>
                                         </div>
                                         <div>
                                             <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">銜接航班號 (可選)</label>
-                                            <input autoComplete="off" value={editingFlight.transitFlightCode || ''} onChange={e => setEditingFlight({...editingFlight, transitFlightCode: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="EK087"/>
+                                            <AutoWrapInput autoComplete="off" value={editingFlight.transitFlightCode || ''} onChange={e => setEditingFlight({...editingFlight, transitFlightCode: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="EK087"/>
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2">
                                         <div>
                                             <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">第 1 段飛行時間 (可選)</label>
-                                            <input autoComplete="off" value={editingFlight.firstLegDuration || ''} onChange={e => setEditingFlight({...editingFlight, firstLegDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：9h 30m"/>
+                                            <AutoWrapInput autoComplete="off" value={editingFlight.firstLegDuration || ''} onChange={e => setEditingFlight({...editingFlight, firstLegDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：9h 30m"/>
                                         </div>
                                         <div>
                                             <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">第 2 段飛行時間 (可選)</label>
-                                            <input autoComplete="off" value={editingFlight.secondLegDuration || ''} onChange={e => setEditingFlight({...editingFlight, secondLegDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：6h 45m"/>
+                                            <AutoWrapInput autoComplete="off" value={editingFlight.secondLegDuration || ''} onChange={e => setEditingFlight({...editingFlight, secondLegDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：6h 45m"/>
                                         </div>
                                     </div>
                                 </div>
@@ -1088,11 +1089,11 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         <div className="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">回程轉機機場 (如 DXB)</label>
-                                                <input autoComplete="off" value={editingFlight.returnTransitAirport || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitAirport: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="DXB"/>
+                                                <AutoWrapInput autoComplete="off" value={editingFlight.returnTransitAirport || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitAirport: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="DXB"/>
                                             </div>
                                             <div>
                                                 <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">回程轉機城市</label>
-                                                <input autoComplete="off" value={editingFlight.returnTransitCity || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="杜拜"/>
+                                                <AutoWrapInput autoComplete="off" value={editingFlight.returnTransitCity || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitCity: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="杜拜"/>
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2">
@@ -1112,21 +1113,21 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         <div className="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">回程轉機停留時間</label>
-                                                <input autoComplete="off" value={editingFlight.returnTransitDuration || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：2h 30m"/>
+                                                <AutoWrapInput autoComplete="off" value={editingFlight.returnTransitDuration || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：2h 30m"/>
                                             </div>
                                             <div>
                                                 <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">回程銜接航班號 (可選)</label>
-                                                <input autoComplete="off" value={editingFlight.returnTransitFlightCode || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitFlightCode: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="EK366"/>
+                                                <AutoWrapInput autoComplete="off" value={editingFlight.returnTransitFlightCode || ''} onChange={e => setEditingFlight({...editingFlight, returnTransitFlightCode: e.target.value.toUpperCase()})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-black text-cocoa uppercase text-sm outline-none" placeholder="EK366"/>
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2">
                                             <div>
                                                 <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">回程第 1 段飛行時間 (可選)</label>
-                                                <input autoComplete="off" value={editingFlight.returnFirstLegDuration || ''} onChange={e => setEditingFlight({...editingFlight, returnFirstLegDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：6h 30m"/>
+                                                <AutoWrapInput autoComplete="off" value={editingFlight.returnFirstLegDuration || ''} onChange={e => setEditingFlight({...editingFlight, returnFirstLegDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：6h 30m"/>
                                             </div>
                                             <div>
                                                 <label className="text-[9px] font-bold text-amber-800 ml-1 block mb-0.5">回程第 2 段飛行時間 (可選)</label>
-                                                <input autoComplete="off" value={editingFlight.returnSecondLegDuration || ''} onChange={e => setEditingFlight({...editingFlight, returnSecondLegDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：8h 30m"/>
+                                                <AutoWrapInput autoComplete="off" value={editingFlight.returnSecondLegDuration || ''} onChange={e => setEditingFlight({...editingFlight, returnSecondLegDuration: e.target.value})} className="w-full bg-white p-2 rounded-lg border border-amber-200 font-bold text-cocoa text-sm outline-none" placeholder="例如：8h 30m"/>
                                             </div>
                                         </div>
                                     </div>
@@ -1137,12 +1138,12 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                         <div className="flex gap-2">
                             <div className="flex-[1]">
                                 <label className="text-[10px] font-bold text-gray-400 ml-1 block mb-1">去程總飛行時間 (可選)</label>
-                                <input autoComplete="off" value={editingFlight.duration} onChange={e => setEditingFlight({...editingFlight, duration: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="例如：16h 40m"/>
+                                <AutoWrapInput autoComplete="off" value={editingFlight.duration} onChange={e => setEditingFlight({...editingFlight, duration: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="例如：16h 40m"/>
                             </div>
                             {editingFlight.tripType === 'roundtrip' && (
                                 <div className="flex-[1]">
                                     <label className="text-[10px] font-bold text-gray-400 ml-1 block mb-1">回程總飛行時間 (可選)</label>
-                                    <input autoComplete="off" value={editingFlight.returnDuration || ''} onChange={e => setEditingFlight({...editingFlight, returnDuration: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="例如：15h 20m"/>
+                                    <AutoWrapInput autoComplete="off" value={editingFlight.returnDuration || ''} onChange={e => setEditingFlight({...editingFlight, returnDuration: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="例如：15h 20m"/>
                                 </div>
                             )}
                         </div>
@@ -1150,11 +1151,11 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                         <div className="grid grid-cols-2 gap-2">
                             <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm">
                                 <label className="text-[10px] font-bold text-gray-400 block mb-1">託運行李</label>
-                                <input value={editingFlight.checkedBag || ''} onChange={e => setEditingFlight({...editingFlight, checkedBag: e.target.value})} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="23kg"/>
+                                <AutoWrapInput value={editingFlight.checkedBag || ''} onChange={e => setEditingFlight({...editingFlight, checkedBag: e.target.value})} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="23kg"/>
                             </div>
                             <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm">
                                 <label className="text-[10px] font-bold text-gray-400 block mb-1">手提行李</label>
-                                <input value={editingFlight.carryOnBag || ''} onChange={e => setEditingFlight({...editingFlight, carryOnBag: e.target.value})} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="7kg"/>
+                                <AutoWrapInput value={editingFlight.carryOnBag || ''} onChange={e => setEditingFlight({...editingFlight, carryOnBag: e.target.value})} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="7kg"/>
                             </div>
                         </div>
 
@@ -1253,17 +1254,17 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                     </div>
                     <div className="space-y-4 overflow-y-auto custom-scroll flex-1 py-4 pr-1">
                         <div className="grid grid-cols-2 gap-2">
-                            <div><label className="text-[10px] font-bold text-gray-400 ml-1">平台</label><input value={editingAcc.platform} onChange={e => setEditingAcc({...editingAcc, platform: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="Agoda"/></div>
-                            <div><label className="text-[10px] font-bold text-gray-400 ml-1">城市</label><input value={editingAcc.city} onChange={e => setEditingAcc({...editingAcc, city: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="釜山"/></div>
+                            <div><label className="text-[10px] font-bold text-gray-400 ml-1">平台</label><AutoWrapInput value={editingAcc.platform} onChange={e => setEditingAcc({...editingAcc, platform: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="Agoda"/></div>
+                            <div><label className="text-[10px] font-bold text-gray-400 ml-1">城市</label><AutoWrapInput value={editingAcc.city} onChange={e => setEditingAcc({...editingAcc, city: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="釜山"/></div>
                         </div>
 
-                        <div><label className="text-[10px] font-bold text-gray-400 ml-1">住宿名稱</label><input value={editingAcc.name} onChange={e => setEditingAcc({...editingAcc, name: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa" placeholder="飯店名稱"/></div>
+                        <div><label className="text-[10px] font-bold text-gray-400 ml-1">住宿名稱</label><AutoWrapInput value={editingAcc.name} onChange={e => setEditingAcc({...editingAcc, name: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa" placeholder="飯店名稱"/></div>
 
                         <div>
                             <label className="text-[10px] font-bold text-gray-400 ml-1 flex items-center gap-1">
                                 <MapPin size={12} className="text-sage" /> 地址 (Google Maps 導航/地點)
                             </label>
-                            <input 
+                            <AutoWrapInput 
                                 value={editingAcc.address || ''} 
                                 onChange={e => setEditingAcc({...editingAcc, address: e.target.value})} 
                                 className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" 
@@ -1411,8 +1412,8 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                     </div>
                     <div className="space-y-4 overflow-y-auto custom-scroll flex-1 py-4 pr-1">
                         <div className="grid grid-cols-2 gap-2">
-                            <div><label className="text-[10px] font-bold text-gray-400 ml-1">平台</label><input value={editingCar.platform} onChange={e => setEditingCar({...editingCar, platform: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="Klook"/></div>
-                            <div><label className="text-[10px] font-bold text-gray-400 ml-1">租車公司</label><input value={editingCar.company} onChange={e => setEditingCar({...editingCar, company: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="Lotte"/></div>
+                            <div><label className="text-[10px] font-bold text-gray-400 ml-1">平台</label><AutoWrapInput value={editingCar.platform} onChange={e => setEditingCar({...editingCar, platform: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="Klook"/></div>
+                            <div><label className="text-[10px] font-bold text-gray-400 ml-1">租車公司</label><AutoWrapInput value={editingCar.company} onChange={e => setEditingCar({...editingCar, company: e.target.value})} className="w-full bg-white p-3 rounded-xl border-2 border-beige-dark outline-none font-bold text-cocoa text-sm" placeholder="Lotte"/></div>
                         </div>
 
                         <div className="bg-blue-50/50 p-3.5 rounded-2xl border-2 border-blue-100 space-y-3.5">
@@ -1434,7 +1435,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         themeColor="blue"
                                     />
                                 </div>
-                                <input value={editingCar.pickupLocation} onChange={e => setEditingCar({...editingCar, pickupLocation: e.target.value})} className="w-full bg-white p-2.5 rounded-xl border border-blue-200 font-bold text-cocoa text-xs mt-1 outline-none focus:border-blue-400" placeholder="取車地點 (例: 千歲機場營業所)"/>
+                                <AutoWrapInput value={editingCar.pickupLocation} onChange={e => setEditingCar({...editingCar, pickupLocation: e.target.value})} className="w-full bg-white p-2.5 rounded-xl border border-blue-200 font-bold text-cocoa text-xs mt-1 outline-none focus:border-blue-400" placeholder="取車地點 (例: 千歲機場營業所)"/>
                             </div>
 
                             <div className="space-y-1.5 pt-2 border-t border-dashed border-blue-200">
@@ -1455,7 +1456,7 @@ export const BookingsView: React.FC<BookingsViewProps> = ({
                                         themeColor="orange"
                                     />
                                 </div>
-                                <input value={editingCar.returnLocation} onChange={e => setEditingCar({...editingCar, returnLocation: e.target.value})} className="w-full bg-white p-2.5 rounded-xl border border-orange-200 font-bold text-cocoa text-xs mt-1 outline-none focus:border-orange-400" placeholder="還車地點"/>
+                                <AutoWrapInput value={editingCar.returnLocation} onChange={e => setEditingCar({...editingCar, returnLocation: e.target.value})} className="w-full bg-white p-2.5 rounded-xl border border-orange-200 font-bold text-cocoa text-xs mt-1 outline-none focus:border-orange-400" placeholder="還車地點"/>
                             </div>
                         </div>
 

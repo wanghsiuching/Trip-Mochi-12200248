@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Edit3, Shuffle, AlertCircle } from 'lucide-react';
 import { DatePickerField } from '../TimePickerComponents';
+import { AutoWrapInput } from '../AutoWrapInput';
 
 // Extensive fruit/food icon list
 const FRUIT_ICONS = [
@@ -117,13 +118,13 @@ export const EditDayDetailsModal = ({
                             </div>
                             <div className="flex-1">
                                 <label className="text-[10px] font-bold text-gray-400 block mb-1">主要地點</label>
-                                <input 
+                                <AutoWrapInput 
                                     value={loc}
                                     onChange={(e) => setLoc(e.target.value)}
                                     placeholder="例如: 札幌 Sapporo"
                                     className="w-full bg-transparent font-bold text-cocoa outline-none text-sm"
                                     onKeyDown={e => {
-                                        if (e.key === 'Enter' && loc && date && !isDuplicateDate) {
+                                        if (e.key === 'Enter' && !e.nativeEvent.isComposing && loc && date && !isDuplicateDate) {
                                             handleConfirm();
                                         }
                                     }}

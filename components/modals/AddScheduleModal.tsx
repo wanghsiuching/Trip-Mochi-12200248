@@ -12,6 +12,7 @@ import { DeleteItemConfirmModal } from './DeleteItemConfirmModal';
 import { getExchangeRate, POPULAR_CURRENCIES } from '../../utils/currency';
 import { compressImageToBase64, uploadOrCompressImage } from '../../utils/imageService';
 import { splitCost, calculateNights, DEFAULT_STAY_FEE_RATE } from '../../src/utils/splitCost';
+import { AutoWrapInput } from '../AutoWrapInput';
 
 const CuteButton = ({ checked, onChange, icon: Icon, label, activeColor = 'bg-orange-100 text-orange-500 border-orange-200' }: any) => (
     <button
@@ -181,7 +182,17 @@ export const AddScheduleModal = ({
   const [participantIds, setParticipantIds] = useState<string[]>([]);
   const [isPotential, setIsPotential] = useState(false);
 
+  const initializedSessionRef = useRef<string | null>(null);
+
   useEffect(() => {
+    if (!isOpen) {
+      initializedSessionRef.current = null;
+      return;
+    }
+    const sessionKey = initialData ? `edit:${initialData.id}` : 'create';
+    if (initializedSessionRef.current === sessionKey) return;
+    initializedSessionRef.current = sessionKey;
+
     if (isOpen) {
       if (initialData) {
         setStep('details');
@@ -407,6 +418,16 @@ export const AddScheduleModal = ({
     }
   }, [isOpen, initialData, members, currentDate]);
 
+  const handleSetTransitLegs: React.Dispatch<React.SetStateAction<TransitLeg[]>> = (updater) => {
+    setTransitLegs(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      if (next[0]?.departureTime && next[0].departureTime !== prev[0]?.departureTime) {
+        setTime(next[0].departureTime);
+      }
+      return next;
+    });
+  };
+
   // Toggle Helpers
   const toggleParticipant = (id: string, setFunc: React.Dispatch<React.SetStateAction<string[]>>) => {
     setFunc(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
@@ -574,14 +595,15 @@ export const AddScheduleModal = ({
     }
     if (selectedType === 'transport') {
       if (transportMode === 'transit') {
-        const updatedLegs = transitLegs.map((leg, idx) => (idx === 0) ? { ...leg, departureTime: finalTime } : leg);
+        const effectiveDepartureTime = transitLegs[0]?.departureTime || finalTime;
+        const updatedLegs = transitLegs.map((leg, idx) => (idx === 0) ? { ...leg, departureTime: effectiveDepartureTime } : leg);
         itemData.transitDetails = {
           legs: updatedLegs,
           fare: transitFare,
           participants: transitParticipants,
           isPotential: isTransitPotential
         };
-        itemData.time = finalTime;
+        itemData.time = effectiveDepartureTime;
       } else {
         itemData.carRental = {
           hasRental, company: hasRental ? rentalCompany : undefined, carModel: hasRental ? carModel : undefined,
@@ -732,13 +754,13 @@ export const AddScheduleModal = ({
                {/* Basic Info */}
              <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm">
                 <label htmlFor="schedule-title-input" className="text-xs font-bold text-gray-400 block mb-1">標題</label>
-                <input id="schedule-title-input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} className="w-full min-h-[44px] text-lg font-bold text-cocoa outline-none placeholder:text-gray-300 bg-transparent" placeholder={selectedType === 'flight' ? "例如: 台北 -> 東京" : selectedType === 'food' ? "例如：一蘭拉麵..." : selectedType === 'stay' ? "例如：希爾頓酒店..." : selectedType === 'transport' ? "例如：自駕或搭車..." : "例如：清水寺..."} />
+                <AutoWrapInput id="schedule-title-input" autoFocus value={title} onChange={(e) => setTitle(e.target.value)} className="w-full py-1 text-lg font-bold text-cocoa outline-none placeholder:text-gray-300 bg-transparent" placeholder={selectedType === 'flight' ? "例如: 台北 -> 東京" : selectedType === 'food' ? "例如：一蘭拉麵..." : selectedType === 'stay' ? "例如：希爾頓酒店..." : selectedType === 'transport' ? "例如：自駕或搭車..." : "例如：清水寺..."} />
              </div>
              {/* Date & Time Picker */}
              {selectedType !== 'flight' && selectedType !== 'stay' && (selectedType !== 'transport' || transportMode === 'transit') && (
                 <DateTimePickerField
                    label={selectedType === 'food' ? '用餐時間與日期' : selectedType === 'spot' ? '參訪時間與日期' : '行程時間與日期'}
-                   value={itemDate && time ? `${itemDate}T${time}` : itemDate ? `${itemDate}T09:00` : ''}
+                   value={itemDate && time ? `${itemDate}T${time}` : ''}
                    onChange={val => {
                       const [d, t] = val.split('T');
                       if (d) setItemDate(d);
@@ -755,12 +777,12 @@ export const AddScheduleModal = ({
              )}
              <div className="bg-white p-4 rounded-2xl border-2 border-beige-dark shadow-sm">
                 <label htmlFor="schedule-location-input" className="text-xs font-bold text-gray-400 block mb-1">地點 / 地址</label>
-                <div className="flex gap-2 items-center"><input id="schedule-location-input" value={location} onChange={(e) => setLocation(e.target.value)} className="flex-1 min-h-[44px] text-lg font-bold text-cocoa outline-none placeholder:text-gray-300 bg-transparent" placeholder="輸入地址..." />{location && <button type="button" onClick={() => openExternalMap(location)} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-blue-500"><Navigation size={20} /></button>}</div>
+                <div className="flex gap-2 items-center"><AutoWrapInput id="schedule-location-input" value={location} onChange={(e) => setLocation(e.target.value)} className="flex-1 py-1 text-lg font-bold text-cocoa outline-none placeholder:text-gray-300 bg-transparent" placeholder="輸入地址..." />{location && <button type="button" onClick={() => openExternalMap(location)} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-blue-500 flex-shrink-0"><Navigation size={20} /></button>}</div>
              </div>
              {(selectedType === 'stay' || selectedType === 'spot' || selectedType === 'food' || selectedType === 'transport' || selectedType === 'flight') && (
                  <div className="bg-white p-3 rounded-2xl border-2 border-beige-dark shadow-sm">
                     <label htmlFor="schedule-gps-input" className="text-[10px] font-bold text-gray-400 block mb-1">GPS (Lat, Lng)</label>
-                    <div className="flex gap-2 items-center"><input id="schedule-gps-input" value={gpsInput} onChange={(e) => setGpsInput(e.target.value)} className="flex-1 min-h-[44px] text-sm font-bold text-cocoa outline-none placeholder:text-gray-300 bg-transparent" placeholder="例如: 35.689, 139.691" />{gpsInput && <button type="button" onClick={() => openExternalMap(gpsInput)} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-blue-500"><ExternalLink size={20} /></button>}</div>
+                    <div className="flex gap-2 items-center"><AutoWrapInput id="schedule-gps-input" value={gpsInput} onChange={(e) => setGpsInput(e.target.value)} className="flex-1 py-1 text-sm font-bold text-cocoa outline-none placeholder:text-gray-300 bg-transparent" placeholder="例如: 35.689, 139.691" />{gpsInput && <button type="button" onClick={() => openExternalMap(gpsInput)} className="min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:text-blue-500 flex-shrink-0"><ExternalLink size={20} /></button>}</div>
                  </div>
              )}
 
@@ -770,14 +792,14 @@ export const AddScheduleModal = ({
                       <div className="bg-cyan-50/50 p-3 rounded-2xl border-2 border-cyan-100 space-y-3">
                           {/* ... flight inputs ... */}
                           <div className="grid grid-cols-2 gap-2">
-                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">航空公司</label><input autoComplete="off" value={flightAirline} onChange={e => setFlightAirline(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: 阿聯酋航空"/></div>
-                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">航班代碼</label><input autoComplete="off" value={flightCode} onChange={e => setFlightCode(e.target.value.toUpperCase())} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: EK367"/></div>
+                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">航空公司</label><AutoWrapInput autoComplete="off" value={flightAirline} onChange={e => setFlightAirline(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: 阿聯酋航空"/></div>
+                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">航班代碼</label><AutoWrapInput autoComplete="off" value={flightCode} onChange={e => setFlightCode(e.target.value.toUpperCase())} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: EK367"/></div>
                           </div>
                           {/* Route/Times */}
                           <div className="space-y-3">
                               <DateTimePickerField
                                   label="去程出發 (Departure)"
-                                  value={flightDepDate && flightDepTime ? `${flightDepDate}T${flightDepTime}` : flightDepDate ? `${flightDepDate}T09:00` : ''}
+                                  value={flightDepDate && flightDepTime ? `${flightDepDate}T${flightDepTime}` : ''}
                                   onChange={val => {
                                       const [d, t] = val.split('T');
                                       if (d) {
@@ -805,8 +827,8 @@ export const AddScheduleModal = ({
                               />
                           </div>
                           <div className="grid grid-cols-2 gap-2">
-                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">起飛機場</label><input value={flightDepAirport} onChange={e => setFlightDepAirport(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="TPE T2"/></div>
-                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">抵達機場</label><input value={flightArrAirport} onChange={e => setFlightArrAirport(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="KIX T1"/></div>
+                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">起飛機場</label><AutoWrapInput value={flightDepAirport} onChange={e => setFlightDepAirport(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="TPE T2"/></div>
+                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">抵達機場</label><AutoWrapInput value={flightArrAirport} onChange={e => setFlightArrAirport(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="KIX T1"/></div>
                           </div>
 
                           {/* 轉機資訊 (Transit / Layover) */}
@@ -841,11 +863,11 @@ export const AddScheduleModal = ({
                                       <div className="grid grid-cols-2 gap-2">
                                           <div className="bg-white p-2.5 rounded-xl border border-amber-200 shadow-xs">
                                               <label className="text-[9px] font-bold text-amber-800 block mb-0.5">轉機機場代碼 (如 DXB)</label>
-                                              <input autoComplete="off" value={flightTransitAirport} onChange={e => setFlightTransitAirport(e.target.value.toUpperCase())} className="w-full font-sans tabular-nums text-sm font-black text-cocoa outline-none bg-transparent" placeholder="DXB"/>
+                                              <AutoWrapInput autoComplete="off" value={flightTransitAirport} onChange={e => setFlightTransitAirport(e.target.value.toUpperCase())} className="w-full font-sans tabular-nums text-sm font-black text-cocoa outline-none bg-transparent" placeholder="DXB"/>
                                           </div>
                                           <div className="bg-white p-2.5 rounded-xl border border-amber-200 shadow-xs">
                                               <label className="text-[9px] font-bold text-amber-800 block mb-0.5">轉機城市 (如 杜拜)</label>
-                                              <input autoComplete="off" value={flightTransitCity} onChange={e => setFlightTransitCity(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="杜拜"/>
+                                              <AutoWrapInput autoComplete="off" value={flightTransitCity} onChange={e => setFlightTransitCity(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="杜拜"/>
                                           </div>
                                       </div>
                                       <div className="grid grid-cols-2 gap-2">
@@ -865,21 +887,21 @@ export const AddScheduleModal = ({
                                       <div className="grid grid-cols-2 gap-2">
                                           <div className="bg-white p-2.5 rounded-xl border border-amber-200 shadow-xs">
                                               <label className="text-[9px] font-bold text-amber-800 block mb-0.5">轉機時間 / 停留時長</label>
-                                              <input autoComplete="off" value={flightTransitDuration} onChange={e => setFlightTransitDuration(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="如：3h 25m"/>
+                                              <AutoWrapInput autoComplete="off" value={flightTransitDuration} onChange={e => setFlightTransitDuration(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="如：3h 25m"/>
                                           </div>
                                           <div className="bg-white p-2.5 rounded-xl border border-amber-200 shadow-xs">
                                               <label className="text-[9px] font-bold text-amber-800 block mb-0.5">銜接航班號 (可選)</label>
-                                              <input autoComplete="off" value={flightTransitFlightCode} onChange={e => setFlightTransitFlightCode(e.target.value.toUpperCase())} className="w-full font-sans tabular-nums text-sm font-black text-cocoa outline-none bg-transparent" placeholder="EK087"/>
+                                              <AutoWrapInput autoComplete="off" value={flightTransitFlightCode} onChange={e => setFlightTransitFlightCode(e.target.value.toUpperCase())} className="w-full font-sans tabular-nums text-sm font-black text-cocoa outline-none bg-transparent" placeholder="EK087"/>
                                           </div>
                                       </div>
                                       <div className="grid grid-cols-2 gap-2">
                                           <div className="bg-white p-2.5 rounded-xl border border-amber-200 shadow-xs">
                                               <label className="text-[9px] font-bold text-amber-800 block mb-0.5">第 1 段飛行時間 (可選)</label>
-                                              <input autoComplete="off" value={flightFirstLegDuration} onChange={e => setFlightFirstLegDuration(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="如：9h 30m"/>
+                                              <AutoWrapInput autoComplete="off" value={flightFirstLegDuration} onChange={e => setFlightFirstLegDuration(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="如：9h 30m"/>
                                           </div>
                                           <div className="bg-white p-2.5 rounded-xl border border-amber-200 shadow-xs">
                                               <label className="text-[9px] font-bold text-amber-800 block mb-0.5">第 2 段飛行時間 (可選)</label>
-                                              <input autoComplete="off" value={flightSecondLegDuration} onChange={e => setFlightSecondLegDuration(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="如：6h 45m"/>
+                                              <AutoWrapInput autoComplete="off" value={flightSecondLegDuration} onChange={e => setFlightSecondLegDuration(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="如：6h 45m"/>
                                           </div>
                                       </div>
                                   </div>
@@ -891,13 +913,13 @@ export const AddScheduleModal = ({
                               <label className="text-[10px] font-bold text-gray-400 block mb-1">飛行時間 / 總航程時長 (可選)</label>
                               <div className="flex items-center gap-2">
                                   <Clock size={15} className="text-cyan-600 flex-shrink-0"/>
-                                  <input value={flightDuration} onChange={e => setFlightDuration(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="例如：16h 40m 或 4小時30分"/>
+                                  <AutoWrapInput value={flightDuration} onChange={e => setFlightDuration(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="例如：16h 40m 或 4小時30分"/>
                               </div>
                           </div>
 
                           <div className="grid grid-cols-2 gap-2">
-                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">託運行李</label><input value={flightCheckedBag} onChange={e => setFlightCheckedBag(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="23kg"/></div>
-                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">手提行李</label><input value={flightCarryOnBag} onChange={e => setFlightCarryOnBag(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="7kg"/></div>
+                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">託運行李</label><AutoWrapInput value={flightCheckedBag} onChange={e => setFlightCheckedBag(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="23kg"/></div>
+                              <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">手提行李</label><AutoWrapInput value={flightCarryOnBag} onChange={e => setFlightCarryOnBag(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="7kg"/></div>
                           </div>
                           {/* Cost */}
                           <div className="pt-2 border-t border-dashed border-cyan-200 mt-2">
@@ -1175,7 +1197,7 @@ export const AddScheduleModal = ({
                          <div className="space-y-4 animate-scale-in">
                              <TransitLegEditor
                                legs={transitLegs}
-                               setLegs={setTransitLegs}
+                               setLegs={handleSetTransitLegs}
                                fare={transitFare}
                                setFare={setTransitFare}
                                currencies={currencies}
@@ -1205,13 +1227,13 @@ export const AddScheduleModal = ({
                      {transportMode === 'rental' && (
                          <div className="space-y-3 bg-blue-50/50 p-3 rounded-2xl border-2 border-blue-100 animate-scale-in">
                              <div className="grid grid-cols-2 gap-2">
-                                 <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">租車公司</label><input value={rentalCompany} onChange={e => setRentalCompany(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: Toyota"/></div>
-                                 <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">車型</label><input value={carModel} onChange={e => setCarModel(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: Yaris"/></div>
+                                 <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">租車公司</label><AutoWrapInput value={rentalCompany} onChange={e => setRentalCompany(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: Toyota"/></div>
+                                 <div className="bg-white p-3 rounded-2xl border border-beige-dark shadow-sm"><label className="text-[10px] font-bold text-gray-400 block mb-1">車型</label><AutoWrapInput value={carModel} onChange={e => setCarModel(e.target.value)} className="w-full text-sm font-bold text-cocoa outline-none bg-transparent" placeholder="Ex: Yaris"/></div>
                              </div>
                              <div className="space-y-3">
                                  <DateTimePickerField
                                      label="取車時間 (Pickup)"
-                                     value={pickupDate && pickupTime ? `${pickupDate}T${pickupTime}` : pickupDate ? `${pickupDate}T09:00` : ''}
+                                     value={pickupDate && pickupTime ? `${pickupDate}T${pickupTime}` : ''}
                                      onChange={val => {
                                          const [d, t] = val.split('T');
                                          if (d) {
@@ -1271,9 +1293,9 @@ export const AddScheduleModal = ({
                                 </div>
                                 {rentalExpenses.map(exp => (
                                     <div key={exp.id} className="bg-white p-3 rounded-xl border border-beige-dark shadow-sm mb-2">
-                                        <div className="flex gap-2 mb-2">
-                                            <input value={exp.name} onChange={e => updateRentalExpense(exp.id, 'name', e.target.value)} placeholder="項目名稱" className="flex-1 bg-gray-50 p-2 rounded-lg border border-beige-dark text-xs font-bold text-cocoa outline-none focus:border-blue-300"/>
-                                            <button onClick={() => setExpenseToDelete(exp.id)} className="text-red-400 p-1 hover:text-red-600 transition-colors"><X size={16}/></button>
+                                        <div className="flex gap-2 mb-2 items-center">
+                                            <AutoWrapInput value={exp.name} onChange={e => updateRentalExpense(exp.id, 'name', e.target.value)} placeholder="項目名稱" className="flex-1 bg-gray-50 p-2 rounded-lg border border-beige-dark text-xs font-bold text-cocoa outline-none focus:border-blue-300"/>
+                                            <button onClick={() => setExpenseToDelete(exp.id)} className="text-red-400 p-1 hover:text-red-600 transition-colors flex-shrink-0"><X size={16}/></button>
                                         </div>
                                         <div className="flex gap-2 items-center">
                                             <div className="flex-1 min-w-0">

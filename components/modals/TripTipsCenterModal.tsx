@@ -8,6 +8,7 @@ import { TripDay, TripTipItem } from '../../types';
 import { compressImageToBase64 } from '../../utils/imageService';
 import { DeleteTipConfirmModal } from './DeleteTipConfirmModal';
 import { DayTipModal } from './DayTipModal';
+import { AutoWrapInput } from '../AutoWrapInput';
 
 interface TripTipsCenterModalProps {
   isOpen: boolean;
@@ -293,12 +294,12 @@ export const TripTipsCenterModal: React.FC<TripTipsCenterModalProps> = ({
           {/* Search */}
           <div className="relative">
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input 
+            <AutoWrapInput 
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               placeholder="搜尋退稅、插座、車票、防寒或特定城市備忘..."
-              className="w-full pl-9 pr-4 py-2 bg-white rounded-2xl border-2 border-beige-dark text-xs sm:text-sm font-bold text-cocoa placeholder:text-gray-300 focus:outline-none focus:border-amber-400 transition-colors shadow-xs"
+              className="w-full pl-9 pr-8 py-2 bg-white rounded-2xl border-2 border-beige-dark text-xs sm:text-sm font-bold text-cocoa placeholder:text-gray-300 focus:outline-none focus:border-amber-400 transition-colors shadow-xs"
             />
             {searchQuery && (
               <button 
@@ -730,7 +731,7 @@ export const TripTipsCenterModal: React.FC<TripTipsCenterModalProps> = ({
                 <label className="text-xs font-black text-cocoa block">
                   💡 TIP 核心標題
                 </label>
-                <input 
+                <AutoWrapInput 
                   type="text"
                   value={tipTitle}
                   onChange={e => setTipTitle(e.target.value)}

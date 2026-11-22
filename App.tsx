@@ -878,7 +878,7 @@ export default function App() {
           {activeTab === 'schedule' && (
             <div className="pb-36 relative">
               <div 
-                className="lg:hidden sticky z-30 bg-beige/90 backdrop-blur-md border-b border-[#E0E5D5]/70 px-4 pb-2 pt-2 mb-4"
+                className="sticky z-30 bg-beige/90 backdrop-blur-md border-b border-[#E0E5D5]/70 px-4 pb-2 pt-2 mb-4"
                 style={{ top: 'env(safe-area-inset-top, 0px)' }}
               >
                  <div className="flex items-center justify-between gap-1.5 mb-2 px-1 flex-nowrap overflow-x-auto no-scrollbar">

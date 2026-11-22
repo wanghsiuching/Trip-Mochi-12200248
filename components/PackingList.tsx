@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { TodoItem, Member } from '../types';
 import { MemberAvatar } from './MemberAvatar';
+import { AutoWrapInput } from './AutoWrapInput';
 
 export type PackingCategoryKey = 'clothes' | 'toiletries' | 'electronics' | 'documents' | 'medicine' | 'other';
 
@@ -313,12 +314,17 @@ export const PackingList: React.FC<PackingListProps> = ({
             </div>
 
             {/* Item Input */}
-            <input
+            <AutoWrapInput
               type="text"
               required
               autoFocus
               value={globalName}
               onChange={(e) => setGlobalName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                  e.currentTarget.form?.requestSubmit();
+                }
+              }}
               placeholder="物品名稱（例: 換洗衣物、行動電源、轉接頭、眼藥水...）"
               className="w-full bg-beige-light text-cocoa px-4 py-2.5 rounded-2xl border-2 border-beige-dark outline-none font-bold text-xs focus:border-sage shadow-inner"
             />
@@ -472,10 +478,15 @@ export const PackingList: React.FC<PackingListProps> = ({
                     return (
                       <div key={item.id} className="py-3 space-y-2 animate-scale-in">
                         <div className="flex items-center gap-2">
-                          <input
+                          <AutoWrapInput
                             type="text"
                             value={editName}
                             onChange={(e) => setEditName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                                saveEdit(item.id);
+                              }
+                            }}
                             className="flex-1 bg-beige-light text-cocoa px-3 py-1.5 rounded-xl border-2 border-sage font-bold text-xs outline-none"
                             placeholder="物品名稱..."
                           />
@@ -557,10 +568,15 @@ export const PackingList: React.FC<PackingListProps> = ({
                   onSubmit={(e) => handleAddCategoryItem(cat.key, e)}
                   className="pt-2.5 flex items-center gap-2"
                 >
-                  <input
+                  <AutoWrapInput
                     type="text"
                     value={inputValue}
                     onChange={(e) => setCategoryInputs(prev => ({ ...prev, [cat.key]: e.target.value }))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                        e.currentTarget.form?.requestSubmit();
+                      }
+                    }}
                     placeholder={`+ 新增${cat.label}（按 Enter 或點擊新增）...`}
                     className="flex-1 bg-beige-light/80 focus:bg-white text-cocoa px-3.5 py-2 rounded-xl border border-beige-dark focus:border-sage font-bold text-xs outline-none transition-all shadow-inner placeholder:text-gray-400"
                   />

@@ -3,6 +3,7 @@ import { X, Lightbulb, Image as ImageIcon, Trash2, Plus, Sparkles, Compass, Aler
 import { TripDay } from '../../types';
 import { compressImageToBase64 } from '../../utils/imageService';
 import { DeleteTipConfirmModal } from './DeleteTipConfirmModal';
+import { AutoWrapInput } from '../AutoWrapInput';
 
 interface DayTipModalProps {
   isOpen: boolean;
@@ -155,7 +156,7 @@ export const DayTipModal: React.FC<DayTipModalProps> = ({
             <label className="text-xs font-black text-cocoa block">
               💡 TIP 核心標題
             </label>
-            <input 
+            <AutoWrapInput 
               type="text"
               value={title}
               onChange={e => setTitle(e.target.value)}

@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { AutoWrapInput } from './AutoWrapInput';
 import { 
   FolderClosed, 
   Plus, 
@@ -700,7 +701,7 @@ const DocumentModal: React.FC<DocumentModalProps> = ({
             <label className="block text-xs font-black text-cocoa uppercase tracking-wider mb-1.5">
               資料名稱 <span className="text-red-500">*</span>
             </label>
-            <input
+            <AutoWrapInput
               type="text"
               required
               value={title}

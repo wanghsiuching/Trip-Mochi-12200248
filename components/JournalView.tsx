@@ -5,6 +5,7 @@ import { DateTimePickerField } from './TimePickerComponents';
 import { MemberAvatar } from './MemberAvatar';
 import { compressImageToBase64, uploadOrCompressImage } from '../utils/imageService';
 import { Lightbox } from './Lightbox';
+import { AutoWrapInput } from './AutoWrapInput';
 
 interface FormImageItem {
   id: string;
@@ -532,10 +533,14 @@ export const JournalView: React.FC<JournalViewProps> = ({ journals, members, onA
 
                                 {/* Input Field */}
                                 <div className="relative">
-                                    <input 
+                                    <AutoWrapInput 
                                         value={currentDraft}
                                         onChange={e => handleInlineCommentChange(journal.id, e.target.value)}
-                                        onKeyDown={e => e.key === 'Enter' && submitInlineComment(e, journal)}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                                                submitInlineComment(e as any, journal);
+                                            }
+                                        }}
                                         placeholder={`用 ${currentAuthor?.name} 的身份留言...`}
                                         className="w-full bg-gray-50 text-cocoa rounded-xl px-3 py-2 outline-none border border-beige-dark/50 font-bold text-xs placeholder-gray-300 focus:border-sage focus:bg-white transition-colors pr-9"
                                         onClick={e => e.stopPropagation()}

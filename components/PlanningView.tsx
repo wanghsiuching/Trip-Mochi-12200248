@@ -5,6 +5,7 @@ import { TodoItem, Member, Comment, TravelDocument } from '../types';
 import { MemberAvatar } from './MemberAvatar';
 import { DocumentsView } from './DocumentsView';
 import { PackingList } from './PackingList';
+import { AutoWrapInput } from './AutoWrapInput';
 
 interface PlanningViewProps {
   lists: { 
@@ -318,15 +319,16 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
             <div className="mb-6 bg-white p-4 rounded-[2rem] shadow-hard-sm border-2 border-beige-dark space-y-3 flex-shrink-0">
                 <div className="flex gap-2 items-start">
                     <div className="flex-1 min-w-0 space-y-2">
-                        <textarea
+                        <AutoWrapInput
+                            allowNewlines
                             value={newItem} 
                             onChange={e => setNewItem(e.target.value)} 
                             placeholder={getPlaceholderText()} 
-                            className="w-full bg-beige/50 text-cocoa rounded-xl px-4 py-3.5 text-base outline-none focus:border-sage border-2 border-beige-dark font-bold placeholder-gray-300 transition-colors resize-none h-[54px] leading-tight"
+                            className="w-full bg-beige/50 text-cocoa rounded-xl px-4 py-3.5 text-base outline-none focus:border-sage border-2 border-beige-dark font-bold placeholder-gray-300 transition-colors min-h-[54px] leading-tight"
                         />
                         {showExtraInput && (
                             <div className="space-y-2 animate-scale-in">
-                                <input 
+                                <AutoWrapInput 
                                     type="text" 
                                     value={newNote} 
                                     onChange={e => setNewNote(e.target.value)} 
@@ -335,7 +337,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                 />
                                 <div className="relative">
                                     <Link size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"/>
-                                    <input 
+                                    <AutoWrapInput 
                                         type="text" 
                                         value={newUrl} 
                                         onChange={e => setNewUrl(e.target.value)} 
@@ -426,15 +428,16 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                 <div className="flex-1 min-w-0">
                                     {editingId === item.id ? (
                                         <div className="flex flex-col gap-2">
-                                            <textarea 
+                                            <AutoWrapInput 
+                                                allowNewlines
                                                 value={editingForm.text} 
                                                 onChange={(e) => setEditingForm({...editingForm, text: e.target.value})}
-                                                className="w-full bg-beige/50 text-cocoa border-2 border-sage rounded-lg px-2 py-1 outline-none text-sm font-bold resize-none h-20"
+                                                className="w-full bg-beige/50 text-cocoa border-2 border-sage rounded-lg px-2 py-1 outline-none text-sm font-bold min-h-[80px]"
                                                 autoFocus
                                                 placeholder="事項名稱"
                                                 onClick={(e) => e.stopPropagation()}
                                             />
-                                            <input 
+                                            <AutoWrapInput 
                                                 type="text" 
                                                 value={editingForm.note} 
                                                 onChange={(e) => setEditingForm({...editingForm, note: e.target.value})}
@@ -442,7 +445,7 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
                                                 placeholder="備註"
                                                 onClick={(e) => e.stopPropagation()}
                                             />
-                                            <input 
+                                            <AutoWrapInput 
                                                 type="text" 
                                                 value={editingForm.url} 
                                                 onChange={(e) => setEditingForm({...editingForm, url: e.target.value})}
@@ -592,10 +595,14 @@ export const PlanningView: React.FC<PlanningViewProps> = ({
 
                                 {/* Input Field */}
                                 <div className="relative">
-                                    <input 
+                                    <AutoWrapInput 
                                         value={currentDraft}
                                         onChange={e => handleInlineCommentChange(item.id, e.target.value)}
-                                        onKeyDown={e => e.key === 'Enter' && submitInlineComment(e, item)}
+                                        onKeyDown={e => {
+                                            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                                                submitInlineComment(e as any, item);
+                                            }
+                                        }}
                                         placeholder={`用 ${currentAuthor?.name} 的身份留言...`}
                                         className="w-full bg-gray-50 text-cocoa rounded-xl px-3 py-2 outline-none border border-beige-dark/50 font-bold text-xs placeholder-gray-300 focus:border-sage focus:bg-white transition-colors pr-9"
                                         onClick={e => e.stopPropagation()}

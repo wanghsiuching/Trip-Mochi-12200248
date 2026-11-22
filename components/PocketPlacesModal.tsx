@@ -10,6 +10,7 @@ import { PocketItem, TripDay } from '../types';
 import { Lightbox } from './Lightbox';
 import { DeleteItemConfirmModal } from './modals/DeleteItemConfirmModal';
 import { compressImageToBase64, uploadOrCompressImage, calculateImageBudget, compressBase64IfNeeded } from '../utils/imageService';
+import { AutoWrapInput } from './AutoWrapInput';
 
 interface FormImageItem {
   id: string;
@@ -881,7 +882,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
           <div className="mt-3 flex items-center gap-2">
             <div className="relative flex-1">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input
+              <AutoWrapInput
                 type="text"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
@@ -894,7 +895,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                     ? '搜尋伴手禮、商品、店名、備註...'
                     : '搜尋口袋名單店名、地址、備註、標籤、預算...'
                 }
-                className="w-full bg-gray-50 pl-9 pr-3 py-2 rounded-xl text-xs font-bold border border-gray-200 focus:border-sage outline-none"
+                className="w-full bg-gray-50 pl-9 pr-8 py-2 rounded-xl text-xs font-bold border border-gray-200 focus:border-sage outline-none"
               />
               {searchQuery && (
                 <button 
@@ -1304,7 +1305,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                 <label className="text-xs font-black text-gray-400 block mb-1">
                   {formData.category === 'food' ? '餐廳 / 美食店名 *' : formData.category === 'spot' ? '景點 / 地點名稱 *' : '商品 / 伴手禮 / 店家名稱 *'}
                 </label>
-                <input
+                <AutoWrapInput
                   type="text"
                   required
                   value={formData.title}
@@ -1326,7 +1327,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
                   {formData.category === 'shopping' ? '購買地點 / 店家地址' : '地址 / 地點'}
                 </label>
                 <div className="relative">
-                  <input
+                  <AutoWrapInput
                     type="text"
                     value={formData.location}
                     onChange={e => setFormData({ ...formData, location: e.target.value })}
@@ -1341,7 +1342,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
               <div>
                 <label className="text-xs font-black text-gray-400 block mb-1">超連結 (網址)</label>
                 <div className="relative">
-                  <input
+                  <AutoWrapInput
                     type="text"
                     value={formData.url}
                     onChange={e => setFormData({ ...formData, url: e.target.value })}
@@ -1355,7 +1356,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
               {/* Tags */}
               <div>
                 <label className="text-xs font-black text-gray-400 block mb-1">標籤分類</label>
-                <input
+                <AutoWrapInput
                   type="text"
                   value={formData.tag}
                   onChange={e => setFormData({ ...formData, tag: e.target.value })}
@@ -1537,7 +1538,7 @@ export const PocketPlacesModal: React.FC<PocketPlacesModalProps> = ({
               {/* Price / Budget Range */}
               <div>
                 <label className="text-xs font-black text-gray-400 block mb-1">預算 / 價格區間 (可選)</label>
-                <input
+                <AutoWrapInput
                   type="text"
                   value={formData.priceRange}
                   onChange={e => setFormData({ ...formData, priceRange: e.target.value })}

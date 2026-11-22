@@ -14,6 +14,7 @@ import {
   Currency 
 } from '../types';
 import { TimePickerField } from './TimePickerComponents';
+import { AutoWrapInput } from './AutoWrapInput';
 import { getExchangeRate, POPULAR_CURRENCIES } from '../utils/currency';
 
 export const TRANSPORT_TYPE_CONFIG: Record<UniversalTransportType, {
@@ -997,7 +998,7 @@ export const TransitLegEditor: React.FC<{
                   <label className="text-[9px] font-bold text-gray-400 block mb-0.5">
                     {index > 0 ? '出發站 (自動繼承上段)' : '出發站'}
                   </label>
-                  <input
+                  <AutoWrapInput
                     value={leg.fromStation}
                     onChange={e => updateLeg(leg.id, 'fromStation', e.target.value)}
                     placeholder="e.g., Tokyo / 新宿"
@@ -1006,7 +1007,7 @@ export const TransitLegEditor: React.FC<{
                 </div>
                 <div className="bg-beige/40 p-2 rounded-xl border border-beige-dark">
                   <label className="text-[9px] font-bold text-gray-400 block mb-0.5">抵達站</label>
-                  <input
+                  <AutoWrapInput
                     value={leg.toStation}
                     onChange={e => updateLeg(leg.id, 'toStation', e.target.value)}
                     placeholder="e.g., Kyoto / 箱根湯本"
@@ -1035,7 +1036,7 @@ export const TransitLegEditor: React.FC<{
               <div className="grid grid-cols-2 gap-2">
                 <div className="bg-beige/40 p-2 rounded-xl border border-beige-dark">
                   <label className="text-[9px] font-bold text-gray-400 block mb-0.5">車次 / 班號 (選填)</label>
-                  <input
+                  <AutoWrapInput
                     value={leg.serviceNumber || ''}
                     onChange={e => updateLeg(leg.id, 'serviceNumber', e.target.value)}
                     placeholder="e.g., Nozomi 21"
@@ -1044,7 +1045,7 @@ export const TransitLegEditor: React.FC<{
                 </div>
                 <div className="bg-beige/40 p-2 rounded-xl border border-beige-dark">
                   <label className="text-[9px] font-bold text-gray-400 block mb-0.5">月台 / 閘口 (選填)</label>
-                  <input
+                  <AutoWrapInput
                     value={leg.platform || ''}
                     onChange={e => updateLeg(leg.id, 'platform', e.target.value)}
                     placeholder="e.g., 14號月台 / 2番線"
@@ -1344,8 +1345,7 @@ export const TransitLegEditor: React.FC<{
                           <span className="w-5 h-5 rounded-full bg-blue-200/80 text-blue-900 text-[10px] font-black flex items-center justify-center shrink-0">
                             {idx + 1}
                           </span>
-                          <input
-                            type="text"
+                          <AutoWrapInput
                             value={item.name || ''}
                             onChange={e => handleUpdateExtraFee(idx, { name: e.target.value })}
                             placeholder="自訂加價項目 (如：指定席加價 / 額外訂位費 / 行李加價)"
@@ -1433,7 +1433,7 @@ export const TransitLegEditor: React.FC<{
         {/* Notes */}
         <div className="bg-beige/30 p-2.5 rounded-xl border border-beige-dark">
           <label className="text-[9px] font-bold text-gray-400 block mb-0.5">備註 (劃位提醒 / 通票說明)</label>
-          <input
+          <AutoWrapInput
             value={fare.notes || ''}
             onChange={e => setFare(prev => ({ ...prev, notes: e.target.value }))}
             placeholder="e.g., 需提前劃位，憑 Pass 進站"

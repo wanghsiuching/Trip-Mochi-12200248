@@ -7,6 +7,7 @@ import { MemberAvatar } from './MemberAvatar';
 import { getMemberAvatarSrc, getDefaultMemberAvatar } from '../constants/avatars';
 import { getTransitEffectiveFare } from './TransitComponents';
 import { resolveStayDetails } from '../src/utils/splitCost';
+import { AutoWrapInput } from './AutoWrapInput';
 
 interface MembersViewProps {
   members: Member[];
@@ -550,7 +551,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
 
                         <div className="w-full space-y-2 max-w-xs">
                            <label className="text-xs text-gray-400 font-bold ml-1 block">成員姓名</label>
-                           <input 
+                           <AutoWrapInput 
                                value={form.name} 
                                onChange={e => setForm({...form, name: e.target.value})} 
                                type="text" 
