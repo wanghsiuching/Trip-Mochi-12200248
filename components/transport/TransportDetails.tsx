@@ -15,6 +15,7 @@ import {
 import { TransportItemModel, TransportSegmentModel } from './types';
 import { defaultMapProvider } from './MapProvider';
 import { getTransportMeta } from './TransportIcon';
+import { formatTicketAmount } from '../../src/utils/splitCost';
 
 interface TransportDetailsProps {
   item: TransportItemModel;
@@ -240,8 +241,104 @@ export const TransportDetails: React.FC<TransportDetailsProps> = ({
           )}
         </div>
 
-        {/* 費用與服務費 */}
-        {cost !== undefined && cost > 0 && (
+        {/* 費用與服務費 (支援車票張數/手續費/每人分攤明細) */}
+        {item.ticketSummary && (item.ticketSummary.unitPrice > 0 || item.ticketSummary.passUsed === 'pass_free' || (item.ticketSummary.extraItems && item.ticketSummary.extraItems.length > 0)) ? (
+          <div className="p-3 rounded-xl bg-white border border-[#EAE5DA] space-y-1.5 text-xs">
+            <div className="flex items-center justify-between border-b border-[#F2EDE3] pb-1.5">
+              <div className="flex items-center gap-1.5 text-[#5C5447] font-black">
+                <DollarSign size={13} className="text-[#3E7B62]" />
+                <span>車票費用試算明細</span>
+              </div>
+              {item.ticketSummary.isPotential && (
+                <span className="text-[10px] font-black text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-md">
+                  未列入預算
+                </span>
+              )}
+            </div>
+
+            {item.ticketSummary.unitPrice > 0 ? (
+              <>
+                <div className="flex justify-between items-center text-[11px] font-bold text-[#6E6455]">
+                  <span>每張車票（實付）</span>
+                  <span className="font-sans tabular-nums font-black text-[#2D2A26]">
+                    {item.ticketSummary.originalUnitPrice !== undefined && item.ticketSummary.originalUnitPrice > item.ticketSummary.unitPrice && (
+                      <span className="text-[#A89E8E] line-through mr-1.5 font-normal">
+                        {item.ticketSummary.currency} {formatTicketAmount(item.ticketSummary.originalUnitPrice)}
+                      </span>
+                    )}
+                    {item.ticketSummary.currency} {formatTicketAmount(item.ticketSummary.unitPrice)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center text-[11px] font-bold text-[#6E6455]">
+                  <span>車票張數</span>
+                  <span className="font-sans tabular-nums font-black text-[#2D2A26]">
+                    共 {item.ticketSummary.ticketCount} 張
+                  </span>
+                </div>
+                {item.ticketSummary.hasServiceFee && item.ticketSummary.feeAmount > 0 && (
+                  <div className="flex justify-between items-center text-[11px] font-bold text-[#6E6455]">
+                    <span>＋ 手續費 ({item.ticketSummary.serviceFeePercentage}%)</span>
+                    <span className="font-sans tabular-nums font-black text-[#2D2A26]">
+                      {item.ticketSummary.currency} {formatTicketAmount(item.ticketSummary.feeAmount)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center text-[11px] font-bold text-[#6E6455]">
+                  <span>車票總計</span>
+                  <span className="font-sans tabular-nums font-black text-[#2D2A26]">
+                    {item.ticketSummary.currency} {formatTicketAmount(item.ticketSummary.ticketTotalWithFee)}
+                    {item.ticketSummary.totalTWD !== undefined && (
+                      <span className="text-[10px] text-[#8C8272] font-normal ml-1">
+                        (約 NT$ {item.ticketSummary.totalTWD.toLocaleString()})
+                      </span>
+                    )}
+                  </span>
+                </div>
+              </>
+            ) : item.ticketSummary.passUsed === 'pass_free' ? (
+              <div className="flex justify-between items-center text-[11px] font-bold text-[#2E5A44]">
+                <span>票種優惠</span>
+                <span className="font-black">Pass 全包（實付 {item.ticketSummary.currency} 0 · 共 {item.ticketSummary.ticketCount} 張）</span>
+              </div>
+            ) : null}
+
+            {item.ticketSummary.extraItems && item.ticketSummary.extraItems.length > 0 && (
+              <div className="pt-1 border-t border-dashed border-[#EFEAE0] space-y-1">
+                {item.ticketSummary.extraItems.map((extra) => (
+                  <div key={extra.id} className="flex justify-between items-center text-[11px] font-bold text-blue-800">
+                    <span>
+                      • {extra.name}（每人）
+                      {extra.hasServiceFee && extra.serviceFeePercentage > 0 && (
+                        <span className="text-[10px] text-blue-600 font-normal ml-1">(含{extra.serviceFeePercentage}%)</span>
+                      )}
+                    </span>
+                    <span className="font-sans tabular-nums font-black">
+                      {extra.currency} {formatTicketAmount(extra.totalWithFee)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {item.ticketSummary.perPerson !== null && item.ticketSummary.perPerson > 0 && (
+              <div className="flex justify-between items-center pt-1.5 border-t border-[#EAE5DA]">
+                <span className="text-xs font-bold text-[#5C5447]">
+                  每人應付（{item.ticketSummary.peopleCount} 人分攤）
+                </span>
+                <div className="text-right">
+                  <span className="font-sans tabular-nums tracking-tight text-sm sm:text-base font-black text-[#2E5A44]">
+                    {item.ticketSummary.currency} {formatTicketAmount(item.ticketSummary.perPerson)}
+                  </span>
+                  {item.ticketSummary.perPersonTWD !== undefined && (
+                    <span className="block text-[10px] font-bold text-[#4A7C59] font-sans tabular-nums">
+                      約 NT$ {item.ticketSummary.perPersonTWD.toLocaleString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : cost !== undefined && cost > 0 && (
           <div className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-[#EAE5DA]">
             <div className="flex items-center gap-1.5 text-[#5C5447] font-bold">
               <DollarSign size={13} className="text-[#3E7B62]" />

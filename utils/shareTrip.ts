@@ -1,5 +1,5 @@
 import { ScheduleItem, TripDate, TransitLeg } from '../types';
-import { resolveStayDetails } from '../src/utils/splitCost';
+import { resolveStayDetails, resolveTransitDetails, formatTicketAmount } from '../src/utils/splitCost';
 
 const DIVIDER = '━━━━━━━━━━━━━━';
 
@@ -312,14 +312,18 @@ export const formatTripAsText = ({
           }
 
           // 費用
-          const fare = item.transitDetails?.fare;
-          if (fare) {
-            const numDisc = Number(fare.discountedPrice);
-            const numOrig = Number(fare.originalPrice);
-            const price = !isNaN(numDisc) && numDisc > 0 ? numDisc : (!isNaN(numOrig) && numOrig > 0 ? numOrig : null);
-            if (price !== null) {
-              const curr = fare.currency || 'TWD';
-              itemBlock.push(`\n💰 車資：${curr} ${formatMoney(price)}／人`);
+          if (item.transitDetails) {
+            const resolvedTransit = resolveTransitDetails(item.transitDetails, []);
+            if (resolvedTransit.unitPrice > 0) {
+              if (resolvedTransit.ticketCount > 1) {
+                itemBlock.push(
+                  `\n💰 車資：每張 ${resolvedTransit.currency} ${formatTicketAmount(resolvedTransit.unitPrice)} × ${resolvedTransit.ticketCount} 張（總計 ${resolvedTransit.currency} ${formatTicketAmount(resolvedTransit.split.sum)}）`
+                );
+              } else {
+                itemBlock.push(
+                  `\n💰 車資：${resolvedTransit.currency} ${formatTicketAmount(resolvedTransit.split.sum)}／張`
+                );
+              }
             }
           } else if (isCar && Number(item.carRental?.rentalCost) > 0) {
             const curr = item.carRental.rentalCurrency || 'TWD';

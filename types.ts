@@ -94,6 +94,7 @@ export interface TransitFareDetails {
   extraFeeHasServiceFee?: boolean;              // 自訂加價項目是否含有手續費
   extraFeeServiceFeePercentage?: number | string; // 自訂加價手續費百分比
   extraFeeServiceFee?: number;                  // 自訂加價手續費金額
+  ticketCount?: number | string;                // 車票張數（預設與分攤人數相同，可自訂如 4 張）
   notes?: string;             // 備註 (e.g., "需提前劃位，持有 JR Pass")
 }
 
@@ -242,6 +243,7 @@ export interface ScheduleItem {
     legs: TransitLeg[];
     fare: TransitFareDetails;
     isPotential?: boolean;
+    includeInBudget?: boolean;
     participants?: string[];
   };
   stayDetails?: StayDetails;

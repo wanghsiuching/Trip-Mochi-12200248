@@ -2,9 +2,8 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { X, Coins } from 'lucide-react';
 import { ScheduleItem, Currency, Member } from '../../types';
-import { getTransitEffectiveFare } from '../TransitComponents';
 import { MemberAvatar } from '../MemberAvatar';
-import { resolveStayDetails } from '../../src/utils/splitCost';
+import { resolveStayDetails, resolveTransitDetails, formatTicketAmount } from '../../src/utils/splitCost';
 
 export const PotentialExpensesModal = ({ 
     isOpen, onClose, items, currencies, members, onJumpToSchedule 
@@ -36,10 +35,11 @@ export const PotentialExpensesModal = ({
         amount: number; 
         originalCurrency: string; 
         type: string; 
-        participants: string[]; 
+        participants: string[];
+        detail?: string;
     }[] = [];
 
-    const processCost = (id: string, date: string, title: string, type: string, cost: number, currency: string, hasFee: boolean, feePct: number, participants: string[] = []) => {
+    const processCost = (id: string, date: string, title: string, type: string, cost: number, currency: string, hasFee: boolean, feePct: number, participants: string[] = [], detail?: string) => {
         const fee = hasFee ? cost * (feePct / 100) : 0;
         const total = cost + fee;
         if (total > 0) {
@@ -66,7 +66,8 @@ export const PotentialExpensesModal = ({
                 amount: total, 
                 originalCurrency: currency, 
                 type,
-                participants 
+                participants,
+                detail,
             });
         }
     };
@@ -121,33 +122,42 @@ export const PotentialExpensesModal = ({
              );
         }
         if (item.type === 'transport') {
-            if (item.transitDetails?.isPotential) {
-                const { mainAmount, mainCurrency, extraAmount, extraCurrency, extraName } = getTransitEffectiveFare(item.transitDetails.fare);
-                const participants = (item.transitDetails.participants && item.transitDetails.participants.length > 0)
-                    ? item.transitDetails.participants
-                    : members.map(m => m.id);
-
-                if (mainAmount > 0) {
-                    processCost(
-                        item.id, item.date,
-                        `${item.title} (大眾交通票價)`, '交通',
-                        mainAmount,
-                        mainCurrency,
-                        item.transitDetails.fare?.hasServiceFee || false,
-                        Number(item.transitDetails.fare?.serviceFeePercentage) || 0,
-                        participants
-                    );
-                }
-                if (extraAmount > 0) {
-                    processCost(
-                        item.id, item.date,
-                        `${item.title} (${extraName})`, '交通',
-                        extraAmount,
-                        extraCurrency,
-                        item.transitDetails.fare?.extraFeeHasServiceFee || false,
-                        Number(item.transitDetails.fare?.extraFeeServiceFeePercentage) || 0,
-                        participants
-                    );
+            if (item.transitDetails) {
+                const resolvedTransit = resolveTransitDetails(item.transitDetails, members);
+                if (resolvedTransit.isPotential) {
+                    if (resolvedTransit.split.exactPerPerson !== null && resolvedTransit.split.exactPerPerson > 0) {
+                        const detailParts = [
+                            `每張 ${resolvedTransit.currency} ${formatTicketAmount(resolvedTransit.unitPrice)} × ${resolvedTransit.ticketCount} 張`,
+                        ];
+                        if (resolvedTransit.feeEnabled && resolvedTransit.feePercentage > 0) {
+                            detailParts.push(`含${resolvedTransit.feePercentage}%手續費`);
+                        }
+                        detailParts.push(`總計 ${resolvedTransit.currency} ${formatTicketAmount(resolvedTransit.split.sum)}`);
+                        detailParts.push(`${resolvedTransit.participantIds.length} 人分攤`);
+                        processCost(
+                            item.id, item.date,
+                            `${item.title} (大眾交通票價)`, '交通',
+                            resolvedTransit.split.exactPerPerson,
+                            resolvedTransit.currency,
+                            false,
+                            0,
+                            resolvedTransit.participantIds,
+                            detailParts.join(' · ')
+                        );
+                    }
+                    resolvedTransit.extraItems.forEach((extraItem) => {
+                        if (extraItem.amount > 0) {
+                            processCost(
+                                item.id, item.date,
+                                `${item.title} (${extraItem.name})`, '交通',
+                                extraItem.amount,
+                                extraItem.currency,
+                                extraItem.hasServiceFee,
+                                extraItem.serviceFeePercentage,
+                                resolvedTransit.participantIds
+                            );
+                        }
+                    });
                 }
             }
             if (item.carRental) {
@@ -266,7 +276,9 @@ export const PotentialExpensesModal = ({
                                     </div>
                                     <div className="flex justify-between items-center pt-1 border-t border-dashed border-gray-100">
                                         <div className="text-[10px] font-bold text-gray-400">
-                                            {p.hasFee ? (
+                                            {p.detail ? (
+                                                <span>{p.detail}</span>
+                                            ) : p.hasFee ? (
                                                 <span>原幣: {p.originalCurrency} {p.cost.toLocaleString()} + {p.feePct}%手續費 = <strong className="text-amber-800 font-sans tabular-nums">{p.originalCurrency} {Math.round(p.amount * 100) / 100}</strong></span>
                                             ) : (
                                                 <span>原幣: {p.originalCurrency} {p.cost.toLocaleString()}</span>

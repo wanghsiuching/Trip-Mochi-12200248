@@ -5,8 +5,7 @@ import { User, PenTool, X, Lock, Plus, Info, DollarSign, Navigation, Calendar, A
 import { AvatarPickerModal } from './AvatarPickerModal';
 import { MemberAvatar } from './MemberAvatar';
 import { getMemberAvatarSrc, getDefaultMemberAvatar } from '../constants/avatars';
-import { getTransitEffectiveFare } from './TransitComponents';
-import { resolveStayDetails } from '../src/utils/splitCost';
+import { resolveStayDetails, resolveTransitDetails, formatTicketAmount } from '../src/utils/splitCost';
 import { AutoWrapInput } from './AutoWrapInput';
 
 interface MembersViewProps {
@@ -73,9 +72,9 @@ export const MembersView: React.FC<MembersViewProps> = ({
       
       let totalConfirmed = 0;
       let totalPotentialOnly = 0;
-      const allBreakdown: { id: string, date: string, title: string, amount: number, type: string, isPotential: boolean, category: 'schedule' | 'expense' }[] = [];
+      const allBreakdown: { id: string, date: string, title: string, amount: number, type: string, isPotential: boolean, category: 'schedule' | 'expense', detail?: string }[] = [];
 
-      const processItemCost = (id: string, date: string, title: string, type: string, cost: number, currency: string, hasFee: boolean, feePct: number, participants: string[], isPotential: boolean) => {
+      const processItemCost = (id: string, date: string, title: string, type: string, cost: number, currency: string, hasFee: boolean, feePct: number, participants: string[], isPotential: boolean, detail?: string) => {
           const base = Number(cost) || 0;
           if (base <= 0) return; // 實付費用為 0 時不計入分攤總計與明細
 
@@ -93,7 +92,7 @@ export const MembersView: React.FC<MembersViewProps> = ({
                   totalConfirmed += twdAmount;
               }
               if (twdAmount > 0 && Math.round(twdAmount) > 0) {
-                  allBreakdown.push({ id, date, title, amount: Math.round(twdAmount), type, isPotential, category: 'schedule' });
+                  allBreakdown.push({ id, date, title, amount: Math.round(twdAmount), type, isPotential, category: 'schedule', detail });
               }
           }
       };
@@ -134,39 +133,48 @@ export const MembersView: React.FC<MembersViewProps> = ({
           }
           if (item.type === 'transport') {
               if (item.transitDetails) {
-                  const { mainAmount, mainCurrency, extraItems } = getTransitEffectiveFare(item.transitDetails.fare);
-                  const participants = (item.transitDetails.participants && item.transitDetails.participants.length > 0)
-                    ? item.transitDetails.participants
-                    : members.map(m => m.id);
-
-                  if (mainAmount > 0) {
+                  const resolvedTransit = resolveTransitDetails(item.transitDetails, members);
+                  if (resolvedTransit.split.exactPerPerson !== null && resolvedTransit.split.exactPerPerson > 0) {
+                    const detailParts = [
+                      `每張 ${resolvedTransit.currency} ${formatTicketAmount(resolvedTransit.unitPrice)} × ${resolvedTransit.ticketCount} 張`,
+                    ];
+                    if (resolvedTransit.feeEnabled && resolvedTransit.feePercentage > 0) {
+                      detailParts.push(`含${resolvedTransit.feePercentage}%手續費`);
+                    }
+                    if (resolvedTransit.participantIds.length !== resolvedTransit.ticketCount) {
+                      detailParts.push(`÷ ${resolvedTransit.participantIds.length} 人`);
+                    }
+                    if (resolvedTransit.split.perPerson !== null) {
+                      detailParts.push(`每人 ${resolvedTransit.currency} ${formatTicketAmount(resolvedTransit.split.perPerson)}`);
+                    }
                     processItemCost(
-                      item.id, 
-                      item.date, 
-                      `${item.title} (大眾交通)`, 
-                      '交通', 
-                      mainAmount, 
-                      mainCurrency, 
-                      item.transitDetails.fare?.hasServiceFee || false, 
-                      Number(item.transitDetails.fare?.serviceFeePercentage) || 0, 
-                      participants, 
-                      item.transitDetails.isPotential || false
+                      item.id,
+                      item.date,
+                      `${item.title} (大眾交通)`,
+                      '交通',
+                      resolvedTransit.split.exactPerPerson,
+                      resolvedTransit.currency,
+                      false,
+                      0,
+                      resolvedTransit.participantIds,
+                      resolvedTransit.isPotential,
+                      detailParts.join(' · ')
                     );
                   }
-                  if (Array.isArray(extraItems) && extraItems.length > 0) {
-                    extraItems.forEach((extraItem) => {
+                  if (resolvedTransit.extraItems.length > 0) {
+                    resolvedTransit.extraItems.forEach((extraItem) => {
                       if (extraItem.amount > 0) {
                         processItemCost(
-                          item.id, 
-                          item.date, 
-                          `${item.title} (${extraItem.name})`, 
-                          '交通', 
-                          extraItem.amount, 
-                          extraItem.currency, 
-                          extraItem.hasServiceFee || false, 
-                          Number(extraItem.serviceFeePercentage) || 0, 
-                          participants, 
-                          item.transitDetails?.isPotential || false
+                          item.id,
+                          item.date,
+                          `${item.title} (${extraItem.name})`,
+                          '交通',
+                          extraItem.amount,
+                          extraItem.currency,
+                          extraItem.hasServiceFee,
+                          extraItem.serviceFeePercentage,
+                          resolvedTransit.participantIds,
+                          resolvedTransit.isPotential
                         );
                       }
                     });
@@ -446,6 +454,11 @@ export const MembersView: React.FC<MembersViewProps> = ({
                                             <span className={`text-[10px] font-bold font-sans tabular-nums ${item.isPotential ? 'text-amber-700/80' : 'text-gray-400'}`}>
                                               {item.type} • {item.date}
                                             </span>
+                                            {item.detail && (
+                                              <span className="text-[10px] font-bold text-sage font-sans tabular-nums">
+                                                {item.detail}
+                                              </span>
+                                            )}
                                         </div>
                                         <div className="text-right flex items-center gap-2 flex-shrink-0">
                                             <span className={`text-sm font-black font-sans tabular-nums tracking-tight ${item.isPotential ? 'text-amber-800' : 'text-cocoa'}`}>

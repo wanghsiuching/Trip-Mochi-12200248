@@ -11,11 +11,18 @@ import {
   TransitLeg, 
   TransitFareDetails, 
   TransitExtraFeeItem,
-  Currency 
+  Currency,
+  Member
 } from '../types';
 import { TimePickerField } from './TimePickerComponents';
 import { AutoWrapInput } from './AutoWrapInput';
 import { getExchangeRate, POPULAR_CURRENCIES } from '../utils/currency';
+import {
+  resolveTransitExtraFeeItems,
+  resolveTransitUnitFare,
+  splitTicketCost,
+  formatTicketAmount
+} from '../src/utils/splitCost';
 
 export const TRANSPORT_TYPE_CONFIG: Record<UniversalTransportType, {
   label: string;
@@ -150,55 +157,7 @@ export interface EffectiveTransitExtraItem {
  * 取得所有標準化的大眾交通加價項目列表 (支援多筆自訂加價與向下相容)
  */
 export const getTransitExtraFeeList = (fare?: TransitFareDetails): EffectiveTransitExtraItem[] => {
-  if (!fare) return [];
-  const list: EffectiveTransitExtraItem[] = [];
-
-  if (Array.isArray(fare.extraFees) && fare.extraFees.length > 0) {
-    fare.extraFees.forEach((item, idx) => {
-      const amt = Number(item.amount) || 0;
-      const curr = item.currency || fare.currency || 'TWD';
-      const name = item.name?.trim() || `加價項目 #${idx + 1}`;
-      const hasFee = item.hasServiceFee || false;
-      const feePct = Number(item.serviceFeePercentage) || 0;
-      const feeAmt = (hasFee && amt > 0) ? (amt * feePct / 100) : 0;
-      const totalWithFee = amt + feeAmt;
-      if (amt > 0 || (item.name && item.name.trim().length > 0)) {
-        list.push({
-          id: item.id || `extra-${idx}`,
-          name,
-          amount: amt,
-          currency: curr,
-          hasServiceFee: hasFee,
-          serviceFeePercentage: feePct,
-          feeAmount: feeAmt,
-          totalWithFee,
-        });
-      }
-    });
-  } else {
-    // 向下相容單筆自訂加價
-    const amt = Number(fare.seatReservationFee) || 0;
-    const curr = fare.seatReservationFeeCurrency || fare.currency || 'TWD';
-    const name = fare.extraFeeName?.trim() || '交通加價';
-    const hasFee = fare.extraFeeHasServiceFee || false;
-    const feePct = Number(fare.extraFeeServiceFeePercentage) || 0;
-    const feeAmt = (hasFee && amt > 0) ? (amt * feePct / 100) : 0;
-    const totalWithFee = amt + feeAmt;
-    if (amt > 0 || (fare.extraFeeName && fare.extraFeeName.trim().length > 0)) {
-      list.push({
-        id: 'legacy-extra-1',
-        name,
-        amount: amt,
-        currency: curr,
-        hasServiceFee: hasFee,
-        serviceFeePercentage: feePct,
-        feeAmount: feeAmt,
-        totalWithFee,
-      });
-    }
-  }
-
-  return list;
+  return resolveTransitExtraFeeItems(fare);
 };
 
 /**
@@ -238,22 +197,7 @@ export const getTransitEffectiveFare = (fare?: TransitFareDetails): {
       extraTotalWithFee: 0,
     };
   }
-  const orig = (fare.originalPrice !== undefined && fare.originalPrice !== '' && fare.originalPrice !== null) ? Number(fare.originalPrice) || 0 : 0;
-  
-  let mainAmount = 0;
-  // 若有明確輸入實際支付金額（包含 0 或 '0'）
-  if (fare.discountedPrice !== undefined && fare.discountedPrice !== '' && fare.discountedPrice !== null) {
-    mainAmount = Math.max(0, Number(fare.discountedPrice) || 0);
-  } else if (fare.passUsed === 'pass_free') {
-    mainAmount = 0;
-  } else if (fare.passUsed === 'pass_discount') {
-    mainAmount = orig > 0 ? Math.round(orig * 0.5 * 100) / 100 : 0;
-  } else if (fare.passUsed === 'point_to_point' || fare.passUsed === 'ic_card') {
-    mainAmount = orig;
-  } else {
-    // 若未填寫實付且未特別指定全額購票，預設實際支出為 0（避免僅輸入原票價作參考時意外產生扣款與分攤項目）
-    mainAmount = 0;
-  }
+  const { unitPrice: mainAmount } = resolveTransitUnitFare(fare);
 
   const mainCurrency = fare.currency || 'TWD';
   const hasServiceFee = fare.hasServiceFee || false;
@@ -299,21 +243,24 @@ export const TransitPassBadge: React.FC<{
   currencies?: Currency[];
 }> = ({ fare, compact = false, currencies = [] }) => {
   const { 
-    originalPrice, 
-    discountedPrice, 
     currency = 'TWD', 
     notes, 
     hasServiceFee, 
     serviceFeePercentage,
+    ticketCount,
   } = fare;
-  const numOrig = originalPrice !== '' && originalPrice !== undefined ? Number(originalPrice) : 0;
-  const numDisc = discountedPrice !== '' && discountedPrice !== undefined ? Number(discountedPrice) : 0;
+  const { originalUnitPrice: numOrig, unitPrice: numDisc } = resolveTransitUnitFare(fare);
+  const resolvedCount =
+    ticketCount !== undefined && ticketCount !== null && String(ticketCount).trim() !== '' && !Number.isNaN(Number(ticketCount))
+      ? Math.max(0, Math.floor(Number(ticketCount)))
+      : 1;
   const hasSavings = numOrig > 0 && numDisc < numOrig;
   const savings = hasSavings ? numOrig - numDisc : 0;
   
   const feePct = Number(serviceFeePercentage) || 0;
-  const feeVal = (hasServiceFee && numDisc > 0) ? (numDisc * feePct / 100) : 0;
-  const totalDiscWithFee = numDisc + feeVal;
+  const ticketSubtotal = numDisc * resolvedCount;
+  const feeVal = (hasServiceFee && ticketSubtotal > 0) ? (ticketSubtotal * feePct / 100) : 0;
+  const totalDiscWithFee = ticketSubtotal + feeVal;
 
   const extraItems = getTransitExtraFeeList(fare);
 
@@ -879,7 +826,23 @@ export const TransitLegEditor: React.FC<{
   fare: TransitFareDetails;
   setFare: React.Dispatch<React.SetStateAction<TransitFareDetails>>;
   currencies: Currency[];
-}> = ({ legs, setLegs, fare, setFare, currencies }) => {
+  participants?: string[];
+  onToggleParticipant?: (id: string) => void;
+  members?: Member[];
+  includeInBudget?: boolean;
+  onChangeIncludeInBudget?: (val: boolean) => void;
+}> = ({
+  legs,
+  setLegs,
+  fare,
+  setFare,
+  currencies,
+  participants,
+  onToggleParticipant,
+  members = [],
+  includeInBudget,
+  onChangeIncludeInBudget,
+}) => {
 
   const addLeg = () => {
     const lastLeg = legs[legs.length - 1];
@@ -910,17 +873,35 @@ export const TransitLegEditor: React.FC<{
     if (type === 'pass_free') {
       setFare(prev => ({ ...prev, passUsed: 'pass_free', discountedPrice: '0' }));
     } else if (type === 'half') {
-      const halfPrice = orig > 0 ? (Math.round(orig * 0.5 * 100) / 100).toString() : '0';
+      const halfPrice = orig > 0 ? (Math.round(orig * 0.5 * 100) / 100).toString() : '';
       setFare(prev => ({ ...prev, passUsed: 'pass_discount', discountedPrice: halfPrice }));
     } else if (type === 'eighty') {
-      const eightyPrice = orig > 0 ? (Math.round(orig * 0.8 * 100) / 100).toString() : '0';
+      const eightyPrice = orig > 0 ? (Math.round(orig * 0.8 * 100) / 100).toString() : '';
       setFare(prev => ({ ...prev, passUsed: 'pass_discount', discountedPrice: eightyPrice }));
     } else if (type === 'ic') {
-      setFare(prev => ({ ...prev, passUsed: 'ic_card', discountedPrice: orig > 0 ? orig.toString() : '' }));
+      setFare(prev => ({ ...prev, passUsed: 'ic_card', discountedPrice: orig > 0 ? orig.toString() : prev.discountedPrice }));
     } else if (type === 'full') {
-      setFare(prev => ({ ...prev, passUsed: 'point_to_point', discountedPrice: orig > 0 ? orig.toString() : '' }));
+      setFare(prev => ({ ...prev, passUsed: 'point_to_point', discountedPrice: orig > 0 ? orig.toString() : prev.discountedPrice }));
     }
   };
+
+  const numOrig = Number(fare.originalPrice) || 0;
+  const numDisc = Number(fare.discountedPrice) || 0;
+  const isPassFreeActive = fare.passUsed === 'pass_free' || (fare.discountedPrice === '0' || fare.discountedPrice === 0);
+  const isHalfActive = !isPassFreeActive && fare.passUsed === 'pass_discount' && numOrig > 0 && numDisc === Math.round(numOrig * 0.5 * 100) / 100;
+  const isEightyActive = !isPassFreeActive && fare.passUsed === 'pass_discount' && numOrig > 0 && numDisc === Math.round(numOrig * 0.8 * 100) / 100;
+  const isFullActive = !isPassFreeActive && !isHalfActive && !isEightyActive && (fare.passUsed === 'point_to_point' || !fare.passUsed);
+
+  const selectedParticipantIds = Array.isArray(participants) ? participants : [];
+  const peopleCount = selectedParticipantIds.length;
+  const hasCustomTicketCount =
+    fare.ticketCount !== undefined &&
+    fare.ticketCount !== null &&
+    String(fare.ticketCount).trim() !== '' &&
+    !Number.isNaN(Number(fare.ticketCount));
+  const effectiveTicketCount = hasCustomTicketCount
+    ? Math.max(0, Math.floor(Number(fare.ticketCount)))
+    : (peopleCount > 0 ? peopleCount : 1);
 
   return (
     <div className="space-y-4">
@@ -1077,20 +1058,20 @@ export const TransitLegEditor: React.FC<{
           <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
             <button
               type="button"
-              onClick={() => applyDiscount('pass_free')}
+              onClick={() => applyDiscount('full')}
               className={`px-2.5 py-1.5 rounded-xl text-xs font-black border transition-all whitespace-nowrap flex items-center gap-1 active:scale-95 ${
-                fare.passUsed === 'pass_free' || fare.discountedPrice === '0' || fare.discountedPrice === 0
-                  ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
-                  : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
+                isFullActive
+                  ? 'bg-cocoa text-white border-cocoa shadow-sm'
+                  : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
               }`}
             >
-              <span>🟢 憑Pass免費 (實付0元)</span>
+              <span>全額原價 (100%)</span>
             </button>
             <button
               type="button"
               onClick={() => applyDiscount('half')}
               className={`px-2.5 py-1.5 rounded-xl text-xs font-black border transition-all whitespace-nowrap flex items-center gap-1 active:scale-95 ${
-                fare.passUsed === 'pass_discount' && Number(fare.discountedPrice) > 0 && Number(fare.originalPrice) > 0 && Number(fare.discountedPrice) === Math.round(Number(fare.originalPrice) * 0.5 * 100) / 100
+                isHalfActive
                   ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
                   : 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'
               }`}
@@ -1100,94 +1081,270 @@ export const TransitLegEditor: React.FC<{
             <button
               type="button"
               onClick={() => applyDiscount('eighty')}
-              className="px-2.5 py-1.5 rounded-xl text-xs font-black border bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200 whitespace-nowrap flex items-center gap-1 active:scale-95"
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-black border transition-all whitespace-nowrap flex items-center gap-1 active:scale-95 ${
+                isEightyActive
+                  ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
+                  : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200'
+              }`}
             >
               <span>八折 (80%)</span>
             </button>
             <button
               type="button"
-              onClick={() => applyDiscount('full')}
-              className="px-2.5 py-1.5 rounded-xl text-xs font-black border bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-200 whitespace-nowrap flex items-center gap-1 active:scale-95"
+              onClick={() => applyDiscount('pass_free')}
+              className={`px-2.5 py-1.5 rounded-xl text-xs font-black border transition-all whitespace-nowrap flex items-center gap-1 active:scale-95 ${
+                isPassFreeActive
+                  ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
+                  : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
+              }`}
             >
-              <span>全額原價 (100%)</span>
+              <span>🟢 憑Pass免費 (實付0元)</span>
             </button>
           </div>
         </div>
 
         {/* Prices Input */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="bg-beige/40 p-2.5 rounded-xl border border-beige-dark">
-            <label className="text-[9px] font-bold text-gray-400 block mb-0.5">每人原票價 (單人牌告價/參考)</label>
-            <div className="flex gap-1.5 items-center">
-              <input
-                type="number"
-                value={fare.originalPrice !== undefined && fare.originalPrice !== null ? fare.originalPrice : ''}
-                onChange={e => setFare(prev => ({ ...prev, originalPrice: e.target.value }))}
-                placeholder="0"
-                className="flex-1 bg-transparent font-sans tabular-nums font-bold text-cocoa text-sm outline-none w-0 min-w-0"
-              />
-              <select
-                value={fare.currency || 'TWD'}
-                onChange={e => setFare(prev => ({ ...prev, currency: e.target.value }))}
-                className="bg-white p-1 rounded-lg border border-beige-dark text-xs font-bold text-cocoa outline-none cursor-pointer"
-              >
-                {Array.from(new Set(['TWD', ...currencies.map(c => c.code), ...POPULAR_CURRENCIES.map(c => c.code)])).map(code => (
-                  <option key={code} value={code}>{code}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div className="bg-beige/40 p-2.5 rounded-xl border border-beige-dark">
-            <label className="text-[9px] font-bold text-gray-400 block mb-0.5">每人實付票價 (單人實際支付)</label>
-            <div className="flex gap-1.5 items-center">
-              <input
-                type="number"
-                value={fare.discountedPrice !== undefined && fare.discountedPrice !== null ? fare.discountedPrice : ''}
-                onChange={e => setFare(prev => ({ ...prev, discountedPrice: e.target.value }))}
-                placeholder="0"
-                className="flex-1 bg-transparent font-sans tabular-nums font-black text-amber-800 text-sm outline-none w-0 min-w-0"
-              />
-              <span className="text-xs font-bold text-gray-500">{fare.currency || 'TWD'}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Service Fee Toggle & Rate (含稅/手續費) */}
-        <div className="flex items-center justify-between bg-beige/40 p-2.5 rounded-xl border border-beige-dark">
-          <div className="flex items-center gap-3">
-            <div 
-              className="flex items-center gap-2 cursor-pointer group" 
-              onClick={() => setFare(prev => ({ ...prev, hasServiceFee: !prev.hasServiceFee }))}
-            >
-              <div className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${fare.hasServiceFee ? 'bg-amber-600' : 'bg-gray-200'}`}>
-                <div className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform duration-200 ease-in-out ${fare.hasServiceFee ? 'translate-x-4' : 'translate-x-0'}`} />
-              </div>
-              <span className="text-xs font-bold text-gray-500 select-none group-hover:text-cocoa transition-colors">
-                含稅 / 手續費
-              </span>
-            </div>
-            {fare.hasServiceFee && (
-              <div className="flex items-center bg-white px-2 py-0.5 rounded-lg border border-beige-dark shadow-xs">
+        <div className="space-y-1.5">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-beige/40 p-2.5 rounded-xl border border-beige-dark">
+              <label className="text-[9px] font-bold text-gray-400 block mb-0.5">每張原票價 (單張牌告/參考)</label>
+              <div className="flex gap-1.5 items-center">
                 <input
                   type="number"
-                  value={fare.serviceFeePercentage !== undefined && fare.serviceFeePercentage !== null ? fare.serviceFeePercentage : ''}
-                  onChange={e => setFare(prev => ({ ...prev, serviceFeePercentage: e.target.value }))}
-                  className="w-10 bg-transparent text-xs font-bold outline-none text-right text-cocoa font-sans tabular-nums"
-                  placeholder="1.5"
+                  inputMode="decimal"
+                  value={fare.originalPrice !== undefined && fare.originalPrice !== null ? fare.originalPrice : ''}
+                  onChange={e => {
+                    const nextOrig = e.target.value;
+                    setFare(prev => {
+                      const prevOrigNum = Number(prev.originalPrice) || 0;
+                      const prevDiscNum = Number(prev.discountedPrice) || 0;
+                      const nextOrigNum = Number(nextOrig) || 0;
+                      let nextDisc = prev.discountedPrice;
+
+                      if (prev.passUsed === 'pass_free') {
+                        nextDisc = '0';
+                      } else if (prev.passUsed === 'pass_discount') {
+                        const isPrevEighty = prevOrigNum > 0 && prevDiscNum === Math.round(prevOrigNum * 0.8 * 100) / 100;
+                        const ratio = isPrevEighty ? 0.8 : 0.5;
+                        nextDisc = nextOrig === '' ? '' : (Math.round(nextOrigNum * ratio * 100) / 100).toString();
+                      } else if (
+                        prev.discountedPrice === '' ||
+                        prev.discountedPrice === undefined ||
+                        prev.discountedPrice === prev.originalPrice ||
+                        prev.passUsed === 'point_to_point' ||
+                        prev.passUsed === 'ic_card'
+                      ) {
+                        nextDisc = nextOrig;
+                      }
+
+                      return {
+                        ...prev,
+                        originalPrice: nextOrig,
+                        discountedPrice: nextDisc,
+                        passUsed: prev.passUsed || 'point_to_point',
+                      };
+                    });
+                  }}
+                  placeholder="0"
+                  className="flex-1 bg-transparent font-sans tabular-nums font-bold text-cocoa text-sm outline-none w-0 min-w-0"
                 />
-                <span className="text-[10px] font-bold text-gray-400 ml-1">%</span>
+                <select
+                  value={fare.currency || 'TWD'}
+                  onChange={e => setFare(prev => ({ ...prev, currency: e.target.value }))}
+                  className="bg-white p-1 rounded-lg border border-beige-dark text-xs font-bold text-cocoa outline-none cursor-pointer"
+                >
+                  {Array.from(new Set(['TWD', ...currencies.map(c => c.code), ...POPULAR_CURRENCIES.map(c => c.code)])).map(code => (
+                    <option key={code} value={code}>{code}</option>
+                  ))}
+                </select>
               </div>
-            )}
-          </div>
-          {fare.hasServiceFee && Number(fare.discountedPrice) > 0 && (
-            <div className="text-right">
-              <span className="text-[9px] text-gray-400 font-bold block leading-none">手續費</span>
-              <span className="text-xs font-black text-amber-800 font-sans tabular-nums">
-                +{fare.currency || 'TWD'} {Math.round(((Number(fare.discountedPrice) || 0) * (Number(fare.serviceFeePercentage) || 0) / 100) * 100) / 100}
-              </span>
             </div>
-          )}
+
+            <div className="bg-beige/40 p-2.5 rounded-xl border border-beige-dark">
+              <label className="text-[9px] font-bold text-gray-400 block mb-0.5">每張實付票價 (單張實際價格)</label>
+              <div className="flex gap-1.5 items-center">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={fare.discountedPrice !== undefined && fare.discountedPrice !== null ? fare.discountedPrice : ''}
+                  onChange={e => {
+                    const nextVal = e.target.value;
+                    setFare(prev => ({
+                      ...prev,
+                      discountedPrice: nextVal,
+                      passUsed:
+                        nextVal === '0'
+                          ? prev.passUsed
+                          : prev.passUsed === 'pass_free' || !prev.passUsed
+                          ? 'point_to_point'
+                          : prev.passUsed,
+                    }));
+                  }}
+                  placeholder="0"
+                  className="flex-1 bg-transparent font-sans tabular-nums font-black text-amber-800 text-sm outline-none w-0 min-w-0"
+                />
+                <span className="text-xs font-bold text-gray-500">{fare.currency || 'TWD'}</span>
+              </div>
+            </div>
+          </div>
+          <p className="text-[11px] font-bold text-gray-500">直接填每張車票的價格，下方會依張數與分攤人數自動計算</p>
+        </div>
+
+        {/* 誰要分攤 & 車票張數（共幾張） */}
+        {onToggleParticipant && members.length > 0 && (
+          <div className="pt-2 border-t border-dashed border-beige-dark space-y-3">
+            <div>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-black text-gray-600">誰要分攤</span>
+                <span className={`text-xs font-black font-sans tabular-nums ${peopleCount > 0 ? 'text-sage-dark' : 'text-red-500'}`}>
+                  {peopleCount > 0 ? `已選 ${peopleCount} 人` : '請至少選 1 人'}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {members.map(m => {
+                  const isSelected = selectedParticipantIds.includes(m.id);
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => onToggleParticipant(m.id)}
+                      className={`min-h-[44px] px-3.5 py-2 rounded-xl text-xs font-bold border-2 transition-all cursor-pointer ${
+                        isSelected
+                          ? 'bg-sage text-white border-sage shadow-sm'
+                          : 'bg-white text-gray-500 border-beige-dark hover:border-sage/50'
+                      }`}
+                    >
+                      {m.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 車票張數（共 N 張） */}
+            <div className="bg-beige/40 p-2.5 rounded-xl border border-beige-dark flex items-center justify-between gap-2 flex-wrap">
+              <div className="min-w-0">
+                <div className="text-xs font-black text-cocoa">車票張數（共幾張）</div>
+                <div className="text-[10px] font-bold text-gray-500">
+                  {hasCustomTicketCount
+                    ? `自訂購買 ${effectiveTicketCount} 張 · 由 ${peopleCount} 人分攤`
+                    : `預設與分攤人數相同（共 ${effectiveTicketCount} 張）`}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                {hasCustomTicketCount && peopleCount > 0 && effectiveTicketCount !== peopleCount && (
+                  <button
+                    type="button"
+                    onClick={() => setFare(prev => ({ ...prev, ticketCount: undefined }))}
+                    className="px-2 py-1 rounded-lg bg-white border border-beige-dark text-[10px] font-black text-sage-dark hover:bg-sage-light/40 transition-colors cursor-pointer"
+                  >
+                    同人數 ({peopleCount})
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFare(prev => ({
+                      ...prev,
+                      ticketCount: Math.max(1, effectiveTicketCount - 1),
+                    }))
+                  }
+                  className="w-8 h-8 rounded-lg bg-white border border-beige-dark font-black text-cocoa hover:bg-gray-50 active:scale-95 transition-all cursor-pointer"
+                  aria-label="減少車票張數"
+                >
+                  -
+                </button>
+                <div className="flex items-center bg-white px-2.5 py-1 rounded-lg border border-beige-dark shadow-2xs">
+                  <input
+                    type="number"
+                    min={1}
+                    inputMode="numeric"
+                    value={effectiveTicketCount}
+                    onChange={e => {
+                      const raw = e.target.value;
+                      if (raw === '') {
+                        setFare(prev => ({ ...prev, ticketCount: undefined }));
+                      } else {
+                        const parsed = Math.max(0, Math.floor(Number(raw) || 0));
+                        setFare(prev => ({ ...prev, ticketCount: parsed }));
+                      }
+                    }}
+                    className="w-10 bg-transparent text-center text-sm font-black text-cocoa outline-none font-sans tabular-nums"
+                  />
+                  <span className="text-[11px] font-bold text-gray-400">張</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setFare(prev => ({
+                      ...prev,
+                      ticketCount: effectiveTicketCount + 1,
+                    }))
+                  }
+                  className="w-8 h-8 rounded-lg bg-white border border-beige-dark font-black text-cocoa hover:bg-gray-50 active:scale-95 transition-all cursor-pointer"
+                  aria-label="增加車票張數"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Service Fee Toggle & Rate (加計刷卡手續費) */}
+        <div className="space-y-1">
+          <div className="flex items-center justify-between bg-beige/40 p-2.5 rounded-xl border border-beige-dark">
+            <div className="flex items-center gap-3">
+              <div 
+                className="flex items-center gap-2 cursor-pointer group" 
+                onClick={() => setFare(prev => {
+                  const nextHasFee = !prev.hasServiceFee;
+                  const hasRate = prev.serviceFeePercentage !== undefined && prev.serviceFeePercentage !== null && String(prev.serviceFeePercentage).trim() !== '';
+                  return {
+                    ...prev,
+                    hasServiceFee: nextHasFee,
+                    serviceFeePercentage: nextHasFee && !hasRate ? '1.5' : prev.serviceFeePercentage,
+                  };
+                })}
+              >
+                <div className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 ease-in-out ${fare.hasServiceFee ? 'bg-amber-600' : 'bg-gray-200'}`}>
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-sm transform transition-transform duration-200 ease-in-out ${fare.hasServiceFee ? 'translate-x-4' : 'translate-x-0'}`} />
+                </div>
+                <span className="text-xs font-bold text-gray-600 select-none group-hover:text-cocoa transition-colors">
+                  加計刷卡手續費
+                </span>
+              </div>
+              {fare.hasServiceFee && (
+                <div className="flex items-center bg-white px-2 py-0.5 rounded-lg border border-beige-dark shadow-xs">
+                  <input
+                    type="number"
+                    step="0.1"
+                    inputMode="decimal"
+                    value={fare.serviceFeePercentage !== undefined && fare.serviceFeePercentage !== null ? fare.serviceFeePercentage : ''}
+                    onChange={e => setFare(prev => ({ ...prev, serviceFeePercentage: e.target.value }))}
+                    className="w-11 bg-transparent text-xs font-bold outline-none text-right text-cocoa font-sans tabular-nums"
+                    placeholder="1.5"
+                  />
+                  <span className="text-[10px] font-bold text-gray-400 ml-1">%</span>
+                </div>
+              )}
+            </div>
+            {fare.hasServiceFee && resolveTransitUnitFare(fare).unitPrice > 0 && (() => {
+              const unitP = resolveTransitUnitFare(fare).unitPrice;
+              const pct = Number(fare.serviceFeePercentage) || 0;
+              const feeTotal = unitP * effectiveTicketCount * (pct / 100);
+              return (
+                <div className="text-right">
+                  <span className="text-[9px] text-gray-400 font-bold block leading-none">手續費合計</span>
+                  <span className="text-xs font-black text-amber-800 font-sans tabular-nums">
+                    +{fare.currency || 'TWD'} {formatTicketAmount(feeTotal)}
+                  </span>
+                </div>
+              );
+            })()}
+          </div>
+          <p className="text-[11px] font-bold text-gray-500 ml-1">預設費率 1.5%（可自訂），算在車票總計上</p>
         </div>
 
         {/* Customizable Extra Fee Section (支援多筆自定義加價項目) */}
@@ -1441,61 +1598,172 @@ export const TransitLegEditor: React.FC<{
           />
         </div>
 
-        {/* Real-time Fare & Currency Conversion Summary */}
+        {/* 自動計算區塊（唯讀，深綠底卡片 - 對齊住宿邏輯） */}
         {(() => {
-          const mainDiscounted = Number(fare.discountedPrice) || 0;
-          const mainFeePct = Number(fare.serviceFeePercentage) || 0;
-          const mainFeeVal = fare.hasServiceFee ? (mainDiscounted * mainFeePct / 100) : 0;
-          const mainTotalWithFee = mainDiscounted + mainFeeVal;
+          const { unitPrice, originalUnitPrice } = resolveTransitUnitFare(fare);
+          const hasPriceInput =
+            (fare.discountedPrice !== undefined && fare.discountedPrice !== null && String(fare.discountedPrice).trim() !== '') ||
+            (fare.originalPrice !== undefined && fare.originalPrice !== null && String(fare.originalPrice).trim() !== '') ||
+            fare.passUsed === 'pass_free';
+          const mainFeePct = fare.hasServiceFee ? (Number(fare.serviceFeePercentage) || 0) : 0;
+          const ticketSplit = splitTicketCost({
+            unitPrice,
+            ticketCount: effectiveTicketCount,
+            feeEnabled: Boolean(fare.hasServiceFee),
+            feeRate: mainFeePct / 100,
+            people: onToggleParticipant ? peopleCount : 1,
+          });
           const mainCurrency = fare.currency || 'TWD';
           const mainRate = getExchangeRate(mainCurrency, currencies);
-          const mainTWD = Math.round(mainTotalWithFee * mainRate);
+          const totalTicketsTWD = Math.round(ticketSplit.sum * mainRate);
+          const perPersonTicketsTWD =
+            ticketSplit.exactPerPerson !== null ? Math.round(ticketSplit.exactPerPerson * mainRate) : null;
 
           const extraItems = getTransitExtraFeeList(fare);
-          let extraTotalTWD = 0;
+          const effectiveSplitPeople = onToggleParticipant ? peopleCount : 1;
+          let extraTotalAcrossPeopleTWD = 0;
+          let extraPerPersonTWD = 0;
           const extraCalculated = extraItems.map(item => {
             const rate = getExchangeRate(item.currency, currencies);
-            const twd = Math.round(item.totalWithFee * rate);
-            extraTotalTWD += twd;
+            const perPersonTwd = Math.round(item.totalWithFee * rate);
+            const totalAcrossPeople = item.totalWithFee * (effectiveSplitPeople > 0 ? effectiveSplitPeople : 1);
+            const totalTwd = Math.round(totalAcrossPeople * rate);
+            extraPerPersonTWD += perPersonTwd;
+            extraTotalAcrossPeopleTWD += totalTwd;
             return {
               ...item,
               rate,
-              twd,
+              perPersonTwd,
+              totalAcrossPeople,
+              totalTwd,
             };
           });
 
-          const totalTransitTWD = mainTWD + extraTotalTWD;
+          const grandTotalTWD = totalTicketsTWD + extraTotalAcrossPeopleTWD;
+          const perPersonGrandTWD =
+            perPersonTicketsTWD !== null ? perPersonTicketsTWD + extraPerPersonTWD : null;
 
-          if (mainDiscounted === 0 && extraCalculated.length === 0) return null;
+          // 若額外加價項目與主票價同幣別，計算同幣別含加價之每人應付
+          const allExtraSameCurrency =
+            extraCalculated.length > 0 && extraCalculated.every(e => e.currency === mainCurrency);
+          const extraSameCurrencyPerPerson = allExtraSameCurrency
+            ? extraCalculated.reduce((acc, e) => acc + e.totalWithFee, 0)
+            : 0;
+          const displayPerPersonSameCurrency =
+            ticketSplit.exactPerPerson !== null
+              ? ticketSplit.exactPerPerson + extraSameCurrencyPerPerson
+              : null;
 
           return (
-            <div className="bg-amber-50/70 p-3 rounded-2xl border-2 border-amber-200/80 space-y-1.5">
-              <div className="flex justify-between items-center text-xs font-bold text-amber-900">
-                <span>車票實付總計 {fare.hasServiceFee && mainFeePct > 0 ? `(含 ${mainFeePct}% 手續費)` : ''}:</span>
-                <span className="font-sans tabular-nums font-black">{mainCurrency} {Math.round(mainTotalWithFee * 100) / 100}</span>
+            <div className="space-y-3 pt-1">
+              <div
+                aria-live="polite"
+                className="bg-[#2D5037] text-white p-4 rounded-2xl shadow-sm space-y-2 border border-[#23402B]"
+              >
+                <div className="flex justify-between items-center text-xs font-bold text-white/85">
+                  <span>每張車票</span>
+                  <span className="font-sans tabular-nums font-black text-white">
+                    {hasPriceInput
+                      ? unitPrice === 0 && originalUnitPrice > 0
+                        ? `${mainCurrency} 0 (憑 Pass 免費 · 原價 ${formatTicketAmount(originalUnitPrice)})`
+                        : `${mainCurrency} ${formatTicketAmount(unitPrice)}`
+                      : '—'}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center text-xs font-bold text-white/85">
+                  <span>× 車票張數</span>
+                  <span className="font-sans tabular-nums font-black text-white">
+                    共 {effectiveTicketCount} 張
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center text-xs font-bold text-white/85">
+                  <span>車票小計（{effectiveTicketCount} 張）</span>
+                  <span className="font-sans tabular-nums font-black text-white">
+                    {hasPriceInput ? `${mainCurrency} ${formatTicketAmount(ticketSplit.subtotal)}` : '—'}
+                  </span>
+                </div>
+
+                {fare.hasServiceFee && (
+                  <div className="flex justify-between items-center text-xs font-bold text-white/85">
+                    <span>＋ 手續費 {mainFeePct}%</span>
+                    <span className="font-sans tabular-nums font-black text-white">
+                      {hasPriceInput ? `${mainCurrency} ${formatTicketAmount(ticketSplit.fee)}` : '—'}
+                    </span>
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center text-xs font-bold text-white/95 pt-1 border-t border-white/15">
+                  <span>車票總計</span>
+                  <span className="font-sans tabular-nums font-black text-white">
+                    {hasPriceInput ? `${mainCurrency} ${formatTicketAmount(ticketSplit.sum)}` : '—'}
+                  </span>
+                </div>
+
+                {extraCalculated.map(item => (
+                  <div key={item.id} className="flex justify-between items-center text-xs font-bold text-emerald-100/95">
+                    <span>
+                      ＋ {item.name}（每人 {item.currency} {formatTicketAmount(item.totalWithFee)}
+                      {effectiveSplitPeople > 1 ? ` × ${effectiveSplitPeople} 人` : ''}）
+                    </span>
+                    <span className="font-sans tabular-nums font-black text-white">
+                      {item.currency} {formatTicketAmount(item.totalAcrossPeople)}
+                    </span>
+                  </div>
+                ))}
+
+                {onToggleParticipant && (
+                  <div className="flex justify-between items-center text-xs font-bold text-white/85">
+                    <span>÷ 分攤人數</span>
+                    <span className="font-sans tabular-nums font-black text-white">
+                      {peopleCount} 人
+                    </span>
+                  </div>
+                )}
+
+                <div className="pt-2.5 mt-1 border-t border-white/20">
+                  <div className="flex justify-between items-baseline gap-2">
+                    <span className="text-sm font-black text-white">每人應付</span>
+                    <span className="text-2xl font-black text-white font-sans tabular-nums tracking-tight">
+                      {hasPriceInput || extraCalculated.length > 0
+                        ? displayPerPersonSameCurrency !== null
+                          ? `${mainCurrency} ${formatTicketAmount(displayPerPersonSameCurrency)}`
+                          : extraCalculated.length > 0 && peopleCount > 0 && perPersonGrandTWD !== null
+                          ? `約 NT$ ${perPersonGrandTWD.toLocaleString('en-US')}`
+                          : '—'
+                        : '—'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] font-bold text-emerald-100/90 mt-1 text-right font-sans tabular-nums">
+                    {onToggleParticipant && peopleCount === 0 && (hasPriceInput || extraCalculated.length > 0)
+                      ? '請至少選 1 人'
+                      : hasPriceInput
+                      ? mainCurrency !== 'TWD' && perPersonGrandTWD !== null
+                        ? `每張 ${mainCurrency} ${formatTicketAmount(unitPrice)} × 共 ${effectiveTicketCount} 張 · 每人約 NT$ ${perPersonGrandTWD.toLocaleString('en-US')}（總計約 NT$ ${grandTotalTWD.toLocaleString('en-US')}）`
+                        : `每張 ${mainCurrency} ${formatTicketAmount(unitPrice)} × 共 ${effectiveTicketCount} 張`
+                      : '輸入每張票價後自動計算'}
+                  </p>
+                </div>
               </div>
-              {mainCurrency !== 'TWD' && mainDiscounted > 0 && (
-                <div className="flex justify-between items-center text-[11px] text-amber-800/80">
-                  <span>車票折合台幣 (匯率 {mainRate}):</span>
-                  <span className="font-sans tabular-nums font-bold">約 NT$ {mainTWD.toLocaleString()}</span>
+
+              {/* 列入預算開關（與住宿一致） */}
+              {onChangeIncludeInBudget !== undefined && typeof includeInBudget === 'boolean' && (
+                <div className="pt-1">
+                  <div
+                    className="flex items-center justify-between cursor-pointer group py-1"
+                    onClick={() => onChangeIncludeInBudget(!includeInBudget)}
+                  >
+                    <span className="text-xs font-bold text-cocoa">列入預算</span>
+                    <div className={`w-11 h-6 rounded-full p-1 transition-colors duration-200 ease-in-out ${includeInBudget ? 'bg-sage' : 'bg-gray-200'}`}>
+                      <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${includeInBudget ? 'translate-x-5' : 'translate-x-0'}`} />
+                    </div>
+                  </div>
+                  <p className="text-[11px] font-bold text-gray-500 ml-0.5">
+                    打開後，這筆會計入成員分攤明細與旅程總預算；關閉則只當潛在花費參考
+                  </p>
                 </div>
               )}
-              {extraCalculated.map(item => (
-                <div key={item.id} className="flex justify-between items-center text-xs font-bold text-blue-900 pt-1 border-t border-dashed border-amber-200">
-                  <span>
-                    {item.name}
-                    {item.hasServiceFee && item.serviceFeePercentage > 0 ? ` (含 ${item.serviceFeePercentage}% 手續費)` : ''}:
-                  </span>
-                  <span className="font-sans tabular-nums font-black">
-                    {item.currency} {Math.round(item.totalWithFee * 100) / 100}
-                    {item.currency !== 'TWD' ? ` (約 NT$ ${item.twd.toLocaleString()})` : ''}
-                  </span>
-                </div>
-              ))}
-              <div className="flex justify-between items-center text-xs font-black text-cocoa pt-1.5 border-t border-amber-300">
-                <span>交通折合總額 (約略 TWD):</span>
-                <span className="font-sans tabular-nums tracking-tight text-sm text-sage">≈ NT$ {totalTransitTWD.toLocaleString()}</span>
-              </div>
             </div>
           );
         })()}

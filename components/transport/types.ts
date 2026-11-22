@@ -77,6 +77,36 @@ export interface TransportSegmentModel {
   };
 }
 
+export interface TransportTicketExtraItem {
+  id: string;
+  name: string;
+  amount: number;
+  currency: string;
+  hasServiceFee: boolean;
+  serviceFeePercentage: number;
+  feeAmount: number;
+  totalWithFee: number;
+}
+
+export interface TransportTicketSummary {
+  unitPrice: number;
+  originalUnitPrice?: number;
+  ticketCount: number;
+  currency: string;
+  hasServiceFee: boolean;
+  serviceFeePercentage: number;
+  feeAmount: number;
+  ticketSubtotal: number;
+  ticketTotalWithFee: number;
+  perPerson: number | null;
+  peopleCount: number;
+  isPotential?: boolean;
+  passUsed?: string;
+  extraItems?: TransportTicketExtraItem[];
+  totalTWD?: number;
+  perPersonTWD?: number;
+}
+
 /**
  * 統一交通卡片資料模型 (TransportItemModel)
  */
@@ -97,6 +127,7 @@ export interface TransportItemModel {
   currency?: string;
   hasServiceFee?: boolean;
   serviceFeePercentage?: number;
+  ticketSummary?: TransportTicketSummary;
   baggage?: {
     checked?: string;
     carryOn?: string;

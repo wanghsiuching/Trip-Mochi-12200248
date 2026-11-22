@@ -14,8 +14,7 @@ import {
 } from '../types';
 import { getExchangeRate } from './currency';
 import { getMemberAvatarSrc } from '../constants/avatars';
-import { getTransitEffectiveFare } from '../components/TransitComponents';
-import { resolveStayDetails } from '../src/utils/splitCost';
+import { resolveStayDetails, resolveTransitDetails } from '../src/utils/splitCost';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
@@ -550,26 +549,23 @@ export const generateTripPdfHtml = (data: TripExportData): string => {
       }
       if (item.type === 'transport') {
         if (item.transitDetails) {
-          const { mainAmount, mainCurrency, extraItems } = getTransitEffectiveFare(item.transitDetails.fare);
-          const participants = (item.transitDetails.participants && item.transitDetails.participants.length > 0)
-            ? item.transitDetails.participants
-            : effectiveMembers.map(m => m.id);
+          const resolvedTransit = resolveTransitDetails(item.transitDetails, effectiveMembers);
 
-          if (mainAmount > 0) {
+          if (resolvedTransit.split.exactPerPerson !== null && resolvedTransit.split.exactPerPerson > 0) {
             processItemCost(
               item.id,
               item.date,
               `${item.title} (大眾交通)`,
               '交通',
-              mainAmount,
-              mainCurrency,
-              item.transitDetails.fare?.hasServiceFee || false,
-              Number(item.transitDetails.fare?.serviceFeePercentage) || 0,
-              participants
+              resolvedTransit.split.exactPerPerson,
+              resolvedTransit.currency,
+              false,
+              0,
+              resolvedTransit.participantIds
             );
           }
-          if (Array.isArray(extraItems) && extraItems.length > 0) {
-            extraItems.forEach(extraItem => {
+          if (resolvedTransit.extraItems.length > 0) {
+            resolvedTransit.extraItems.forEach(extraItem => {
               if (extraItem.amount > 0) {
                 processItemCost(
                   item.id,
@@ -578,9 +574,9 @@ export const generateTripPdfHtml = (data: TripExportData): string => {
                   '交通',
                   extraItem.amount,
                   extraItem.currency,
-                  extraItem.hasServiceFee || false,
-                  Number(extraItem.serviceFeePercentage) || 0,
-                  participants
+                  extraItem.hasServiceFee,
+                  extraItem.serviceFeePercentage,
+                  resolvedTransit.participantIds
                 );
               }
             });

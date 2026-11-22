@@ -1379,7 +1379,7 @@ export default function App() {
                                     )}
                                     {/* Transport Details - Transport Component System */}
                                     {item.type === 'transport' && item.transitDetails && (() => {
-                                        const transportModel = scheduleItemToTransport(item);
+                                        const transportModel = scheduleItemToTransport(item, members, currencies);
                                         return (
                                             <div className="pt-1" onClick={e => e.stopPropagation()}>
                                                 {transportModel ? (

@@ -11,7 +11,7 @@ import { ToggleSwitch } from './ToggleSwitch';
 import { DeleteItemConfirmModal } from './DeleteItemConfirmModal';
 import { getExchangeRate, POPULAR_CURRENCIES } from '../../utils/currency';
 import { compressImageToBase64, uploadOrCompressImage } from '../../utils/imageService';
-import { splitCost, calculateNights, DEFAULT_STAY_FEE_RATE } from '../../src/utils/splitCost';
+import { splitCost, calculateNights, DEFAULT_STAY_FEE_RATE, resolveTransitDetails } from '../../src/utils/splitCost';
 import { AutoWrapInput } from '../AutoWrapInput';
 
 const CuteButton = ({ checked, onChange, icon: Icon, label, activeColor = 'bg-orange-100 text-orange-500 border-orange-200' }: any) => (
@@ -143,7 +143,7 @@ export const AddScheduleModal = ({
     { id: '1', fromStation: '', toStation: '', departureTime: '09:00', arrivalTime: '', transportType: 'train', serviceNumber: '', platform: '' }
   ]);
   const [transitFare, setTransitFare] = useState<TransitFareDetails>({
-    passUsed: 'pass_free',
+    passUsed: 'point_to_point',
     originalPrice: '',
     discountedPrice: '',
     currency: 'TWD',
@@ -326,7 +326,10 @@ export const AddScheduleModal = ({
               notes: ''
             });
             setTransitParticipants(initialData.transitDetails.participants && initialData.transitDetails.participants.length > 0 ? initialData.transitDetails.participants : members.map(m => m.id));
-            setIsTransitPotential(initialData.transitDetails.isPotential || false);
+            const editIncludeInBudget = typeof initialData.transitDetails.includeInBudget === 'boolean'
+              ? initialData.transitDetails.includeInBudget
+              : !(initialData.transitDetails.isPotential ?? false);
+            setIsTransitPotential(!editIncludeInBudget);
         } else if (initialData.carRental?.hasRental) {
             setTransportMode('rental');
             setTransitParticipants(members.map(m => m.id));
@@ -397,6 +400,7 @@ export const AddScheduleModal = ({
           { id: '1', fromStation: '', toStation: '', departureTime: '09:00', arrivalTime: '', transportType: 'train', serviceNumber: '', platform: '' }
         ]);
         setTransitFare({
+          passUsed: 'point_to_point',
           originalPrice: '',
           discountedPrice: '',
           currency: 'TWD',
@@ -595,12 +599,27 @@ export const AddScheduleModal = ({
     }
     if (selectedType === 'transport') {
       if (transportMode === 'transit') {
+        const resolvedCheck = resolveTransitDetails({
+          legs: transitLegs,
+          fare: transitFare,
+          participants: transitParticipants,
+          isPotential: isTransitPotential,
+          includeInBudget: !isTransitPotential,
+        }, []);
+        const hasTransitExpense =
+          resolvedCheck.unitPrice > 0 ||
+          resolvedCheck.extraItems.some(e => e.amount > 0);
+        if (hasTransitExpense && transitParticipants.length === 0) {
+          setSaveError('請至少選 1 位分攤人員');
+          return;
+        }
         const effectiveDepartureTime = transitLegs[0]?.departureTime || finalTime;
         const updatedLegs = transitLegs.map((leg, idx) => (idx === 0) ? { ...leg, departureTime: effectiveDepartureTime } : leg);
         itemData.transitDetails = {
           legs: updatedLegs,
           fare: transitFare,
           participants: transitParticipants,
+          includeInBudget: !isTransitPotential,
           isPotential: isTransitPotential
         };
         itemData.time = effectiveDepartureTime;
@@ -1199,27 +1218,20 @@ export const AddScheduleModal = ({
                                legs={transitLegs}
                                setLegs={handleSetTransitLegs}
                                fare={transitFare}
-                               setFare={setTransitFare}
+                               setFare={(nextFare) => {
+                                 setTransitFare(nextFare);
+                                 if (saveError) setSaveError(null);
+                               }}
                                currencies={currencies}
+                               participants={transitParticipants}
+                               onToggleParticipant={(id) => {
+                                 toggleParticipant(id, setTransitParticipants);
+                                 if (saveError) setSaveError(null);
+                               }}
+                               members={members}
+                               includeInBudget={!isTransitPotential}
+                               onChangeIncludeInBudget={(val) => setIsTransitPotential(!val)}
                              />
-
-                             <div className="bg-white p-3.5 rounded-2xl border-2 border-beige-dark shadow-sm space-y-3">
-                                 <div>
-                                     <label className="text-[10px] font-black text-gray-400 block mb-1">參與分攤人員</label>
-                                     <ParticipantsSelector
-                                       selected={transitParticipants}
-                                       toggle={(id) => toggleParticipant(id, setTransitParticipants)}
-                                     />
-                                 </div>
-                                 <div className="pt-2 border-t border-dashed border-beige-dark">
-                                     <ToggleSwitch
-                                       checked={isTransitPotential}
-                                       onChange={setIsTransitPotential}
-                                       label="列入潛在花費 (預算參考)"
-                                       colorClass="bg-yellow-400"
-                                     />
-                                 </div>
-                             </div>
                          </div>
                      )}
 

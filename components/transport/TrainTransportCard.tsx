@@ -15,6 +15,7 @@ import { TransportItemModel, TransportSegmentModel } from './types';
 import { defaultMapProvider } from './MapProvider';
 import { TransportDetails } from './TransportDetails';
 import { getTransportMeta } from './TransportIcon';
+import { formatTicketAmount } from '../../src/utils/splitCost';
 
 interface TrainTransportCardProps {
   item: TransportItemModel;
@@ -252,49 +253,148 @@ export const TrainTransportCard: React.FC<TrainTransportCardProps> = ({
       {/* ========================================================================= */}
       {/* 三、摘要快速標籤列 (月台 / 車廂 / 座位 / 席等 / 票價)                       */}
       {/* ========================================================================= */}
-      <div className="mt-1 pt-2.5 border-t border-[#EFECE4] flex items-center justify-between text-[11px] font-bold text-[#6D6357] flex-wrap gap-2">
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* 車廂 / 艙位 */}
-          {item.carriage && (
-            <span className="flex items-center gap-1 text-[#3E7B62] bg-[#EAF3EE] px-2 py-0.5 rounded-lg border border-[#D6E6DC]">
-              <span>{carriageEmoji}</span>
-              <span>{item.carriage.includes('車') || item.carriage.includes('艙') ? item.carriage : `${item.carriage}車`}</span>
-            </span>
-          )}
+      {(() => {
+        const ts = item.ticketSummary;
+        const hasRichTicketSummary = Boolean(
+          ts && (ts.unitPrice > 0 || ts.passUsed === 'pass_free' || (ts.extraItems && ts.extraItems.length > 0))
+        );
+        const hasTags = Boolean(item.carriage || item.seat || item.classType || item.bookingReference);
+        const hasPlainCost = !ts && item.cost !== undefined && item.cost > 0;
 
-          {/* 座位 */}
-          {item.seat && (
-            <span className="flex items-center gap-1 text-[#4A443B] bg-white px-2 py-0.5 rounded-lg border border-[#E5DFD4]">
-              <span>💺</span>
-              <span>{item.seat}</span>
-            </span>
-          )}
+        if (!hasTags && !hasPlainCost && !hasRichTicketSummary) return null;
 
-          {/* 席別 */}
-          {item.classType && (
-            <span className="flex items-center gap-1 text-[#785E43] bg-[#F7F3EB] px-2 py-0.5 rounded-lg border border-[#E9E1D2]">
-              <span>🎫</span>
-              <span>{item.classType}</span>
-            </span>
-          )}
+        return (
+          <div className="mt-1 pt-2.5 border-t border-[#EFECE4] space-y-2 text-[11px] font-bold text-[#6D6357]">
+            {(hasTags || hasPlainCost) && (
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* 車廂 / 艙位 */}
+                  {item.carriage && (
+                    <span className="flex items-center gap-1 text-[#3E7B62] bg-[#EAF3EE] px-2 py-0.5 rounded-lg border border-[#D6E6DC]">
+                      <span>{carriageEmoji}</span>
+                      <span>{item.carriage.includes('車') || item.carriage.includes('艙') ? item.carriage : `${item.carriage}車`}</span>
+                    </span>
+                  )}
 
-          {/* 訂位代碼 */}
-          {item.bookingReference && (
-            <span className="flex items-center gap-1 text-[#5A5040] bg-white px-2 py-0.5 rounded-lg border border-[#E5DFD4] font-sans tabular-nums tracking-tight">
-              <Hash size={10} className="text-[#8C806F]" />
-              <span>{item.bookingReference}</span>
-            </span>
-          )}
-        </div>
+                  {/* 座位 */}
+                  {item.seat && (
+                    <span className="flex items-center gap-1 text-[#4A443B] bg-white px-2 py-0.5 rounded-lg border border-[#E5DFD4]">
+                      <span>💺</span>
+                      <span>{item.seat}</span>
+                    </span>
+                  )}
 
-        {/* 費用 */}
-        {item.cost !== undefined && item.cost > 0 && (
-          <div className="flex items-center gap-0.5 font-sans tabular-nums tracking-tight text-xs sm:text-sm font-black text-[#2E5A44] ml-auto">
-            <DollarSign size={12} className="-mr-0.5" />
-            <span>{item.currency || 'TWD'} {Number(item.cost).toLocaleString()}</span>
+                  {/* 席別 */}
+                  {item.classType && (
+                    <span className="flex items-center gap-1 text-[#785E43] bg-[#F7F3EB] px-2 py-0.5 rounded-lg border border-[#E9E1D2]">
+                      <span>🎫</span>
+                      <span>{item.classType}</span>
+                    </span>
+                  )}
+
+                  {/* 訂位代碼 */}
+                  {item.bookingReference && (
+                    <span className="flex items-center gap-1 text-[#5A5040] bg-white px-2 py-0.5 rounded-lg border border-[#E5DFD4] font-sans tabular-nums tracking-tight">
+                      <Hash size={10} className="text-[#8C806F]" />
+                      <span>{item.bookingReference}</span>
+                    </span>
+                  )}
+                </div>
+
+                {/* 非車票摘要項目沿用單行費用顯示 */}
+                {hasPlainCost && (
+                  <div className="flex items-center gap-0.5 font-sans tabular-nums tracking-tight text-xs sm:text-sm font-black text-[#2E5A44] ml-auto">
+                    <DollarSign size={12} className="-mr-0.5" />
+                    <span>{item.currency || 'TWD'} {Number(item.cost).toLocaleString()}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 車票分攤摘要列 (比照住宿邏輯：單價 × 張數、總計、每人應付) */}
+            {hasRichTicketSummary && ts && (
+              <div className="rounded-2xl bg-[#F6F3EB] border border-[#E8E0D1] px-3 py-2.5 flex flex-wrap items-center justify-between gap-2.5">
+                <div className="space-y-1 min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {ts.unitPrice > 0 ? (
+                      <span className="text-xs sm:text-[13px] font-black text-[#3F3930] font-sans tabular-nums">
+                        每張車票 {ts.currency} {formatTicketAmount(ts.unitPrice)} · 共 {ts.ticketCount} 張
+                      </span>
+                    ) : (
+                      <span className="text-xs font-black text-[#2E5A44] bg-[#E8F2EC] border border-[#CBE0D3] px-2 py-0.5 rounded-lg">
+                        Pass 全包 (實付 {ts.currency} 0) · 共 {ts.ticketCount} 張
+                      </span>
+                    )}
+
+                    {ts.originalUnitPrice !== undefined && ts.originalUnitPrice > ts.unitPrice && (
+                      <span className="text-[10px] text-[#9B9080] line-through font-sans tabular-nums">
+                        原 {ts.currency} {formatTicketAmount(ts.originalUnitPrice)}
+                      </span>
+                    )}
+
+                    {ts.hasServiceFee && ts.serviceFeePercentage > 0 && ts.unitPrice > 0 && (
+                      <span className="text-[10px] font-black text-[#8C6219] bg-[#FFF8EB] border border-[#F3E3C6] px-1.5 py-0.5 rounded-md">
+                        含 {ts.serviceFeePercentage}% 手續費
+                      </span>
+                    )}
+
+                    {ts.isPotential && (
+                      <span className="text-[10px] font-black text-amber-800 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-md">
+                        未列入預算
+                      </span>
+                    )}
+                  </div>
+
+                  {ts.ticketTotalWithFee > 0 && (
+                    <div className="text-[11px] font-bold text-[#6E6455] font-sans tabular-nums flex items-center gap-1.5 flex-wrap">
+                      <span>
+                        總計 {ts.currency} {formatTicketAmount(ts.ticketTotalWithFee)}
+                      </span>
+                      {ts.totalTWD !== undefined && (
+                        <span className="text-[#8C8272]">(約 NT$ {ts.totalTWD.toLocaleString()})</span>
+                      )}
+                      {ts.peopleCount > 0 && (
+                        <span className="text-[#8C8272]">· {ts.peopleCount} 人分攤</span>
+                      )}
+                    </div>
+                  )}
+
+                  {ts.extraItems && ts.extraItems.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {ts.extraItems.map((extra) => (
+                        <span
+                          key={extra.id}
+                          className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-800 bg-blue-50/90 border border-blue-200 px-2 py-0.5 rounded-lg font-sans tabular-nums"
+                        >
+                          <span>+ {extra.name}</span>
+                          <span>{extra.currency} {formatTicketAmount(extra.totalWithFee)}/人</span>
+                          {extra.hasServiceFee && extra.serviceFeePercentage > 0 && (
+                            <span className="text-blue-600">(含{extra.serviceFeePercentage}%)</span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {ts.perPerson !== null && ts.perPerson > 0 && (
+                  <div className="text-right flex-shrink-0 ml-auto">
+                    <span className="text-[10px] font-bold text-[#6E6455] block leading-tight">每人應付</span>
+                    <span className="text-base sm:text-lg font-black text-[#2E5A44] font-sans tabular-nums tracking-tight leading-tight">
+                      {ts.currency} {formatTicketAmount(ts.perPerson)}
+                    </span>
+                    {ts.perPersonTWD !== undefined && (
+                      <span className="block text-[10px] font-bold text-[#4A7C59] font-sans tabular-nums">
+                        約 NT$ {ts.perPersonTWD.toLocaleString()}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        );
+      })()}
 
       {/* ========================================================================= */}
       {/* 四、詳細資訊展開區塊 (含通用手風琴與各段明細)                              */}

@@ -1,6 +1,7 @@
-import { BookingFlight, BookingCarRental, TransitLeg, TransitFareDetails, ScheduleItem, BookingTrain, BookingTicket } from '../../types';
-import { TransportItemModel, TransportSegmentModel, LocationNode, TransferInfo, TransportType } from './types';
+import { BookingFlight, BookingCarRental, TransitLeg, TransitFareDetails, ScheduleItem, BookingTrain, BookingTicket, Member, Currency } from '../../types';
+import { TransportItemModel, TransportSegmentModel, LocationNode, TransferInfo, TransportType, TransportTicketSummary } from './types';
 import { getTransportMeta } from './TransportIcon';
+import { resolveTransitDetails, getRateForCurrency } from '../../src/utils/splitCost';
 
 /**
  * 輔助解析時間 (HH:mm) 差距為可讀字串 (例如 "1h 20m")
@@ -350,7 +351,14 @@ export const transitLegsToTransport = (
   legs: TransitLeg[],
   fare?: TransitFareDetails,
   title?: string,
-  itemId?: string
+  itemId?: string,
+  extraContext?: {
+    members?: Member[];
+    currencies?: Currency[];
+    participants?: string[];
+    isPotential?: boolean;
+    includeInBudget?: boolean;
+  }
 ): TransportItemModel => {
   const safeLegs = Array.isArray(legs) ? legs : [];
   const segments: TransportSegmentModel[] = [];
@@ -424,7 +432,50 @@ export const transitLegsToTransport = (
     totalDuration = calculateDurationBetweenTimes(startTime, endTime);
   }
 
-  const rawFareCost = fare?.discountedPrice !== undefined ? Number(fare.discountedPrice) : Number(fare?.originalPrice || 0);
+  const resolvedTransit = resolveTransitDetails(
+    {
+      legs: safeLegs,
+      fare,
+      participants: extraContext?.participants,
+      isPotential: extraContext?.isPotential,
+      includeInBudget: extraContext?.includeInBudget,
+    },
+    extraContext?.members || []
+  );
+
+  const rate = getRateForCurrency(resolvedTransit.currency, extraContext?.currencies || []);
+  const totalTWD =
+    resolvedTransit.currency !== 'TWD' && resolvedTransit.split.sum > 0
+      ? Math.round(resolvedTransit.split.sum * rate)
+      : undefined;
+  const perPersonTWD =
+    resolvedTransit.currency !== 'TWD' &&
+    resolvedTransit.split.exactPerPerson !== null &&
+    resolvedTransit.split.exactPerPerson > 0
+      ? Math.round(resolvedTransit.split.exactPerPerson * rate)
+      : undefined;
+
+  const ticketSummary: TransportTicketSummary = {
+    unitPrice: resolvedTransit.unitPrice,
+    originalUnitPrice:
+      resolvedTransit.originalUnitPrice > resolvedTransit.unitPrice
+        ? resolvedTransit.originalUnitPrice
+        : undefined,
+    ticketCount: resolvedTransit.ticketCount,
+    currency: resolvedTransit.currency,
+    hasServiceFee: resolvedTransit.feeEnabled,
+    serviceFeePercentage: resolvedTransit.feePercentage,
+    feeAmount: resolvedTransit.split.fee,
+    ticketSubtotal: resolvedTransit.split.subtotal,
+    ticketTotalWithFee: resolvedTransit.split.sum,
+    perPerson: resolvedTransit.split.perPerson,
+    peopleCount: resolvedTransit.participantIds.length,
+    isPotential: resolvedTransit.isPotential,
+    passUsed: resolvedTransit.passUsed,
+    extraItems: resolvedTransit.extraItems.length > 0 ? resolvedTransit.extraItems : undefined,
+    totalTWD,
+    perPersonTWD,
+  };
 
   // 組合座位字串
   const seatParts: string[] = [];
@@ -441,8 +492,11 @@ export const transitLegsToTransport = (
     serviceNumber: primaryService,
     totalDuration,
     segments,
-    cost: rawFareCost,
-    currency: fare?.currency || 'TWD',
+    cost: resolvedTransit.split.sum,
+    currency: resolvedTransit.currency,
+    hasServiceFee: resolvedTransit.feeEnabled,
+    serviceFeePercentage: resolvedTransit.feePercentage,
+    ticketSummary,
     seat: derivedSeat,
     classType: firstLeg?.class || firstLeg?.classType,
     platform: firstLeg?.platform || firstLeg?.departurePlatform,
@@ -451,6 +505,7 @@ export const transitLegsToTransport = (
     arrivalPlatform: safeLegs[safeLegs.length - 1]?.arrivalPlatform,
     bookingReference: firstLeg?.bookingReference,
     note: fare?.notes || firstLeg?.note,
+    participants: resolvedTransit.participantNames.length > 0 ? resolvedTransit.participantNames : undefined,
     rawTransitLegs: safeLegs,
     rawTransitFare: fare,
   };
@@ -516,7 +571,11 @@ export const carRentalToTransport = (car: BookingCarRental): TransportItemModel 
 /**
  * 將 ScheduleItem 轉換為 TransportItemModel (若有相關交通資料)
  */
-export const scheduleItemToTransport = (item: ScheduleItem): TransportItemModel | null => {
+export const scheduleItemToTransport = (
+  item: ScheduleItem,
+  members?: Member[],
+  currencies?: Currency[]
+): TransportItemModel | null => {
   if (!item) return null;
 
   if (item.type === 'flight' && item.flightDetails) {
@@ -603,7 +662,19 @@ export const scheduleItemToTransport = (item: ScheduleItem): TransportItemModel 
   }
 
   if (item.type === 'transport' && item.transitDetails) {
-    return transitLegsToTransport(item.transitDetails.legs, item.transitDetails.fare, item.title, `schedule-transit-${item.id}`);
+    return transitLegsToTransport(
+      item.transitDetails.legs,
+      item.transitDetails.fare,
+      item.title,
+      `schedule-transit-${item.id}`,
+      {
+        members,
+        currencies,
+        participants: item.transitDetails.participants,
+        isPotential: item.transitDetails.isPotential,
+        includeInBudget: item.transitDetails.includeInBudget,
+      }
+    );
   }
 
   if (item.type === 'transport' && (item as any).trainDetails) {

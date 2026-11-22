@@ -10,7 +10,7 @@ import { Lightbox } from '../Lightbox';
 import { TransportCard } from '../transport/TransportCard';
 import { scheduleItemToTransport } from '../transport/adapters';
 import { getExchangeRate } from '../../utils/currency';
-import { resolveStayDetails } from '../../src/utils/splitCost';
+import { resolveStayDetails, resolveTransitDetails } from '../../src/utils/splitCost';
 
 export const ScheduleDetailModal = ({
     isOpen, onClose, item, onEdit, onDelete, currencies, members
@@ -182,7 +182,7 @@ export const ScheduleDetailModal = ({
 
                     {/* Transport Details - Unified Transport System */}
                     {item.type === 'transport' && item.transitDetails && (() => {
-                        const transportModel = scheduleItemToTransport(item);
+                        const transportModel = scheduleItemToTransport(item, members, currencies);
                         return (
                             <div className="space-y-3">
                                 {transportModel ? (
@@ -296,11 +296,14 @@ export const ScheduleDetailModal = ({
                         <div className="flex flex-wrap gap-2">
                             {members.map(m => {
                                 const stayPartIds = item.type === 'stay' ? resolveStayDetails(item.stayDetails, members).participantIds : [];
+                                const transitPartIds = item.type === 'transport' && item.transitDetails
+                                    ? resolveTransitDetails(item.transitDetails, members).participantIds
+                                    : [];
                                 const isParticipant = 
                                     item.type === 'flight' ? (item.flightDetails?.participants ? item.flightDetails.participants.includes(m.id) : true) :
                                     item.type === 'stay' ? (item.stayDetails?.payers || item.stayDetails?.participants ? stayPartIds.includes(m.id) : true) :
                                     item.type === 'transport' ? (
-                                        (item.transitDetails?.participants ? item.transitDetails.participants.includes(m.id) : (item.transitDetails ? true : false)) ||
+                                        (item.transitDetails ? transitPartIds.includes(m.id) : false) ||
                                         (item.carRental?.participants ? item.carRental.participants.includes(m.id) : (item.carRental?.hasRental ? true : false))
                                     ) :
                                     (item.type === 'spot' || item.type === 'food') ? (item.spotDetails?.participants ? item.spotDetails.participants.includes(m.id) : true) : true;
