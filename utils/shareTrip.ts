@@ -237,10 +237,21 @@ export const formatTripAsText = ({
     }
     dayLines.push(DIVIDER);
 
-    // 2. 當日行程項目
+    // 2. 當日行程項目（依行程卡的上下順序排序，不以時間重新排序）
     const dayItems = scheduleItems
-      .filter(item => item.date === day.date)
-      .sort((a, b) => (a.time || '').localeCompare(b.time || ''));
+      .map((item, idx) => ({ item, idx }))
+      .filter(({ item }) => item.date === day.date)
+      .sort((a, b) => {
+        const hasOrderA = typeof a.item.order === 'number';
+        const hasOrderB = typeof b.item.order === 'number';
+        if (hasOrderA && hasOrderB && a.item.order !== b.item.order) {
+          return a.item.order! - b.item.order!;
+        }
+        if (hasOrderA && !hasOrderB) return -1;
+        if (!hasOrderA && hasOrderB) return 1;
+        return a.idx - b.idx;
+      })
+      .map(({ item }) => item);
 
     if (dayItems.length === 0) {
       dayLines.push('');
